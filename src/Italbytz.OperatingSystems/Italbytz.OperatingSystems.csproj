@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Italbytz.OperatingSystems.Abstractions\Italbytz.OperatingSystems.Abstractions.csproj" />
+    <ProjectReference Include="..\Italbytz.OperatingSystems.Resources\Italbytz.OperatingSystems.Resources.csproj" />
+    <ProjectReference Include="..\..\..\nuget-foundation\src\Italbytz.Common.Random\Italbytz.Common.Random.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <PackageId>Italbytz.OperatingSystems</PackageId>
+    <Description>Concrete helpers for scheduling, page replacement, buddy allocation, and realtime scheduling tasks.</Description>
+  </PropertyGroup>
+
+</Project>

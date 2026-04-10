@@ -9,8 +9,11 @@
 - `Italbytz.Networking.Abstractions`
 - `Italbytz.Networking`
 - `Italbytz.Networking.Resources`
+- `Italbytz.OperatingSystems.Abstractions`
+- `Italbytz.OperatingSystems`
+- `Italbytz.OperatingSystems.Resources`
 
-The migrated building blocks now cover binary addition, binary-to-decimal conversion, decimal-to-binary conversion, two's-complement tasks, line encoding, CRC calculation, and subnetting helpers.
+The migrated building blocks now cover binary addition, binary-to-decimal conversion, decimal-to-binary conversion, two's-complement tasks, line encoding, CRC calculation, subnetting helpers, CPU scheduling, page replacement, buddy allocation, and realtime scheduling scenarios.
 ## Local validation
 
 ```bash

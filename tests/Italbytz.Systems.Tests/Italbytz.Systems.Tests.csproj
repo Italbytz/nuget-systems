@@ -20,6 +20,8 @@
     <ProjectReference Include="..\..\src\Italbytz.ComputingSystems\Italbytz.ComputingSystems.csproj" />
     <ProjectReference Include="..\..\src\Italbytz.Networking.Abstractions\Italbytz.Networking.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\Italbytz.Networking\Italbytz.Networking.csproj" />
+    <ProjectReference Include="..\..\src\Italbytz.OperatingSystems.Abstractions\Italbytz.OperatingSystems.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\Italbytz.OperatingSystems\Italbytz.OperatingSystems.csproj" />
   </ItemGroup>
 
 </Project>

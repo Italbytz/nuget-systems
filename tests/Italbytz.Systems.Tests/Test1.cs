@@ -2,6 +2,8 @@
 using Italbytz.ComputingSystems.Abstractions;
 using Italbytz.Networking;
 using Italbytz.Networking.Abstractions;
+using Italbytz.OperatingSystems;
+using Italbytz.OperatingSystems.Abstractions;
 
 namespace Italbytz.Systems.Tests;
 
@@ -60,5 +62,45 @@ public sealed class ComputingSystemsTests
 
         Assert.AreEqual("192.168.10.0", solution.NetworkAddress.ToString());
         Assert.AreEqual("0.0.0.42", solution.HostAddress.ToString());
+    }
+
+    [TestMethod]
+    public void Priority_scheduling_solver_returns_expected_average_time()
+    {
+        ISchedulingSolver solver = new PrioritySchedulingSolver();
+
+        var solution = solver.Solve(new SchedulingParameters(
+            [4, 3, 8, 1, 5],
+            ["sehr hoch", "mittel", "sehr niedrig", "hoch", "niedrig"]));
+
+        Assert.AreEqual(10.2, solution.Time, 0.0001);
+    }
+
+    [TestMethod]
+    public void Fifo_page_replacement_solver_counts_page_faults()
+    {
+        IPageReplacementSolver solver = new FIFOSolver();
+
+        var solution = solver.Solve(new PageReplacementParameters([1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5])
+        {
+            MemorySize = 3
+        });
+
+        Assert.AreEqual(9, solution.Steps[^1].Count);
+    }
+
+    [TestMethod]
+    public void Buddy_solver_records_allocation_history()
+    {
+        IBuddySolver solver = new BuddySolver();
+
+        var solution = solver.Solve(new BuddyParameters
+        {
+            Processes = ["A", "B", "C", "D", "E"],
+            Requests = [65, 30, 94, 34, 136],
+            FreeOrder = ["D"]
+        });
+
+        Assert.IsTrue(solution.History.Count > 0);
     }
 }
