@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="../../../nuget-ai/src/Italbytz.AI.Abstractions/Italbytz.AI.Abstractions.csproj" />
+    <PackageReference Include="Italbytz.AI.Abstractions" />
   </ItemGroup>
 
   <PropertyGroup>

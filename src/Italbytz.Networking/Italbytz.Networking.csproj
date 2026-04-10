@@ -3,7 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Italbytz.Networking.Abstractions\Italbytz.Networking.Abstractions.csproj" />
     <ProjectReference Include="..\Italbytz.Networking.Resources\Italbytz.Networking.Resources.csproj" />
-    <ProjectReference Include="..\..\..\nuget-foundation\src\Italbytz.Common.Random\Italbytz.Common.Random.csproj" />
+    <PackageReference Include="Italbytz.Common.Random" />
   </ItemGroup>
 
   <PropertyGroup>
