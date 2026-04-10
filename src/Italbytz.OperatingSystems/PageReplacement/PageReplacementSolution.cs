@@ -6,10 +6,6 @@ namespace Italbytz.OperatingSystems.PageReplacement
 {
     public class PageReplacementSolution : IPageReplacementSolution
     {
-        public PageReplacementSolution()
-        {
-        }
-
-        public List<IPageReplacementStep> Steps { get; set; }
+        public List<IPageReplacementStep> Steps { get; set; } = new();
     }
 }

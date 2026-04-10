@@ -4,6 +4,6 @@ namespace Italbytz.OperatingSystems
 {
     public class RealtimeSchedulingSolution : IRealtimeSchedulingSolution
     {
-        public int[] Processes { get; set; }
+        public int[] Processes { get; set; } = [];
     }
 }

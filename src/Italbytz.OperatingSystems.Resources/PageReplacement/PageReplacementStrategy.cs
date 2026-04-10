@@ -87,7 +87,7 @@ namespace Italbytz.OperatingSystems.Resources.PageReplacement
             return result;
         }
 
-        protected virtual string GetAdditionalSimulationInfo() => null;
+        protected virtual string GetAdditionalSimulationInfo() => string.Empty;
 
         protected virtual int GetInitialFrameInformationValue() => int.MaxValue;
 

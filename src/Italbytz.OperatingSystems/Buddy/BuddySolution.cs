@@ -6,10 +6,6 @@ namespace Italbytz.OperatingSystems
 {
     public class BuddySolution : IBuddySolution
     {
-        public List<int[]> History { get; set; }
-
-        public BuddySolution()
-        {
-        }
+        public List<int[]> History { get; set; } = new();
     }
 }

@@ -5,14 +5,10 @@ namespace Italbytz.OperatingSystems.PageReplacement
 {
     public class PageReplacementStep : IPageReplacementStep
     {
-        public PageReplacementStep()
-        {
-        }
-
-        public int[] Frames { get; set; }
-        public int[] FrameInformation { get; set; }
+        public int[] Frames { get; set; } = Array.Empty<int>();
+        public int[] FrameInformation { get; set; } = Array.Empty<int>();
         public int Count { get; set; }
-        public string AdditionalInfo { get; set; }
+        public string AdditionalInfo { get; set; } = string.Empty;
         public int Element { get; set; }
     }
 }

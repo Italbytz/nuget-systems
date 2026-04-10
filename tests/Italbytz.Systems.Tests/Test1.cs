@@ -101,6 +101,6 @@ public sealed class ComputingSystemsTests
             FreeOrder = ["D"]
         });
 
-        Assert.IsTrue(solution.History.Count > 0);
+        Assert.IsNotEmpty(solution.History);
     }
 }
