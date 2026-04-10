@@ -1,0 +1,13 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Italbytz.ComputingSystems.Abstractions\Italbytz.ComputingSystems.Abstractions.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <PackageId>Italbytz.ComputingSystems</PackageId>
+    <Description>Concrete solver helpers for computing-systems tasks and examples.</Description>
+  </PropertyGroup>
+
+</Project>
