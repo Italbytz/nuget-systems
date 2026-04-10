@@ -1,4 +1,8 @@
 - name: Home
   href: index.md
+- name: Guides
+  items:
+    - name: Solver catalog
+      href: docs/solver-catalog.md
 - name: API
   href: api/

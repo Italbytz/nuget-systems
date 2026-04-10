@@ -14,6 +14,11 @@
 - `Italbytz.OperatingSystems.Resources`
 
 The migrated building blocks now cover binary addition, binary-to-decimal conversion, decimal-to-binary conversion, two's-complement tasks, line encoding, CRC calculation, subnetting helpers, CPU scheduling, page replacement, buddy allocation, and realtime scheduling scenarios.
+
+## Guide
+
+Use `Guides > Solver catalog` for a quick map from teaching or exam topics to the concrete solver classes that now live in this repo.
+
 ## Local validation
 
 ```bash

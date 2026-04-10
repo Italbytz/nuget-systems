@@ -59,6 +59,8 @@ API documentation is generated with `docfx` and can be published via GitHub Page
 
 - `https://italbytz.github.io/nuget-systems/`
 
+The doc site now also includes a short solver catalog that maps common binary-arithmetic, networking, and operating-systems topics to the relevant solver classes.
+
 ## Quality checks
 
 This repository includes:

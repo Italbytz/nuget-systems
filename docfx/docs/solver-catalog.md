@@ -1,0 +1,45 @@
+# Solver catalog
+
+This guide gives a quick map from common teaching, exercise, or exam topics to the solver classes in `nuget-systems`.
+
+## Computing systems
+
+| Topic | Contracts | Implementations |
+| --- | --- | --- |
+| Binary addition | `IBinaryAdditionSolver` | `BinaryAdditionSolver` |
+| Binary to decimal conversion | `IBinaryToDecimalSolver` | `BinaryToDecimalSolver` |
+| Decimal to binary conversion | `IDecimalToBinarySolver` | `DecimalToBinarySolver` |
+| Two's complement | `ITwosComplementSolver` | `TwosComplementSolver` |
+
+Use `Italbytz.ComputingSystems.Abstractions` when you only need the contracts, and `Italbytz.ComputingSystems` when you want the working implementations.
+
+## Networking
+
+| Topic | Contracts | Implementations |
+| --- | --- | --- |
+| Line or bit encoding | `IBitencodingSolver` | `BitencodingSolver` |
+| CRC calculation | `ICRCSolver` | `CRCSolver` |
+| Subnet masks and addressing | `INetmaskSolver` | `NetmaskSolver` |
+
+`Italbytz.Networking.Resources` contains the extracted subnet and IP helper logic used by the networking slice.
+
+## Operating systems
+
+| Topic | Contracts | Implementations |
+| --- | --- | --- |
+| CPU scheduling | `ISchedulingSolver` | `FCFSSolver`, `PrioritySchedulingSolver`, `ShortestJobFirstSolver`, `RoundRobinSolver` |
+| Page replacement | `IPageReplacementSolver` | `FIFOSolver`, `LRUSolver`, `ClockSolver`, `OptimalSolver` |
+| Buddy allocation | `IBuddySolver` | `BuddySolver` |
+| Realtime scheduling | `IRealtimeSchedulingSolver` | `EDFSolver`, `RMSSolver` |
+
+`Italbytz.OperatingSystems.Resources` contains the simulation-oriented helpers that support the operating-systems exercises.
+
+## Historical mapping
+
+If you come from the older repository layout, the following rule helps:
+
+- former `Ports.Exam.*` packages now map to the corresponding `*.Abstractions` packages
+- former `Adapters.Exam.*` packages now map to the domain implementation packages
+- former `Infrastructure.Exam.*` packages now map to `*.Resources`
+
+That keeps the same teaching content, but presents it under clearer domain names.
