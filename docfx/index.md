@@ -2,12 +2,15 @@
 
 `nuget-systems` is the target repository for refactored `Italbytz.ComputingSystems.*`, `Italbytz.Networking.*`, and `Italbytz.OperatingSystems.*` packages.
 
-## Current Phase 3 slice
+## Current Phase 3 slices
 
 - `Italbytz.ComputingSystems.Abstractions`
 - `Italbytz.ComputingSystems`
+- `Italbytz.Networking.Abstractions`
+- `Italbytz.Networking`
+- `Italbytz.Networking.Resources`
 
-The first migrated building blocks cover binary addition, binary-to-decimal conversion, decimal-to-binary conversion, and two's-complement tasks.
+The migrated building blocks now cover binary addition, binary-to-decimal conversion, decimal-to-binary conversion, two's-complement tasks, line encoding, CRC calculation, and subnetting helpers.
 ## Local validation
 
 ```bash

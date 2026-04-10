@@ -18,6 +18,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Italbytz.ComputingSystems.Abstractions\Italbytz.ComputingSystems.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\Italbytz.ComputingSystems\Italbytz.ComputingSystems.csproj" />
+    <ProjectReference Include="..\..\src\Italbytz.Networking.Abstractions\Italbytz.Networking.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\Italbytz.Networking\Italbytz.Networking.csproj" />
   </ItemGroup>
 
 </Project>

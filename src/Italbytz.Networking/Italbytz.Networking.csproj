@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Italbytz.Networking.Abstractions\Italbytz.Networking.Abstractions.csproj" />
+    <ProjectReference Include="..\Italbytz.Networking.Resources\Italbytz.Networking.Resources.csproj" />
+    <ProjectReference Include="..\..\..\nuget-foundation\src\Italbytz.Common.Random\Italbytz.Common.Random.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <PackageId>Italbytz.Networking</PackageId>
+    <Description>Concrete helpers for bit encoding, CRC, and subnetting tasks.</Description>
+  </PropertyGroup>
+
+</Project>
