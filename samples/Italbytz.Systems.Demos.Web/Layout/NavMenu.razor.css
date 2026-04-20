@@ -1,0 +1,116 @@
+.navbar-toggler {
+    background: rgba(248, 243, 232, 0.12);
+    border: 1px solid rgba(248, 243, 232, 0.3);
+    color: #f8f3e8;
+    border-radius: 999px;
+    padding: 0.45rem 0.8rem;
+}
+
+.top-row {
+    min-height: 5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.25rem 1.2rem 0.9rem;
+}
+
+.navbar-brand {
+    color: #f8f3e8;
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-decoration: none;
+}
+
+.navbar-copy {
+    margin: 0.35rem 0 0;
+    color: rgba(248, 243, 232, 0.72);
+    max-width: 15rem;
+    font-size: 0.92rem;
+}
+
+.nav-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    padding: 0.4rem 0.9rem 1rem;
+}
+
+.nav-item {
+    font-size: 0.95rem;
+}
+
+.nav-item ::deep a {
+    color: rgba(248, 243, 232, 0.84);
+    border-radius: 1rem;
+    display: flex;
+    gap: 0.9rem;
+    padding: 0.9rem 1rem;
+    text-decoration: none;
+    border: 1px solid transparent;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.nav-item ::deep a strong {
+    display: block;
+    font-size: 0.98rem;
+    color: #f8f3e8;
+}
+
+.nav-item ::deep a small {
+    display: block;
+    margin-top: 0.25rem;
+    line-height: 1.35;
+}
+
+.nav-kicker {
+    width: 2rem;
+    height: 2rem;
+    flex: none;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(211, 122, 72, 0.18);
+    color: #f7b08a;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+}
+
+.nav-item ::deep a.active {
+    background: rgba(248, 243, 232, 0.12);
+    border-color: rgba(248, 243, 232, 0.2);
+}
+
+.nav-item ::deep a:hover {
+    background: rgba(248, 243, 232, 0.08);
+    border-color: rgba(248, 243, 232, 0.14);
+}
+
+@media (min-width: 641px) {
+    .navbar-toggler {
+        display: none;
+    }
+
+    .collapse {
+        display: block;
+    }
+
+    .nav-scrollable {
+        height: calc(100vh - 5rem);
+        overflow-y: auto;
+    }
+}
+
+@media (max-width: 640.98px) {
+    .top-row {
+        padding-bottom: 1rem;
+    }
+
+    .nav-sections {
+        padding-top: 0;
+    }
+}

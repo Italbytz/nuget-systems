@@ -1,0 +1,167 @@
+@page "/computing-systems"
+
+<PageTitle>Computing systems demo</PageTitle>
+
+<section class="hero-panel page-hero computing-hero">
+    <div>
+        <p class="eyebrow">Italbytz.ComputingSystems</p>
+        <h1>Work through binary arithmetic with the concrete package.</h1>
+        <p class="hero-copy">
+            These examples use the repository's actual computing-systems solvers for addition, binary conversion, and two's-complement tasks.
+        </p>
+    </div>
+    <div class="hero-note">
+        <strong>Included solvers</strong>
+        <span>BinaryAdditionSolver</span>
+        <span>DecimalToBinarySolver</span>
+        <span>BinaryToDecimalSolver</span>
+        <span>TwosComplementSolver</span>
+    </div>
+</section>
+
+<section class="section-stack">
+    <div class="card-grid card-grid-two">
+        <article class="demo-card">
+            <div class="card-heading">
+                <p class="feature-kicker">Binary addition</p>
+                <h2>Add two 8-bit values</h2>
+            </div>
+
+            <div class="input-grid two-up">
+                <label>
+                    <span>Summand A</span>
+                    <input type="number" min="0" max="255" @bind="AdditionLeft" />
+                </label>
+                <label>
+                    <span>Summand B</span>
+                    <input type="number" min="0" max="255" @bind="AdditionRight" />
+                </label>
+            </div>
+
+            <div class="result-stack">
+                <div class="metric-row">
+                    <span>Binary A</span>
+                    <strong>@ToBinary(AdditionLeftByte)</strong>
+                </div>
+                <div class="metric-row">
+                    <span>Binary B</span>
+                    <strong>@ToBinary(AdditionRightByte)</strong>
+                </div>
+                <div class="metric-row accent-row">
+                    <span>Sum</span>
+                    <strong>@AdditionSolution.Sum (@ToBinary((int)AdditionSolution.Sum, 16))</strong>
+                </div>
+            </div>
+        </article>
+
+        <article class="demo-card">
+            <div class="card-heading">
+                <p class="feature-kicker">Conversion</p>
+                <h2>Switch between decimal and binary</h2>
+            </div>
+
+            <div class="input-grid two-up">
+                <label>
+                    <span>Decimal input</span>
+                    <input type="number" min="0" max="255" @bind="DecimalInput" />
+                </label>
+                <label>
+                    <span>Binary input</span>
+                    <input type="text" inputmode="numeric" maxlength="8" @bind="BinaryInput" />
+                </label>
+            </div>
+
+            <div class="result-stack">
+                <div class="metric-row">
+                    <span>Decimal to binary</span>
+                    <strong>@ToBinary(DecimalToBinarySolution.Binary)</strong>
+                </div>
+                <div class="metric-row">
+                    <span>Binary to decimal</span>
+                    <strong>@BinaryToDecimalSolution.Decimal</strong>
+                </div>
+                <p class="helper-copy">Binary input accepts up to eight bits and ignores any non-binary characters.</p>
+            </div>
+        </article>
+    </div>
+
+    <article class="demo-card wide-card">
+        <div class="card-heading">
+            <p class="feature-kicker">Two's complement</p>
+            <h2>Inspect the signed representation</h2>
+        </div>
+
+        <div class="input-grid single-up">
+            <label>
+                <span>Positive input</span>
+                <input type="number" min="0" max="127" @bind="TwosComplementInput" />
+            </label>
+        </div>
+
+        <div class="card-grid card-grid-three compact-grid">
+            <div class="metric-card">
+                <span>Input</span>
+                <strong>@TwosComplementInputByte</strong>
+                <small>@ToBinary(TwosComplementInputByte)</small>
+            </div>
+            <div class="metric-card">
+                <span>Signed result</span>
+                <strong>@TwosComplementSolution.ComplementBinary</strong>
+                <small>solver output</small>
+            </div>
+            <div class="metric-card">
+                <span>Stored bits</span>
+                <strong>@ToBinary(unchecked((byte)TwosComplementSolution.ComplementBinary))</strong>
+                <small>8-bit view</small>
+            </div>
+        </div>
+    </article>
+</section>
+
+@code {
+    private readonly BinaryAdditionSolver additionSolver = new();
+    private readonly DecimalToBinarySolver decimalToBinarySolver = new();
+    private readonly BinaryToDecimalSolver binaryToDecimalSolver = new();
+    private readonly TwosComplementSolver twosComplementSolver = new();
+
+    private int AdditionLeft { get; set; } = 13;
+    private int AdditionRight { get; set; } = 29;
+    private int DecimalInput { get; set; } = 42;
+    private string BinaryInput { get; set; } = "101101";
+    private int TwosComplementInput { get; set; } = 37;
+
+    private byte AdditionLeftByte => ClampToByte(AdditionLeft);
+    private byte AdditionRightByte => ClampToByte(AdditionRight);
+    private byte DecimalInputByte => ClampToByte(DecimalInput);
+    private byte TwosComplementInputByte => (byte)Math.Clamp(TwosComplementInput, 0, 127);
+
+    private BinaryAdditionSolution AdditionSolution =>
+        (BinaryAdditionSolution)additionSolver.Solve(new BinaryAdditionParameters(AdditionLeftByte, AdditionRightByte));
+
+    private DecimalToBinarySolution DecimalToBinarySolution =>
+        (DecimalToBinarySolution)decimalToBinarySolver.Solve(new DecimalToBinaryParameters(DecimalInputByte));
+
+    private BinaryToDecimalSolution BinaryToDecimalSolution =>
+        (BinaryToDecimalSolution)binaryToDecimalSolver.Solve(new BinaryToDecimalParameters(Convert.ToByte(NormalizedBinaryInput, 2)));
+
+    private TwosComplementSolution TwosComplementSolution =>
+        (TwosComplementSolution)twosComplementSolver.Solve(new TwosComplementParameters(TwosComplementInputByte));
+
+    private string NormalizedBinaryInput
+    {
+        get
+        {
+            var digits = new string(BinaryInput.Where(ch => ch == '0' || ch == '1').ToArray());
+            if (string.IsNullOrWhiteSpace(digits))
+            {
+                return "0";
+            }
+
+            return digits.Length <= 8 ? digits : digits[^8..];
+        }
+    }
+
+    private static byte ClampToByte(int value) => (byte)Math.Clamp(value, 0, 255);
+
+    private static string ToBinary(int value, int width = 8) => Convert.ToString(value, 2).PadLeft(width, '0');
+}

@@ -1,0 +1,152 @@
+@page "/networking"
+
+<PageTitle>Networking demo</PageTitle>
+
+<section class="hero-panel page-hero networking-hero">
+    <div>
+        <p class="eyebrow">Italbytz.Networking</p>
+        <h1>Inspect line encoding, CRC output, and subnet boundaries.</h1>
+        <p class="hero-copy">
+            The networking package provides small, composable helpers for common classroom and exam scenarios. This page renders their output directly.
+        </p>
+    </div>
+    <div class="hero-note">
+        <strong>Included solvers</strong>
+        <span>BitencodingSolver</span>
+        <span>CRCSolver</span>
+        <span>NetmaskSolver</span>
+    </div>
+</section>
+
+<section class="section-stack">
+    <div class="card-grid card-grid-two">
+        <article class="demo-card">
+            <div class="card-heading">
+                <p class="feature-kicker">Line encoding</p>
+                <h2>Compare three signal representations</h2>
+            </div>
+
+            <label>
+                <span>Bit pattern</span>
+                <input type="text" inputmode="numeric" maxlength="16" @bind="BitPattern" />
+            </label>
+
+            <div class="result-stack">
+                <div class="metric-row">
+                    <span>NRZ</span>
+                    <strong>@string.Join(" ", BitencodingSolution.NRZ)</strong>
+                </div>
+                <div class="metric-row">
+                    <span>NRZI</span>
+                    <strong>@string.Join(" ", BitencodingSolution.NRZI)</strong>
+                </div>
+                <div class="metric-row">
+                    <span>MLT-3</span>
+                    <strong>@string.Join(" ", BitencodingSolution.MLT3)</strong>
+                </div>
+                <p class="helper-copy">Only binary digits are used. Other characters are ignored.</p>
+            </div>
+        </article>
+
+        <article class="demo-card">
+            <div class="card-heading">
+                <p class="feature-kicker">CRC</p>
+                <h2>Generate the calculation and check values</h2>
+            </div>
+
+            <label>
+                <span>Term</span>
+                <input type="number" min="0" max="255" @bind="CrcTerm" />
+            </label>
+
+            <div class="code-output">
+                <div>
+                    <span>Calculation</span>
+                    <pre>@CrcSolution.Calculation</pre>
+                </div>
+                <div>
+                    <span>Check</span>
+                    <pre>@CrcSolution.Check</pre>
+                </div>
+            </div>
+        </article>
+    </div>
+
+    <article class="demo-card wide-card">
+        <div class="card-heading">
+            <p class="feature-kicker">Subnetting</p>
+            <h2>Split an address into network and host parts</h2>
+        </div>
+
+        <div class="input-grid two-up">
+            <label>
+                <span>IPv4 address</span>
+                <input type="text" @bind="IpAddress" />
+            </label>
+            <label>
+                <span>Prefix length</span>
+                <input type="number" min="0" max="32" @bind="PrefixLength" />
+            </label>
+        </div>
+
+        @if (TryGetNetmaskSolution(out var netmaskSolution, out var errorMessage))
+        {
+            <div class="card-grid card-grid-two compact-grid">
+                <div class="metric-card">
+                    <span>Network address</span>
+                    <strong>@netmaskSolution!.NetworkAddress</strong>
+                </div>
+                <div class="metric-card">
+                    <span>Host address</span>
+                    <strong>@netmaskSolution!.HostAddress</strong>
+                </div>
+            </div>
+        }
+        else
+        {
+            <p class="validation-copy">@errorMessage</p>
+        }
+    </article>
+</section>
+
+@code {
+    private readonly BitencodingSolver bitencodingSolver = new();
+    private readonly CRCSolver crcSolver = new();
+    private readonly NetmaskSolver netmaskSolver = new();
+
+    private string BitPattern { get; set; } = "10110";
+    private int CrcTerm { get; set; } = 42;
+    private string IpAddress { get; set; } = "192.168.10.42";
+    private int PrefixLength { get; set; } = 24;
+
+    private BitencodingSolution BitencodingSolution =>
+        (BitencodingSolution)bitencodingSolver.Solve(new BitencodingParameters(NormalizedBits));
+
+    private CRCSolution CrcSolution =>
+        (CRCSolution)crcSolver.Solve(new CRCParameters((byte)Math.Clamp(CrcTerm, 0, 255)));
+
+    private int[] NormalizedBits
+    {
+        get
+        {
+            var digits = BitPattern.Where(ch => ch == '0' || ch == '1').Select(ch => ch - '0').ToArray();
+            return digits.Length == 0 ? new[] { 0 } : digits;
+        }
+    }
+
+    private bool TryGetNetmaskSolution(out NetmaskSolution? solution, out string errorMessage)
+    {
+        try
+        {
+            solution = (NetmaskSolution)netmaskSolver.Solve(new NetmaskParameters(IpAddress.Trim(), Math.Clamp(PrefixLength, 0, 32)));
+            errorMessage = string.Empty;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            solution = null;
+            errorMessage = ex.Message;
+            return false;
+        }
+    }
+}

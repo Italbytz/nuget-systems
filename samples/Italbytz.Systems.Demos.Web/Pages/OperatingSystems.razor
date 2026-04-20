@@ -1,0 +1,482 @@
+@page "/operating-systems"
+
+<PageTitle>Operating systems demo</PageTitle>
+
+<section class="hero-panel page-hero os-hero">
+    <div>
+        <p class="eyebrow">Italbytz.OperatingSystems</p>
+        <h1>Explore operating-systems solvers with traces, rankings, and allocation history.</h1>
+        <p class="hero-copy">
+            The operating-systems package family exposes small, composable solver implementations for classic exercises. This demo route combines page replacement, CPU scheduling, and buddy allocation so the same package APIs can be inspected from multiple teaching angles.
+        </p>
+    </div>
+    <div class="hero-note">
+        <strong>Included areas</strong>
+        <span>Page replacement</span>
+        <span>CPU scheduling</span>
+        <span>Buddy allocation</span>
+    </div>
+</section>
+
+<section class="section-stack">
+    <article class="demo-card wide-card">
+        <div class="card-heading">
+            <p class="feature-kicker">Trace explorer</p>
+            <h2>Run the same reference string across multiple page-replacement strategies</h2>
+        </div>
+
+        <div class="input-grid three-up">
+            <label>
+                <span>Policy</span>
+                <select @bind="SelectedPagePolicy">
+                    <option value="FIFO">FIFO</option>
+                    <option value="LRU">LRU</option>
+                    <option value="Clock">Clock</option>
+                    <option value="Optimal">Optimal</option>
+                </select>
+            </label>
+            <label>
+                <span>Frames</span>
+                <input type="number" min="1" max="8" @bind="FrameCount" />
+            </label>
+            <label>
+                <span>Reference string</span>
+                <input type="text" @bind="ReferenceInput" />
+            </label>
+        </div>
+
+        @if (TryGetPageReplacementSimulation(out var simulation, out var pageReplacementError))
+        {
+            <div class="card-grid card-grid-three compact-grid">
+                <div class="metric-card">
+                    <span>Policy</span>
+                    <strong>@SelectedPagePolicy</strong>
+                </div>
+                <div class="metric-card">
+                    <span>Frames</span>
+                    <strong>@Math.Clamp(FrameCount, 1, 8)</strong>
+                </div>
+                <div class="metric-card">
+                    <span>Final counter</span>
+                    <strong>@simulation!.Steps.Last().Count</strong>
+                </div>
+            </div>
+
+            <div class="table-shell">
+                <table class="trace-table">
+                    <thead>
+                        <tr>
+                            <th>Step</th>
+                            <th>Element</th>
+                            <th>Frames</th>
+                            <th>Info</th>
+                            <th>Counter</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{ var stepIndex = 1; }
+                        @foreach (var step in simulation!.Steps)
+                        {
+                            <tr>
+                                <td>@stepIndex</td>
+                                <td>@step.Element</td>
+                                <td>@string.Join(" | ", step.Frames)</td>
+                                <td>@step.AdditionalInfo</td>
+                                <td>@step.Count</td>
+                            </tr>
+                            stepIndex++;
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <p class="validation-copy">@pageReplacementError</p>
+        }
+    </article>
+
+    <article class="demo-card wide-card">
+        <div class="card-heading">
+            <p class="feature-kicker">CPU scheduling</p>
+            <h2>Compare the package's scheduling heuristics on the same process set</h2>
+        </div>
+
+        <div class="input-grid three-up">
+            <label>
+                <span>Strategy</span>
+                <select @bind="SelectedSchedulingPolicy">
+                    <option value="FCFS">FCFS</option>
+                    <option value="SJF">Shortest job first</option>
+                    <option value="Priority">Priority scheduling</option>
+                    <option value="RoundRobin">Round Robin</option>
+                </select>
+            </label>
+            <label>
+                <span>Burst times</span>
+                <input type="text" @bind="SchedulingValuesInput" />
+            </label>
+            <label>
+                <span>Priorities</span>
+                <input type="text" @bind="SchedulingPrioritiesInput" />
+            </label>
+        </div>
+
+        <p class="helper-copy">
+            Use five priorities from the set <strong>sehr hoch</strong>, <strong>hoch</strong>, <strong>mittel</strong>, <strong>niedrig</strong>, <strong>sehr niedrig</strong>. The priority input is only used by the priority solver, but keeping it visible makes the solver contract explicit.
+        </p>
+
+        @if (TryGetSchedulingDemo(out var schedulingResult, out var schedulingError))
+        {
+            <div class="card-grid card-grid-three compact-grid">
+                <div class="metric-card">
+                    <span>Strategy</span>
+                    <strong>@SelectedSchedulingPolicy</strong>
+                </div>
+                <div class="metric-card">
+                    <span>Reported time score</span>
+                    <strong>@schedulingResult!.Score.ToString("0.##")</strong>
+                </div>
+                <div class="metric-card">
+                    <span>Execution order</span>
+                    <strong>@string.Join(" -> ", schedulingResult.ExecutionOrder)</strong>
+                </div>
+            </div>
+
+            <p class="helper-copy">@schedulingResult.Notes</p>
+
+            <div class="table-shell">
+                <table class="trace-table">
+                    <thead>
+                        <tr>
+                            <th>Process</th>
+                            <th>Burst</th>
+                            <th>Priority</th>
+                            <th>Scheduling rank</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var process in schedulingResult.Processes)
+                        {
+                            <tr>
+                                <td>@process.Name</td>
+                                <td>@process.Duration</td>
+                                <td>@process.Priority</td>
+                                <td>@process.SortExplanation</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <p class="validation-copy">@schedulingError</p>
+        }
+    </article>
+
+    <article class="demo-card wide-card">
+        <div class="card-heading">
+            <p class="feature-kicker">Buddy allocation</p>
+            <h2>Inspect chunk-level history for allocation and release operations</h2>
+        </div>
+
+        <div class="input-grid two-up">
+            <label>
+                <span>Requests in KB for A-E</span>
+                <input type="text" @bind="BuddyRequestsInput" />
+            </label>
+            <label>
+                <span>Release order</span>
+                <input type="text" @bind="BuddyReleaseOrderInput" />
+            </label>
+        </div>
+
+        @if (TryGetBuddyDemo(out var buddyResult, out var buddyError))
+        {
+            <div class="card-grid card-grid-three compact-grid">
+                <div class="metric-card">
+                    <span>Snapshots</span>
+                    <strong>@buddyResult!.History.Length</strong>
+                </div>
+                <div class="metric-card">
+                    <span>Final occupied chunks</span>
+                    <strong>@buddyResult.FinalOccupiedChunks</strong>
+                </div>
+                <div class="metric-card">
+                    <span>Release order</span>
+                    <strong>@string.Join(" -> ", buddyResult.ReleaseOrder)</strong>
+                </div>
+            </div>
+
+            <div class="memory-legend">
+                @foreach (var legendItem in buddyResult.Legend)
+                {
+                    <span class="memory-chip @(legendItem.IsFree ? "free" : string.Empty)">@legendItem.Label</span>
+                }
+            </div>
+
+            <div class="table-shell">
+                <table class="trace-table">
+                    <thead>
+                        <tr>
+                            <th>Snapshot</th>
+                            <th>State</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (var snapshotIndex = 0; snapshotIndex < buddyResult.History.Length; snapshotIndex++)
+                        {
+                            var snapshot = buddyResult.History[snapshotIndex];
+                            <tr>
+                                <td>@(snapshotIndex + 1)</td>
+                                <td>
+                                    <div class="memory-strip">
+                                        @foreach (var slot in snapshot)
+                                        {
+                                            <span class="memory-cell @(slot == "free" ? "free" : string.Empty)">@slot</span>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <p class="validation-copy">@buddyError</p>
+        }
+    </article>
+</section>
+
+@code {
+    private static readonly string[] ProcessNames = ["A", "B", "C", "D", "E"];
+    private static readonly string[] PriorityScale = ["sehr hoch", "hoch", "mittel", "niedrig", "sehr niedrig"];
+
+    private string SelectedPagePolicy { get; set; } = "FIFO";
+    private int FrameCount { get; set; } = 3;
+    private string ReferenceInput { get; set; } = "1,2,3,2,4,1,5,2,4";
+
+    private string SelectedSchedulingPolicy { get; set; } = "FCFS";
+    private string SchedulingValuesInput { get; set; } = "6,2,8,3,5";
+    private string SchedulingPrioritiesInput { get; set; } = "mittel,sehr hoch,niedrig,hoch,sehr niedrig";
+
+    private string BuddyRequestsInput { get; set; } = "120,64,200,32,90";
+    private string BuddyReleaseOrderInput { get; set; } = "B,D,A,E,C";
+
+    private bool TryGetPageReplacementSimulation(out PageReplacementSolution? solution, out string errorMessage)
+    {
+        try
+        {
+            var references = ParseIntegerSequence(ReferenceInput, "reference string");
+            if (references.Length == 0)
+            {
+                throw new InvalidOperationException("Provide at least one page reference.");
+            }
+
+            var parameters = new PageReplacementParameters(references)
+            {
+                MemorySize = Math.Clamp(FrameCount, 1, 8)
+            };
+
+            var solver = SelectedPagePolicy switch
+            {
+                "LRU" => (IPageReplacementSolver)new LRUSolver(),
+                "Clock" => new ClockSolver(),
+                "Optimal" => new OptimalSolver(),
+                _ => new FIFOSolver()
+            };
+
+            solution = (PageReplacementSolution)solver.Solve(parameters);
+            errorMessage = string.Empty;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            solution = null;
+            errorMessage = ex.Message;
+            return false;
+        }
+    }
+
+    private bool TryGetSchedulingDemo(out SchedulingDemoResult? result, out string errorMessage)
+    {
+        try
+        {
+            var durations = ParseIntegerSequence(SchedulingValuesInput, "burst times");
+            var priorities = ParsePrioritySequence(SchedulingPrioritiesInput);
+
+            if (durations.Length != priorities.Length)
+            {
+                throw new InvalidOperationException("Burst times and priorities must have the same number of entries.");
+            }
+
+            var processes = durations
+                .Select((duration, index) => new SchedulingProcessView($"P{index + 1}", duration, priorities[index]))
+                .ToArray();
+
+            var parameters = new SchedulingParameters(durations, priorities);
+            var solver = CreateSchedulingSolver();
+            var solution = (SchedulingSolution)solver.Solve(parameters);
+            var orderedProcesses = OrderProcesses(processes);
+
+            result = new SchedulingDemoResult(
+                solution.Time,
+                orderedProcesses,
+                orderedProcesses.Select(process => process.Name).ToArray(),
+                GetSchedulingNotes());
+            errorMessage = string.Empty;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            result = null;
+            errorMessage = ex.Message;
+            return false;
+        }
+    }
+
+    private bool TryGetBuddyDemo(out BuddyDemoResult? result, out string errorMessage)
+    {
+        try
+        {
+            var requests = ParseIntegerSequence(BuddyRequestsInput, "buddy requests");
+            if (requests.Length != ProcessNames.Length)
+            {
+                throw new InvalidOperationException("Provide exactly five buddy requests so they map to processes A-E.");
+            }
+
+            if (requests.Any(request => request < 1 || request > 512))
+            {
+                throw new InvalidOperationException("Buddy requests must stay between 1 KB and 512 KB.");
+            }
+
+            var releaseOrder = ParseReleaseOrder(BuddyReleaseOrderInput);
+            var parameters = new BuddyParameters
+            {
+                Processes = ProcessNames.ToArray(),
+                Requests = requests,
+                FreeOrder = releaseOrder
+            };
+
+            var solution = (BuddySolution)new BuddySolver().Solve(parameters);
+            var mappedHistory = solution.History
+                .Select(snapshot => snapshot.Select(MapBuddySlot).ToArray())
+                .ToArray();
+
+            result = new BuddyDemoResult(
+                mappedHistory,
+                releaseOrder,
+                [new MemoryLegendItem("free", true), .. ProcessNames.Select(name => new MemoryLegendItem(name, false))]);
+            errorMessage = string.Empty;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            result = null;
+            errorMessage = ex.Message;
+            return false;
+        }
+    }
+
+    private ISchedulingSolver CreateSchedulingSolver() =>
+        SelectedSchedulingPolicy switch
+        {
+            "SJF" => new ShortestJobFirstSolver(),
+            "Priority" => new PrioritySchedulingSolver(),
+            "RoundRobin" => new RoundRobinSolver(),
+            _ => new FCFSSolver()
+        };
+
+    private SchedulingProcessView[] OrderProcesses(IEnumerable<SchedulingProcessView> processes) =>
+        SelectedSchedulingPolicy switch
+        {
+            "SJF" => processes.OrderBy(process => process.Duration).ThenBy(process => process.Name).Select((process, index) => process with { SortExplanation = $"#{index + 1} shortest burst" }).ToArray(),
+            "Priority" => processes.OrderBy(process => PriorityRank(process.Priority)).ThenBy(process => process.Name).Select((process, index) => process with { SortExplanation = $"#{index + 1} in priority ladder" }).ToArray(),
+            "RoundRobin" => processes.OrderBy(process => process.Duration).ThenBy(process => process.Name).Select((process, index) => process with { SortExplanation = $"phase order #{index + 1}" }).ToArray(),
+            _ => processes.Select((process, index) => process with { SortExplanation = $"input order #{index + 1}" }).ToArray()
+        };
+
+    private string GetSchedulingNotes() =>
+        SelectedSchedulingPolicy switch
+        {
+            "SJF" => "ShortestJobFirstSolver orders processes by ascending burst time and reports the package's aggregate time score for that sequence.",
+            "Priority" => "PrioritySchedulingSolver uses the German priority ladder built into the package: sehr hoch, hoch, mittel, niedrig, sehr niedrig.",
+            "RoundRobin" => "RoundRobinSolver currently reports an aggregated shared-time score over ascending burst lengths rather than rendering a literal quantum-by-quantum timeline.",
+            _ => "FCFSSolver keeps the submitted order and reports the package's aggregate time score for that queue."
+        };
+
+    private int[] ParseIntegerSequence(string input, string fieldName) =>
+        input
+            .Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(token => int.TryParse(token, out var value)
+                ? value
+                : throw new InvalidOperationException($"Invalid number '{token}' in {fieldName}."))
+            .ToArray();
+
+    private string[] ParsePrioritySequence(string input)
+    {
+        var priorities = input
+            .Split(new[] { ',', ';', '|' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(priority => priority.ToLowerInvariant())
+            .ToArray();
+
+        var invalidPriority = priorities.FirstOrDefault(priority => !PriorityScale.Contains(priority));
+        if (invalidPriority is not null)
+        {
+            throw new InvalidOperationException($"Unknown priority '{invalidPriority}'.");
+        }
+
+        return priorities;
+    }
+
+    private string[] ParseReleaseOrder(string input)
+    {
+        var releaseOrder = input
+            .Split(new[] { ',', ';', ' ', '|' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(item => item.ToUpperInvariant())
+            .ToArray();
+
+        if (releaseOrder.Length != ProcessNames.Length)
+        {
+            throw new InvalidOperationException("Provide a release order with exactly the process names A-E.");
+        }
+
+        if (releaseOrder.Except(ProcessNames).Any() || releaseOrder.Distinct().Count() != ProcessNames.Length)
+        {
+            throw new InvalidOperationException("Release order must contain each of A, B, C, D, and E exactly once.");
+        }
+
+        return releaseOrder;
+    }
+
+    private static int PriorityRank(string priority) => Array.IndexOf(PriorityScale, priority);
+
+    private static string MapBuddySlot(int slot) =>
+        slot switch
+        {
+            -1 => "free",
+            >= 0 and < 5 => ProcessNames[slot],
+            _ => "?"
+        };
+
+    private sealed record SchedulingProcessView(string Name, int Duration, string Priority, string SortExplanation = "");
+
+    private sealed record SchedulingDemoResult(
+        double Score,
+        SchedulingProcessView[] Processes,
+        string[] ExecutionOrder,
+        string Notes);
+
+    private sealed record MemoryLegendItem(string Label, bool IsFree);
+
+    private sealed record BuddyDemoResult(
+        string[][] History,
+        string[] ReleaseOrder,
+        MemoryLegendItem[] Legend)
+    {
+        public int FinalOccupiedChunks => History.LastOrDefault()?.Count(slot => slot != "free") ?? 0;
+    }
+}

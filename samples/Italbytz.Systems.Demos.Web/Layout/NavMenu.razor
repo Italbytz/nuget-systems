@@ -1,0 +1,61 @@
+﻿<div class="top-row">
+    <div>
+        <a class="navbar-brand" href="">nuget-systems demos</a>
+        <p class="navbar-copy">Package-backed examples instead of static screenshots.</p>
+    </div>
+    <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
+        Menu
+    </button>
+</div>
+
+<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
+    <nav class="nav-sections">
+        <div class="nav-item">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="nav-kicker">00</span>
+                <span>
+                    <strong>Overview</strong>
+                    <small>Scope, routes, and package map</small>
+                </span>
+            </NavLink>
+        </div>
+        <div class="nav-item">
+            <NavLink class="nav-link" href="computing-systems">
+                <span class="nav-kicker">01</span>
+                <span>
+                    <strong>Computing Systems</strong>
+                    <small>Binary arithmetic and complement tasks</small>
+                </span>
+            </NavLink>
+        </div>
+        <div class="nav-item">
+            <NavLink class="nav-link" href="networking">
+                <span class="nav-kicker">02</span>
+                <span>
+                    <strong>Networking</strong>
+                    <small>Encoding, CRC, and subnetting</small>
+                </span>
+            </NavLink>
+        </div>
+        <div class="nav-item">
+            <NavLink class="nav-link" href="operating-systems">
+                <span class="nav-kicker">03</span>
+                <span>
+                    <strong>Operating Systems</strong>
+                    <small>Traceable page-replacement simulations</small>
+                </span>
+            </NavLink>
+        </div>
+    </nav>
+</div>
+
+@code {
+    private bool collapseNavMenu = true;
+
+    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+
+    private void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+}

@@ -1,0 +1,73 @@
+﻿@page "/"
+
+<PageTitle>nuget-systems demos</PageTitle>
+
+<section class="hero-panel">
+	<div>
+		<p class="eyebrow">Interactive demos</p>
+		<h1>Explore nuget-systems through executable examples.</h1>
+		<p class="hero-copy">
+			The demo host complements the DocFX site with sample inputs and live solver output for the three package families in this repository.
+		</p>
+	</div>
+	<div class="hero-badge-panel">
+		<div class="hero-badge">
+			<span>3</span>
+			<small>demo routes</small>
+		</div>
+		<div class="hero-badge">
+			<span>10+</span>
+			<small>solvers touched</small>
+		</div>
+	</div>
+</section>
+
+<section class="section-stack">
+	<div class="section-heading">
+		<p class="eyebrow">Package map</p>
+		<h2>Start from a topic, then inspect the concrete solver output.</h2>
+	</div>
+
+	<div class="card-grid card-grid-three">
+		<a class="feature-card route-card" href="computing-systems">
+			<p class="feature-kicker">Computing systems</p>
+			<h3>Binary arithmetic</h3>
+			<p>Run binary addition, decimal conversion, and two's-complement scenarios against the concrete computing-solvers package.</p>
+		</a>
+
+		<a class="feature-card route-card" href="networking">
+			<p class="feature-kicker">Networking</p>
+			<h3>Signals and subnetting</h3>
+			<p>Inspect line encodings, CRC output, and subnet decomposition with the repository's networking helpers.</p>
+		</a>
+
+		<a class="feature-card route-card" href="operating-systems">
+			<p class="feature-kicker">Operating systems</p>
+			<h3>Page replacement traces</h3>
+			<p>Compare FIFO, LRU, Clock, and Optimal replacement behavior step by step using the simulation-backed operating-systems package.</p>
+		</a>
+	</div>
+</section>
+
+<section class="section-stack">
+	<div class="section-heading">
+		<p class="eyebrow">How it fits</p>
+		<h2>DocFX stays the entry point. The demo host adds feedback loops.</h2>
+	</div>
+
+	<div class="card-grid card-grid-two">
+		<article class="feature-card">
+			<p class="feature-kicker">Public docs</p>
+			<h3>DocFX site</h3>
+			<p>The documentation explains package selection, API surfaces, and topic-to-solver mapping for external consumers.</p>
+			<a class="cta-link" href="https://italbytz.github.io/nuget-systems/" target="_blank" rel="noopener noreferrer">Open documentation</a>
+		</article>
+
+		<article class="feature-card">
+			<p class="feature-kicker">Local feedback</p>
+			<h3>Blazor sample app</h3>
+			<p>The sample project references the concrete packages directly, so the showcased behavior stays aligned with the code that is actually packed and published.</p>
+			<a class="cta-link" href="https://github.com/Italbytz/nuget-systems/tree/main/samples/Italbytz.Systems.Demos.Web" target="_blank" rel="noopener noreferrer">Inspect sample project</a>
+		</article>
+	</div>
+</section>

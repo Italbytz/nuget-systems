@@ -1,0 +1,19 @@
+﻿<Router AppAssembly="@typeof(App).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <PageTitle>Page Not Found</PageTitle>
+        <LayoutView Layout="@typeof(MainLayout)">
+            <section class="not-found-shell">
+                <p class="eyebrow">Demo host</p>
+                <h1>That route is not available.</h1>
+                <p>
+                    Use the overview or jump directly into the computing systems, networking, or operating systems demos.
+                </p>
+                <a class="cta-link" href="/">Return to overview</a>
+            </section>
+        </LayoutView>
+    </NotFound>
+</Router>

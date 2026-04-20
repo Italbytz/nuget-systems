@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Italbytz.ComputingSystems\Italbytz.ComputingSystems.csproj" />
+    <ProjectReference Include="..\..\src\Italbytz.Networking\Italbytz.Networking.csproj" />
+    <ProjectReference Include="..\..\src\Italbytz.OperatingSystems\Italbytz.OperatingSystems.csproj" />
+  </ItemGroup>
+
+</Project>
