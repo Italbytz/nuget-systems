@@ -23,15 +23,21 @@ API documentation is generated with `docfx` and can be published via GitHub Page
 
 - `https://italbytz.github.io/nuget-systems/`
 
-The doc site now also includes a short solver catalog that maps common binary-arithmetic, networking, and operating-systems topics to the relevant solver classes.
+The published site now also exposes an interactive Blazor demo host under:
+
+- `https://italbytz.github.io/nuget-systems/demos/`
+
+The doc site includes a solver catalog and an interactive demos guide that map common binary-arithmetic, networking, and operating-systems topics to the relevant solver classes and sample routes, including scheduling and buddy-allocation walkthroughs on the operating-systems page.
 
 ## Quality checks
 
 This repository includes:
 
 - a `GitHub Actions` workflow in `.github/workflows/ci.yml`
-- automated `restore`, `build`, `test`, `pack`, and docs generation
+- automated `restore`, `build`, `test`, `pack`, docs generation, and demo publication
 - a `docfx` setup under `docfx/`
+- a Blazor WebAssembly sample host under `samples/Italbytz.Systems.Demos.Web`
+- a `Makefile` for fast local feedback loops and GitHub Pages artifact assembly
 
 ## Release model
 
@@ -42,9 +48,11 @@ This repository includes:
 ## Local validation
 
 ```bash
-dotnet restore nuget-systems.sln
-dotnet test nuget-systems.sln -v minimal
-dotnet pack nuget-systems.sln -c Release -v minimal
-dotnet tool restore
-dotnet tool run docfx docfx/docfx.json
+make restore
+make build
+make test
+make pack
+make docs
+make demo-watch
+make pages-prepare
 ```

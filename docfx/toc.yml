@@ -4,5 +4,7 @@
   items:
     - name: Solver catalog
       href: docs/solver-catalog.md
+    - name: Interactive demos
+      href: docs/interactive-demos.md
 - name: API
   href: api/

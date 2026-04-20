@@ -2,6 +2,8 @@
 
 This guide gives a quick map from common teaching, exercise, or exam topics to the solver classes in `nuget-systems`.
 
+For a browser-based walkthrough, pair this catalog with the `Interactive demos` guide.
+
 ## Computing systems
 
 | Topic | Contracts | Implementations |
@@ -33,6 +35,13 @@ Use `Italbytz.ComputingSystems.Abstractions` when you only need the contracts, a
 | Realtime scheduling | `IRealtimeSchedulingSolver` | `EDFSolver`, `RMSSolver` |
 
 `Italbytz.OperatingSystems.Resources` contains the simulation-oriented helpers that support the operating-systems exercises.
+
+## Demo host routes
+
+- `/demos/` for the overview and package map
+- `/demos/computing-systems` for binary arithmetic and conversion examples
+- `/demos/networking` for bit encoding, CRC, and subnetting examples
+- `/demos/operating-systems` for page replacement, scheduling, and buddy-allocation simulations
 
 ## Historical mapping
 
