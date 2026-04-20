@@ -41,7 +41,7 @@ Use `Italbytz.ComputingSystems.Abstractions` when you only need the contracts, a
 - `/demos/` for the overview and package map
 - `/demos/computing-systems` for binary arithmetic and conversion examples
 - `/demos/networking` for bit encoding, CRC, and subnetting examples
-- `/demos/operating-systems` for page replacement, scheduling, and buddy-allocation simulations
+- `/demos/operating-systems` for page replacement, scheduling, realtime scheduling, and buddy-allocation simulations
 
 ## Historical mapping
 
