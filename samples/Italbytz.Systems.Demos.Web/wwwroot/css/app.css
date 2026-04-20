@@ -314,6 +314,59 @@ label select:focus,
     color: #587873;
 }
 
+.timeline-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(4.5rem, 1fr));
+    gap: 0.55rem;
+    margin-top: 1rem;
+}
+
+.timeline-cell {
+    display: grid;
+    gap: 0.2rem;
+    padding: 0.65rem 0.5rem;
+    border-radius: 0.9rem;
+    background: rgba(20, 50, 47, 0.09);
+    border: 1px solid rgba(20, 50, 47, 0.08);
+    text-align: center;
+}
+
+.timeline-cell strong,
+.timeline-cell small {
+    display: block;
+}
+
+.timeline-cell strong {
+    font-size: 0.9rem;
+    color: #587873;
+}
+
+.timeline-cell small {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #14322f;
+}
+
+.timeline-cell em {
+    display: block;
+    font-style: normal;
+    font-size: 0.72rem;
+    color: #9c4e24;
+}
+
+.timeline-cell.free {
+    background: rgba(255, 255, 255, 0.88);
+}
+
+.timeline-cell.free small {
+    color: #587873;
+}
+
+.timeline-cell.danger {
+    background: rgba(211, 122, 72, 0.16);
+    border-color: rgba(156, 78, 36, 0.24);
+}
+
 .cta-link {
     display: inline-flex;
     align-items: center;
