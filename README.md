@@ -27,7 +27,7 @@ The published site now also exposes an interactive Blazor demo host under:
 
 - `https://italbytz.github.io/nuget-systems/demos/`
 
-The doc site includes a solver catalog and an interactive demos guide that map common binary-arithmetic, networking, and operating-systems topics to the relevant solver classes and sample routes, including scheduling and buddy-allocation walkthroughs on the operating-systems page.
+The doc site includes a solver catalog and an interactive demos guide that map common binary-arithmetic, networking, and operating-systems topics to the relevant solver classes and sample routes, including scheduling, realtime scheduling, and buddy-allocation walkthroughs on the operating-systems page.
 
 ## Quality checks
 
