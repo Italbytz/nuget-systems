@@ -7,13 +7,14 @@
         <p class="eyebrow">Italbytz.OperatingSystems</p>
         <h1>Explore operating-systems solvers with traces, rankings, and allocation history.</h1>
         <p class="hero-copy">
-            The operating-systems package family exposes small, composable solver implementations for classic exercises. This demo route combines page replacement, CPU scheduling, and buddy allocation so the same package APIs can be inspected from multiple teaching angles.
+            The operating-systems package family exposes small, composable solver implementations for classic exercises. This demo route combines page replacement, CPU scheduling, realtime scheduling, and buddy allocation so the same package APIs can be inspected from multiple teaching angles.
         </p>
     </div>
     <div class="hero-note">
         <strong>Included areas</strong>
         <span>Page replacement</span>
         <span>CPU scheduling</span>
+        <span>Realtime scheduling</span>
         <span>Buddy allocation</span>
     </div>
 </section>
@@ -249,6 +250,147 @@
             <p class="validation-copy">@buddyError</p>
         }
     </article>
+
+    <article class="demo-card wide-card">
+        <div class="card-heading">
+            <p class="feature-kicker">Realtime scheduling</p>
+            <h2>Compare RMS and EDF over the package's 32-slot periodic-task horizon</h2>
+        </div>
+
+        <div class="input-grid three-up">
+            <label>
+                <span>Detailed timeline</span>
+                <select @bind="SelectedRealtimePolicy">
+                    <option value="RMS">Rate-monotonic scheduling</option>
+                    <option value="EDF">Earliest deadline first</option>
+                </select>
+            </label>
+            <label>
+                <span>Execution times</span>
+                <input type="text" @bind="RealtimeExecutionInput" />
+            </label>
+            <label>
+                <span>Periods</span>
+                <input type="text" @bind="RealtimePeriodsInput" />
+            </label>
+        </div>
+
+        <p class="helper-copy">
+            The demo maps the comma-separated execution times and periods to periodic tasks <strong>T1</strong> ... <strong>Tn</strong>. Both solvers expose a discrete 32-slot schedule, so the result stays close to the package implementation instead of inventing an extra visualization layer.
+        </p>
+
+        @if (TryGetRealtimeDemo(out var realtimeResult, out var realtimeError))
+        {
+            <div class="table-shell">
+                <table class="trace-table">
+                    <thead>
+                        <tr>
+                            <th>Policy</th>
+                            <th>Priority rule</th>
+                            <th>Idle slots</th>
+                            <th>Deadline misses</th>
+                            <th>Horizon summary</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var comparisonRow in realtimeResult!.ComparisonRows)
+                        {
+                            <tr>
+                                <td>@comparisonRow.PolicyLabel</td>
+                                <td>@comparisonRow.PriorityRule</td>
+                                <td>@comparisonRow.IdleSlots</td>
+                                <td>@comparisonRow.DeadlineMisses</td>
+                                <td>@comparisonRow.HorizonSummary</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="card-grid card-grid-three compact-grid">
+                <div class="metric-card">
+                    <span>Strategy</span>
+                    <strong>@realtimeResult!.PolicyLabel</strong>
+                </div>
+                <div class="metric-card">
+                    <span>Total utilization</span>
+                    <strong>@realtimeResult.Utilization.ToString("0.###")</strong>
+                </div>
+                <div class="metric-card">
+                    <span>Deadline misses</span>
+                    <strong>@realtimeResult.DeadlineMisses</strong>
+                </div>
+            </div>
+
+            <div class="card-grid card-grid-two compact-grid">
+                <div class="metric-card">
+                    <span>Feasibility hint</span>
+                    <strong>@realtimeResult.FeasibilityHint</strong>
+                </div>
+                <div class="metric-card">
+                    <span>Reference bound</span>
+                    <strong>@realtimeResult.ReferenceBoundLabel</strong>
+                </div>
+            </div>
+
+            <p class="helper-copy">@realtimeResult.Notes</p>
+
+            <div class="table-shell">
+                <table class="trace-table">
+                    <thead>
+                        <tr>
+                            <th>Task</th>
+                            <th>Execution time</th>
+                            <th>Period</th>
+                            <th>Utilization</th>
+                            <th>Misses</th>
+                            <th>Policy cue</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var task in realtimeResult.Tasks)
+                        {
+                            <tr>
+                                <td>@task.Name</td>
+                                <td>@task.ExecutionTime</td>
+                                <td>@task.Period</td>
+                                <td>@task.Utilization.ToString("0.###")</td>
+                                <td>@task.DeadlineMisses</td>
+                                <td>@task.PolicyCue</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="memory-legend">
+                @foreach (var legendItem in realtimeResult.Legend)
+                {
+                    <span class="memory-chip @(legendItem.IsFree ? "free" : string.Empty)">@legendItem.Label</span>
+                }
+            </div>
+
+            <div class="timeline-grid">
+                @for (var slotIndex = 0; slotIndex < realtimeResult.Timeline.Length; slotIndex++)
+                {
+                    var slot = realtimeResult.Timeline[slotIndex];
+                    var misses = realtimeResult.DeadlineMissesBySlot[slotIndex];
+                    <span class="timeline-cell @(slot == "idle" ? "free" : string.Empty) @(misses.Length > 0 ? "danger" : string.Empty)">
+                        <strong>@slotIndex</strong>
+                        <small>@slot</small>
+                        @if (misses.Length > 0)
+                        {
+                            <em>@string.Join(", ", misses)</em>
+                        }
+                    </span>
+                }
+            </div>
+        }
+        else
+        {
+            <p class="validation-copy">@realtimeError</p>
+        }
+    </article>
 </section>
 
 @code {
@@ -262,6 +404,10 @@
     private string SelectedSchedulingPolicy { get; set; } = "FCFS";
     private string SchedulingValuesInput { get; set; } = "6,2,8,3,5";
     private string SchedulingPrioritiesInput { get; set; } = "mittel,sehr hoch,niedrig,hoch,sehr niedrig";
+
+    private string SelectedRealtimePolicy { get; set; } = "RMS";
+    private string RealtimeExecutionInput { get; set; } = "1,2,4";
+    private string RealtimePeriodsInput { get; set; } = "4,5,10";
 
     private string BuddyRequestsInput { get; set; } = "120,64,200,32,90";
     private string BuddyReleaseOrderInput { get; set; } = "B,D,A,E,C";
@@ -381,6 +527,91 @@
         }
     }
 
+    private bool TryGetRealtimeDemo(out RealtimeDemoResult? result, out string errorMessage)
+    {
+        try
+        {
+            var executionTimes = ParseIntegerSequence(RealtimeExecutionInput, "execution times");
+            var periods = ParseIntegerSequence(RealtimePeriodsInput, "periods");
+
+            if (executionTimes.Length != periods.Length)
+            {
+                throw new InvalidOperationException("Execution times and periods must have the same number of entries.");
+            }
+
+            if (executionTimes.Length is < 1 or > 5)
+            {
+                throw new InvalidOperationException("Provide between one and five periodic tasks.");
+            }
+
+            if (executionTimes.Any(value => value < 1 || value > 32) || periods.Any(value => value < 1 || value > 32))
+            {
+                throw new InvalidOperationException("Execution times and periods must stay between 1 and 32 slots.");
+            }
+
+            var taskNames = executionTimes.Select((_, index) => $"T{index + 1}").ToArray();
+            var requests = executionTimes.Zip(periods, (executionTime, period) => (executionTime, period)).ToArray();
+            var parameters = new RealtimeSchedulingParameters
+            {
+                Requests = requests
+            };
+
+            var solver = SelectedRealtimePolicy == "EDF"
+                ? (IRealtimeSchedulingSolver)new EDFSolver()
+                : new RMSSolver();
+
+            var solution = (RealtimeSchedulingSolution)solver.Solve(parameters);
+            var timeline = solution.Processes.Select(slot => MapRealtimeSlot(slot, taskNames)).ToArray();
+            var utilization = requests.Sum(request => (double)request.executionTime / request.period);
+            var rmsBound = ComputeRmsBound(taskNames.Length);
+
+            var rmsAnalysis = AnalyzeRealtimeSchedule(new RMSSolver(), taskNames, requests);
+            var edfAnalysis = AnalyzeRealtimeSchedule(new EDFSolver(), taskNames, requests);
+            var selectedAnalysis = SelectedRealtimePolicy == "EDF" ? edfAnalysis : rmsAnalysis;
+
+            var tasks = taskNames
+                .Select((name, index) => new RealtimeTaskView(
+                    name,
+                    requests[index].executionTime,
+                    requests[index].period,
+                    (double)requests[index].executionTime / requests[index].period,
+                    selectedAnalysis.DeadlineMissCounts[index],
+                    GetRealtimePolicyCue(index, requests, SelectedRealtimePolicy)))
+                .ToArray();
+
+            var legend = new[] { new MemoryLegendItem("idle", true) }
+                .Concat(taskNames.Select(name => new MemoryLegendItem(name, false)))
+                .ToArray();
+
+            var comparisonRows = new[]
+            {
+                CreateRealtimeComparisonRow("Rate-monotonic scheduling", "fixed priorities by shorter period", rmsAnalysis),
+                CreateRealtimeComparisonRow("Earliest deadline first", "dynamic priorities by nearest deadline", edfAnalysis)
+            };
+
+            result = new RealtimeDemoResult(
+                SelectedRealtimePolicy == "EDF" ? "Earliest deadline first" : "Rate-monotonic scheduling",
+                tasks,
+                selectedAnalysis.Timeline,
+                selectedAnalysis.DeadlineMissesBySlot,
+                legend,
+                utilization,
+                SelectedRealtimePolicy == "EDF" ? null : rmsBound,
+                GetRealtimeNotes(utilization, rmsBound, selectedAnalysis.DeadlineMisses),
+                GetRealtimeFeasibilityHint(utilization, rmsBound, selectedAnalysis.DeadlineMisses),
+                comparisonRows,
+                selectedAnalysis.DeadlineMisses);
+            errorMessage = string.Empty;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            result = null;
+            errorMessage = ex.Message;
+            return false;
+        }
+    }
+
     private ISchedulingSolver CreateSchedulingSolver() =>
         SelectedSchedulingPolicy switch
         {
@@ -406,6 +637,112 @@
             "Priority" => "PrioritySchedulingSolver uses the German priority ladder built into the package: sehr hoch, hoch, mittel, niedrig, sehr niedrig.",
             "RoundRobin" => "RoundRobinSolver currently reports an aggregated shared-time score over ascending burst lengths rather than rendering a literal quantum-by-quantum timeline.",
             _ => "FCFSSolver keeps the submitted order and reports the package's aggregate time score for that queue."
+        };
+
+    private string GetRealtimeNotes(double utilization, double rmsBound, int deadlineMisses) =>
+        SelectedRealtimePolicy switch
+        {
+            "EDF" => $"EDFSolver recomputes priorities from the earliest absolute deadline in each slot. With total utilization {utilization:0.###}, the classic theoretical target is 1.0 for fully preemptive periodic tasks. The current 32-slot horizon shows {deadlineMisses} missed execution unit(s).",
+            _ => $"RMSSolver uses fixed priorities derived from shorter periods. The total utilization is {utilization:0.###}; the classical sufficient Liu-and-Layland bound for {SelectedRealtimeTaskCountLabel()} is {rmsBound:0.###}. The current 32-slot horizon shows {deadlineMisses} missed execution unit(s)."
+        };
+
+    private string GetRealtimeFeasibilityHint(double utilization, double rmsBound, int deadlineMisses) =>
+        SelectedRealtimePolicy switch
+        {
+            "EDF" when deadlineMisses == 0 && utilization <= 1.0 => "No misses appear in the 32-slot horizon, and utilization stays at or below the usual EDF reference point.",
+            "EDF" when deadlineMisses == 0 => "No misses appear in the 32-slot horizon, but utilization is already above the usual EDF reference point of 1.0.",
+            "EDF" => "Utilization exceeds 1.0, so deadline misses are expected in a strict EDF interpretation.",
+            _ when deadlineMisses == 0 && utilization <= rmsBound => "No misses appear in the 32-slot horizon, and utilization stays below the classical sufficient RMS bound.",
+            _ when deadlineMisses == 0 => "No misses appear in the 32-slot horizon, even though utilization exceeds the classical sufficient RMS bound.",
+            _ => "Utilization exceeds the classical RMS bound, so the solver output should be read as a schedule trace rather than a guarantee."
+        };
+
+    private string GetRealtimePolicyCue(int index, (int executionTime, int period)[] requests, string policy) =>
+        policy switch
+        {
+            "EDF" => $"relative deadline = period {requests[index].period}",
+            _ => $"fixed priority rank #{requests.Select((request, requestIndex) => (request, requestIndex)).OrderBy(item => item.request.period).ThenBy(item => item.requestIndex).Select((item, rank) => new { item.requestIndex, rank }).First(item => item.requestIndex == index).rank + 1}"
+        };
+
+    private RealtimeComparisonRow CreateRealtimeComparisonRow(string policyLabel, string priorityRule, RealtimeScheduleAnalysis analysis) =>
+        new(
+            policyLabel,
+            priorityRule,
+            analysis.IdleSlots,
+            analysis.DeadlineMisses,
+            analysis.DeadlineMisses == 0
+                ? "no missed execution units in 32 slots"
+                : $"{analysis.DeadlineMisses} missed execution unit(s) in 32 slots");
+
+    private static RealtimeScheduleAnalysis AnalyzeRealtimeSchedule(IRealtimeSchedulingSolver solver, string[] taskNames, (int executionTime, int period)[] requests)
+    {
+        var parameters = new RealtimeSchedulingParameters
+        {
+            Requests = requests
+        };
+
+        var solution = (RealtimeSchedulingSolution)solver.Solve(parameters);
+        var timeline = solution.Processes.Select(slot => MapRealtimeSlot(slot, taskNames)).ToArray();
+        var deadlineMissCounts = new int[taskNames.Length];
+        var deadlineMissesBySlot = Enumerable.Range(0, timeline.Length).Select(_ => Array.Empty<string>()).ToArray();
+        var waitingUnits = new List<RealtimeWorkUnit>();
+        var releaseSequence = 0;
+
+        for (var slotIndex = 0; slotIndex < solution.Processes.Length; slotIndex++)
+        {
+            for (var taskIndex = 0; taskIndex < requests.Length; taskIndex++)
+            {
+                var request = requests[taskIndex];
+                if (slotIndex % request.period < request.executionTime)
+                {
+                    var absoluteDeadline = slotIndex - (slotIndex % request.period) + request.period;
+                    waitingUnits.Add(new RealtimeWorkUnit(taskIndex, absoluteDeadline, releaseSequence));
+                    releaseSequence++;
+                }
+            }
+
+            var executedTask = solution.Processes[slotIndex];
+            if (executedTask >= 0)
+            {
+                var executedUnit = waitingUnits
+                    .Where(unit => unit.TaskIndex == executedTask)
+                    .OrderBy(unit => unit.Deadline)
+                    .ThenBy(unit => unit.ReleaseSequence)
+                    .FirstOrDefault();
+
+                if (executedUnit is not null)
+                {
+                    waitingUnits.Remove(executedUnit);
+                }
+            }
+
+            var deadline = slotIndex + 1;
+            var missedUnits = waitingUnits.Where(unit => unit.Deadline == deadline).ToArray();
+            if (missedUnits.Length > 0)
+            {
+                deadlineMissesBySlot[slotIndex] = missedUnits
+                    .Select(unit => taskNames[unit.TaskIndex])
+                    .Distinct()
+                    .OrderBy(name => name)
+                    .ToArray();
+
+                foreach (var group in missedUnits.GroupBy(unit => unit.TaskIndex))
+                {
+                    deadlineMissCounts[group.Key] += group.Count();
+                }
+
+                waitingUnits.RemoveAll(unit => unit.Deadline == deadline);
+            }
+        }
+
+        return new RealtimeScheduleAnalysis(timeline, deadlineMissesBySlot, deadlineMissCounts);
+    }
+
+    private string SelectedRealtimeTaskCountLabel() =>
+        ParseIntegerSequence(RealtimeExecutionInput, "execution times").Length switch
+        {
+            1 => "1 task",
+            var count => $"{count} tasks"
         };
 
     private int[] ParseIntegerSequence(string input, string fieldName) =>
@@ -454,11 +791,26 @@
 
     private static int PriorityRank(string priority) => Array.IndexOf(PriorityScale, priority);
 
+    private static double ComputeRmsBound(int taskCount) =>
+        taskCount switch
+        {
+            <= 0 => 0,
+            _ => taskCount * (Math.Pow(2, 1d / taskCount) - 1)
+        };
+
     private static string MapBuddySlot(int slot) =>
         slot switch
         {
             -1 => "free",
             >= 0 and < 5 => ProcessNames[slot],
+            _ => "?"
+        };
+
+    private static string MapRealtimeSlot(int slot, IReadOnlyList<string> taskNames) =>
+        slot switch
+        {
+            -1 => "idle",
+            >= 0 when slot < taskNames.Count => taskNames[slot],
             _ => "?"
         };
 
@@ -478,5 +830,52 @@
         MemoryLegendItem[] Legend)
     {
         public int FinalOccupiedChunks => History.LastOrDefault()?.Count(slot => slot != "free") ?? 0;
+    }
+
+    private sealed record RealtimeTaskView(
+        string Name,
+        int ExecutionTime,
+        int Period,
+        double Utilization,
+        int DeadlineMisses,
+        string PolicyCue);
+
+    private sealed record RealtimeComparisonRow(
+        string PolicyLabel,
+        string PriorityRule,
+        int IdleSlots,
+        int DeadlineMisses,
+        string HorizonSummary);
+
+    private sealed record RealtimeWorkUnit(int TaskIndex, int Deadline, int ReleaseSequence);
+
+    private sealed record RealtimeScheduleAnalysis(
+        string[] Timeline,
+        string[][] DeadlineMissesBySlot,
+        int[] DeadlineMissCounts)
+    {
+        public int IdleSlots => Timeline.Count(slot => slot == "idle");
+
+        public int DeadlineMisses => DeadlineMissCounts.Sum();
+    }
+
+    private sealed record RealtimeDemoResult(
+        string PolicyLabel,
+        RealtimeTaskView[] Tasks,
+        string[] Timeline,
+        string[][] DeadlineMissesBySlot,
+        MemoryLegendItem[] Legend,
+        double Utilization,
+        double? ReferenceBound,
+        string Notes,
+        string FeasibilityHint,
+        RealtimeComparisonRow[] ComparisonRows,
+        int DeadlineMisses)
+    {
+        public int IdleSlots => Timeline.Count(slot => slot == "idle");
+
+        public string ReferenceBoundLabel => ReferenceBound is double value
+            ? value.ToString("0.###")
+            : "EDF reference target: 1.0";
     }
 }
