@@ -38,6 +38,7 @@
                 </label>
             </div>
 
+            @{ var addition = AdditionSolution; }
             <div class="result-stack">
                 <div class="metric-row">
                     <span>Binary A</span>
@@ -49,8 +50,28 @@
                 </div>
                 <div class="metric-row accent-row">
                     <span>Sum</span>
-                    <strong>@AdditionSolution.Sum (@ToBinary((int)AdditionSolution.Sum, 16))</strong>
+                    <strong>@addition.Sum (@ToBinary((int)addition.Sum, 16))</strong>
                 </div>
+            </div>
+
+            <div class="table-shell">
+                <table class="trace-table">
+                    <thead>
+                        <tr>
+                            <th>Trace step</th>
+                            <th>Trace detail</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (var index = 0; index < addition.Steps.Count; index++)
+                        {
+                            <tr>
+                                <td>@(index + 1)</td>
+                                <td>@addition.Steps[index]</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
             </div>
         </article>
 
@@ -71,16 +92,58 @@
                 </label>
             </div>
 
+            @{ var decimalToBinary = DecimalToBinarySolution; }
+            @{ var binaryToDecimal = BinaryToDecimalSolution; }
             <div class="result-stack">
                 <div class="metric-row">
                     <span>Decimal to binary</span>
-                    <strong>@ToBinary(DecimalToBinarySolution.Binary)</strong>
+                    <strong>@ToBinary(decimalToBinary.Binary)</strong>
                 </div>
                 <div class="metric-row">
                     <span>Binary to decimal</span>
-                    <strong>@BinaryToDecimalSolution.Decimal</strong>
+                    <strong>@binaryToDecimal.Decimal</strong>
                 </div>
                 <p class="helper-copy">Binary input accepts up to eight bits and ignores any non-binary characters.</p>
+            </div>
+
+            <div class="table-shell">
+                <table class="trace-table">
+                    <thead>
+                        <tr>
+                            <th>Trace step</th>
+                            <th>Trace detail</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (var index = 0; index < decimalToBinary.Steps.Count; index++)
+                        {
+                            <tr>
+                                <td>@(index + 1)</td>
+                                <td>@decimalToBinary.Steps[index]</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="table-shell">
+                <table class="trace-table">
+                    <thead>
+                        <tr>
+                            <th>Trace step</th>
+                            <th>Trace detail</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (var index = 0; index < binaryToDecimal.Steps.Count; index++)
+                        {
+                            <tr>
+                                <td>@(index + 1)</td>
+                                <td>@binaryToDecimal.Steps[index]</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
             </div>
         </article>
     </div>
@@ -98,6 +161,7 @@
             </label>
         </div>
 
+        @{ var twosComplement = TwosComplementSolution; }
         <div class="card-grid card-grid-three compact-grid">
             <div class="metric-card">
                 <span>Input</span>
@@ -106,14 +170,34 @@
             </div>
             <div class="metric-card">
                 <span>Signed result</span>
-                <strong>@TwosComplementSolution.ComplementBinary</strong>
+                <strong>@twosComplement.ComplementBinary</strong>
                 <small>solver output</small>
             </div>
             <div class="metric-card">
                 <span>Stored bits</span>
-                <strong>@ToBinary(unchecked((byte)TwosComplementSolution.ComplementBinary))</strong>
+                <strong>@ToBinary(unchecked((byte)twosComplement.ComplementBinary))</strong>
                 <small>8-bit view</small>
             </div>
+        </div>
+
+        <div class="table-shell">
+            <table class="trace-table">
+                <thead>
+                    <tr>
+                        <th>Trace step</th>
+                        <th>Trace detail</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (var index = 0; index < twosComplement.Steps.Count; index++)
+                    {
+                        <tr>
+                            <td>@(index + 1)</td>
+                            <td>@twosComplement.Steps[index]</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
         </div>
     </article>
 </section>
