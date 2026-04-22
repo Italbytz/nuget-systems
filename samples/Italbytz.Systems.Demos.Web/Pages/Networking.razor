@@ -31,20 +31,41 @@
                 <input type="text" inputmode="numeric" maxlength="16" @bind="BitPattern" />
             </label>
 
+            @{ var bitencoding = BitencodingSolution; }
             <div class="result-stack">
                 <div class="metric-row">
                     <span>NRZ</span>
-                    <strong>@string.Join(" ", BitencodingSolution.NRZ)</strong>
+                    <strong>@string.Join(" ", bitencoding.NRZ)</strong>
                 </div>
                 <div class="metric-row">
                     <span>NRZI</span>
-                    <strong>@string.Join(" ", BitencodingSolution.NRZI)</strong>
+                    <strong>@string.Join(" ", bitencoding.NRZI)</strong>
                 </div>
                 <div class="metric-row">
                     <span>MLT-3</span>
-                    <strong>@string.Join(" ", BitencodingSolution.MLT3)</strong>
+                    <strong>@string.Join(" ", bitencoding.MLT3)</strong>
                 </div>
                 <p class="helper-copy">Only binary digits are used. Other characters are ignored.</p>
+            </div>
+
+            <div class="table-shell">
+                <table class="trace-table">
+                    <thead>
+                        <tr>
+                            <th>Trace step</th>
+                            <th>Trace detail</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (var index = 0; index < bitencoding.Steps.Count; index++)
+                        {
+                            <tr>
+                                <td>@(index + 1)</td>
+                                <td>@bitencoding.Steps[index]</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
             </div>
         </article>
 
@@ -59,15 +80,36 @@
                 <input type="number" min="0" max="255" @bind="CrcTerm" />
             </label>
 
+            @{ var crc = CrcSolution; }
             <div class="code-output">
                 <div>
                     <span>Calculation</span>
-                    <pre>@CrcSolution.Calculation</pre>
+                    <pre>@crc.Calculation</pre>
                 </div>
                 <div>
                     <span>Check</span>
-                    <pre>@CrcSolution.Check</pre>
+                    <pre>@crc.Check</pre>
                 </div>
+            </div>
+
+            <div class="table-shell">
+                <table class="trace-table">
+                    <thead>
+                        <tr>
+                            <th>Trace step</th>
+                            <th>Trace detail</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (var index = 0; index < crc.Steps.Count; index++)
+                        {
+                            <tr>
+                                <td>@(index + 1)</td>
+                                <td>@crc.Steps[index]</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
             </div>
         </article>
     </div>
@@ -100,6 +142,26 @@
                     <span>Host address</span>
                     <strong>@netmaskSolution!.HostAddress</strong>
                 </div>
+            </div>
+
+            <div class="table-shell">
+                <table class="trace-table">
+                    <thead>
+                        <tr>
+                            <th>Trace step</th>
+                            <th>Trace detail</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (var index = 0; index < netmaskSolution!.Steps.Count; index++)
+                        {
+                            <tr>
+                                <td>@(index + 1)</td>
+                                <td>@netmaskSolution.Steps[index]</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
             </div>
         }
         else
