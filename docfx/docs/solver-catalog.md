@@ -12,6 +12,9 @@ For a browser-based walkthrough, pair this catalog with the `Interactive demos` 
 | Binary to decimal conversion | `IBinaryToDecimalSolver` | `BinaryToDecimalSolver` |
 | Decimal to binary conversion | `IDecimalToBinarySolver` | `DecimalToBinarySolver` |
 | Two's complement | `ITwosComplementSolver` | `TwosComplementSolver` |
+| Canonical boolean normal forms | `INormalFormSolver` | `NormalFormSolver` |
+| Karnaugh map layout and groups | `IKarnaughMapSolver` | `KarnaughMapSolver` |
+| Quine-McCluskey minimization | `IQuineMcCluskeySolver` | `QuineMcCluskeySolver` |
 
 Use `Italbytz.ComputingSystems.Abstractions` when you only need the contracts, and `Italbytz.ComputingSystems` when you want the working implementations.
 
