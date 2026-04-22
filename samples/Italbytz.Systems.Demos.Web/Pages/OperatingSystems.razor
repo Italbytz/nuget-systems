@@ -150,6 +150,26 @@
                 <table class="trace-table">
                     <thead>
                         <tr>
+                            <th>Trace step</th>
+                            <th>Trace detail</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (var index = 0; index < schedulingResult.SolverSteps.Length; index++)
+                        {
+                            <tr>
+                                <td>@(index + 1)</td>
+                                <td>@schedulingResult.SolverSteps[index]</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="table-shell">
+                <table class="trace-table">
+                    <thead>
+                        <tr>
                             <th>Process</th>
                             <th>Burst</th>
                             <th>Priority</th>
@@ -339,6 +359,26 @@
                 <table class="trace-table">
                     <thead>
                         <tr>
+                            <th>Trace step</th>
+                            <th>Trace detail</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (var index = 0; index < realtimeResult.SolverSteps.Length; index++)
+                        {
+                            <tr>
+                                <td>@(index + 1)</td>
+                                <td>@realtimeResult.SolverSteps[index]</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="table-shell">
+                <table class="trace-table">
+                    <thead>
+                        <tr>
                             <th>Task</th>
                             <th>Execution time</th>
                             <th>Period</th>
@@ -472,7 +512,8 @@
                 solution.Time,
                 orderedProcesses,
                 orderedProcesses.Select(process => process.Name).ToArray(),
-                GetSchedulingNotes());
+                GetSchedulingNotes(),
+                solution.Steps.ToArray());
             errorMessage = string.Empty;
             return true;
         }
@@ -600,7 +641,8 @@
                 GetRealtimeNotes(utilization, rmsBound, selectedAnalysis.DeadlineMisses),
                 GetRealtimeFeasibilityHint(utilization, rmsBound, selectedAnalysis.DeadlineMisses),
                 comparisonRows,
-                selectedAnalysis.DeadlineMisses);
+                selectedAnalysis.DeadlineMisses,
+                solution.Steps.ToArray());
             errorMessage = string.Empty;
             return true;
         }
@@ -820,7 +862,8 @@
         double Score,
         SchedulingProcessView[] Processes,
         string[] ExecutionOrder,
-        string Notes);
+        string Notes,
+        string[] SolverSteps);
 
     private sealed record MemoryLegendItem(string Label, bool IsFree);
 
@@ -870,7 +913,8 @@
         string Notes,
         string FeasibilityHint,
         RealtimeComparisonRow[] ComparisonRows,
-        int DeadlineMisses)
+        int DeadlineMisses,
+        string[] SolverSteps)
     {
         public int IdleSlots => Timeline.Count(slot => slot == "idle");
 
