@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Net;
 using Italbytz.Networking.Abstractions;
 
@@ -12,5 +13,6 @@ namespace Italbytz.Networking
 
         public IPAddress NetworkAddress { get; set; } = IPAddress.None;
         public IPAddress HostAddress { get; set; } = IPAddress.None;
+        public List<string> Steps { get; set; } = new();
     }
 }
