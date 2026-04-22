@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Italbytz.Networking.Abstractions;
 
 namespace Italbytz.Networking
@@ -13,10 +14,22 @@ namespace Italbytz.Networking
         {
             var crc = CRC5(parameters.Term, 0x0);
             var crcTest = CRC5(parameters.Term, crc.Item2);
+            var steps = new List<string>
+            {
+                $"Input term: {parameters.Term} ({Convert.ToString(parameters.Term, 2).PadLeft(8, '0')}).",
+                "Generator polynomial (CRC-5): 0b100101.",
+                "Division trace for calculation remainder:",
+                crc.Item1,
+                $"Calculated remainder: {Convert.ToString(crc.Item2, 2).PadLeft(5, '0')}.",
+                "Division trace for check value:",
+                crcTest.Item1,
+                $"Check remainder: {Convert.ToString(crcTest.Item2, 2).PadLeft(5, '0')}."
+            };
             var solution = new CRCSolution
             {
                 Calculation = crc.Item1,
-                Check = crcTest.Item1
+                Check = crcTest.Item1,
+                Steps = steps
             };
             return solution;
         }
