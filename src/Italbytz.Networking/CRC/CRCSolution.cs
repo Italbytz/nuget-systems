@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Italbytz.Networking.Abstractions;
 
 namespace Italbytz.Networking
@@ -11,5 +12,6 @@ namespace Italbytz.Networking
 
         public string Calculation { get; set; } = string.Empty;
         public string Check { get; set; } = string.Empty;
+        public List<string> Steps { get; set; } = new();
     }
 }
