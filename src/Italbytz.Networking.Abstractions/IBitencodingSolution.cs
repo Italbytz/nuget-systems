@@ -1,6 +1,8 @@
-﻿namespace Italbytz.Networking.Abstractions
+﻿using Italbytz.Systems.Abstractions;
+
+namespace Italbytz.Networking.Abstractions
 {
-    public interface IBitencodingSolution
+    public interface IBitencodingSolution : ITracedSolution
     {
         string[] NRZ { get; set; }
         string[] NRZI { get; set; }
