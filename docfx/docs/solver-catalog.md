@@ -15,6 +15,14 @@ For a browser-based walkthrough, pair this catalog with the `Interactive demos` 
 
 Use `Italbytz.ComputingSystems.Abstractions` when you only need the contracts, and `Italbytz.ComputingSystems` when you want the working implementations.
 
+The computing solutions now also expose `Steps` collections to make intermediate results explicit for exam preparation, generated tasks, and trace-based demos.
+
+## Cross-domain trace contract
+
+Use `Italbytz.Systems.Abstractions` when you need one shared trace shape across domains.
+
+- `ITracedSolution` defines a common `Steps` collection and is implemented by computing, networking, and scheduling solution contracts.
+
 ## Networking
 
 | Topic | Contracts | Implementations |
