@@ -4,6 +4,10 @@
     <PackageReference Include="Italbytz.AI.Abstractions" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Italbytz.Systems.Abstractions\Italbytz.Systems.Abstractions.csproj" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0;net8.0</TargetFrameworks>
     <PackageId>Italbytz.Networking.Abstractions</PackageId>
