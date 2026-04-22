@@ -9,8 +9,9 @@ It is intended for developers who need reusable solver contracts and implementat
 ## Which package should I use?
 
 - Use `Italbytz.ComputingSystems.Abstractions` for contracts such as `IBinaryAdditionSolver`, `IBinaryToDecimalSolver`, `IDecimalToBinarySolver`, and `ITwosComplementSolver`.
+- Use `Italbytz.ComputingSystems.Abstractions` for boolean-function contracts such as `INormalFormSolver`, `IKarnaughMapSolver`, and `IQuineMcCluskeySolver` when you need canonical forms, Gray-coded Karnaugh maps, or Quine-McCluskey minimization from a truth table.
 - Use `Italbytz.Systems.Abstractions` for cross-domain contracts such as `ITracedSolution` when you want one shared trace shape across computing, networking, and operating-systems solutions.
-- Use `Italbytz.ComputingSystems` for concrete solver implementations such as `BinaryAdditionSolver`, `BinaryToDecimalSolver`, `DecimalToBinarySolver`, and `TwosComplementSolver`.
+- Use `Italbytz.ComputingSystems` for concrete solver implementations such as `BinaryAdditionSolver`, `BinaryToDecimalSolver`, `DecimalToBinarySolver`, `TwosComplementSolver`, `NormalFormSolver`, `KarnaughMapSolver`, and `QuineMcCluskeySolver`.
 - Use `Italbytz.Networking.Abstractions` for reusable contracts such as `IBitencodingSolver`, `ICRCSolver`, and `INetmaskSolver`.
 - Use `Italbytz.Networking` for ready-to-use implementations like `BitencodingSolver`, `CRCSolver`, and `NetmaskSolver`.
 - Use `Italbytz.Networking.Resources` when you need the extracted subnet and IP helper utilities behind the networking tasks.
