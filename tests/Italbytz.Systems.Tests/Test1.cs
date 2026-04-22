@@ -81,6 +81,87 @@ public sealed class ComputingSystemsTests
     }
 
     [TestMethod]
+    public void Normal_form_solver_builds_canonical_dnf_and_cnf_from_truth_table()
+    {
+        INormalFormSolver solver = new NormalFormSolver();
+
+        var solution = solver.Solve(new NormalFormParameters(2, [0, 1, 1, 0]));
+
+        Assert.AreEqual("(!x1 & x0) | (x1 & !x0)", solution.Dnf);
+        Assert.AreEqual("(x1 | x0) & (!x1 | !x0)", solution.Cnf);
+        Assert.IsNotEmpty(solution.Steps);
+        StringAssert.Contains(solution.Steps[0], "Row 0");
+    }
+
+    [TestMethod]
+    public void Normal_form_solver_returns_zero_and_one_for_constant_functions()
+    {
+        INormalFormSolver solver = new NormalFormSolver();
+
+        var zeroSolution = solver.Solve(new NormalFormParameters(2, [0, 0, 0, 0]));
+        var oneSolution = solver.Solve(new NormalFormParameters(2, [1, 1, 1, 1]));
+
+        Assert.AreEqual("0", zeroSolution.Dnf);
+        Assert.AreEqual("1", oneSolution.Cnf);
+    }
+
+    [TestMethod]
+    public void Normal_form_solver_rejects_invalid_truth_table_length()
+    {
+        INormalFormSolver solver = new NormalFormSolver();
+
+        try
+        {
+            solver.Solve(new NormalFormParameters(3, [0, 1, 1, 0]));
+            Assert.Fail("Expected an ArgumentException for an invalid truth table length.");
+        }
+        catch (ArgumentException)
+        {
+        }
+    }
+
+    [TestMethod]
+    public void Quine_mccluskey_solver_reduces_truth_table_to_selected_prime_implicants()
+    {
+        IQuineMcCluskeySolver solver = new QuineMcCluskeySolver();
+
+        var solution = solver.Solve(new QuineMcCluskeyParameters(2, [0, 1, 1, 1]));
+
+        Assert.IsTrue(solution.SelectedPrimeImplicants.Contains("(x1)"));
+        Assert.IsTrue(solution.SelectedPrimeImplicants.Contains("(x0)"));
+        Assert.HasCount(2, solution.SelectedPrimeImplicants);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(solution.MinimalDnf));
+        Assert.IsTrue(solution.Steps.Any(step => step.Contains("Essential prime implicant")));
+    }
+
+    [TestMethod]
+    public void Quine_mccluskey_solver_uses_dont_cares_for_smaller_solution()
+    {
+        IQuineMcCluskeySolver solver = new QuineMcCluskeySolver();
+
+        var solution = solver.Solve(new QuineMcCluskeyParameters(2, [1, 1, 2, 0]));
+
+        Assert.AreEqual("(!x1)", solution.MinimalDnf);
+        CollectionAssert.AreEqual(new[] { "(!x1)" }, solution.SelectedPrimeImplicants);
+    }
+
+    [TestMethod]
+    public void Karnaugh_map_solver_builds_gray_coded_cells_and_groups()
+    {
+        IKarnaughMapSolver solver = new KarnaughMapSolver();
+
+        var solution = solver.Solve(new KarnaughMapParameters(2, [0, 1, 1, 1]));
+
+        Assert.AreEqual(2, solution.RowCount);
+        Assert.AreEqual(2, solution.ColumnCount);
+        Assert.HasCount(4, solution.Cells);
+        Assert.HasCount(2, solution.Groups);
+        Assert.AreEqual(2, solution.Cells[2].MintermIndex);
+        Assert.IsTrue(solution.Groups.Any(group => group.Term == "(x1)" && group.CoveredMintermIndices.SequenceEqual([2, 3])));
+        Assert.IsTrue(solution.Groups.Any(group => group.Term == "(x0)" && group.CoveredMintermIndices.SequenceEqual([1, 3])));
+    }
+
+    [TestMethod]
     public void Bitencoding_solver_returns_expected_line_codes()
     {
         IBitencodingSolver solver = new BitencodingSolver();
