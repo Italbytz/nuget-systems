@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Italbytz.Networking.Abstractions;
 
 namespace Italbytz.Networking
@@ -89,11 +90,26 @@ namespace Italbytz.Networking
         public IBitencodingSolution Solve(IBitencodingParameters parameters)
         {
             Bits = parameters.Bits;
+            var nrz = NRZ();
+            var nrzi = NRZI();
+            var mlt3 = MLT3();
+            var steps = new List<string>
+            {
+                $"Input bits: {string.Join("", Bits)}.",
+                $"NRZ output: {string.Join(" ", nrz)}.",
+                $"NRZI output: {string.Join(" ", nrzi)}.",
+                $"MLT-3 output: {string.Join(" ", mlt3)}."
+            };
+
+            steps.AddRange(Bits.Select((bit, index) =>
+                $"Bit {index + 1}={bit} -> NRZ {nrz[index]}, NRZI {nrzi[index]}, MLT-3 {mlt3[index]}."));
+
             return new BitencodingSolution()
             {
-                NRZ = NRZ(),
-                NRZI = NRZI(),
-                MLT3 = MLT3()
+                NRZ = nrz,
+                NRZI = nrzi,
+                MLT3 = mlt3,
+                Steps = steps
             };
         }
     }
