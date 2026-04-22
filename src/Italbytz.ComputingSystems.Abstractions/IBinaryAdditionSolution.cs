@@ -1,6 +1,8 @@
+using Italbytz.Systems.Abstractions;
+
 namespace Italbytz.ComputingSystems.Abstractions;
 
-public interface IBinaryAdditionSolution
+public interface IBinaryAdditionSolution : ITracedSolution
 {
     ushort Sum { get; set; }
 }
