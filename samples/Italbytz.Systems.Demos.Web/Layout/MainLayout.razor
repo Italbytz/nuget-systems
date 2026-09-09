@@ -1,9 +1,13 @@
 @inherits LayoutComponentBase
+@inject NavigationManager NavigationManager
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+<div class="page @(IsEmbedded ? "is-embedded" : "")">
+    @if (!IsEmbedded)
+    {
+        <div class="sidebar">
+            <NavMenu />
+        </div>
+    }
 
     <main>
         <article class="content">
@@ -11,3 +15,32 @@
         </article>
     </main>
 </div>
+
+@code {
+    private bool IsEmbedded { get; set; }
+
+    protected override void OnInitialized()
+    {
+        CheckEmbedded();
+        NavigationManager.LocationChanged += (s, e) =>
+        {
+            CheckEmbedded();
+            StateHasChanged();
+        };
+    }
+
+    private void CheckEmbedded()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+            IsEmbedded = string.Equals(query["embed"], "true", StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(query["embed"], "1", StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            IsEmbedded = false;
+        }
+    }
+}

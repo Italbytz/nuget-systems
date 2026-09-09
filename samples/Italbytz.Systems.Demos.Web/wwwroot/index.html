@@ -11,6 +11,25 @@
     <link rel="stylesheet" href="css/app.css" />
     <link rel="icon" type="image/png" href="favicon.png" />
     <link href="Italbytz.Systems.Demos.Web.styles.css" rel="stylesheet" />
+    <script>
+        (function () {
+            function checkEmbed() {
+                var isEmbed = false;
+                try {
+                    isEmbed = window.self !== window.top || window.location.search.indexOf('embed=') !== -1;
+                } catch (e) {
+                    isEmbed = true;
+                }
+                if (isEmbed) {
+                    document.documentElement.classList.add('is-embedded');
+                } else {
+                    document.documentElement.classList.remove('is-embedded');
+                }
+            }
+            checkEmbed();
+            window.addEventListener('popstate', checkEmbed);
+        })();
+    </script>
     <style media="print">
         .sidebar,
         .top-row,
