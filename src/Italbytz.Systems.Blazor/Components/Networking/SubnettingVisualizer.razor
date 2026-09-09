@@ -1,0 +1,83 @@
+@namespace Italbytz.Systems.Blazor.Components.Networking
+
+<article class="demo-card wide-card">
+    <div class="card-heading">
+        <p class="feature-kicker">Subnetting</p>
+        <h2>Split an address into network and host parts</h2>
+    </div>
+
+    <div class="input-grid two-up">
+        <label>
+            <span>IPv4 address</span>
+            <input type="text" @bind="IpAddress" />
+        </label>
+        <label>
+            <span>Prefix length</span>
+            <input type="number" min="0" max="32" @bind="PrefixLength" />
+        </label>
+    </div>
+
+    @if (TryGetNetmaskSolution(out var netmaskSolution, out var errorMessage))
+    {
+        <div class="card-grid card-grid-two compact-grid">
+            <div class="metric-card">
+                <span>Network address</span>
+                <strong>@netmaskSolution!.NetworkAddress</strong>
+            </div>
+            <div class="metric-card">
+                <span>Host address</span>
+                <strong>@netmaskSolution!.HostAddress</strong>
+            </div>
+        </div>
+
+        <div class="table-shell">
+            <table class="trace-table">
+                <thead>
+                    <tr>
+                        <th>Trace step</th>
+                        <th>Trace detail</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (var index = 0; index < netmaskSolution!.Steps.Count; index++)
+                    {
+                        <tr>
+                            <td>@(index + 1)</td>
+                            <td>@netmaskSolution.Steps[index]</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <p class="validation-copy">@errorMessage</p>
+    }
+</article>
+
+@code {
+    private readonly NetmaskSolver netmaskSolver = new();
+
+    [Parameter]
+    public string IpAddress { get; set; } = "192.168.10.42";
+
+    [Parameter]
+    public int PrefixLength { get; set; } = 24;
+
+    private bool TryGetNetmaskSolution(out NetmaskSolution? solution, out string errorMessage)
+    {
+        try
+        {
+            solution = (NetmaskSolution)netmaskSolver.Solve(new NetmaskParameters(IpAddress.Trim(), Math.Clamp(PrefixLength, 0, 32)));
+            errorMessage = string.Empty;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            solution = null;
+            errorMessage = ex.Message;
+            return false;
+        }
+    }
+}

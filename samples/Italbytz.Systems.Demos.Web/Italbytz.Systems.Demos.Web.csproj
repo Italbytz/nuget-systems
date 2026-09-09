@@ -16,6 +16,11 @@
     <ProjectReference Include="..\..\src\Italbytz.ComputingSystems\Italbytz.ComputingSystems.csproj" />
     <ProjectReference Include="..\..\src\Italbytz.Networking\Italbytz.Networking.csproj" />
     <ProjectReference Include="..\..\src\Italbytz.OperatingSystems\Italbytz.OperatingSystems.csproj" />
+    <ProjectReference Include="..\..\src\Italbytz.Systems.Blazor\Italbytz.Systems.Blazor.csproj" />
+    <ProjectReference Include="..\..\..\nuget-exam\src\Italbytz.Exam.Blazor\Italbytz.Exam.Blazor.csproj" />
+    <ProjectReference Include="..\..\..\nuget-exam\src\Italbytz.Exam.Networking\Italbytz.Exam.Networking.csproj" />
+    <ProjectReference Include="..\..\..\nuget-exam\src\Italbytz.Exam.OperatingSystems\Italbytz.Exam.OperatingSystems.csproj" />
+    <ProjectReference Include="..\..\..\nuget-exam\src\Italbytz.Exam.Exercises.Solver\Italbytz.Exam.Exercises.Solver.csproj" />
   </ItemGroup>
 
 </Project>

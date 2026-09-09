@@ -1,0 +1,69 @@
+@namespace Italbytz.Systems.Blazor.Components.Networking
+
+<article class="demo-card">
+    <div class="card-heading">
+        <p class="feature-kicker">Line encoding</p>
+        <h2>Compare three signal representations</h2>
+    </div>
+
+    <label>
+        <span>Bit pattern</span>
+        <input type="text" inputmode="numeric" maxlength="16" @bind="BitPattern" />
+    </label>
+
+    @{ var bitencoding = BitencodingSolution; }
+    <div class="result-stack">
+        <div class="metric-row">
+            <span>NRZ</span>
+            <strong>@string.Join(" ", bitencoding.NRZ)</strong>
+        </div>
+        <div class="metric-row">
+            <span>NRZI</span>
+            <strong>@string.Join(" ", bitencoding.NRZI)</strong>
+        </div>
+        <div class="metric-row">
+            <span>MLT-3</span>
+            <strong>@string.Join(" ", bitencoding.MLT3)</strong>
+        </div>
+        <p class="helper-copy">Only binary digits are used. Other characters are ignored.</p>
+    </div>
+
+    <div class="table-shell">
+        <table class="trace-table">
+            <thead>
+                <tr>
+                    <th>Trace step</th>
+                    <th>Trace detail</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (var index = 0; index < bitencoding.Steps.Count; index++)
+                {
+                    <tr>
+                        <td>@(index + 1)</td>
+                        <td>@bitencoding.Steps[index]</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</article>
+
+@code {
+    private readonly BitencodingSolver bitencodingSolver = new();
+
+    [Parameter]
+    public string BitPattern { get; set; } = "10110";
+
+    private BitencodingSolution BitencodingSolution =>
+        (BitencodingSolution)bitencodingSolver.Solve(new BitencodingParameters(NormalizedBits));
+
+    private int[] NormalizedBits
+    {
+        get
+        {
+            var digits = BitPattern.Where(ch => ch == '0' || ch == '1').Select(ch => ch - '0').ToArray();
+            return digits.Length == 0 ? new[] { 0 } : digits;
+        }
+    }
+}

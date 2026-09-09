@@ -1,0 +1,74 @@
+@namespace Italbytz.Systems.Blazor.Components.ComputingSystems
+
+<article class="demo-card">
+    <div class="card-heading">
+        <p class="feature-kicker">Binary addition</p>
+        <h2>Add two 8-bit values</h2>
+    </div>
+
+    <div class="input-grid two-up">
+        <label>
+            <span>Summand A</span>
+            <input type="number" min="0" max="255" @bind="AdditionLeft" />
+        </label>
+        <label>
+            <span>Summand B</span>
+            <input type="number" min="0" max="255" @bind="AdditionRight" />
+        </label>
+    </div>
+
+    @{ var addition = AdditionSolution; }
+    <div class="result-stack">
+        <div class="metric-row">
+            <span>Binary A</span>
+            <strong>@ToBinary(AdditionLeftByte)</strong>
+        </div>
+        <div class="metric-row">
+            <span>Binary B</span>
+            <strong>@ToBinary(AdditionRightByte)</strong>
+        </div>
+        <div class="metric-row accent-row">
+            <span>Sum</span>
+            <strong>@addition.Sum (@ToBinary((int)addition.Sum, 16))</strong>
+        </div>
+    </div>
+
+    <div class="table-shell">
+        <table class="trace-table">
+            <thead>
+                <tr>
+                    <th>Trace step</th>
+                    <th>Trace detail</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (var index = 0; index < addition.Steps.Count; index++)
+                {
+                    <tr>
+                        <td>@(index + 1)</td>
+                        <td>@addition.Steps[index]</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</article>
+
+@code {
+    private readonly BinaryAdditionSolver additionSolver = new();
+
+    [Parameter]
+    public int AdditionLeft { get; set; } = 13;
+
+    [Parameter]
+    public int AdditionRight { get; set; } = 29;
+
+    private byte AdditionLeftByte => ClampToByte(AdditionLeft);
+    private byte AdditionRightByte => ClampToByte(AdditionRight);
+
+    private BinaryAdditionSolution AdditionSolution =>
+        (BinaryAdditionSolution)additionSolver.Solve(new BinaryAdditionParameters(AdditionLeftByte, AdditionRightByte));
+
+    private static byte ClampToByte(int value) => (byte)Math.Clamp(value, 0, 255);
+    private static string ToBinary(int value, int width = 8) => Convert.ToString(value, 2).PadLeft(width, '0');
+}

@@ -1,0 +1,175 @@
+@namespace Italbytz.Systems.Blazor.Components.OperatingSystems
+
+<article class="demo-card wide-card">
+    <div class="card-heading">
+        <p class="feature-kicker">Buddy allocation</p>
+        <h2>Inspect chunk-level history for allocation and release operations</h2>
+    </div>
+
+    <div class="input-grid two-up">
+        <label>
+            <span>Requests in KB for A-E</span>
+            <input type="text" @bind="BuddyRequestsInput" />
+        </label>
+        <label>
+            <span>Release order</span>
+            <input type="text" @bind="BuddyReleaseOrderInput" />
+        </label>
+    </div>
+
+    @if (TryGetBuddyDemo(out var buddyResult, out var buddyError))
+    {
+        <div class="card-grid card-grid-three compact-grid">
+            <div class="metric-card">
+                <span>Snapshots</span>
+                <strong>@buddyResult!.History.Length</strong>
+            </div>
+            <div class="metric-card">
+                <span>Final occupied chunks</span>
+                <strong>@buddyResult.FinalOccupiedChunks</strong>
+            </div>
+            <div class="metric-card">
+                <span>Release order</span>
+                <strong>@string.Join(" -> ", buddyResult.ReleaseOrder)</strong>
+            </div>
+        </div>
+
+        <div class="memory-legend">
+            @foreach (var legendItem in buddyResult.Legend)
+            {
+                <span class="memory-chip @(legendItem.IsFree ? "free" : string.Empty)">@legendItem.Label</span>
+            }
+        </div>
+
+        <div class="table-shell">
+            <table class="trace-table">
+                <thead>
+                    <tr>
+                        <th>Snapshot</th>
+                        <th>State</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (var snapshotIndex = 0; snapshotIndex < buddyResult.History.Length; snapshotIndex++)
+                    {
+                        var snapshot = buddyResult.History[snapshotIndex];
+                        <tr>
+                            <td>@(snapshotIndex + 1)</td>
+                            <td>
+                                <div class="memory-strip">
+                                    @foreach (var slot in snapshot)
+                                    {
+                                        <span class="memory-cell @(slot == "free" ? "free" : string.Empty)">@slot</span>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <p class="validation-copy">@buddyError</p>
+    }
+</article>
+
+@code {
+    private static readonly string[] ProcessNames = ["A", "B", "C", "D", "E"];
+
+    [Parameter]
+    public string BuddyRequestsInput { get; set; } = "120,64,200,32,90";
+
+    [Parameter]
+    public string BuddyReleaseOrderInput { get; set; } = "B,D,A,E,C";
+
+    private bool TryGetBuddyDemo(out BuddyDemoResult? result, out string errorMessage)
+    {
+        try
+        {
+            var requests = ParseIntegerSequence(BuddyRequestsInput, "buddy requests");
+            if (requests.Length != ProcessNames.Length)
+            {
+                throw new InvalidOperationException("Provide exactly five buddy requests so they map to processes A-E.");
+            }
+
+            if (requests.Any(request => request < 1 || request > 512))
+            {
+                throw new InvalidOperationException("Buddy requests must stay between 1 KB and 512 KB.");
+            }
+
+            var releaseOrder = ParseReleaseOrder(BuddyReleaseOrderInput);
+            var parameters = new BuddyParameters
+            {
+                Processes = ProcessNames.ToArray(),
+                Requests = requests,
+                FreeOrder = releaseOrder
+            };
+
+            var solution = (BuddySolution)new BuddySolver().Solve(parameters);
+            var mappedHistory = solution.History
+                .Select(snapshot => snapshot.Select(MapBuddySlot).ToArray())
+                .ToArray();
+
+            result = new BuddyDemoResult(
+                mappedHistory,
+                releaseOrder,
+                [new MemoryLegendItem("free", true), .. ProcessNames.Select(name => new MemoryLegendItem(name, false))]);
+            errorMessage = string.Empty;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            result = null;
+            errorMessage = ex.Message;
+            return false;
+        }
+    }
+
+    private static string MapBuddySlot(int slot) =>
+        slot switch
+        {
+            -1 => "free",
+            >= 0 and < 5 => ProcessNames[slot],
+            _ => "?"
+        };
+
+    private int[] ParseIntegerSequence(string input, string fieldName) =>
+        input
+            .Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(token => int.TryParse(token, out var value)
+                ? value
+                : throw new InvalidOperationException($"Invalid number '{token}' in {fieldName}."))
+            .ToArray();
+
+    private string[] ParseReleaseOrder(string input)
+    {
+        var releaseOrder = input
+            .Split(new[] { ',', ';', ' ', '|' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(item => item.ToUpperInvariant())
+            .ToArray();
+
+        if (releaseOrder.Length != ProcessNames.Length)
+        {
+            throw new InvalidOperationException("Provide a release order with exactly the process names A-E.");
+        }
+
+        if (releaseOrder.Except(ProcessNames).Any() || releaseOrder.Distinct().Count() != ProcessNames.Length)
+        {
+            throw new InvalidOperationException("Release order must contain each of A, B, C, D, and E exactly once.");
+        }
+
+        return releaseOrder;
+    }
+
+    public sealed record MemoryLegendItem(string Label, bool IsFree);
+
+    public sealed record BuddyDemoResult(
+        string[][] History,
+        string[] ReleaseOrder,
+        MemoryLegendItem[] Legend)
+    {
+        public int FinalOccupiedChunks => History.LastOrDefault()?.Count(slot => slot != "free") ?? 0;
+    }
+}

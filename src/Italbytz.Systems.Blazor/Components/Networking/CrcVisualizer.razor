@@ -1,0 +1,55 @@
+@namespace Italbytz.Systems.Blazor.Components.Networking
+
+<article class="demo-card">
+    <div class="card-heading">
+        <p class="feature-kicker">CRC</p>
+        <h2>Generate the calculation and check values</h2>
+    </div>
+
+    <label>
+        <span>Term</span>
+        <input type="number" min="0" max="255" @bind="CrcTerm" />
+    </label>
+
+    @{ var crc = CrcSolution; }
+    <div class="code-output">
+        <div>
+            <span>Calculation</span>
+            <pre>@crc.Calculation</pre>
+        </div>
+        <div>
+            <span>Check</span>
+            <pre>@crc.Check</pre>
+        </div>
+    </div>
+
+    <div class="table-shell">
+        <table class="trace-table">
+            <thead>
+                <tr>
+                    <th>Trace step</th>
+                    <th>Trace detail</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (var index = 0; index < crc.Steps.Count; index++)
+                {
+                    <tr>
+                        <td>@(index + 1)</td>
+                        <td>@crc.Steps[index]</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</article>
+
+@code {
+    private readonly CRCSolver crcSolver = new();
+
+    [Parameter]
+    public int CrcTerm { get; set; } = 42;
+
+    private CRCSolution CrcSolution =>
+        (CRCSolution)crcSolver.Solve(new CRCParameters((byte)Math.Clamp(CrcTerm, 0, 255)));
+}

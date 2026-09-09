@@ -1,0 +1,132 @@
+@namespace Italbytz.Systems.Blazor.Components.OperatingSystems
+
+<article class="demo-card wide-card">
+    <div class="card-heading">
+        <p class="feature-kicker">Trace explorer</p>
+        <h2>Run the same reference string across multiple page-replacement strategies</h2>
+    </div>
+
+    <div class="input-grid three-up">
+        <label>
+            <span>Policy</span>
+            <select @bind="SelectedPagePolicy">
+                <option value="FIFO">FIFO</option>
+                <option value="LRU">LRU</option>
+                <option value="Clock">Clock</option>
+                <option value="Optimal">Optimal</option>
+            </select>
+        </label>
+        <label>
+            <span>Frames</span>
+            <input type="number" min="1" max="8" @bind="FrameCount" />
+        </label>
+        <label>
+            <span>Reference string</span>
+            <input type="text" @bind="ReferenceInput" />
+        </label>
+    </div>
+
+    @if (TryGetPageReplacementSimulation(out var simulation, out var pageReplacementError))
+    {
+        <div class="card-grid card-grid-three compact-grid">
+            <div class="metric-card">
+                <span>Policy</span>
+                <strong>@SelectedPagePolicy</strong>
+            </div>
+            <div class="metric-card">
+                <span>Frames</span>
+                <strong>@Math.Clamp(FrameCount, 1, 8)</strong>
+            </div>
+            <div class="metric-card">
+                <span>Final counter</span>
+                <strong>@simulation!.Steps.Last().Count</strong>
+            </div>
+        </div>
+
+        <div class="table-shell">
+            <table class="trace-table">
+                <thead>
+                    <tr>
+                        <th>Step</th>
+                        <th>Element</th>
+                        <th>Frames</th>
+                        <th>Info</th>
+                        <th>Counter</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{ var stepIndex = 1; }
+                    @foreach (var step in simulation!.Steps)
+                    {
+                        <tr>
+                            <td>@stepIndex</td>
+                            <td>@step.Element</td>
+                            <td>@string.Join(" | ", step.Frames)</td>
+                            <td>@step.AdditionalInfo</td>
+                            <td>@step.Count</td>
+                        </tr>
+                        stepIndex++;
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <p class="validation-copy">@pageReplacementError</p>
+    }
+</article>
+
+@code {
+    [Parameter]
+    public string SelectedPagePolicy { get; set; } = "FIFO";
+
+    [Parameter]
+    public int FrameCount { get; set; } = 3;
+
+    [Parameter]
+    public string ReferenceInput { get; set; } = "1,2,3,2,4,1,5,2,4";
+
+    private bool TryGetPageReplacementSimulation(out PageReplacementSolution? solution, out string errorMessage)
+    {
+        try
+        {
+            var references = ParseIntegerSequence(ReferenceInput, "reference string");
+            if (references.Length == 0)
+            {
+                throw new InvalidOperationException("Provide at least one page reference.");
+            }
+
+            var parameters = new PageReplacementParameters(references)
+            {
+                MemorySize = Math.Clamp(FrameCount, 1, 8)
+            };
+
+            var solver = SelectedPagePolicy switch
+            {
+                "LRU" => (IPageReplacementSolver)new LRUSolver(),
+                "Clock" => new ClockSolver(),
+                "Optimal" => new OptimalSolver(),
+                _ => new FIFOSolver()
+            };
+
+            solution = (PageReplacementSolution)solver.Solve(parameters);
+            errorMessage = string.Empty;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            solution = null;
+            errorMessage = ex.Message;
+            return false;
+        }
+    }
+
+    private int[] ParseIntegerSequence(string input, string fieldName) =>
+        input
+            .Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(token => int.TryParse(token, out var value)
+                ? value
+                : throw new InvalidOperationException($"Invalid number '{token}' in {fieldName}."))
+            .ToArray();
+}

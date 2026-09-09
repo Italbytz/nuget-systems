@@ -1,61 +1,240 @@
-﻿<div class="top-row">
+<div class="top-row">
     <div>
-        <a class="navbar-brand" href="">nuget-systems demos</a>
-        <p class="navbar-copy">Package-backed examples instead of static screenshots.</p>
+        <a class="navbar-brand" href="">nuget-systems</a>
+        <div class="nav-links-row">
+            <a class="nav-ext-link" href="https://italbytz.github.io/nuget-systems/" target="_blank" rel="noopener noreferrer">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                </svg>
+                <span>Docs</span>
+            </a>
+            <a class="nav-ext-link" href="https://github.com/Italbytz/nuget-systems" target="_blank" rel="noopener noreferrer">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+                </svg>
+                <span>GitHub</span>
+            </a>
+        </div>
     </div>
     <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
         Menu
     </button>
 </div>
 
-<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
+<div class="@NavMenuCssClass nav-scrollable">
     <nav class="nav-sections">
-        <div class="nav-item">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="nav-kicker">00</span>
-                <span>
-                    <strong>Overview</strong>
-                    <small>Scope, routes, and package map</small>
+        <!-- Group 1: Grundlagen der Informatik -->
+        <div class="nav-group nav-group-first">
+            <button type="button" class="nav-group-header" @onclick="() => ToggleGroup(1)">
+                <span class="nav-group-title">
+                    <span class="nav-group-dot dot-gdi"></span>
+                    <span>Grundlagen der Informatik</span>
                 </span>
-            </NavLink>
+                <svg class="chevron-icon @(IsGdIOpen ? "open" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            </button>
+
+            @if (IsGdIOpen)
+            {
+                <div class="nav-group-items">
+                    <div class="nav-item">
+                        <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                            <span class="nav-kicker">01</span>
+                            <span>
+                                <strong>Binärarithmetik</strong>
+                                <small>8-Bit-Addition &amp; Überträge</small>
+                            </span>
+                        </NavLink>
+                    </div>
+                    <div class="nav-item">
+                        <NavLink class="nav-link" href="binary-conversion">
+                            <span class="nav-kicker">02</span>
+                            <span>
+                                <strong>Zahlensysteme</strong>
+                                <small>Basis 2, 8, 10, 16 Konvertierung</small>
+                            </span>
+                        </NavLink>
+                    </div>
+                    <div class="nav-item">
+                        <NavLink class="nav-link" href="twos-complement">
+                            <span class="nav-kicker">03</span>
+                            <span>
+                                <strong>Zweierkomplement</strong>
+                                <small>Vorzeichenbehaftete Ganzzahlen</small>
+                            </span>
+                        </NavLink>
+                    </div>
+                    <div class="nav-item">
+                        <NavLink class="nav-link" href="normal-forms">
+                            <span class="nav-kicker">04</span>
+                            <span>
+                                <strong>Kanonische Normalformen</strong>
+                                <small>DNF (Minterme) &amp; KNF (Maxterme)</small>
+                            </span>
+                        </NavLink>
+                    </div>
+                    <div class="nav-item">
+                        <NavLink class="nav-link" href="quine-mccluskey">
+                            <span class="nav-kicker">05</span>
+                            <span>
+                                <strong>Quine-McCluskey</strong>
+                                <small>KV-Diagramme &amp; Minimierung</small>
+                            </span>
+                        </NavLink>
+                    </div>
+                </div>
+            }
         </div>
-        <div class="nav-item">
-            <NavLink class="nav-link" href="computing-systems">
-                <span class="nav-kicker">01</span>
-                <span>
-                    <strong>Computing Systems</strong>
-                    <small>Binary arithmetic and complement tasks</small>
+
+        <!-- Group 2: Rechnernetze -->
+        <div class="nav-group">
+            <button type="button" class="nav-group-header" @onclick="() => ToggleGroup(2)">
+                <span class="nav-group-title">
+                    <span class="nav-group-dot dot-net"></span>
+                    <span>Rechnernetze</span>
                 </span>
-            </NavLink>
+                <svg class="chevron-icon @(IsNetOpen ? "open" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            </button>
+
+            @if (IsNetOpen)
+            {
+                <div class="nav-group-items">
+                    <div class="nav-item">
+                        <NavLink class="nav-link" href="line-coding">
+                            <span class="nav-kicker">06</span>
+                            <span>
+                                <strong>Leitungscodierung</strong>
+                                <small>NRZ, NRZ-I, Manchester</small>
+                            </span>
+                        </NavLink>
+                    </div>
+                    <div class="nav-item">
+                        <NavLink class="nav-link" href="crc">
+                            <span class="nav-kicker">07</span>
+                            <span>
+                                <strong>CRC-Verfahren</strong>
+                                <small>Polynomdivision &amp; Prüfsummen</small>
+                            </span>
+                        </NavLink>
+                    </div>
+                    <div class="nav-item">
+                        <NavLink class="nav-link" href="subnetting">
+                            <span class="nav-kicker">08</span>
+                            <span>
+                                <strong>IPv4-Subnetting</strong>
+                                <small>CIDR, Masken, Hostbereiche</small>
+                            </span>
+                        </NavLink>
+                    </div>
+                    <div class="nav-item">
+                        <NavLink class="nav-link" href="networking-quiz">
+                            <span class="nav-kicker">09</span>
+                            <span>
+                                <strong>Wissens-Quiz: Netze</strong>
+                                <small>Ja-Nein-Klausurfragetrainer</small>
+                            </span>
+                        </NavLink>
+                    </div>
+                </div>
+            }
         </div>
-        <div class="nav-item">
-            <NavLink class="nav-link" href="networking">
-                <span class="nav-kicker">02</span>
-                <span>
-                    <strong>Networking</strong>
-                    <small>Encoding, CRC, and subnetting</small>
+
+        <!-- Group 3: Betriebssysteme -->
+        <div class="nav-group">
+            <button type="button" class="nav-group-header" @onclick="() => ToggleGroup(3)">
+                <span class="nav-group-title">
+                    <span class="nav-group-dot dot-bs"></span>
+                    <span>Betriebssysteme</span>
                 </span>
-            </NavLink>
-        </div>
-        <div class="nav-item">
-            <NavLink class="nav-link" href="operating-systems">
-                <span class="nav-kicker">03</span>
-                <span>
-                    <strong>Operating Systems</strong>
-                    <small>Traceable page-replacement simulations</small>
-                </span>
-            </NavLink>
+                <svg class="chevron-icon @(IsBsOpen ? "open" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            </button>
+
+            @if (IsBsOpen)
+            {
+                <div class="nav-group-items">
+                    <div class="nav-item">
+                        <NavLink class="nav-link" href="page-replacement">
+                            <span class="nav-kicker">10</span>
+                            <span>
+                                <strong>Seitenaustausch</strong>
+                                <small>FIFO, LRU, Clock, Optimal</small>
+                            </span>
+                        </NavLink>
+                    </div>
+                    <div class="nav-item">
+                        <NavLink class="nav-link" href="cpu-scheduling">
+                            <span class="nav-kicker">11</span>
+                            <span>
+                                <strong>CPU-Scheduling</strong>
+                                <small>FCFS, SPN, Round Robin Gantt</small>
+                            </span>
+                        </NavLink>
+                    </div>
+                    <div class="nav-item">
+                        <NavLink class="nav-link" href="realtime-scheduling">
+                            <span class="nav-kicker">12</span>
+                            <span>
+                                <strong>Echtzeit-Scheduling</strong>
+                                <small>RMS &amp; EDF Auslastung</small>
+                            </span>
+                        </NavLink>
+                    </div>
+                    <div class="nav-item">
+                        <NavLink class="nav-link" href="buddy-memory">
+                            <span class="nav-kicker">13</span>
+                            <span>
+                                <strong>Buddy-Speicher</strong>
+                                <small>Binäres Splitting &amp; Merging</small>
+                            </span>
+                        </NavLink>
+                    </div>
+                    <div class="nav-item">
+                        <NavLink class="nav-link" href="operating-systems-quiz">
+                            <span class="nav-kicker">14</span>
+                            <span>
+                                <strong>Wissens-Quiz: BS</strong>
+                                <small>Ja-Nein-Klausurfragetrainer</small>
+                            </span>
+                        </NavLink>
+                    </div>
+                </div>
+            }
         </div>
     </nav>
 </div>
 
 @code {
     private bool collapseNavMenu = true;
+    private bool IsGdIOpen = true;
+    private bool IsNetOpen = true;
+    private bool IsBsOpen = true;
 
     private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
 
     private void ToggleNavMenu()
     {
         collapseNavMenu = !collapseNavMenu;
+    }
+
+    private void ToggleGroup(int groupId)
+    {
+        switch (groupId)
+        {
+            case 1:
+                IsGdIOpen = !IsGdIOpen;
+                break;
+            case 2:
+                IsNetOpen = !IsNetOpen;
+                break;
+            case 3:
+                IsBsOpen = !IsBsOpen;
+                break;
+        }
     }
 }

@@ -1,0 +1,213 @@
+@namespace Italbytz.Systems.Blazor.Components.OperatingSystems
+
+<article class="demo-card wide-card">
+    <div class="card-heading">
+        <p class="feature-kicker">CPU scheduling</p>
+        <h2>Compare the package's scheduling heuristics on the same process set</h2>
+    </div>
+
+    <div class="input-grid three-up">
+        <label>
+            <span>Strategy</span>
+            <select @bind="SelectedSchedulingPolicy">
+                <option value="FCFS">FCFS</option>
+                <option value="SJF">Shortest job first</option>
+                <option value="Priority">Priority scheduling</option>
+                <option value="RoundRobin">Round Robin</option>
+            </select>
+        </label>
+        <label>
+            <span>Burst times</span>
+            <input type="text" @bind="SchedulingValuesInput" />
+        </label>
+        <label>
+            <span>Priorities</span>
+            <input type="text" @bind="SchedulingPrioritiesInput" />
+        </label>
+    </div>
+
+    <p class="helper-copy">
+        Use five priorities from the set <strong>sehr hoch</strong>, <strong>hoch</strong>, <strong>mittel</strong>, <strong>niedrig</strong>, <strong>sehr niedrig</strong>.
+    </p>
+
+    @if (TryGetSchedulingDemo(out var schedulingResult, out var schedulingError))
+    {
+        <div class="card-grid card-grid-three compact-grid">
+            <div class="metric-card">
+                <span>Strategy</span>
+                <strong>@SelectedSchedulingPolicy</strong>
+            </div>
+            <div class="metric-card">
+                <span>Reported time score</span>
+                <strong>@schedulingResult!.Score.ToString("0.##")</strong>
+            </div>
+            <div class="metric-card">
+                <span>Execution order</span>
+                <strong>@string.Join(" -> ", schedulingResult.ExecutionOrder)</strong>
+            </div>
+        </div>
+
+        <p class="helper-copy">@schedulingResult.Notes</p>
+
+        <div class="table-shell">
+            <table class="trace-table">
+                <thead>
+                    <tr>
+                        <th>Trace step</th>
+                        <th>Trace detail</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (var index = 0; index < schedulingResult.SolverSteps.Length; index++)
+                    {
+                        <tr>
+                            <td>@(index + 1)</td>
+                            <td>@schedulingResult.SolverSteps[index]</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="table-shell">
+            <table class="trace-table">
+                <thead>
+                    <tr>
+                        <th>Process</th>
+                        <th>Burst</th>
+                        <th>Priority</th>
+                        <th>Scheduling rank</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var process in schedulingResult.Processes)
+                    {
+                        <tr>
+                            <td>@process.Name</td>
+                            <td>@process.Duration</td>
+                            <td>@process.Priority</td>
+                            <td>@process.SortExplanation</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <p class="validation-copy">@schedulingError</p>
+    }
+</article>
+
+@code {
+    private static readonly string[] PriorityScale = ["sehr hoch", "hoch", "mittel", "niedrig", "sehr niedrig"];
+
+    [Parameter]
+    public string SelectedSchedulingPolicy { get; set; } = "FCFS";
+
+    [Parameter]
+    public string SchedulingValuesInput { get; set; } = "6,2,8,3,5";
+
+    [Parameter]
+    public string SchedulingPrioritiesInput { get; set; } = "mittel,sehr hoch,niedrig,hoch,sehr niedrig";
+
+    private bool TryGetSchedulingDemo(out SchedulingDemoResult? result, out string errorMessage)
+    {
+        try
+        {
+            var durations = ParseIntegerSequence(SchedulingValuesInput, "burst times");
+            var priorities = ParsePrioritySequence(SchedulingPrioritiesInput);
+
+            if (durations.Length != priorities.Length)
+            {
+                throw new InvalidOperationException("Burst times and priorities must have the same number of entries.");
+            }
+
+            var processes = durations
+                .Select((duration, index) => new SchedulingProcessView($"P{index + 1}", duration, priorities[index]))
+                .ToArray();
+
+            var parameters = new SchedulingParameters(durations, priorities);
+            var solver = CreateSchedulingSolver();
+            var solution = (SchedulingSolution)solver.Solve(parameters);
+            var orderedProcesses = OrderProcesses(processes);
+
+            result = new SchedulingDemoResult(
+                solution.Time,
+                orderedProcesses,
+                orderedProcesses.Select(process => process.Name).ToArray(),
+                GetSchedulingNotes(),
+                solution.Steps.ToArray());
+            errorMessage = string.Empty;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            result = null;
+            errorMessage = ex.Message;
+            return false;
+        }
+    }
+
+    private ISchedulingSolver CreateSchedulingSolver() =>
+        SelectedSchedulingPolicy switch
+        {
+            "SJF" => new ShortestJobFirstSolver(),
+            "Priority" => new PrioritySchedulingSolver(),
+            "RoundRobin" => new RoundRobinSolver(),
+            _ => new FCFSSolver()
+        };
+
+    private SchedulingProcessView[] OrderProcesses(IEnumerable<SchedulingProcessView> processes) =>
+        SelectedSchedulingPolicy switch
+        {
+            "SJF" => processes.OrderBy(process => process.Duration).ThenBy(process => process.Name).Select((process, index) => process with { SortExplanation = $"#{index + 1} shortest burst" }).ToArray(),
+            "Priority" => processes.OrderBy(process => PriorityRank(process.Priority)).ThenBy(process => process.Name).Select((process, index) => process with { SortExplanation = $"#{index + 1} in priority ladder" }).ToArray(),
+            "RoundRobin" => processes.OrderBy(process => process.Duration).ThenBy(process => process.Name).Select((process, index) => process with { SortExplanation = $"phase order #{index + 1}" }).ToArray(),
+            _ => processes.Select((process, index) => process with { SortExplanation = $"input order #{index + 1}" }).ToArray()
+        };
+
+    private string GetSchedulingNotes() =>
+        SelectedSchedulingPolicy switch
+        {
+            "SJF" => "ShortestJobFirstSolver orders processes by ascending burst time and reports the package's aggregate time score for that sequence.",
+            "Priority" => "PrioritySchedulingSolver uses the German priority ladder built into the package: sehr hoch, hoch, mittel, niedrig, sehr niedrig.",
+            "RoundRobin" => "RoundRobinSolver currently reports an aggregated shared-time score over ascending burst lengths rather than rendering a literal quantum-by-quantum timeline.",
+            _ => "FCFSSolver keeps the submitted order and reports the package's aggregate time score for that queue."
+        };
+
+    private static int PriorityRank(string priority) => Array.IndexOf(PriorityScale, priority);
+
+    private int[] ParseIntegerSequence(string input, string fieldName) =>
+        input
+            .Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(token => int.TryParse(token, out var value)
+                ? value
+                : throw new InvalidOperationException($"Invalid number '{token}' in {fieldName}."))
+            .ToArray();
+
+    private string[] ParsePrioritySequence(string input)
+    {
+        var priorities = input
+            .Split(new[] { ',', ';', '|' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(priority => priority.ToLowerInvariant())
+            .ToArray();
+
+        var invalidPriority = priorities.FirstOrDefault(priority => !PriorityScale.Contains(priority));
+        if (invalidPriority is not null)
+        {
+            throw new InvalidOperationException($"Unknown priority '{invalidPriority}'.");
+        }
+
+        return priorities;
+    }
+
+    public sealed record SchedulingProcessView(string Name, int Duration, string Priority, string SortExplanation = "");
+
+    public sealed record SchedulingDemoResult(
+        double Score,
+        SchedulingProcessView[] Processes,
+        string[] ExecutionOrder,
+        string Notes,
+        string[] SolverSteps);
+}

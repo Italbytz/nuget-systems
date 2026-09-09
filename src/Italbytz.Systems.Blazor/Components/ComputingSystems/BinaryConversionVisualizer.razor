@@ -1,0 +1,108 @@
+@namespace Italbytz.Systems.Blazor.Components.ComputingSystems
+
+<article class="demo-card">
+    <div class="card-heading">
+        <p class="feature-kicker">Conversion</p>
+        <h2>Switch between decimal and binary</h2>
+    </div>
+
+    <div class="input-grid two-up">
+        <label>
+            <span>Decimal input</span>
+            <input type="number" min="0" max="255" @bind="DecimalInput" />
+        </label>
+        <label>
+            <span>Binary input</span>
+            <input type="text" inputmode="numeric" maxlength="8" @bind="BinaryInput" />
+        </label>
+    </div>
+
+    @{ var decimalToBinary = DecimalToBinarySolution; }
+    @{ var binaryToDecimal = BinaryToDecimalSolution; }
+    <div class="result-stack">
+        <div class="metric-row">
+            <span>Decimal to binary</span>
+            <strong>@ToBinary(decimalToBinary.Binary)</strong>
+        </div>
+        <div class="metric-row">
+            <span>Binary to decimal</span>
+            <strong>@binaryToDecimal.Decimal</strong>
+        </div>
+        <p class="helper-copy">Binary input accepts up to eight bits and ignores any non-binary characters.</p>
+    </div>
+
+    <div class="table-shell">
+        <table class="trace-table">
+            <thead>
+                <tr>
+                    <th>Trace step</th>
+                    <th>Trace detail</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (var index = 0; index < decimalToBinary.Steps.Count; index++)
+                {
+                    <tr>
+                        <td>@(index + 1)</td>
+                        <td>@decimalToBinary.Steps[index]</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="table-shell">
+        <table class="trace-table">
+            <thead>
+                <tr>
+                    <th>Trace step</th>
+                    <th>Trace detail</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (var index = 0; index < binaryToDecimal.Steps.Count; index++)
+                {
+                    <tr>
+                        <td>@(index + 1)</td>
+                        <td>@binaryToDecimal.Steps[index]</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</article>
+
+@code {
+    private readonly DecimalToBinarySolver decimalToBinarySolver = new();
+    private readonly BinaryToDecimalSolver binaryToDecimalSolver = new();
+
+    [Parameter]
+    public int DecimalInput { get; set; } = 42;
+
+    [Parameter]
+    public string BinaryInput { get; set; } = "101101";
+
+    private byte DecimalInputByte => (byte)Math.Clamp(DecimalInput, 0, 255);
+
+    private DecimalToBinarySolution DecimalToBinarySolution =>
+        (DecimalToBinarySolution)decimalToBinarySolver.Solve(new DecimalToBinaryParameters(DecimalInputByte));
+
+    private BinaryToDecimalSolution BinaryToDecimalSolution =>
+        (BinaryToDecimalSolution)binaryToDecimalSolver.Solve(new BinaryToDecimalParameters(Convert.ToByte(NormalizedBinaryInput, 2)));
+
+    private string NormalizedBinaryInput
+    {
+        get
+        {
+            var digits = new string(BinaryInput.Where(ch => ch == '0' || ch == '1').ToArray());
+            if (string.IsNullOrWhiteSpace(digits))
+            {
+                return "0";
+            }
+
+            return digits.Length <= 8 ? digits : digits[^8..];
+        }
+    }
+
+    private static string ToBinary(int value, int width = 8) => Convert.ToString(value, 2).PadLeft(width, '0');
+}

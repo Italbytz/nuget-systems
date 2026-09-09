@@ -1,0 +1,166 @@
+@namespace Italbytz.Systems.Blazor.Components.ComputingSystems
+
+<article class="demo-card wide-card">
+    <div class="card-heading">
+        <p class="feature-kicker">Boolean minimization</p>
+        <h2>Inspect Quine-McCluskey output and Karnaugh groups</h2>
+    </div>
+
+    <div class="input-grid two-up">
+        <label>
+            <span>Variable count</span>
+            <input type="number" min="1" max="4" @bind="QmcVariableCount" />
+        </label>
+        <label>
+            <span>Truth values</span>
+            <input type="text" @bind="QmcTruthValuesInput" />
+        </label>
+    </div>
+
+    <p class="helper-copy">Use comma-separated values with <strong>0</strong>, <strong>1</strong>, and optional <strong>2</strong> for don't cares.</p>
+
+    @if (TryGetQuineMcCluskeySolution(out var qmcSolution, out var qmcError) && TryGetKarnaughMapSolution(out var karnaughSolution, out _))
+    {
+        <div class="card-grid card-grid-three compact-grid">
+            <div class="metric-card">
+                <span>Minimal DNF</span>
+                <strong>@qmcSolution!.MinimalDnf</strong>
+            </div>
+            <div class="metric-card">
+                <span>Prime implicants</span>
+                <strong>@string.Join(", ", qmcSolution.PrimeImplicants)</strong>
+            </div>
+            <div class="metric-card">
+                <span>Essential prime implicants</span>
+                <strong>@string.Join(", ", qmcSolution.EssentialPrimeImplicants)</strong>
+            </div>
+        </div>
+
+        <div class="table-shell">
+            <table class="trace-table">
+                <thead>
+                    <tr>
+                        <th>KV cell</th>
+                        <th>Gray code</th>
+                        <th>Minterm</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var cell in karnaughSolution!.Cells.OrderBy(cell => cell.RowIndex).ThenBy(cell => cell.ColumnIndex))
+                    {
+                        <tr>
+                            <td>r@cell.RowIndex c@cell.ColumnIndex</td>
+                            <td>@cell.RowCode | @cell.ColumnCode</td>
+                            <td>@cell.MintermIndex</td>
+                            <td>@cell.Value</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="table-shell">
+            <table class="trace-table">
+                <thead>
+                    <tr>
+                        <th>Group</th>
+                        <th>Essential</th>
+                        <th>Covered minterms</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var group in karnaughSolution.Groups)
+                    {
+                        <tr>
+                            <td>@group.Term</td>
+                            <td>@(group.IsEssential ? "yes" : "no")</td>
+                            <td>@string.Join(", ", group.CoveredMintermIndices)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="table-shell">
+            <table class="trace-table">
+                <thead>
+                    <tr>
+                        <th>Trace step</th>
+                        <th>Trace detail</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (var index = 0; index < qmcSolution.Steps.Count; index++)
+                    {
+                        <tr>
+                            <td>@(index + 1)</td>
+                            <td>@qmcSolution.Steps[index]</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <p class="validation-copy">@qmcError</p>
+    }
+</article>
+
+@code {
+    private readonly QuineMcCluskeySolver quineMcCluskeySolver = new();
+    private readonly KarnaughMapSolver karnaughMapSolver = new();
+
+    [Parameter]
+    public int QmcVariableCount { get; set; } = 2;
+
+    [Parameter]
+    public string QmcTruthValuesInput { get; set; } = "0,1,1,1";
+
+    private bool TryGetQuineMcCluskeySolution(out QuineMcCluskeySolution? solution, out string errorMessage)
+    {
+        try
+        {
+            var variableCount = Math.Clamp(QmcVariableCount, 1, 4);
+            var truthValues = ParseTruthValues(QmcTruthValuesInput);
+
+            solution = (QuineMcCluskeySolution)quineMcCluskeySolver.Solve(new QuineMcCluskeyParameters(variableCount, truthValues));
+            errorMessage = string.Empty;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            solution = null;
+            errorMessage = ex.Message;
+            return false;
+        }
+    }
+
+    private bool TryGetKarnaughMapSolution(out KarnaughMapSolution? solution, out string errorMessage)
+    {
+        try
+        {
+            var variableCount = Math.Clamp(QmcVariableCount, 1, 4);
+            var truthValues = ParseTruthValues(QmcTruthValuesInput);
+
+            solution = (KarnaughMapSolution)karnaughMapSolver.Solve(new KarnaughMapParameters(variableCount, truthValues));
+            errorMessage = string.Empty;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            solution = null;
+            errorMessage = ex.Message;
+            return false;
+        }
+    }
+
+    private static int[] ParseTruthValues(string input) =>
+        input
+            .Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(token => int.TryParse(token, out var value)
+                ? value
+                : throw new InvalidOperationException($"Invalid truth-table value '{token}'."))
+            .ToArray();
+}

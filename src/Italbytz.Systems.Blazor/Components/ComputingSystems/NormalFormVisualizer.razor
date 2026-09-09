@@ -1,0 +1,96 @@
+@namespace Italbytz.Systems.Blazor.Components.ComputingSystems
+
+<article class="demo-card wide-card">
+    <div class="card-heading">
+        <p class="feature-kicker">Boolean normal forms</p>
+        <h2>Generate canonical DNF and CNF from a truth table</h2>
+    </div>
+
+    <div class="input-grid two-up">
+        <label>
+            <span>Variable count</span>
+            <input type="number" min="1" max="4" @bind="NormalFormVariableCount" />
+        </label>
+        <label>
+            <span>Truth values</span>
+            <input type="text" @bind="NormalFormTruthValuesInput" />
+        </label>
+    </div>
+
+    <p class="helper-copy">Provide one comma-separated 0/1 value per truth-table row in lexicographic order, for example <strong>0,1,1,0</strong> for a two-variable XOR.</p>
+
+    @if (TryGetNormalFormSolution(out var normalFormSolution, out var normalFormError))
+    {
+        <div class="card-grid card-grid-two compact-grid">
+            <div class="metric-card">
+                <span>DNF</span>
+                <strong>@normalFormSolution!.Dnf</strong>
+            </div>
+            <div class="metric-card">
+                <span>CNF</span>
+                <strong>@normalFormSolution.Cnf</strong>
+            </div>
+        </div>
+
+        <div class="table-shell">
+            <table class="trace-table">
+                <thead>
+                    <tr>
+                        <th>Trace step</th>
+                        <th>Trace detail</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (var index = 0; index < normalFormSolution.Steps.Count; index++)
+                    {
+                        <tr>
+                            <td>@(index + 1)</td>
+                            <td>@normalFormSolution.Steps[index]</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <p class="validation-copy">@normalFormError</p>
+    }
+</article>
+
+@code {
+    private readonly NormalFormSolver normalFormSolver = new();
+
+    [Parameter]
+    public int NormalFormVariableCount { get; set; } = 2;
+
+    [Parameter]
+    public string NormalFormTruthValuesInput { get; set; } = "0,1,1,0";
+
+    private bool TryGetNormalFormSolution(out NormalFormSolution? solution, out string errorMessage)
+    {
+        try
+        {
+            var variableCount = Math.Clamp(NormalFormVariableCount, 1, 4);
+            var truthValues = ParseTruthValues(NormalFormTruthValuesInput);
+
+            solution = (NormalFormSolution)normalFormSolver.Solve(new NormalFormParameters(variableCount, truthValues));
+            errorMessage = string.Empty;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            solution = null;
+            errorMessage = ex.Message;
+            return false;
+        }
+    }
+
+    private static int[] ParseTruthValues(string input) =>
+        input
+            .Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(token => int.TryParse(token, out var value)
+                ? value
+                : throw new InvalidOperationException($"Invalid truth-table value '{token}'."))
+            .ToArray();
+}

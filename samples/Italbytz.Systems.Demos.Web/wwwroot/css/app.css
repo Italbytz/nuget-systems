@@ -498,3 +498,80 @@ code {
         transform: translateY(0);
     }
 }
+
+/* -------------------------------------------------------------
+   TEACHING DUAL-MODE & WORKSHEET SWITCHER
+   ------------------------------------------------------------- */
+.mode-switch-bar {
+    display: flex;
+    gap: 8px;
+    background: rgba(20, 50, 47, 0.06);
+    padding: 6px;
+    border-radius: 1rem;
+    margin: 1.5rem 0 1.25rem 0;
+    border: 1px solid rgba(20, 50, 47, 0.1);
+    flex-wrap: wrap;
+}
+
+.mode-switch-btn {
+    flex: 1;
+    min-width: 140px;
+    padding: 10px 18px;
+    border-radius: 0.75rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #355551;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.mode-switch-btn:hover {
+    color: #14322f;
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.mode-switch-btn.active {
+    background: #ffffff;
+    color: #14322f;
+    box-shadow: 0 4px 16px rgba(20, 50, 47, 0.1);
+}
+
+/* -------------------------------------------------------------
+   CLEAN BROWSER PRINTING (@media print)
+   ------------------------------------------------------------- */
+@media print {
+    .sidebar,
+    .top-row,
+    .hero-panel,
+    .mode-switch-bar,
+    .no-print,
+    header,
+    nav {
+        display: none !important;
+    }
+
+    .page {
+        display: block !important;
+    }
+
+    main {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    article.content {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    body, html {
+        background: #ffffff !important;
+        color: #000000 !important;
+    }
+}

@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Description>Reusable Blazor visualizer and solver components for computing systems, networking, and operating systems.</Description>
+    <PackageId>Italbytz.Systems.Blazor</PackageId>
+    <PackageTags>$(PackageTags);blazor;systems;networking;operatingsystems;teaching;visualization</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <SupportedPlatform Include="browser" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Italbytz.ComputingSystems\Italbytz.ComputingSystems.csproj" />
+    <ProjectReference Include="..\Italbytz.ComputingSystems.Abstractions\Italbytz.ComputingSystems.Abstractions.csproj" />
+    <ProjectReference Include="..\Italbytz.Networking\Italbytz.Networking.csproj" />
+    <ProjectReference Include="..\Italbytz.Networking.Abstractions\Italbytz.Networking.Abstractions.csproj" />
+    <ProjectReference Include="..\Italbytz.OperatingSystems\Italbytz.OperatingSystems.csproj" />
+    <ProjectReference Include="..\Italbytz.OperatingSystems.Abstractions\Italbytz.OperatingSystems.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

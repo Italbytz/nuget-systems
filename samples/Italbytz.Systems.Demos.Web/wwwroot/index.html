@@ -11,6 +11,39 @@
     <link rel="stylesheet" href="css/app.css" />
     <link rel="icon" type="image/png" href="favicon.png" />
     <link href="Italbytz.Systems.Demos.Web.styles.css" rel="stylesheet" />
+    <style media="print">
+        .sidebar,
+        .top-row,
+        .hero-panel,
+        .mode-switch-bar,
+        .no-print,
+        header,
+        nav,
+        .navbar,
+        .nav-scrollable,
+        .nav-sections,
+        #blazor-error-ui {
+            display: none !important;
+            visibility: hidden !important;
+            width: 0 !important;
+            height: 0 !important;
+            position: absolute !important;
+            left: -9999px !important;
+            top: -9999px !important;
+        }
+
+        html, body, #app, .page, main, .content {
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+            overflow: visible !important;
+            position: static !important;
+        }
+    </style>
 </head>
 
 <body>
