@@ -1,0 +1,401 @@
+@namespace Italbytz.Systems.Blazor.Components.ComputingSystems
+
+<div class="cpu-sim-card">
+    <div class="sim-header">
+        <div>
+            <h3 class="sim-title">Mikrocode-CPU-Simulator (Von-Neumann-Architektur)</h3>
+            <p class="sim-subtitle">
+                Schrittweise Ausführung des Befehlszyklus (Fetch, Decode, Execute) mit Registern, ALU und RAM-Hauptspeicher.
+            </p>
+        </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="cpu-toolbar">
+        <div class="cpu-controls">
+            <button class="action-btn primary" @onclick="StepCpu" disabled="@IsHalted">
+                ⏯️ Nächster Einzelschritt (Takt)
+            </button>
+            <button class="action-btn" @onclick="ResetCpu">
+                🔄 Zurücksetzen
+            </button>
+        </div>
+        <div class="preset-selector">
+            <span class="toolbar-label">Beispielprogramm:</span>
+            <button class="preset-pill @(SelectedProgram == 0 ? "active" : "")" @onclick="() => LoadProgram(0)">
+                1. Addition (5 + 7)
+            </button>
+            <button class="preset-pill @(SelectedProgram == 1 ? "active" : "")" @onclick="() => LoadProgram(1)">
+                2. Countdown (3 down to 0)
+            </button>
+        </div>
+    </div>
+
+    <!-- Cycle Status Bar -->
+    <div class="cycle-bar">
+        <div class="cycle-step @(CurrentPhase == CpuPhase.Fetch ? "active" : "")">
+            <strong>1. FETCH</strong>
+            <small>Befehl aus RAM[PC] nach IR laden</small>
+        </div>
+        <div class="cycle-step @(CurrentPhase == CpuPhase.Decode ? "active" : "")">
+            <strong>2. DECODE</strong>
+            <small>Opcode &amp; Adresse entschlüsseln</small>
+        </div>
+        <div class="cycle-step @(CurrentPhase == CpuPhase.Execute ? "active" : "")">
+            <strong>3. EXECUTE</strong>
+            <small>ALU-Operation / Speicherzugriff</small>
+        </div>
+    </div>
+
+    <div class="cpu-grid">
+        <!-- Left: Registers & ALU -->
+        <div class="cpu-left-col">
+            <div class="section-box">
+                <h4>Prozessorregister (CPU Core)</h4>
+                <div class="register-grid">
+                    <div class="reg-card">
+                        <span class="reg-name">Befehlszähler (PC):</span>
+                        <strong class="reg-val">@PC.ToString("D2")</strong>
+                    </div>
+                    <div class="reg-card">
+                        <span class="reg-name">Befehlsregister (IR):</span>
+                        <strong class="reg-val">@(string.IsNullOrEmpty(IR) ? "---" : IR)</strong>
+                    </div>
+                    <div class="reg-card highlight">
+                        <span class="reg-name">Akkumulator (ACC):</span>
+                        <strong class="reg-val">@ACC</strong>
+                    </div>
+                    <div class="reg-card">
+                        <span class="reg-name">Hilfsregister (B):</span>
+                        <strong class="reg-val">@RegB</strong>
+                    </div>
+                    <div class="reg-card">
+                        <span class="reg-name">Zero-Flag (Z):</span>
+                        <strong class="reg-val @(ZeroFlag ? "flag-active" : "")">@(ZeroFlag ? "1 (WAHR)" : "0")</strong>
+                    </div>
+                    <div class="reg-card">
+                        <span class="reg-name">Status:</span>
+                        <strong class="reg-val @(IsHalted ? "status-halted" : "status-running")">
+                            @(IsHalted ? "🛑 HALTED" : "🟢 RUNNING")
+                        </strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Execution Log -->
+            <div class="section-box">
+                <h4>Ausführungsprotokoll &amp; Mikrocode-Schritt:</h4>
+                <div class="log-box">
+                    <p class="log-entry">@CurrentLogMessage</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Memory (RAM) Table -->
+        <div class="cpu-right-col">
+            <div class="section-box">
+                <h4>Hauptspeicher (RAM)</h4>
+                <table class="ram-table">
+                    <thead>
+                        <tr>
+                            <th>Adr</th>
+                            <th>Inhalt / Assembler</th>
+                            <th>Wert</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int i = 0; i < Ram.Length; i++)
+                        {
+                            var addr = i;
+                            var isCurrentPc = PC == addr && !IsHalted;
+                            <tr class="@(isCurrentPc ? "ram-row-pc" : "")">
+                                <td class="addr-cell">@addr.ToString("D2")</td>
+                                <td class="code-cell">@Ram[addr].Mnemonic</td>
+                                <td class="val-cell">@Ram[addr].Data</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .cpu-sim-card {
+        background: #ffffff;
+        border-radius: 1.25rem;
+        border: 1px solid rgba(20, 50, 47, 0.1);
+        padding: 1.5rem;
+        box-shadow: 0 10px 30px rgba(20, 50, 47, 0.05);
+    }
+    .sim-title { margin: 0 0 0.35rem; color: #14322f; }
+    .sim-subtitle { margin: 0; color: #486a65; font-size: 0.92rem; }
+    .cpu-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        margin: 1.25rem 0;
+        padding: 0.85rem;
+        background: rgba(20, 50, 47, 0.04);
+        border-radius: 0.85rem;
+        flex-wrap: wrap;
+    }
+    .cpu-controls { display: flex; gap: 0.5rem; }
+    .action-btn {
+        padding: 0.5rem 1rem;
+        border-radius: 0.6rem;
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .action-btn.primary { background: #14322f; color: #ffffff; border-color: #14322f; }
+    .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .preset-selector { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    .toolbar-label { font-size: 0.85rem; font-weight: 700; color: #475569; }
+    .preset-pill {
+        padding: 0.4rem 0.75rem;
+        border-radius: 999px;
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
+        font-size: 0.82rem;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.15s;
+    }
+    .preset-pill.active { background: #0d9488; color: #ffffff; border-color: #0d9488; }
+    .cycle-bar {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.75rem;
+        margin-bottom: 1.25rem;
+    }
+    .cycle-step {
+        padding: 0.75rem;
+        border-radius: 0.75rem;
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        text-align: center;
+        transition: all 0.2s;
+    }
+    .cycle-step.active {
+        background: #fef08a;
+        border-color: #facc15;
+        box-shadow: 0 4px 12px rgba(250, 204, 21, 0.25);
+    }
+    .cycle-step strong { display: block; font-size: 0.95rem; color: #0f172a; }
+    .cycle-step small { color: #64748b; font-size: 0.78rem; }
+    .cpu-grid {
+        display: grid;
+        grid-template-columns: 1.4fr 1fr;
+        gap: 1.25rem;
+    }
+    @@media (max-width: 800px) { .cpu-grid { grid-template-columns: 1fr; } }
+    .section-box {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.85rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    .section-box h4 { margin: 0 0 0.75rem; font-size: 0.92rem; color: #0f172a; }
+    .register-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 0.65rem;
+    }
+    .reg-card {
+        padding: 0.65rem;
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 0.6rem;
+    }
+    .reg-card.highlight { background: #f0fdf4; border-color: #86efac; }
+    .reg-name { display: block; font-size: 0.75rem; color: #64748b; margin-bottom: 0.2rem; }
+    .reg-val { font-size: 1.15rem; color: #0f172a; font-family: monospace; }
+    .flag-active { color: #16a34a; }
+    .status-running { color: #16a34a; font-size: 0.9rem; }
+    .status-halted { color: #dc2626; font-size: 0.9rem; }
+    .log-box {
+        background: #0f172a;
+        color: #38bdf8;
+        padding: 0.85rem;
+        border-radius: 0.6rem;
+        font-family: monospace;
+        font-size: 0.9rem;
+    }
+    .log-entry { margin: 0; }
+    .ram-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+    }
+    .ram-table th, .ram-table td { padding: 0.4rem 0.6rem; border: 1px solid #e2e8f0; }
+    .ram-table th { background: #f1f5f9; text-align: left; }
+    .addr-cell { font-family: monospace; color: #64748b; width: 35px; text-align: center; }
+    .code-cell { font-family: monospace; font-weight: 600; color: #0f172a; }
+    .val-cell { font-family: monospace; color: #0d9488; text-align: right; width: 50px; }
+    .ram-row-pc { background: #fef9c3 !important; font-weight: 700; }
+</style>
+
+@code {
+    private enum CpuPhase { Fetch, Decode, Execute }
+    private CpuPhase CurrentPhase = CpuPhase.Fetch;
+
+    private int PC = 0;
+    private string IR = "";
+    private int ACC = 0;
+    private int RegB = 0;
+    private bool ZeroFlag => ACC == 0;
+    private bool IsHalted = false;
+    private int SelectedProgram = 0;
+    private string CurrentLogMessage = "Bereit zum Start. Klicken Sie auf 'Nächster Einzelschritt'.";
+
+    public record MemoryWord(string Mnemonic, int Data);
+    private MemoryWord[] Ram = new MemoryWord[12];
+
+    protected override void OnInitialized()
+    {
+        LoadProgram(0);
+    }
+
+    private void LoadProgram(int progId)
+    {
+        SelectedProgram = progId;
+        ResetCpu();
+
+        if (progId == 0)
+        {
+            // Program 0: 5 + 7
+            Ram = new MemoryWord[]
+            {
+                new("LOAD 08", 0),  // 00: ACC = RAM[08] (5)
+                new("ADD 09", 0),   // 01: ACC = ACC + RAM[09] (7)
+                new("STORE 10", 0), // 02: RAM[10] = ACC (12)
+                new("HLT", 0),      // 03: Stop
+                new("NOP", 0), new("NOP", 0), new("NOP", 0), new("NOP", 0),
+                new("DATA", 5),     // 08: Wert 5
+                new("DATA", 7),     // 09: Wert 7
+                new("DATA", 0),     // 10: Ergebnis
+                new("NOP", 0)
+            };
+        }
+        else
+        {
+            // Program 1: Countdown from 3
+            Ram = new MemoryWord[]
+            {
+                new("LOAD 08", 0),  // 00: ACC = 3
+                new("SUB 09", 0),   // 01: ACC = ACC - 1
+                new("STORE 08", 0), // 02: RAM[08] = ACC
+                new("JZ 05", 0),    // 03: Wenn ACC==0 -> Springe zu 05 (HLT)
+                new("JMP 01", 0),   // 04: Schleife zu 01
+                new("HLT", 0),      // 05: Stop
+                new("NOP", 0), new("NOP", 0),
+                new("DATA", 3),     // 08: Zähler
+                new("DATA", 1),     // 09: Dekrement-Schritt
+                new("NOP", 0), new("NOP", 0)
+            };
+        }
+    }
+
+    private void ResetCpu()
+    {
+        PC = 0;
+        IR = "";
+        ACC = 0;
+        RegB = 0;
+        IsHalted = false;
+        CurrentPhase = CpuPhase.Fetch;
+        CurrentLogMessage = "CPU zurückgesetzt. Program Counter (PC) = 00.";
+    }
+
+    private void StepCpu()
+    {
+        if (IsHalted || PC >= Ram.Length) return;
+
+        switch (CurrentPhase)
+        {
+            case CpuPhase.Fetch:
+                IR = Ram[PC].Mnemonic;
+                CurrentLogMessage = $"[FETCH] Befehl '{IR}' aus Adresse {PC:D2} in IR geladen. PC wird inkrementiert.";
+                PC++;
+                CurrentPhase = CpuPhase.Decode;
+                break;
+
+            case CpuPhase.Decode:
+                CurrentLogMessage = $"[DECODE] Dekodiere Befehl '{IR}'. Bereite Steuersignale für ALU / Bus vor.";
+                CurrentPhase = CpuPhase.Execute;
+                break;
+
+            case CpuPhase.Execute:
+                ExecuteCurrentInstruction();
+                CurrentPhase = CpuPhase.Fetch;
+                break;
+        }
+    }
+
+    private void ExecuteCurrentInstruction()
+    {
+        var parts = IR.Split(' ');
+        var op = parts[0].ToUpperInvariant();
+        int addr = parts.Length > 1 && int.TryParse(parts[1], out var a) ? a : 0;
+
+        switch (op)
+        {
+            case "LOAD":
+                ACC = Ram[addr].Data;
+                CurrentLogMessage = $"[EXECUTE] LOAD: Akkumulator mit Wert {ACC} aus RAM[{addr:D2}] geladen.";
+                break;
+
+            case "STORE":
+                Ram[addr] = new MemoryWord(Ram[addr].Mnemonic, ACC);
+                CurrentLogMessage = $"[EXECUTE] STORE: Akkumulator-Wert {ACC} in RAM[{addr:D2}] gespeichert.";
+                break;
+
+            case "ADD":
+                int addVal = Ram[addr].Data;
+                ACC += addVal;
+                CurrentLogMessage = $"[EXECUTE] ADD: {addVal} zu ACC addiert. Neuer ACC = {ACC}.";
+                break;
+
+            case "SUB":
+                int subVal = Ram[addr].Data;
+                ACC -= subVal;
+                CurrentLogMessage = $"[EXECUTE] SUB: {subVal} von ACC subtrahiert. Neuer ACC = {ACC}.";
+                break;
+
+            case "JMP":
+                PC = addr;
+                CurrentLogMessage = $"[EXECUTE] JMP: Unbedingter Sprung zu Adresse {PC:D2}.";
+                break;
+
+            case "JZ":
+                if (ACC == 0)
+                {
+                    PC = addr;
+                    CurrentLogMessage = $"[EXECUTE] JZ: Zero-Flag aktiv (ACC=0). Sprung zu Adresse {PC:D2}.";
+                }
+                else
+                {
+                    CurrentLogMessage = $"[EXECUTE] JZ: Zero-Flag inaktiv (ACC!=0). Kein Sprung.";
+                }
+                break;
+
+            case "HLT":
+                IsHalted = true;
+                CurrentLogMessage = $"[EXECUTE] HLT: Prozessor angehalten (Programm beendet).";
+                break;
+
+            default:
+                CurrentLogMessage = $"[EXECUTE] NOP: Keine Operation.";
+                break;
+        }
+    }
+}

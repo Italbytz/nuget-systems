@@ -1,0 +1,347 @@
+@namespace Italbytz.Systems.Blazor.Components.ComputingSystems
+
+<div class="napier-card">
+    <div class="napier-header">
+        <div>
+            <h3 class="napier-title">Napiersche Rechenstäbe (Napier's Bones)</h3>
+            <p class="napier-subtitle">
+                Historisches Multiplikationsverfahren (John Napier, 1617) nach dem Prinzip der Gelosia-Multiplikation.
+            </p>
+        </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="napier-controls">
+        <div class="control-group">
+            <label class="control-label">Zu multiplizierende Zahl (Faktor 1):</label>
+            <div class="input-with-buttons">
+                <input type="number" min="1" max="999999" @bind="NumberInput" @bind:after="UpdateRods" class="napier-input" />
+                <button class="preset-btn" @onclick="() => SetPreset(1423)">Bsp: 1423</button>
+                <button class="preset-btn" @onclick="() => SetPreset(739)">Bsp: 739</button>
+                <button class="preset-btn" @onclick="() => SetPreset(5824)">Bsp: 5824</button>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label class="control-label">Multiplikator (Faktor 2): <strong>@Multiplier</strong></label>
+            <div class="multiplier-bar">
+                @for (int m = 1; m <= 9; m++)
+                {
+                    var currentM = m;
+                    <button class="multiplier-btn @(Multiplier == currentM ? "active" : "")" @onclick="() => SetMultiplier(currentM)">
+                        × @currentM
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Interactive Rods Board -->
+    <div class="rods-board-container">
+        <div class="rods-board">
+            <!-- Index Rod on Left -->
+            <div class="rod index-rod">
+                <div class="rod-cap">×</div>
+                @for (int r = 1; r <= 9; r++)
+                {
+                    var row = r;
+                    <div class="rod-cell index-cell @(Multiplier == row ? "active-row" : "")" @onclick="() => SetMultiplier(row)">
+                        <strong>@row</strong>
+                    </div>
+                }
+            </div>
+
+            <!-- Value Rods -->
+            @for (int i = 0; i < RodDigits.Count; i++)
+            {
+                var digit = RodDigits[i];
+                <div class="rod value-rod">
+                    <div class="rod-cap">@digit</div>
+                    @for (int r = 1; r <= 9; r++)
+                    {
+                        var row = r;
+                        var prod = digit * row;
+                        var tens = prod / 10;
+                        var units = prod % 10;
+                        <div class="rod-cell value-cell @(Multiplier == row ? "active-row" : "")">
+                            <svg viewBox="0 0 40 40" class="diagonal-box">
+                                <line x1="0" y1="40" x2="40" y2="0" stroke="#cbd5e1" stroke-width="1.5" />
+                                <text x="8" y="15" class="cell-tens">@tens</text>
+                                <text x="28" y="32" class="cell-units">@units</text>
+                            </svg>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Calculation Breakdown -->
+    <div class="result-breakdown">
+        <div class="breakdown-heading">
+            <h4>Ergebnisermittlung für @CurrentNumber × @Multiplier:</h4>
+        </div>
+        <div class="steps-flow">
+            <div class="flow-item">
+                <span class="step-label">Diagonale Additionen (von rechts nach links):</span>
+                <div class="diagonal-sum-list">
+                    @for (int k = DiagonalSteps.Count - 1; k >= 0; k--)
+                    {
+                        var step = DiagonalSteps[k];
+                        <span class="diagonal-step-badge">
+                            @step.Expression = <strong>@step.Digit</strong> @(step.Carry > 0 ? $"(Übertrag: {step.Carry})" : "")
+                        </span>
+                    }
+                </div>
+            </div>
+            <div class="total-result-box">
+                <span>Endergebnis:</span>
+                <strong class="total-number">@CurrentNumber × @Multiplier = @(CurrentNumber * Multiplier)</strong>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .napier-card {
+        background: #ffffff;
+        border-radius: 1.25rem;
+        border: 1px solid rgba(20, 50, 47, 0.1);
+        padding: 1.5rem;
+        box-shadow: 0 10px 30px rgba(20, 50, 47, 0.05);
+    }
+    .napier-title { margin: 0 0 0.35rem; color: #14322f; }
+    .napier-subtitle { margin: 0; color: #486a65; font-size: 0.92rem; }
+    .napier-controls {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.25rem;
+        margin: 1.25rem 0;
+        padding: 1rem;
+        background: rgba(20, 50, 47, 0.04);
+        border-radius: 1rem;
+    }
+    .control-label { display: block; font-size: 0.85rem; font-weight: 700; color: #355551; margin-bottom: 0.5rem; }
+    .input-with-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .napier-input {
+        width: 120px;
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.6rem;
+        border: 1px solid #cbd5e1;
+        font-weight: 700;
+        font-size: 1.1rem;
+    }
+    .preset-btn {
+        padding: 0.4rem 0.75rem;
+        border-radius: 0.6rem;
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
+        cursor: pointer;
+        font-size: 0.82rem;
+        transition: all 0.15s;
+    }
+    .preset-btn:hover { background: #f1f5f9; }
+    .multiplier-bar { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+    .multiplier-btn {
+        flex: 1;
+        min-width: 38px;
+        padding: 0.5rem 0.4rem;
+        border-radius: 0.6rem;
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .multiplier-btn.active {
+        background: #14322f;
+        color: #ffffff;
+        border-color: #14322f;
+    }
+    .rods-board-container {
+        overflow-x: auto;
+        padding: 1rem 0;
+        margin: 1rem 0;
+    }
+    .rods-board {
+        display: inline-flex;
+        gap: 2px;
+        background: #78350f;
+        padding: 6px;
+        border-radius: 0.85rem;
+        box-shadow: inset 0 2px 6px rgba(0,0,0,0.3);
+    }
+    .rod {
+        display: flex;
+        flex-direction: column;
+        width: 54px;
+        background: #fef3c7;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .index-rod {
+        background: #fde68a;
+        border-right: 2px solid #b45309;
+    }
+    .rod-cap {
+        background: #b45309;
+        color: #ffffff;
+        text-align: center;
+        font-weight: 800;
+        padding: 6px 0;
+        font-size: 1.1rem;
+        border-bottom: 2px solid #78350f;
+    }
+    .rod-cell {
+        height: 50px;
+        border-bottom: 1px solid #d97706;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.15s;
+    }
+    .index-cell {
+        cursor: pointer;
+        font-size: 1.1rem;
+        color: #78350f;
+    }
+    .rod-cell.active-row {
+        background: #fbcfe8;
+        box-shadow: inset 0 0 0 2px #db2777;
+    }
+    .diagonal-box {
+        width: 100%;
+        height: 100%;
+    }
+    .cell-tens, .cell-units {
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 700;
+        fill: #1e293b;
+    }
+    .result-breakdown {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 1rem;
+        padding: 1.25rem;
+        margin-top: 1rem;
+    }
+    .breakdown-heading h4 { margin: 0 0 0.5rem; color: #0f172a; }
+    .diagonal-sum-list {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin: 0.5rem 0 1rem;
+    }
+    .diagonal-step-badge {
+        padding: 0.4rem 0.75rem;
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 0.6rem;
+        font-size: 0.88rem;
+    }
+    .total-result-box {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.85rem 1.25rem;
+        background: #ecfdf5;
+        border: 1px solid #a7f3d0;
+        border-radius: 0.75rem;
+        color: #065f46;
+    }
+    .total-number { font-size: 1.3rem; }
+</style>
+
+@code {
+    private int NumberInput = 1423;
+    private int CurrentNumber = 1423;
+    private int Multiplier = 5;
+    private List<int> RodDigits = new() { 1, 4, 2, 3 };
+
+    private record DiagonalStep(string Expression, int Digit, int Carry);
+    private List<DiagonalStep> DiagonalSteps = new();
+
+    protected override void OnInitialized()
+    {
+        UpdateRods();
+    }
+
+    private void SetPreset(int number)
+    {
+        NumberInput = number;
+        UpdateRods();
+    }
+
+    private void SetMultiplier(int m)
+    {
+        Multiplier = m;
+        CalculateSteps();
+    }
+
+    private void UpdateRods()
+    {
+        if (NumberInput < 1) NumberInput = 1;
+        CurrentNumber = NumberInput;
+        RodDigits = CurrentNumber.ToString().Select(c => c - '0').ToList();
+        CalculateSteps();
+    }
+
+    private void CalculateSteps()
+    {
+        DiagonalSteps.Clear();
+        // Calculate products for each rod at current multiplier
+        var products = RodDigits.Select(d => d * Multiplier).ToList();
+        
+        // Sum along diagonals from right (units) to left
+        int carry = 0;
+        for (int i = products.Count - 1; i >= 0; i--)
+        {
+            int units = products[i] % 10;
+            int sum = units + carry;
+            
+            int nextTens = (i > 0) ? (products[i - 1] / 10) : 0;
+            string expr = (carry > 0) ? $"{units} + Übertrag {carry}" : $"{units}";
+            if (i < products.Count - 1)
+            {
+                int prevTens = products[i] / 10;
+                // combined diagonal expression
+            }
+            
+            // Standard Gelosia diagonal calculation
+            // Position k has units of digit i and tens of digit i+1
+        }
+
+        // Rigorous Gelosia diagonal summation:
+        int numDigits = RodDigits.Count;
+        int currentCarry = 0;
+        
+        // Diagonal 0: units of last digit
+        int rightmost = products[^1] % 10;
+        int d0Sum = rightmost;
+        int out0 = d0Sum % 10;
+        currentCarry = d0Sum / 10;
+        DiagonalSteps.Add(new DiagonalStep($"Einer: {rightmost}", out0, currentCarry));
+
+        // Intermediate diagonals
+        for (int i = numDigits - 1; i >= 1; i--)
+        {
+            int tensRight = products[i] / 10;
+            int unitsLeft = products[i - 1] % 10;
+            int diagSum = tensRight + unitsLeft + currentCarry;
+            int outDigit = diagSum % 10;
+            string expr = $"{tensRight} + {unitsLeft}" + (currentCarry > 0 ? $" + {currentCarry}" : "");
+            currentCarry = diagSum / 10;
+            DiagonalSteps.Add(new DiagonalStep(expr, outDigit, currentCarry));
+        }
+
+        // Leftmost diagonal (tens of first digit)
+        int leftmostTens = products[0] / 10;
+        int lastSum = leftmostTens + currentCarry;
+        if (lastSum > 0 || numDigits == 1)
+        {
+            string expr = $"{leftmostTens}" + (currentCarry > 0 ? $" + {currentCarry}" : "");
+            DiagonalSteps.Add(new DiagonalStep(expr, lastSum, 0));
+        }
+    }
+}
