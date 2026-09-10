@@ -1,68 +1,443 @@
 @namespace Italbytz.Systems.Blazor.Components.ComputingSystems
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
 
 <article class="demo-card wide-card">
     <div class="card-heading">
-        <p class="feature-kicker">Two's complement</p>
-        <h2>Inspect the signed representation</h2>
+        <p class="feature-kicker">Zahlensysteme &amp; Vorzeichenbehaftete Ganzzahlen</p>
+        <h2>Zweierkomplementdarstellung (8 Bit)</h2>
     </div>
 
-    <div class="input-grid single-up">
-        <label>
-            <span>Positive input</span>
-            <input type="number" min="0" max="127" @bind="TwosComplementInput" />
-        </label>
+    <!-- View Switcher -->
+    <div class="view-switch no-print">
+        <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                @onclick="() => SetView(ViewMode.Simulator)">
+            🚀 Interaktiver Simulator (Step-by-Step)
+        </button>
+        <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                @onclick="() => SetView(ViewMode.Worksheet)">
+            🖨️ Klausur-Arbeitsblatt (Druckansicht)
+        </button>
     </div>
 
-    @{ var twosComplement = TwosComplementSolution; }
-    <div class="card-grid card-grid-three compact-grid">
-        <div class="metric-card">
-            <span>Input</span>
-            <strong>@TwosComplementInputByte</strong>
-            <small>@ToBinary(TwosComplementInputByte)</small>
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Input & Randomizer -->
+        <div class="input-grid no-print">
+            <label>
+                <span>Dezimalzahl (&minus;128 bis +127):</span>
+                <input type="number" min="-128" max="127" value="@InputNumber" @onchange="HandleInputChanged" />
+            </label>
+            <div class="preset-buttons">
+                <button class="preset-btn" @onclick="RandomizeInput">🎲 Zufall</button>
+                <button class="preset-btn" @onclick="() => SetInput(-42)">&minus;42</button>
+                <button class="preset-btn" @onclick="() => SetInput(-84)">&minus;84</button>
+                <button class="preset-btn" @onclick="() => SetInput(-19)">&minus;19</button>
+                <button class="preset-btn" @onclick="() => SetInput(-1)">&minus;1</button>
+                <button class="preset-btn" @onclick="() => SetInput(37)">+37</button>
+            </div>
         </div>
-        <div class="metric-card">
-            <span>Signed result</span>
-            <strong>@twosComplement.ComplementBinary</strong>
-            <small>solver output</small>
-        </div>
-        <div class="metric-card">
-            <span>Stored bits</span>
-            <strong>@ToBinary(unchecked((byte)twosComplement.ComplementBinary))</strong>
-            <small>8-bit view</small>
-        </div>
-    </div>
 
-    <div class="table-shell">
-        <table class="trace-table">
-            <thead>
-                <tr>
-                    <th>Trace step</th>
-                    <th>Trace detail</th>
-                </tr>
-            </thead>
-            <tbody>
-                @for (var index = 0; index < twosComplement.Steps.Count; index++)
-                {
+        <!-- Step-by-Step Player Controls -->
+        <div class="player-toolbar no-print">
+            <div class="player-controls">
+                <button class="player-btn" title="Zum Start" disabled="@(CurrentStep == 0)" @onclick="ResetPlayer">
+                    ⏮ Start
+                </button>
+                <button class="player-btn" title="Vorheriger Schritt" disabled="@(CurrentStep == 0)" @onclick="PreviousStep">
+                    ◀ Zurück
+                </button>
+                <button class="player-btn primary" title="Nächster Schritt" disabled="@(CurrentStep >= TotalSteps)" @onclick="NextStep">
+                    ▶ Nächster Schritt
+                </button>
+                <button class="player-btn" title="Gesamtlösung anzeigen" disabled="@(CurrentStep >= TotalSteps)" @onclick="CompleteSolution">
+                    ⏭ Ende
+                </button>
+            </div>
+            <div class="player-progress">
+                <span>Schritt @CurrentStep von @TotalSteps: @StepTitle</span>
+            </div>
+        </div>
+
+        <!-- Step Matrix -->
+        <div class="matrix-container">
+            <table class="matrix-table">
+                <thead>
                     <tr>
-                        <td>@(index + 1)</td>
-                        <td>@twosComplement.Steps[index]</td>
+                        <th class="matrix-label">Stellenwert</th>
+                        <th class="matrix-cell header-cell msb-cell">&minus;2<sup>7</sup> (&minus;128)</th>
+                        @for (var b = 6; b >= 0; b--)
+                        {
+                            <th class="matrix-cell header-cell">2<sup>@b</sup> (@(1 << b))</th>
+                        }
                     </tr>
-                }
-            </tbody>
-        </table>
-    </div>
+                </thead>
+                <tbody>
+                    <!-- Row 1: Positive representation |X| -->
+                    <tr>
+                        <td class="matrix-label">1. Positiver Betrag |@InputNumber| = @Math.Abs(InputNumber)</td>
+                        @for (var b = 7; b >= 0; b--)
+                        {
+                            var bit = (PositiveByte >> b) & 1;
+                            <td class="matrix-cell @(CurrentStep >= 1 ? "" : "dimmed")">@bit</td>
+                        }
+                    </tr>
+
+                    @if (InputNumber < 0)
+                    {
+                        <!-- Row 2: Inverted (One's complement) -->
+                        <tr>
+                            <td class="matrix-label">2. Invertieren (NOT / Einerkomplement)</td>
+                            @for (var b = 7; b >= 0; b--)
+                            {
+                                var bit = (InvertedByte >> b) & 1;
+                                <td class="matrix-cell @(CurrentStep >= 2 ? "inv-cell" : "dimmed")">
+                                    @(CurrentStep >= 2 ? bit.ToString() : "·")
+                                </td>
+                            }
+                        </tr>
+
+                        <!-- Row 3: Carry Row for +1 -->
+                        <tr>
+                            <td class="matrix-label">3. Übertrag (+1 LSB)</td>
+                            @for (var b = 7; b >= 0; b--)
+                            {
+                                var carry = CarryBits[b];
+                                <td class="matrix-cell carry-cell @(CurrentStep >= 3 ? "" : "dimmed")">
+                                    @(CurrentStep >= 3 ? (b == 0 || carry == 1 ? carry.ToString() : "0") : "")
+                                </td>
+                            }
+                        </tr>
+
+                        <!-- Divider line -->
+                        <tr class="matrix-divider">
+                            <td colspan="9"><hr /></td>
+                        </tr>
+
+                        <!-- Row 4: Two's complement result -->
+                        <tr>
+                            <td class="matrix-label"><strong>= Zweierkomplement (@InputNumber)</strong></td>
+                            @for (var b = 7; b >= 0; b--)
+                            {
+                                var bit = (TwosComplementByte >> b) & 1;
+                                <td class="matrix-cell res-cell @(CurrentStep >= 3 ? "" : "dimmed")">
+                                    @(CurrentStep >= 3 ? bit.ToString() : "?")
+                                </td>
+                            }
+                        </tr>
+                    }
+                    else
+                    {
+                        <!-- Positive Number Info -->
+                        <tr class="matrix-divider">
+                            <td colspan="9"><hr /></td>
+                        </tr>
+                        <tr>
+                            <td class="matrix-label"><strong>= Zweierkomplement (+@InputNumber)</strong></td>
+                            @for (var b = 7; b >= 0; b--)
+                            {
+                                var bit = (PositiveByte >> b) & 1;
+                                <td class="matrix-cell res-cell @(CurrentStep >= 1 ? "" : "dimmed")">
+                                    @bit
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Narrative Card -->
+        <div class="narrative-card">
+            <h4>💡 @StepTitle</h4>
+            <p>@StepDescription</p>
+        </div>
+
+        <!-- Proof Card (Step 4 / Verification) -->
+        @if (CurrentStep >= 4 || (InputNumber >= 0 && CurrentStep >= 1))
+        {
+            <div class="proof-card">
+                <h4>🔍 Mathematische Stellenwert-Probe (Verifikation):</h4>
+                <div class="proof-formula">
+                    @ProofFormula
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <!-- Worksheet View -->
+        <div class="worksheet-container">
+            <div class="worksheet-header">
+                <div>
+                    <h3>Klausuraufgabe: Zweierkomplementdarstellung (8 Bit)</h3>
+                    <p class="worksheet-instruction">
+                        Berechnen Sie für die folgenden vorzeichenbehafteten Dezimalzahlen jeweils die 8-Bit-Zweierkomplementdarstellung.
+                        Geben Sie die Zwischenschritte (Positiver Betrag in Dual, bitweise Invertierung / Einerkomplement und $+1$-Addition) an.
+                    </p>
+                </div>
+                <div class="worksheet-toolbar no-print">
+                    <button class="preset-btn" @onclick="() => ShowSolution = !ShowSolution">
+                        @(ShowSolution ? "👁️ Musterlösung verbergen" : "👁️ Musterlösung anzeigen")
+                    </button>
+                    <button class="preset-btn" @onclick="GenerateWorksheetTasks">
+                        🎲 Neue Klausuraufgaben
+                    </button>
+                    <button class="player-btn primary" @onclick="PrintWorksheet">
+                        🖨️ Drucken / PDF
+                    </button>
+                </div>
+            </div>
+
+            @if (ShowSolution)
+            {
+                <span class="solution-badge no-print">Musterlösung eingeblendet</span>
+            }
+
+            <table class="worksheet-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">Nr.</th>
+                        <th style="width: 130px;">Dezimalzahl</th>
+                        <th>1. Positiver Betrag $|X|_2$</th>
+                        <th>2. Invertieren (NOT)</th>
+                        <th>3. Zweierkomplement ($+1$)</th>
+                        <th>Probe (Stellenwertsumme)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (int i = 0; i < WorksheetTasks.Length; i++)
+                    {
+                        var taskNum = WorksheetTasks[i];
+                        var pos = (byte)Math.Abs(taskNum);
+                        var inv = (byte)~pos;
+                        var tc = (byte)(taskNum < 0 ? (inv + 1) : pos);
+                        var label = ((char)('A' + i)).ToString();
+
+                        <tr>
+                            <td><strong>@label</strong></td>
+                            <td class="cell-mono"><strong>@(taskNum > 0 ? $"+{taskNum}" : $"{taskNum}")<sub>10</sub></strong></td>
+                            <td class="cell-mono cell-solution">
+                                @(ShowSolution ? ToBinary(pos) : "")
+                            </td>
+                            <td class="cell-mono cell-solution">
+                                @(ShowSolution ? (taskNum < 0 ? ToBinary(inv) : "— (Positiv)") : "")
+                            </td>
+                            <td class="cell-mono cell-solution">
+                                @(ShowSolution ? ToBinary(tc) : "")
+                            </td>
+                            <td class="cell-mono cell-solution" style="font-size: 0.85rem;">
+                                @(ShowSolution ? GetProofString(taskNum, tc) : "")
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
 </article>
 
 @code {
-    private readonly TwosComplementSolver twosComplementSolver = new();
+    public enum ViewMode
+    {
+        Simulator,
+        Worksheet
+    }
+
+    [SupplyParameterFromQuery(Name = "view")]
+    public string? QueryView { get; set; }
+
+    [SupplyParameterFromQuery(Name = "solution")]
+    public string? QuerySolution { get; set; }
+
+    [SupplyParameterFromQuery(Name = "number")]
+    public string? QueryNumber { get; set; }
 
     [Parameter]
-    public int TwosComplementInput { get; set; } = 37;
+    public int InputNumber { get; set; } = -42;
 
-    private byte TwosComplementInputByte => (byte)Math.Clamp(TwosComplementInput, 0, 127);
+    private ViewMode ActiveView = ViewMode.Simulator;
+    private bool ShowSolution = false;
+    private int CurrentStep = 0;
+    private int TotalSteps => InputNumber < 0 ? 4 : 1;
 
-    private TwosComplementSolution TwosComplementSolution =>
-        (TwosComplementSolution)twosComplementSolver.Solve(new TwosComplementParameters(TwosComplementInputByte));
+    private int[] WorksheetTasks = new[] { -37, -84, -19, -120 };
 
-    private static string ToBinary(int value, int width = 8) => Convert.ToString(value, 2).PadLeft(width, '0');
+    protected override void OnParametersSet()
+    {
+        if (string.Equals(QueryView, "worksheet", StringComparison.OrdinalIgnoreCase))
+        {
+            ActiveView = ViewMode.Worksheet;
+        }
+
+        if (string.Equals(QuerySolution, "true", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(QuerySolution, "1", StringComparison.OrdinalIgnoreCase))
+        {
+            ShowSolution = true;
+        }
+
+        if (int.TryParse(QueryNumber, out var parsedNum))
+        {
+            InputNumber = Math.Clamp(parsedNum, -128, 127);
+        }
+    }
+
+    private byte PositiveByte => (byte)Math.Abs(InputNumber);
+    private byte InvertedByte => (byte)~PositiveByte;
+    private byte TwosComplementByte => (byte)(InputNumber < 0 ? (InvertedByte + 1) : PositiveByte);
+
+    private int[] CarryBits
+    {
+        get
+        {
+            var carries = new int[8];
+            int c = 1; // Adding +1 to LSB
+            for (int b = 0; b < 8; b++)
+            {
+                var invBit = (InvertedByte >> b) & 1;
+                var sum = invBit + c;
+                c = sum >> 1;
+                carries[b] = c;
+            }
+            return carries;
+        }
+    }
+
+    private string StepTitle => CurrentStep switch
+    {
+        0 => "Ausgangslage: Dezimalzahl vorgegeben",
+        1 => $"Schritt 1: Positiven Betrag als 8-Bit-Dualzahl darstellen (|{InputNumber}| = {PositiveByte})",
+        2 => "Schritt 2: Bitweise Invertieren (NOT / Einerkomplement)",
+        3 => "Schritt 3: +1 auf LSB addieren (Zweierkomplement)",
+        4 => "Schritt 4: Probe & Verifikation über Stellenwertsumme",
+        _ => "Berechnung abgeschlossen"
+    };
+
+    private string StepDescription => (InputNumber, CurrentStep) switch
+    {
+        ( >= 0, 0) => $"Die Zahl {InputNumber} ist positiv (oder 0). Bei positiven Zahlen entspricht das Zweierkomplement direkt der normalen Binärdarstellung mit Vorzeichenbit MSB = 0.",
+        ( >= 0, _) => $"Ergebnis: +{InputNumber} = {ToBinary(PositiveByte)}₂ (MSB 0 signalisiert eine positive Zahl).",
+        ( < 0, 0) => $"Ziel: Berechnung der 8-Bit-Zweierkomplementdarstellung für die negative Zahl {InputNumber}. Klicken Sie auf 'Nächster Schritt' um die 3-stufige Wandlung durchzuführen.",
+        ( < 0, 1) => $"Der Betrag |{InputNumber}| ist {PositiveByte}. Als 8-Bit-Dualzahl geschrieben: {ToBinary(PositiveByte)}₂ ({GetPositiveDecomp(PositiveByte)}).",
+        ( < 0, 2) => $"Alle 8 Bits werden invertiert (0 → 1, 1 → 0). Das ergibt das Einerkomplement: NOT({ToBinary(PositiveByte)}) = {ToBinary(InvertedByte)}₂.",
+        ( < 0, 3) => $"Auf das Einerkomplement wird 1 addiert: {ToBinary(InvertedByte)}₂ + 1₂ = {ToBinary(TwosComplementByte)}₂. Dies ist das fertige 8-Bit-Zweierkomplement!",
+        ( < 0, 4) => $"Verifikation: Im Zweierkomplement hat das höchstwertige Bit (MSB, Bit 7) den negativen Stellenwert &minus;2⁷ = &minus;128. Die Summe aller aktiven Bits ergibt exakt {InputNumber}!",
+        _ => ""
+    };
+
+    private string ProofFormula
+    {
+        get
+        {
+            if (InputNumber >= 0)
+            {
+                return $"{ToBinary(PositiveByte)}₂ = {GetPositiveDecomp(PositiveByte)} = +{InputNumber}₁₀";
+            }
+
+            var terms = new List<string>();
+            var sum = 0;
+            if (((TwosComplementByte >> 7) & 1) == 1)
+            {
+                terms.Add("(&minus;128)");
+                sum -= 128;
+            }
+
+            for (int b = 6; b >= 0; b--)
+            {
+                if (((TwosComplementByte >> b) & 1) == 1)
+                {
+                    var weight = 1 << b;
+                    terms.Add($"{weight}");
+                    sum += weight;
+                }
+            }
+
+            return $"{ToBinary(TwosComplementByte)}₂ = {string.Join(" + ", terms)} = {sum}₁₀ (Exakt {InputNumber})";
+        }
+    }
+
+    private static string GetProofString(int num, byte tc)
+    {
+        if (num >= 0) return $"+{num}";
+        var parts = new List<string> { "-128" };
+        for (int b = 6; b >= 0; b--)
+        {
+            if (((tc >> b) & 1) == 1) parts.Add($"{(1 << b)}");
+        }
+        return $"{string.Join("+", parts)} = {num}";
+    }
+
+    private static string GetPositiveDecomp(byte b)
+    {
+        var parts = new List<string>();
+        for (int i = 7; i >= 0; i--)
+        {
+            if (((b >> i) & 1) == 1) parts.Add($"{(1 << i)}");
+        }
+        return parts.Count > 0 ? string.Join(" + ", parts) : "0";
+    }
+
+    private static string ToBinary(byte value) => Convert.ToString(value, 2).PadLeft(8, '0');
+
+    private void SetView(ViewMode mode)
+    {
+        ActiveView = mode;
+    }
+
+    private void HandleInputChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var val))
+        {
+            SetInput(val);
+        }
+    }
+
+    private void SetInput(int num)
+    {
+        InputNumber = Math.Clamp(num, -128, 127);
+        CurrentStep = 0;
+    }
+
+    private void RandomizeInput()
+    {
+        InputNumber = Random.Shared.Next(-128, 0); // focus on negative numbers for demonstration
+        CurrentStep = 0;
+    }
+
+    private void GenerateWorksheetTasks()
+    {
+        var r = Random.Shared;
+        WorksheetTasks = new[]
+        {
+            -r.Next(5, 45),
+            -r.Next(46, 85),
+            -r.Next(86, 120),
+            -r.Next(1, 128)
+        };
+    }
+
+    private void NextStep()
+    {
+        if (CurrentStep < TotalSteps) CurrentStep++;
+    }
+
+    private void PreviousStep()
+    {
+        if (CurrentStep > 0) CurrentStep--;
+    }
+
+    private void ResetPlayer()
+    {
+        CurrentStep = 0;
+    }
+
+    private void CompleteSolution()
+    {
+        CurrentStep = TotalSteps;
+    }
+
+    private async Task PrintWorksheet()
+    {
+        await JSRuntime.InvokeVoidAsync("print");
+    }
 }
