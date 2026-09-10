@@ -1,3 +1,85 @@
+.demo-card {
+    --card-bg: #ffffff;
+    --card-border: rgba(20, 50, 47, 0.12);
+    --card-text: #14322f;
+    --kicker-color: #1f5d56;
+    --sub-card-bg: rgba(20, 50, 47, 0.03);
+    --sub-card-border: rgba(20, 50, 47, 0.08);
+    --matrix-bg: #ffffff;
+    --cell-bg: rgba(20, 50, 47, 0.03);
+    --cell-border: rgba(20, 50, 47, 0.08);
+    --cell-text: #14322f;
+    --label-bg: rgba(20, 50, 47, 0.04);
+    --label-text: #587873;
+    --toolbar-bg: rgba(20, 50, 47, 0.05);
+    --toolbar-border: rgba(20, 50, 47, 0.08);
+    --btn-bg: #ffffff;
+    --btn-border: rgba(20, 50, 47, 0.15);
+    --btn-text: #14322f;
+    --btn-hover-bg: #14322f;
+    --btn-hover-text: #f8f3e8;
+    --btn-primary-bg: #1f5d56;
+    --btn-primary-text: #ffffff;
+    --active-bg: rgba(211, 122, 72, 0.18);
+    --active-border: #d37a48;
+    --active-text: #9c4e24;
+    --input-bg: #ffffff;
+    --input-border: rgba(20, 50, 47, 0.2);
+    --input-text: #14322f;
+    --narrative-bg: rgba(31, 93, 86, 0.06);
+    --narrative-border: #1f5d56;
+    --narrative-title: #14322f;
+    --narrative-text: #355551;
+
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 1.25rem;
+    padding: 1.5rem;
+    color: var(--card-text);
+    box-shadow: 0 4px 20px rgba(20, 50, 47, 0.05);
+}
+
+:global(.is-embedded) .demo-card,
+:global(html.is-embedded) .demo-card,
+:global(body.is-embedded) .demo-card {
+    --card-bg: #0b0f19;
+    --card-border: transparent;
+    --card-text: #f8fafc;
+    --kicker-color: #38bdf8;
+    --sub-card-bg: #0f172a;
+    --sub-card-border: #1e293b;
+    --matrix-bg: #020617;
+    --cell-bg: #0f172a;
+    --cell-border: #1e293b;
+    --cell-text: #f8fafc;
+    --label-bg: #0f172a;
+    --label-text: #94a3b8;
+    --toolbar-bg: #1e293b;
+    --toolbar-border: #334155;
+    --btn-bg: #334155;
+    --btn-border: #475569;
+    --btn-text: #f8fafc;
+    --btn-hover-bg: #475569;
+    --btn-hover-text: #ffffff;
+    --btn-primary-bg: #0284c7;
+    --btn-primary-text: #ffffff;
+    --active-bg: rgba(2, 132, 199, 0.25);
+    --active-border: #38bdf8;
+    --active-text: #ffffff;
+    --input-bg: #1e293b;
+    --input-border: #475569;
+    --input-text: #f8fafc;
+    --narrative-bg: rgba(56, 189, 248, 0.08);
+    --narrative-border: #38bdf8;
+    --narrative-title: #38bdf8;
+    --narrative-text: #cbd5e1;
+
+    box-shadow: none;
+    border: none;
+    border-radius: 0;
+    padding: 1rem 0;
+}
+
 .card-heading {
     margin-bottom: 1.25rem;
 }
@@ -6,7 +88,7 @@
     font-size: 0.85rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #1f5d56;
+    color: var(--kicker-color);
     font-weight: 700;
     margin: 0 0 0.25rem 0;
 }
@@ -14,17 +96,17 @@
 .card-heading h2 {
     font-size: 1.5rem;
     margin: 0;
-    color: #14322f;
+    color: var(--card-text);
 }
 
 .view-switch {
     display: flex;
     gap: 0.5rem;
-    background: rgba(20, 50, 47, 0.06);
+    background: var(--toolbar-bg);
     padding: 0.35rem;
     border-radius: 0.9rem;
     margin: 1rem 0 1.25rem 0;
-    border: 1px solid rgba(20, 50, 47, 0.1);
+    border: 1px solid var(--toolbar-border);
 }
 
 .view-btn {
@@ -33,7 +115,7 @@
     border-radius: 0.65rem;
     font-size: 0.9rem;
     font-weight: 600;
-    color: #355551;
+    color: var(--btn-text);
     background: transparent;
     border: none;
     cursor: pointer;
@@ -45,14 +127,14 @@
 }
 
 .view-btn:hover {
-    color: #14322f;
-    background: rgba(255, 255, 255, 0.5);
+    color: var(--btn-hover-text);
+    background: var(--btn-hover-bg);
 }
 
 .view-btn.active {
-    background: #ffffff;
-    color: #14322f;
-    box-shadow: 0 2px 8px rgba(20, 50, 47, 0.1);
+    background: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .input-grid {
@@ -71,16 +153,16 @@
     flex-direction: column;
     gap: 0.35rem;
     font-size: 0.9rem;
-    color: #587873;
+    color: var(--label-text);
     font-weight: 600;
 }
 
 .input-grid input {
-    background: #ffffff;
-    border: 1px solid rgba(20, 50, 47, 0.2);
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
     border-radius: 0.6rem;
     padding: 0.5rem 0.75rem;
-    color: #14322f;
+    color: var(--input-text);
     font-size: 1.1rem;
     font-family: "SFMono-Regular", Consolas, monospace;
     font-weight: 700;
@@ -89,8 +171,8 @@
 
 .input-grid input:focus {
     outline: none;
-    border-color: #1f5d56;
-    box-shadow: 0 0 0 3px rgba(31, 93, 86, 0.15);
+    border-color: var(--kicker-color);
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
 }
 
 .player-toolbar {
@@ -101,8 +183,8 @@
     gap: 0.75rem;
     padding: 0.85rem 1rem;
     border-radius: 1rem;
-    background: rgba(20, 50, 47, 0.05);
-    border: 1px solid rgba(20, 50, 47, 0.08);
+    background: var(--toolbar-bg);
+    border: 1px solid var(--toolbar-border);
     margin: 1.25rem 0;
 }
 
@@ -119,15 +201,15 @@
     font-size: 0.85rem;
     font-weight: 600;
     cursor: pointer;
-    border: 1px solid rgba(20, 50, 47, 0.15);
-    background: #ffffff;
-    color: #14322f;
+    border: 1px solid var(--btn-border);
+    background: var(--btn-bg);
+    color: var(--btn-text);
     transition: all 0.15s ease;
 }
 
 .player-btn:hover:not(:disabled) {
-    background: #14322f;
-    color: #f8f3e8;
+    background: var(--btn-hover-bg);
+    color: var(--btn-hover-text);
 }
 
 .player-btn:disabled {
@@ -136,29 +218,29 @@
 }
 
 .player-btn.primary {
-    background: #1f5d56;
-    color: #ffffff;
-    border-color: #1f5d56;
+    background: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
+    border-color: var(--btn-primary-bg);
 }
 
 .player-btn.primary:hover:not(:disabled) {
-    background: #14322f;
+    opacity: 0.9;
 }
 
 .player-progress {
     font-size: 0.88rem;
     font-weight: 600;
-    color: #3c645e;
+    color: var(--label-text);
 }
 
 .matrix-container {
-    background: #ffffff;
-    border: 1px solid rgba(20, 50, 47, 0.12);
+    background: var(--matrix-bg);
+    border: 1px solid var(--sub-card-border);
     border-radius: 1rem;
     overflow-x: auto;
     margin: 1.25rem 0;
     padding: 0.75rem;
-    box-shadow: 0 4px 16px rgba(20, 50, 47, 0.04);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
 }
 
 .bit-matrix-table {
@@ -175,9 +257,9 @@
 
 .label-col {
     text-align: left;
-    background: rgba(20, 50, 47, 0.04);
+    background: var(--label-bg);
     font-weight: 700;
-    color: #587873;
+    color: var(--label-text);
     padding-left: 0.75rem !important;
     font-size: 0.85rem;
     border-radius: 0.4rem;
@@ -189,30 +271,30 @@
     font-size: 1.15rem;
     font-weight: 700;
     border-radius: 0.5rem;
-    background: rgba(20, 50, 47, 0.03);
-    border: 1px solid rgba(20, 50, 47, 0.08);
-    color: #14322f;
+    background: var(--cell-bg);
+    border: 1px solid var(--cell-border);
+    color: var(--cell-text);
     transition: all 0.2s ease;
 }
 
 .matrix-cell.active-bit {
-    background: rgba(211, 122, 72, 0.18);
-    border-color: #d37a48;
-    color: #9c4e24;
+    background: var(--active-bg);
+    border-color: var(--active-border);
+    color: var(--active-text);
     transform: scale(1.05);
 }
 
 .weight-cell {
     font-size: 0.8rem;
     font-weight: 600;
-    color: #587873;
+    color: var(--label-text);
     background: transparent;
     border: none;
 }
 
 .sum-card {
-    background: rgba(20, 50, 47, 0.03);
-    border: 1px solid rgba(20, 50, 47, 0.08);
+    background: var(--sub-card-bg);
+    border: 1px solid var(--sub-card-border);
     border-radius: 1rem;
     padding: 1rem 1.25rem;
     margin: 1.25rem 0;
@@ -221,14 +303,14 @@
 .sum-card h4 {
     margin: 0 0 0.5rem 0;
     font-size: 0.95rem;
-    color: #14322f;
+    color: var(--card-text);
 }
 
 .sum-expression {
     font-family: "SFMono-Regular", Consolas, monospace;
     font-size: 1.1rem;
     font-weight: 700;
-    color: #1f5d56;
+    color: var(--kicker-color);
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -238,12 +320,12 @@
 .sum-term {
     padding: 0.2rem 0.4rem;
     border-radius: 0.35rem;
-    background: rgba(20, 50, 47, 0.06);
+    background: var(--toolbar-bg);
 }
 
 .sum-term.active {
-    background: rgba(211, 122, 72, 0.2);
-    color: #9c4e24;
+    background: var(--active-bg);
+    color: var(--active-text);
 }
 
 .sum-term.zero {
@@ -252,14 +334,14 @@
 
 .sum-result {
     font-size: 1.25rem;
-    color: #14322f;
+    color: var(--card-text);
     font-weight: 800;
     margin-left: 0.5rem;
 }
 
 .narrative-card {
-    background: rgba(31, 93, 86, 0.06);
-    border-left: 4px solid #1f5d56;
+    background: var(--narrative-bg);
+    border-left: 4px solid var(--narrative-border);
     border-radius: 0.6rem;
     padding: 0.85rem 1rem;
     margin-top: 1rem;
@@ -268,27 +350,28 @@
 .narrative-card h4 {
     margin: 0 0 0.35rem 0;
     font-size: 0.95rem;
-    color: #14322f;
+    color: var(--narrative-title);
 }
 
 .narrative-card p {
     margin: 0;
     font-size: 0.9rem;
     line-height: 1.5;
-    color: #355551;
+    color: var(--narrative-text);
 }
 
 /* Printable Exam Worksheet */
 .worksheet-container {
-    background: #ffffff;
-    border: 1px solid rgba(20, 50, 47, 0.15);
+    background: var(--card-bg);
+    border: 1px solid var(--sub-card-border);
     border-radius: 1rem;
     padding: 1.5rem;
     margin-top: 1rem;
+    color: var(--card-text);
 }
 
 .worksheet-header {
-    border-bottom: 2px solid #14322f;
+    border-bottom: 2px solid var(--card-text);
     padding-bottom: 0.75rem;
     margin-bottom: 1.25rem;
     display: flex;
@@ -299,13 +382,13 @@
 .worksheet-header h3 {
     margin: 0;
     font-size: 1.25rem;
-    color: #14322f;
+    color: var(--card-text);
 }
 
 .worksheet-instruction {
     font-size: 0.95rem;
     line-height: 1.6;
-    color: #14322f;
+    color: var(--card-text);
     margin-bottom: 1.25rem;
 }
 
@@ -325,6 +408,11 @@
     font-size: 0.8rem;
     font-weight: 700;
     margin-left: 0.5rem;
+}
+
+:global(.is-embedded) .solution-badge {
+    background: #1e3a8a;
+    color: #93c5fd;
 }
 
 @media print {
