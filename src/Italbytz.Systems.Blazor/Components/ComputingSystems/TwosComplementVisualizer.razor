@@ -75,11 +75,13 @@
                 <tbody>
                     <!-- Row 1: Positive representation |X| -->
                     <tr>
-                        <td class="matrix-label">1. Positiver Betrag |@InputNumber| = @Math.Abs(InputNumber)</td>
+                        <td class="matrix-label">1. Positiver Betrag |@InputNumber| @(CurrentStep >= 1 ? $"= {Math.Abs(InputNumber)}" : "")</td>
                         @for (var b = 7; b >= 0; b--)
                         {
                             var bit = (PositiveByte >> b) & 1;
-                            <td class="matrix-cell @(CurrentStep >= 1 ? "" : "dimmed")">@bit</td>
+                            <td class="matrix-cell @(CurrentStep == 1 ? "active-bit" : (CurrentStep >= 1 ? "" : "dimmed"))">
+                                @(CurrentStep >= 1 ? bit.ToString() : "·")
+                            </td>
                         }
                     </tr>
 
@@ -91,7 +93,7 @@
                             @for (var b = 7; b >= 0; b--)
                             {
                                 var bit = (InvertedByte >> b) & 1;
-                                <td class="matrix-cell @(CurrentStep >= 2 ? "inv-cell" : "dimmed")">
+                                <td class="matrix-cell @(CurrentStep == 2 ? "inv-cell active-bit" : (CurrentStep > 2 ? "inv-cell" : "dimmed"))">
                                     @(CurrentStep >= 2 ? bit.ToString() : "·")
                                 </td>
                             }
@@ -103,8 +105,8 @@
                             @for (var b = 7; b >= 0; b--)
                             {
                                 var carry = CarryBits[b];
-                                <td class="matrix-cell carry-cell @(CurrentStep >= 3 ? "" : "dimmed")">
-                                    @(CurrentStep >= 3 ? (b == 0 || carry == 1 ? carry.ToString() : "0") : "")
+                                <td class="matrix-cell carry-cell @(CurrentStep == 3 ? "active-bit" : (CurrentStep > 3 ? "" : "dimmed"))">
+                                    @(CurrentStep >= 3 ? (b == 0 || carry == 1 ? carry.ToString() : "0") : "·")
                                 </td>
                             }
                         </tr>
@@ -138,7 +140,7 @@
                             {
                                 var bit = (PositiveByte >> b) & 1;
                                 <td class="matrix-cell res-cell @(CurrentStep >= 1 ? "" : "dimmed")">
-                                    @bit
+                                    @(CurrentStep >= 1 ? bit.ToString() : "?")
                                 </td>
                             }
                         </tr>
