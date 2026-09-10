@@ -55,11 +55,11 @@
             <div class="player-progress">
                 @if (CurrentStep == 0)
                 {
-                    <span>Bereit: Bit 0 ($2^0$) als Nächstes</span>
+                    <span>Bereit: Bit 0 (2⁰) als Nächstes</span>
                 }
                 else if (CurrentStep <= 8)
                 {
-                    <span>Schritt @CurrentStep von @TotalSteps (Bit @(CurrentStep - 1): $2^{@(CurrentStep - 1)}$ = @(1 << (CurrentStep - 1)))</span>
+                    <span>Schritt @CurrentStep von @TotalSteps (Bit @(CurrentStep - 1): 2<sup>@(CurrentStep - 1)</sup> = @(1 << (CurrentStep - 1)))</span>
                 }
                 else
                 {
@@ -154,11 +154,11 @@
             var cOut = (part >> 1) & 1;
 
             <div class="narrative-card">
-                <h4>Erklärung zu Schritt @CurrentStep (Bit @bitIndex, $2^{@bitIndex} = @(1 << bitIndex)$):</h4>
+                <h4>Erklärung zu Schritt @CurrentStep (Bit @bitIndex, 2<sup>@bitIndex</sup> = @(1 << bitIndex)):</h4>
                 <p>
                     Rechnung an Stelle @bitIndex:
                     <strong>Bit A (@aBit) + Bit B (@bBit) + Übertrag_in (@cIn) = @part</strong>
-                    $\implies$ <strong>Ergebnisbit = @resBit</strong>, neuer <strong>Übertrag (Carry Out) = @cOut</strong>.
+                    &rArr; <strong>Ergebnisbit = @resBit</strong>, neuer <strong>Übertrag (Carry Out) = @cOut</strong>.
                 </p>
             </div>
         }
@@ -171,7 +171,7 @@
                     (Binär: <code>@ToBinary((int)Solution.Sum, Solution.Sum > 255 ? 9 : 8)</code>).
                     @if (Solution.Sum > 255)
                     {
-                        <span> Es ist ein 9-Bit-Übertrag ($2^8 = 256$) entstanden.</span>
+                        <span> Es ist ein 9-Bit-Übertrag (2<sup>8</sup> = 256) entstanden.</span>
                     }
                 </p>
             </div>
@@ -179,82 +179,86 @@
     }
     else
     {
-        <!-- EXAM WORKSHEET (PRINT VIEW) -->
+        <!-- Printable Exam Worksheet -->
         <div class="worksheet-container">
             <div class="worksheet-header">
                 <div>
-                    <h3>Klausuraufgabe: Schriftliche Binäraddition</h3>
-                    <small>Modul: Grundlagen der Informatik / Rechnerstrukturen</small>
+                    <span class="feature-kicker">Übungsblatt & Klausurvorbereitung</span>
+                    <h3>Schriftliche Binäraddition (8-Bit)</h3>
                 </div>
-                <div class="no-print">
-                    <span class="solution-badge">@(ShowWorksheetSolution ? "Musterlösung aktiv" : "Aufgabenblatt (leer)")</span>
+                <div class="worksheet-toolbar no-print">
+                    <button class="player-btn" title="Neue Zufallsaufgabe" @onclick="RandomizeInputs">
+                        🎲 Neue Aufgabe
+                    </button>
+                    <button class="player-btn @(ShowWorksheetSolution ? "active" : "")" @onclick="() => ShowWorksheetSolution = !ShowWorksheetSolution">
+                        @(ShowWorksheetSolution ? "👁️ Lösung verbergen" : "👁️ Lösung anzeigen")
+                    </button>
+                    <button class="player-btn primary" @onclick="PrintWorksheet">
+                        🖨️ Drucken / PDF
+                    </button>
                 </div>
             </div>
 
-            <div class="worksheet-toolbar no-print">
-                <button class="player-btn" @onclick="RandomizeInputs">
-                    🎲 Neue Zufallsaufgabe
-                </button>
-                <button class="player-btn @(ShowWorksheetSolution ? "primary" : "")" @onclick="() => ShowWorksheetSolution = !ShowWorksheetSolution">
-                    @(ShowWorksheetSolution ? "👁️ Musterlösung ausblenden" : "✅ Musterlösung einblenden")
-                </button>
-                <button class="player-btn" @onclick="PrintWorksheet">
-                    🖨️ Drucken / PDF
-                </button>
-            </div>
-
-            <div class="worksheet-instruction">
-                <strong>Aufgabenstellung:</strong>
-                Führen Sie die schriftliche Addition der beiden 8-Bit-Dezimalzahlen
-                <strong>A = @(AdditionLeftByte)₁₀</strong> und <strong>B = @(AdditionRightByte)₁₀</strong>
-                im Dualsystem durch.
-                Tragen Sie die Binärdarstellungen, alle Überträge (Carry-Bits) und das Endergebnis in das vorgegebene Rechengitter ein.
-            </div>
+            <p class="worksheet-instruction">
+                <strong>Aufgabenstellung:</strong> Addieren Sie die beiden 8-Bit-Dualzahlen schriftlich.
+                Tragen Sie die Zwischenüberträge (Carry-Bits) in die dafür vorgesehene Zeile ein und ermitteln Sie das Gesamtergebnis.
+                @if (ShowWorksheetSolution)
+                {
+                    <span class="solution-badge">Musterlösung eingeblendet</span>
+                }
+            </p>
 
             <div class="addition-matrix">
                 <table class="matrix-table">
                     <thead>
                         <tr>
                             <th class="matrix-label">Stellenwert</th>
-                            <th class="matrix-cell header-cell">2⁸</th>
+                            <th class="matrix-cell">2⁸</th>
                             @for (var b = 7; b >= 0; b--)
                             {
-                                <th class="matrix-cell header-cell">2<sup>@b</sup></th>
+                                <th class="matrix-cell">2<sup>@b</sup></th>
                             }
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
-                            <td class="matrix-label">A = @AdditionLeftByte</td>
-                            <td class="matrix-cell dimmed">0</td>
+                            <td class="matrix-label">Summand A</td>
+                            <td class="matrix-cell">0</td>
                             @for (var b = 7; b >= 0; b--)
                             {
-                                <td class="matrix-cell">@(ShowWorksheetSolution ? GetBit(AdditionLeftByte, b).ToString() : "")</td>
+                                <td class="matrix-cell">@GetBit(AdditionLeftByte, b)</td>
                             }
                         </tr>
                         <tr>
-                            <td class="matrix-label">+ B = @AdditionRightByte</td>
-                            <td class="matrix-cell dimmed">0</td>
+                            <td class="matrix-label">+ Summand B</td>
+                            <td class="matrix-cell">0</td>
                             @for (var b = 7; b >= 0; b--)
                             {
-                                <td class="matrix-cell">@(ShowWorksheetSolution ? GetBit(AdditionRightByte, b).ToString() : "")</td>
+                                <td class="matrix-cell">@GetBit(AdditionRightByte, b)</td>
                             }
                         </tr>
                         <tr>
                             <td class="matrix-label">Übertrag (Ü)</td>
-                            <td class="matrix-cell carry-cell">@(ShowWorksheetSolution && CarryOutBits[7] == 1 ? "1" : "")</td>
+                            <td class="matrix-cell carry-cell">
+                                @if (ShowWorksheetSolution)
+                                {
+                                    @((Solution.Sum > 255) ? "1" : "")
+                                }
+                            </td>
                             @for (var b = 7; b >= 0; b--)
                             {
-                                var cVal = b == 0 ? 0 : CarryOutBits[b - 1];
-                                <td class="matrix-cell carry-cell">@(ShowWorksheetSolution ? (cVal == 1 ? "1" : "0") : "")</td>
+                                var c = b == 0 ? 0 : CarryOutBits[b - 1];
+                                <td class="matrix-cell carry-cell">@(ShowWorksheetSolution && c > 0 ? c.ToString() : "")</td>
                             }
                         </tr>
-                        <tr class="matrix-divider">
-                            <td colspan="10"><hr /></td>
-                        </tr>
-                        <tr>
-                            <td class="matrix-label"><strong>= Summe</strong></td>
-                            <td class="matrix-cell sum-cell">@(ShowWorksheetSolution ? ((Solution.Sum >> 8) & 1).ToString() : "")</td>
+                        <tr class="result-row">
+                            <td class="matrix-label">= Summe</td>
+                            <td class="matrix-cell sum-cell">
+                                @if (ShowWorksheetSolution)
+                                {
+                                    @((Solution.Sum > 255) ? "1" : "0")
+                                }
+                            </td>
                             @for (var b = 7; b >= 0; b--)
                             {
                                 var sBit = (Solution.Sum >> b) & 1;
@@ -272,7 +276,7 @@
                     <p>
                         A = @(AdditionLeftByte)₁₀ = <strong>@ToBinary(AdditionLeftByte)₂</strong><br />
                         B = @(AdditionRightByte)₁₀ = <strong>@ToBinary(AdditionRightByte)₂</strong><br />
-                        <strong>A + B = @AdditionLeftByte + @AdditionRightByte = @(Solution.Sum)₁₀</strong> $\implies$ <strong>@ToBinary((int)Solution.Sum, Solution.Sum > 255 ? 9 : 8)₂</strong>
+                        <strong>A + B = @AdditionLeftByte + @AdditionRightByte = @(Solution.Sum)₁₀</strong> &rArr; <strong>@ToBinary((int)Solution.Sum, Solution.Sum > 255 ? 9 : 8)₂</strong>
                     </p>
                 </div>
             }

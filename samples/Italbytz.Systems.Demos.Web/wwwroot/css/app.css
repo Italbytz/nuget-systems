@@ -543,7 +543,7 @@ code {
 }
 
 /* -------------------------------------------------------------
-   EMBEDDED IFRAME MODE (?embed=true, ?embedded=true, or in iframe)
+   EMBEDDED IFRAME MODE (DARK THEME FOR SLIDES)
    ------------------------------------------------------------- */
 html.is-embedded,
 body.is-embedded,
@@ -554,6 +554,7 @@ html.is-embedded body,
 .is-embedded main,
 .is-embedded article.content {
     background: #0b0f19 !important;
+    color: #f8fafc !important;
     padding: 0 !important;
     margin: 0 !important;
     min-height: auto !important;
@@ -583,6 +584,203 @@ html.is-embedded body,
     border: none !important;
     box-shadow: none !important;
     background: #0b0f19 !important;
+    color: #f8fafc !important;
+}
+
+.is-embedded .card-heading h2 {
+    color: #f1f5f9 !important;
+}
+
+.is-embedded .feature-kicker {
+    color: #38bdf8 !important;
+}
+
+.is-embedded .view-switch {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+.is-embedded .view-btn {
+    color: #94a3b8 !important;
+}
+
+.is-embedded .view-btn:hover {
+    color: #ffffff !important;
+    background: #334155 !important;
+}
+
+.is-embedded .view-btn.active {
+    background: #0284c7 !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.35) !important;
+}
+
+.is-embedded .input-grid label {
+    color: #94a3b8 !important;
+}
+
+.is-embedded .input-grid input {
+    background: #1e293b !important;
+    border-color: #475569 !important;
+    color: #f8fafc !important;
+}
+
+.is-embedded .input-grid input:focus {
+    border-color: #38bdf8 !important;
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25) !important;
+}
+
+.is-embedded .player-toolbar {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+.is-embedded .player-btn {
+    background: #334155 !important;
+    border-color: #475569 !important;
+    color: #f8fafc !important;
+}
+
+.is-embedded .player-btn:hover:not(:disabled) {
+    background: #475569 !important;
+    border-color: #64748b !important;
+}
+
+.is-embedded .player-btn.primary {
+    background: #0284c7 !important;
+    border-color: #0369a1 !important;
+    color: #ffffff !important;
+}
+
+.is-embedded .player-progress {
+    color: #94a3b8 !important;
+}
+
+.is-embedded .matrix-container,
+.is-embedded .addition-matrix {
+    background: #020617 !important;
+    border-color: #1e293b !important;
+    box-shadow: none !important;
+}
+
+.is-embedded .matrix-cell {
+    background: #0f172a !important;
+    border-color: #1e293b !important;
+    color: #f8fafc !important;
+}
+
+.is-embedded .matrix-cell.header-cell,
+.is-embedded .weight-cell {
+    color: #94a3b8 !important;
+    background: transparent !important;
+}
+
+.is-embedded .matrix-cell.active-col,
+.is-embedded .matrix-cell.active-bit,
+.is-embedded .step-row.active-row {
+    background: rgba(2, 132, 199, 0.25) !important;
+    border-color: #38bdf8 !important;
+    color: #ffffff !important;
+}
+
+.is-embedded .matrix-cell.carry-cell {
+    background: rgba(234, 179, 8, 0.15) !important;
+    border-color: rgba(234, 179, 8, 0.4) !important;
+    color: #fbbf24 !important;
+}
+
+.is-embedded .label-col,
+.is-embedded .matrix-label {
+    background: #0f172a !important;
+    color: #94a3b8 !important;
+}
+
+.is-embedded .division-table th {
+    color: #94a3b8 !important;
+    border-bottom-color: #334155 !important;
+}
+
+.is-embedded .division-table td {
+    color: #f8fafc !important;
+}
+
+.is-embedded .remainder-cell.highlight {
+    background: rgba(2, 132, 199, 0.3) !important;
+    color: #38bdf8 !important;
+}
+
+.is-embedded .bit-tag.lsb {
+    background: #0c4a6e !important;
+    color: #38bdf8 !important;
+}
+
+.is-embedded .bit-tag.msb {
+    background: #78350f !important;
+    color: #fde68a !important;
+}
+
+.is-embedded .result-card,
+.is-embedded .sum-card {
+    background: #0f172a !important;
+    border-color: #1e293b !important;
+}
+
+.is-embedded .result-card h4,
+.is-embedded .sum-card h4 {
+    color: #f1f5f9 !important;
+}
+
+.is-embedded .result-bit {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #f8fafc !important;
+}
+
+.is-embedded .result-bit.active {
+    background: #0284c7 !important;
+    border-color: #38bdf8 !important;
+    color: #ffffff !important;
+}
+
+.is-embedded .sum-expression {
+    color: #38bdf8 !important;
+}
+
+.is-embedded .sum-term {
+    background: #1e293b !important;
+}
+
+.is-embedded .sum-term.active {
+    background: rgba(2, 132, 199, 0.3) !important;
+    color: #38bdf8 !important;
+}
+
+.is-embedded .sum-result {
+    color: #f8fafc !important;
+}
+
+.is-embedded .narrative-card {
+    background: rgba(56, 189, 248, 0.08) !important;
+    border-left-color: #38bdf8 !important;
+}
+
+.is-embedded .narrative-card h4 {
+    color: #38bdf8 !important;
+}
+
+.is-embedded .narrative-card p {
+    color: #cbd5e1 !important;
+}
+
+.is-embedded .worksheet-container {
+    background: #0f172a !important;
+    border-color: #1e293b !important;
+    color: #f8fafc !important;
+}
+
+.is-embedded .worksheet-header h3,
+.is-embedded .worksheet-instruction {
+    color: #f1f5f9 !important;
 }
 
 /* -------------------------------------------------------------

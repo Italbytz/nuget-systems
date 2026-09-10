@@ -51,11 +51,11 @@
             <div class="player-progress">
                 @if (CurrentStep == 0)
                 {
-                    <span>Bereit: Bit 0 ($2^0$) als N&auml;chstes auswerten</span>
+                    <span>Bereit: Bit 0 (2⁰) als N&auml;chstes auswerten</span>
                 }
                 else if (CurrentStep <= 8)
                 {
-                    <span>Schritt @CurrentStep von @TotalSteps (Bit @(CurrentStep - 1): $2^{@(CurrentStep - 1)}$ = @(1 << (CurrentStep - 1)))</span>
+                    <span>Schritt @CurrentStep von @TotalSteps (Bit @(CurrentStep - 1): 2<sup>@(CurrentStep - 1)</sup> = @(1 << (CurrentStep - 1)))</span>
                 }
                 else
                 {
@@ -81,7 +81,7 @@
                 <tbody>
                     <!-- Weight Row -->
                     <tr>
-                        <td class="label-col">Stellenwert $2^i$</td>
+                        <td class="label-col">Stellenwert 2<sup>i</sup></td>
                         @for (var b = 7; b >= 0; b--)
                         {
                             <td class="matrix-cell weight-cell @(IsActiveBit(b) ? "active-bit" : "")">
@@ -92,7 +92,7 @@
 
                     <!-- Bit Value Row -->
                     <tr>
-                        <td class="label-col">Bitwert $z_i$</td>
+                        <td class="label-col">Bitwert z<sub>i</sub></td>
                         @for (var b = 7; b >= 0; b--)
                         {
                             var bit = GetBit(b);
@@ -104,7 +104,7 @@
 
                     <!-- Contribution Row -->
                     <tr>
-                        <td class="label-col">Beitrag ($z_i \cdot 2^i$)</td>
+                        <td class="label-col">Beitrag (z<sub>i</sub> &times; 2<sup>i</sup>)</td>
                         @for (var b = 7; b >= 0; b--)
                         {
                             var bit = GetBit(b);
@@ -181,7 +181,7 @@
             <div class="worksheet-task-desc">
                 <p>
                     <strong>Aufgabe:</strong> Tragen Sie f&uuml;r jede der folgenden Bin&auml;rzahlen den passenden Dezimalwert ein.
-                    Nutzen Sie die Stellenwertmethode ($Z = \sum z_i \cdot 2^i$).
+                    Nutzen Sie die Stellenwertmethode (Z = &sum; z<sub>i</sub> &times; 2<sup>i</sup>).
                 </p>
             </div>
 
@@ -336,16 +336,31 @@
             var weight = 1 << bitIndex;
             var contrib = bitVal * weight;
 
+            var super = GetSuperscript(bitIndex);
             if (bitVal == 1)
             {
-                return $"Bit {bitIndex} ist 1 → Beitrag ist 1 · 2^{bitIndex} = {weight}. Zwischensumme erhöht sich auf {RunningSum}.";
+                return $"Bit {bitIndex} ist 1 → Beitrag ist 1 · 2{super} = {weight}. Zwischensumme erhöht sich auf {RunningSum}.";
             }
             else
             {
-                return $"Bit {bitIndex} ist 0 → Beitrag ist 0 · 2^{bitIndex} = 0. Zwischensumme bleibt bei {RunningSum}.";
+                return $"Bit {bitIndex} ist 0 → Beitrag ist 0 · 2{super} = 0. Zwischensumme bleibt bei {RunningSum}.";
             }
         }
     }
+
+    private static string GetSuperscript(int digit) => digit switch
+    {
+        0 => "⁰",
+        1 => "¹",
+        2 => "²",
+        3 => "³",
+        4 => "⁴",
+        5 => "⁵",
+        6 => "⁶",
+        7 => "⁷",
+        8 => "⁸",
+        _ => digit.ToString()
+    };
 
     private bool ShowWorksheetSolution { get; set; } = false;
     private string WorksheetBin1 { get; set; } = "00101110";
