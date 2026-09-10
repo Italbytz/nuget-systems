@@ -1,10 +1,10 @@
 .demo-card {
-    background: #0f172a;
-    border: 1px solid #1e293b;
-    border-radius: 12px;
-    padding: 24px;
-    color: #f8fafc;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    background: #ffffff;
+    border: 1px solid rgba(20, 50, 47, 0.12);
+    border-radius: 1.25rem;
+    padding: 1.5rem;
+    color: #14322f;
+    box-shadow: 0 4px 20px rgba(20, 50, 47, 0.05);
 }
 
 .wide-card {
@@ -13,60 +13,66 @@
 }
 
 .card-heading {
-    margin-bottom: 20px;
+    margin-bottom: 1.25rem;
 }
 
 .feature-kicker {
     font-size: 0.85rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #38bdf8;
+    color: #1f5d56;
     font-weight: 700;
-    margin: 0 0 4px 0;
+    margin: 0 0 0.25rem 0;
 }
 
 .card-heading h2 {
     font-size: 1.5rem;
     margin: 0;
-    color: #f1f5f9;
+    color: #14322f;
 }
 
 .view-switch {
     display: flex;
-    gap: 8px;
-    margin-bottom: 20px;
-    border-bottom: 1px solid #334155;
-    padding-bottom: 12px;
+    gap: 0.5rem;
+    background: rgba(20, 50, 47, 0.06);
+    padding: 0.35rem;
+    border-radius: 0.9rem;
+    margin: 1rem 0 1.25rem 0;
+    border: 1px solid rgba(20, 50, 47, 0.1);
 }
 
 .view-btn {
-    background: #1e293b;
-    border: 1px solid #475569;
-    color: #cbd5e1;
-    padding: 8px 16px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 600;
+    flex: 1;
+    padding: 0.5rem 1rem;
+    border-radius: 0.65rem;
     font-size: 0.9rem;
-    transition: all 0.2s ease;
+    font-weight: 600;
+    color: #355551;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
 }
 
 .view-btn:hover {
-    background: #334155;
-    color: #ffffff;
+    color: #14322f;
+    background: rgba(255, 255, 255, 0.5);
 }
 
 .view-btn.active {
-    background: #0284c7;
-    border-color: #38bdf8;
-    color: #ffffff;
-    box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+    background: #ffffff;
+    color: #14322f;
+    box-shadow: 0 2px 8px rgba(20, 50, 47, 0.1);
 }
 
 .input-grid {
     display: grid;
-    gap: 16px;
-    margin-bottom: 20px;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
 }
 
 .single-up {
@@ -77,64 +83,65 @@
 .input-grid label {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 0.35rem;
     font-size: 0.9rem;
-    color: #94a3b8;
-    font-weight: 500;
+    color: #587873;
+    font-weight: 600;
 }
 
 .input-grid input {
-    background: #1e293b;
-    border: 1px solid #475569;
-    border-radius: 6px;
-    padding: 8px 12px;
-    color: #f8fafc;
+    background: #ffffff;
+    border: 1px solid rgba(20, 50, 47, 0.2);
+    border-radius: 0.6rem;
+    padding: 0.5rem 0.75rem;
+    color: #14322f;
     font-size: 1.1rem;
-    font-family: monospace;
+    font-family: "SFMono-Regular", Consolas, monospace;
     font-weight: 700;
     letter-spacing: 0.1em;
 }
 
 .input-grid input:focus {
     outline: none;
-    border-color: #38bdf8;
-    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25);
+    border-color: #1f5d56;
+    box-shadow: 0 0 0 3px rgba(31, 93, 86, 0.15);
 }
 
 .player-toolbar {
-    background: #1e293b;
-    border: 1px solid #334155;
-    border-radius: 8px;
-    padding: 12px 16px;
     display: flex;
     flex-wrap: wrap;
-    justify-content: space-between;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 20px;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    border-radius: 1rem;
+    background: rgba(20, 50, 47, 0.05);
+    border: 1px solid rgba(20, 50, 47, 0.08);
+    margin: 1.25rem 0;
 }
 
 .player-controls {
     display: flex;
-    gap: 8px;
+    align-items: center;
+    gap: 0.4rem;
     flex-wrap: wrap;
 }
 
 .player-btn {
-    background: #334155;
-    border: 1px solid #475569;
-    color: #f8fafc;
-    padding: 6px 12px;
-    border-radius: 6px;
-    cursor: pointer;
+    padding: 0.45rem 0.8rem;
+    border-radius: 0.6rem;
     font-size: 0.85rem;
     font-weight: 600;
+    cursor: pointer;
+    border: 1px solid rgba(20, 50, 47, 0.15);
+    background: #ffffff;
+    color: #14322f;
     transition: all 0.15s ease;
 }
 
 .player-btn:hover:not(:disabled) {
-    background: #475569;
-    border-color: #64748b;
+    background: #14322f;
+    color: #f8f3e8;
 }
 
 .player-btn:disabled {
@@ -143,251 +150,219 @@
 }
 
 .player-btn.primary {
-    background: #0284c7;
-    border-color: #0369a1;
+    background: #1f5d56;
+    color: #ffffff;
+    border-color: #1f5d56;
 }
 
 .player-btn.primary:hover:not(:disabled) {
-    background: #0369a1;
+    background: #14322f;
 }
 
 .player-progress {
-    font-size: 0.85rem;
-    color: #94a3b8;
-    font-weight: 500;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #3c645e;
 }
 
 .matrix-container {
-    background: #020617;
-    border: 1px solid #1e293b;
-    border-radius: 8px;
+    background: #ffffff;
+    border: 1px solid rgba(20, 50, 47, 0.12);
+    border-radius: 1rem;
     overflow-x: auto;
-    margin-bottom: 20px;
+    margin: 1.25rem 0;
+    padding: 0.75rem;
+    box-shadow: 0 4px 16px rgba(20, 50, 47, 0.04);
 }
 
 .bit-matrix-table {
     width: 100%;
-    border-collapse: collapse;
+    min-width: 520px;
+    border-collapse: separate;
+    border-spacing: 0.35rem;
     text-align: center;
-    font-size: 0.95rem;
 }
 
 .bit-matrix-table th, .bit-matrix-table td {
-    padding: 10px 8px;
-    border: 1px solid #1e293b;
+    padding: 0.5rem 0.35rem;
 }
 
 .label-col {
     text-align: left;
-    background: #0f172a;
-    font-weight: 600;
-    color: #94a3b8;
-    padding-left: 12px !important;
+    background: rgba(20, 50, 47, 0.04);
+    font-weight: 700;
+    color: #587873;
+    padding-left: 0.75rem !important;
     font-size: 0.85rem;
+    border-radius: 0.4rem;
+    width: 140px;
 }
 
 .matrix-cell {
-    font-family: monospace;
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 1.15rem;
+    font-weight: 700;
+    border-radius: 0.5rem;
+    background: rgba(20, 50, 47, 0.03);
+    border: 1px solid rgba(20, 50, 47, 0.08);
+    color: #14322f;
+    transition: all 0.2s ease;
 }
 
 .matrix-cell.active-bit {
-    background: rgba(2, 132, 199, 0.25);
-    border-color: #38bdf8;
-    color: #ffffff;
+    background: rgba(211, 122, 72, 0.18);
+    border-color: #d37a48;
+    color: #9c4e24;
+    transform: scale(1.05);
 }
 
 .weight-cell {
-    color: #94a3b8;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #587873;
+    background: transparent;
+    border: none;
 }
 
-.bit-val-cell {
-    font-size: 1.3rem;
-    font-weight: bold;
+.sum-card {
+    background: rgba(20, 50, 47, 0.03);
+    border: 1px solid rgba(20, 50, 47, 0.08);
+    border-radius: 1rem;
+    padding: 1rem 1.25rem;
+    margin: 1.25rem 0;
 }
 
-.bit-val-cell.one {
-    color: #38bdf8;
-}
-
-.bit-val-cell.zero {
-    color: #64748b;
-}
-
-.contrib-cell.evaluated {
-    color: #10b981;
-    font-size: 1.1rem;
-}
-
-.contrib-cell.dimmed {
-    color: #475569;
-}
-
-.placeholder {
-    color: #334155;
-}
-
-.running-sum-banner {
-    background: #1e293b;
-    border: 1px solid #38bdf8;
-    border-radius: 8px;
-    padding: 16px;
-    margin-bottom: 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 12px;
-    box-shadow: 0 0 15px rgba(56, 189, 248, 0.15);
+.sum-card h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.95rem;
+    color: #14322f;
 }
 
 .sum-expression {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.sum-label {
-    font-size: 0.8rem;
-    color: #94a3b8;
-    font-weight: 600;
-}
-
-.sum-terms {
-    font-family: monospace;
+    font-family: "SFMono-Regular", Consolas, monospace;
     font-size: 1.1rem;
-    color: #38bdf8;
-    font-weight: bold;
-}
-
-.dimmed-text {
-    color: #64748b;
-    font-weight: normal;
-    font-size: 0.9rem;
-}
-
-.sum-total {
-    font-size: 1.25rem;
-    color: #f1f5f9;
-}
-
-.narrator-card {
-    background: #032b43;
-    border: 1px solid #0284c7;
-    border-radius: 8px;
-    padding: 14px;
+    font-weight: 700;
+    color: #1f5d56;
     display: flex;
-    gap: 12px;
-    align-items: flex-start;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
 }
 
-.narrator-icon {
-    font-size: 1.4rem;
+.sum-term {
+    padding: 0.2rem 0.4rem;
+    border-radius: 0.35rem;
+    background: rgba(20, 50, 47, 0.06);
 }
 
-.narrator-body strong {
-    color: #38bdf8;
-    font-size: 0.85rem;
-    display: block;
-    margin-bottom: 4px;
-    text-transform: uppercase;
+.sum-term.active {
+    background: rgba(211, 122, 72, 0.2);
+    color: #9c4e24;
 }
 
-.narrator-body p {
+.sum-term.zero {
+    opacity: 0.4;
+}
+
+.sum-result {
+    font-size: 1.25rem;
+    color: #14322f;
+    font-weight: 800;
+    margin-left: 0.5rem;
+}
+
+.narrative-card {
+    background: rgba(31, 93, 86, 0.06);
+    border-left: 4px solid #1f5d56;
+    border-radius: 0.6rem;
+    padding: 0.85rem 1rem;
+    margin-top: 1rem;
+}
+
+.narrative-card h4 {
+    margin: 0 0 0.35rem 0;
+    font-size: 0.95rem;
+    color: #14322f;
+}
+
+.narrative-card p {
     margin: 0;
-    color: #e2e8f0;
     font-size: 0.9rem;
-    line-height: 1.4;
+    line-height: 1.5;
+    color: #355551;
 }
 
-/* WORKSHEET & PRINT STYLES */
+/* Printable Exam Worksheet */
 .worksheet-container {
     background: #ffffff;
-    color: #000000;
-    padding: 24px;
-    border-radius: 8px;
+    border: 1px solid rgba(20, 50, 47, 0.15);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    margin-top: 1rem;
 }
 
 .worksheet-header {
+    border-bottom: 2px solid #14322f;
+    padding-bottom: 0.75rem;
+    margin-bottom: 1.25rem;
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    border-bottom: 2px solid #000000;
-    padding-bottom: 12px;
-    margin-bottom: 16px;
 }
 
-.worksheet-title h3 {
-    margin: 0 0 4px 0;
-    font-size: 1.2rem;
-    color: #000000;
-}
-
-.worksheet-subtitle {
+.worksheet-header h3 {
     margin: 0;
-    font-size: 0.9rem;
-    color: #444444;
+    font-size: 1.25rem;
+    color: #14322f;
 }
 
-.worksheet-task-desc {
-    margin-bottom: 20px;
+.worksheet-instruction {
     font-size: 0.95rem;
-    line-height: 1.4;
+    line-height: 1.6;
+    color: #14322f;
+    margin-bottom: 1.25rem;
 }
 
-.worksheet-table-shell {
-    margin-top: 16px;
+.worksheet-toolbar {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    margin-bottom: 1.25rem;
 }
 
-.exam-task-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.exam-task-table th, .exam-task-table td {
-    padding: 12px;
-    border-bottom: 1px solid #dddddd;
-}
-
-.exam-task-table th {
-    background: #f1f5f9;
-    text-align: left;
-    font-size: 0.9rem;
-    border-bottom: 2px solid #000000;
-}
-
-.mono-bold {
-    font-family: monospace;
-    font-size: 1.2rem;
-    font-weight: bold;
-}
-
-.blank-input-line {
-    border-bottom: 2px solid #000000;
-    height: 28px;
-    width: 80%;
-}
-
-.solution-text {
-    font-family: monospace;
-    font-size: 1.05rem;
-    color: #166534;
+.solution-badge {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    background: #dbeafe;
+    color: #1e40af;
+    border-radius: 0.4rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-left: 0.5rem;
 }
 
 @media print {
-    .no-print, .view-switch, .player-toolbar, .narrator-card {
+    .view-switch,
+    .player-toolbar,
+    .worksheet-toolbar,
+    .input-grid,
+    .no-print {
         display: none !important;
     }
 
-    .demo-card {
-        background: #ffffff !important;
-        color: #000000 !important;
+    .worksheet-container {
         border: none !important;
-        box-shadow: none !important;
         padding: 0 !important;
+        margin: 0 !important;
     }
 
-    .worksheet-container {
-        padding: 0 !important;
+    .bit-matrix-table {
+        border-spacing: 0.5rem !important;
+    }
+
+    .matrix-cell {
+        border: 1px solid #000000 !important;
+        background: #ffffff !important;
+        color: #000000 !important;
     }
 }
