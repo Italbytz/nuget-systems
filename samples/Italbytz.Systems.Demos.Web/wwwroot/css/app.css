@@ -543,8 +543,24 @@ code {
 }
 
 /* -------------------------------------------------------------
-   EMBEDDED IFRAME MODE (?embed=true or embedded in iframe)
+   EMBEDDED IFRAME MODE (?embed=true, ?embedded=true, or in iframe)
    ------------------------------------------------------------- */
+html.is-embedded,
+body.is-embedded,
+.is-embedded,
+html.is-embedded body,
+.is-embedded #app,
+.is-embedded .page,
+.is-embedded main,
+.is-embedded article.content {
+    background: #0b0f19 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: auto !important;
+    width: 100% !important;
+    overflow-x: hidden !important;
+}
+
 .is-embedded .sidebar,
 .is-embedded .hero-panel,
 .is-embedded .page-hero,
@@ -553,20 +569,20 @@ code {
     display: none !important;
 }
 
-.is-embedded html,
-.is-embedded body,
-.is-embedded #app,
-.is-embedded .page,
-.is-embedded main,
-.is-embedded article.content {
-    background: transparent !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    min-height: auto !important;
-}
-
 .is-embedded .section-stack {
     margin-top: 0 !important;
+    padding: 0 !important;
+}
+
+.is-embedded .wide-card,
+.is-embedded .demo-card {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #0b0f19 !important;
 }
 
 /* -------------------------------------------------------------

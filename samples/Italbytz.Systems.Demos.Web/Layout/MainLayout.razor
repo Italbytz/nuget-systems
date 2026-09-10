@@ -36,7 +36,9 @@
             var uri = new Uri(NavigationManager.Uri);
             var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
             IsEmbedded = string.Equals(query["embed"], "true", StringComparison.OrdinalIgnoreCase) ||
-                         string.Equals(query["embed"], "1", StringComparison.OrdinalIgnoreCase);
+                         string.Equals(query["embed"], "1", StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(query["embedded"], "true", StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(query["embedded"], "1", StringComparison.OrdinalIgnoreCase);
         }
         catch
         {

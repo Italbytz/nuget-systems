@@ -16,17 +16,26 @@
             function checkEmbed() {
                 var isEmbed = false;
                 try {
-                    isEmbed = window.self !== window.top || window.location.search.indexOf('embed=') !== -1;
+                    isEmbed = window.self !== window.top ||
+                              window.location.search.indexOf('embed=') !== -1 ||
+                              window.location.search.indexOf('embedded=') !== -1;
                 } catch (e) {
                     isEmbed = true;
                 }
                 if (isEmbed) {
                     document.documentElement.classList.add('is-embedded');
+                    if (document.body) {
+                        document.body.classList.add('is-embedded');
+                    }
                 } else {
                     document.documentElement.classList.remove('is-embedded');
+                    if (document.body) {
+                        document.body.classList.remove('is-embedded');
+                    }
                 }
             }
             checkEmbed();
+            document.addEventListener('DOMContentLoaded', checkEmbed);
             window.addEventListener('popstate', checkEmbed);
         })();
     </script>
