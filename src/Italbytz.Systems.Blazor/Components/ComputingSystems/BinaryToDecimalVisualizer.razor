@@ -1,0 +1,377 @@
+@namespace Italbytz.Systems.Blazor.Components.ComputingSystems
+@inject IJSRuntime JSRuntime
+
+<article class="demo-card wide-card">
+    <div class="card-heading">
+        <p class="feature-kicker">Zahlensysteme &amp; Umrechnung</p>
+        <h2>Bin&auml;r &rarr; Dezimal (Stellenwertsystem &amp; Potenzsumme)</h2>
+    </div>
+
+    <!-- View Switcher -->
+    <div class="view-switch no-print">
+        <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                @onclick="() => ActiveView = ViewMode.Simulator">
+            🚀 Interaktiver Simulator (Step-by-Step)
+        </button>
+        <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                @onclick="() => ActiveView = ViewMode.Worksheet">
+            🖨️ Klausur-Arbeitsblatt (Druckansicht)
+        </button>
+    </div>
+
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Input & Randomizer -->
+        <div class="input-grid single-up no-print">
+            <label>
+                <span>8-Bit-Bin&auml;rwert (z.&thinsp;B. 00101110)</span>
+                <input type="text" maxlength="8" value="@BinaryInput" @onchange="HandleBinaryChanged" />
+            </label>
+        </div>
+
+        <!-- Step-by-Step Player Controls -->
+        <div class="player-toolbar no-print">
+            <div class="player-controls">
+                <button class="player-btn" title="Neue Zufallsaufgabe" @onclick="RandomizeInput">
+                    🎲 Zufallswert
+                </button>
+                <button class="player-btn" title="Zum Start" disabled="@(CurrentStep == 0)" @onclick="ResetPlayer">
+                    ⏮ Start
+                </button>
+                <button class="player-btn" title="Vorheriger Schritt" disabled="@(CurrentStep == 0)" @onclick="PreviousStep">
+                    ◀ Zur&uuml;ck
+                </button>
+                <button class="player-btn primary" title="N&auml;chster Schritt" disabled="@(CurrentStep >= TotalSteps)" @onclick="NextStep">
+                    ▶ N&auml;chster Schritt
+                </button>
+                <button class="player-btn" title="Gesamtl&ouml;sung anzeigen" disabled="@(CurrentStep >= TotalSteps)" @onclick="CompleteSolution">
+                    ⏭ Ende
+                </button>
+            </div>
+            <div class="player-progress">
+                @if (CurrentStep == 0)
+                {
+                    <span>Bereit: Bit 0 ($2^0$) als N&auml;chstes auswerten</span>
+                }
+                else if (CurrentStep <= 8)
+                {
+                    <span>Schritt @CurrentStep von @TotalSteps (Bit @(CurrentStep - 1): $2^{@(CurrentStep - 1)}$ = @(1 << (CurrentStep - 1)))</span>
+                }
+                else
+                {
+                    <span>Abgeschlossen: Gesamtergebnis @DecimalResult<sub>10</sub></span>
+                }
+            </div>
+        </div>
+
+        <!-- Bit Grid Matrix -->
+        <div class="matrix-container">
+            <table class="bit-matrix-table">
+                <thead>
+                    <tr>
+                        <th class="label-col">Bit-Position</th>
+                        @for (var b = 7; b >= 0; b--)
+                        {
+                            <th class="matrix-cell @(IsActiveBit(b) ? "active-bit" : "")">
+                                Bit @b
+                            </th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Weight Row -->
+                    <tr>
+                        <td class="label-col">Stellenwert $2^i$</td>
+                        @for (var b = 7; b >= 0; b--)
+                        {
+                            <td class="matrix-cell weight-cell @(IsActiveBit(b) ? "active-bit" : "")">
+                                2<sup>@b</sup> = @(1 << b)
+                            </td>
+                        }
+                    </tr>
+
+                    <!-- Bit Value Row -->
+                    <tr>
+                        <td class="label-col">Bitwert $z_i$</td>
+                        @for (var b = 7; b >= 0; b--)
+                        {
+                            var bit = GetBit(b);
+                            <td class="matrix-cell bit-val-cell @(bit == 1 ? "one" : "zero") @(IsActiveBit(b) ? "active-bit" : "")">
+                                @bit
+                            </td>
+                        }
+                    </tr>
+
+                    <!-- Contribution Row -->
+                    <tr>
+                        <td class="label-col">Beitrag ($z_i \cdot 2^i$)</td>
+                        @for (var b = 7; b >= 0; b--)
+                        {
+                            var bit = GetBit(b);
+                            var isEvaluated = b < CurrentStep;
+                            var contrib = bit == 1 ? (1 << b) : 0;
+
+                            <td class="matrix-cell contrib-cell @(isEvaluated ? "evaluated" : "dimmed") @(IsActiveBit(b) ? "active-bit" : "")">
+                                @if (isEvaluated)
+                                {
+                                    <strong>@contrib</strong>
+                                }
+                                else
+                                {
+                                    <span class="placeholder">&ndash;</span>
+                                }
+                            </td>
+                        }
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Running Sum Banner -->
+        <div class="running-sum-banner">
+            <div class="sum-expression">
+                <span class="sum-label">Berechnete Summe:</span>
+                <span class="sum-terms">
+                    @if (CurrentStep == 0)
+                    {
+                        <span class="dimmed-text">Noch keine Bits ausgewertet (Summe = 0)</span>
+                    }
+                    else
+                    {
+                        @SumExpressionString
+                    }
+                </span>
+            </div>
+            <div class="sum-total">
+                <span>Zwischensumme: <strong>@RunningSum<sub>10</sub></strong></span>
+            </div>
+        </div>
+
+        <!-- Narrator Card -->
+        <div class="narrator-card no-print">
+            <div class="narrator-icon">💡</div>
+            <div class="narrator-body">
+                <strong>Schritt-Erkl&auml;rung:</strong>
+                <p>@CurrentStepExplanation</p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- WORKSHEET / EXAM VIEW -->
+        <div class="worksheet-container">
+            <div class="worksheet-header">
+                <div class="worksheet-title">
+                    <h3>Grundlagen der Informatik &ndash; &Uuml;bungsaufgabe</h3>
+                    <p class="worksheet-subtitle">Thema: Umwandlung von Bin&auml;rzahlen in Dezimalzahlen (Stellenwertsystem)</p>
+                </div>
+                <div class="worksheet-controls no-print">
+                    <button class="player-btn" @onclick="RandomizeWorksheet">
+                        🎲 Neue Zahlen
+                    </button>
+                    <button class="player-btn @(ShowWorksheetSolution ? "active" : "")" @onclick="() => ShowWorksheetSolution = !ShowWorksheetSolution">
+                        @(ShowWorksheetSolution ? "👁️ Lösung verbergen" : "👁️ Lösung anzeigen")
+                    </button>
+                    <button class="player-btn primary" @onclick="TriggerPrint">
+                        🖨️ Drucken / PDF
+                    </button>
+                </div>
+            </div>
+
+            <div class="worksheet-task-desc">
+                <p>
+                    <strong>Aufgabe:</strong> Tragen Sie f&uuml;r jede der folgenden Bin&auml;rzahlen den passenden Dezimalwert ein.
+                    Nutzen Sie die Stellenwertmethode ($Z = \sum z_i \cdot 2^i$).
+                </p>
+            </div>
+
+            <div class="worksheet-table-shell">
+                <table class="exam-task-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 35%;">Bin&auml;rwert</th>
+                            <th style="width: 65%;">Dezimalwert (Berechnung &amp; Ergebnis)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="mono-bold">@WorksheetBin1</td>
+                            <td>
+                                @if (ShowWorksheetSolution)
+                                {
+                                    <div class="solution-text">
+                                        <span>@GetPowerSumString(WorksheetBin1) = <strong>@GetDecimalFromBinary(WorksheetBin1)<sub>10</sub></strong></span>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="blank-input-line"></div>
+                                }
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="mono-bold">@WorksheetBin2</td>
+                            <td>
+                                @if (ShowWorksheetSolution)
+                                {
+                                    <div class="solution-text">
+                                        <span>@GetPowerSumString(WorksheetBin2) = <strong>@GetDecimalFromBinary(WorksheetBin2)<sub>10</sub></strong></span>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="blank-input-line"></div>
+                                }
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</article>
+
+@code {
+    private enum ViewMode { Simulator, Worksheet }
+
+    private ViewMode ActiveView { get; set; } = ViewMode.Simulator;
+
+    [Parameter]
+    public string BinaryInput { get; set; } = "00101110";
+
+    [Parameter]
+    public bool Embedded { get; set; } = false;
+
+    private int CurrentStep { get; set; } = 0;
+    private const int TotalSteps = 8;
+
+    private byte BinaryInputByte => Convert.ToByte(NormalizedBinaryInput, 2);
+    private int DecimalResult => BinaryInputByte;
+
+    private string NormalizedBinaryInput
+    {
+        get
+        {
+            var digits = new string((BinaryInput ?? "").Where(ch => ch == '0' || ch == '1').ToArray());
+            if (string.IsNullOrWhiteSpace(digits)) return "00000000";
+            return digits.PadLeft(8, '0')[^8..];
+        }
+    }
+
+    private int GetBit(int position) => (BinaryInputByte >> position) & 1;
+    private bool IsActiveBit(int position) => CurrentStep > 0 && CurrentStep <= 8 && position == CurrentStep - 1;
+
+    private int RunningSum
+    {
+        get
+        {
+            var sum = 0;
+            for (var b = 0; b < CurrentStep && b < 8; b++)
+            {
+                if (GetBit(b) == 1)
+                {
+                    sum += (1 << b);
+                }
+            }
+            return sum;
+        }
+    }
+
+    private string SumExpressionString
+    {
+        get
+        {
+            var terms = new List<string>();
+            for (var b = 0; b < CurrentStep && b < 8; b++)
+            {
+                if (GetBit(b) == 1)
+                {
+                    terms.Add($"{1 << b}");
+                }
+            }
+            if (terms.Count == 0) return "0";
+            return string.Join(" + ", terms);
+        }
+    }
+
+    private string CurrentStepExplanation
+    {
+        get
+        {
+            if (CurrentStep == 0)
+            {
+                return $"Bereit zur Umrechnung von {NormalizedBinaryInput}₂. Klicken Sie auf 'Nächster Schritt', um Bit 0 (Stelle 2⁰ = 1) auszuwerten.";
+            }
+
+            var bitIndex = CurrentStep - 1;
+            var bitVal = GetBit(bitIndex);
+            var weight = 1 << bitIndex;
+            var contrib = bitVal * weight;
+
+            if (bitVal == 1)
+            {
+                return $"Bit {bitIndex} ist 1 → Beitrag ist 1 · 2^{bitIndex} = {weight}. Zwischensumme erhöht sich auf {RunningSum}.";
+            }
+            else
+            {
+                return $"Bit {bitIndex} ist 0 → Beitrag ist 0 · 2^{bitIndex} = 0. Zwischensumme bleibt bei {RunningSum}.";
+            }
+        }
+    }
+
+    private bool ShowWorksheetSolution { get; set; } = false;
+    private string WorksheetBin1 { get; set; } = "00101110";
+    private string WorksheetBin2 { get; set; } = "10011101";
+
+    private void HandleBinaryChanged(ChangeEventArgs e)
+    {
+        BinaryInput = e.Value?.ToString() ?? "0";
+        CurrentStep = 0;
+    }
+
+    private void RandomizeInput()
+    {
+        var rand = new Random();
+        var val = (byte)rand.Next(1, 256);
+        BinaryInput = Convert.ToString(val, 2).PadLeft(8, '0');
+        CurrentStep = 0;
+    }
+
+    private void RandomizeWorksheet()
+    {
+        var rand = new Random();
+        WorksheetBin1 = Convert.ToString((byte)rand.Next(10, 255), 2).PadLeft(8, '0');
+        WorksheetBin2 = Convert.ToString((byte)rand.Next(10, 255), 2).PadLeft(8, '0');
+        ShowWorksheetSolution = false;
+    }
+
+    private void ResetPlayer() => CurrentStep = 0;
+    private void PreviousStep() { if (CurrentStep > 0) CurrentStep--; }
+    private void NextStep() { if (CurrentStep < TotalSteps) CurrentStep++; }
+    private void CompleteSolution() => CurrentStep = TotalSteps;
+
+    private static int GetDecimalFromBinary(string bin) => Convert.ToByte(bin, 2);
+
+    private static string GetPowerSumString(string bin)
+    {
+        var val = Convert.ToByte(bin, 2);
+        var terms = new List<string>();
+        for (var b = 7; b >= 0; b--)
+        {
+            if (((val >> b) & 1) == 1)
+            {
+                terms.Add($"{1 << b}");
+            }
+        }
+        return terms.Count > 0 ? string.Join(" + ", terms) : "0";
+    }
+
+    private async Task TriggerPrint()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("window.print");
+        }
+        catch { }
+    }
+}

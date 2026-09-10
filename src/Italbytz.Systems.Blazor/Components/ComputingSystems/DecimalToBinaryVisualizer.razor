@@ -1,0 +1,418 @@
+@namespace Italbytz.Systems.Blazor.Components.ComputingSystems
+@inject IJSRuntime JSRuntime
+
+<article class="demo-card wide-card">
+    <div class="card-heading">
+        <p class="feature-kicker">Zahlensysteme &amp; Umrechnung</p>
+        <h2>Dezimal &rarr; Bin&auml;r (Divisionsverfahren mit Rest)</h2>
+    </div>
+
+    <!-- View Switcher -->
+    <div class="view-switch no-print">
+        <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                @onclick="() => ActiveView = ViewMode.Simulator">
+            🚀 Interaktiver Simulator (Step-by-Step)
+        </button>
+        <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                @onclick="() => ActiveView = ViewMode.Worksheet">
+            🖨️ Klausur-Arbeitsblatt (Druckansicht)
+        </button>
+    </div>
+
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Input & Randomizer -->
+        <div class="input-grid single-up no-print">
+            <label>
+                <span>Dezimalzahl (0 &ndash; 255)</span>
+                <input type="number" min="0" max="255" value="@DecimalInput" @onchange="HandleDecimalChanged" />
+            </label>
+        </div>
+
+        <!-- Step-by-Step Player Controls -->
+        <div class="player-toolbar no-print">
+            <div class="player-controls">
+                <button class="player-btn" title="Neue Zufallsaufgabe" @onclick="RandomizeInput">
+                    🎲 Zufallswert
+                </button>
+                <button class="player-btn" title="Zum Start" disabled="@(CurrentStep == 0)" @onclick="ResetPlayer">
+                    ⏮ Start
+                </button>
+                <button class="player-btn" title="Vorheriger Schritt" disabled="@(CurrentStep == 0)" @onclick="PreviousStep">
+                    ◀ Zur&uuml;ck
+                </button>
+                <button class="player-btn primary" title="N&auml;chster Schritt" disabled="@(CurrentStep >= TotalSteps)" @onclick="NextStep">
+                    ▶ N&auml;chster Schritt
+                </button>
+                <button class="player-btn" title="Gesamtl&ouml;sung anzeigen" disabled="@(CurrentStep >= TotalSteps)" @onclick="CompleteSolution">
+                    ⏭ Ende
+                </button>
+            </div>
+            <div class="player-progress">
+                @if (CurrentStep == 0)
+                {
+                    <span>Bereit: Startwert @DecimalInputByte &divide; 2 als N&auml;chstes</span>
+                }
+                else if (CurrentStep < TotalSteps)
+                {
+                    <span>Schritt @CurrentStep von @TotalSteps (Bit @(CurrentStep - 1) berechnet)</span>
+                }
+                else
+                {
+                    <span>Abgeschlossen: Alle Stellen berechnet (Ergebnis: @FinalBinaryString&lrm;)</span>
+                }
+            </div>
+        </div>
+
+        <!-- Division Table Matrix -->
+        <div class="division-matrix-container">
+            <table class="division-table">
+                <thead>
+                    <tr>
+                        <th style="width: 10%;">Schritt</th>
+                        <th style="width: 28%;">Division durch 2</th>
+                        <th style="width: 18%;">Quotient</th>
+                        <th style="width: 18%;">Rest (Bit)</th>
+                        <th style="width: 26%;">Stelle / Bedeutung</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (var i = 0; i < Steps.Count; i++)
+                    {
+                        var step = Steps[i];
+                        var isVisible = i < CurrentStep;
+                        var isCurrent = i == CurrentStep - 1;
+
+                        <tr class="@(isVisible ? "visible-row" : "pending-row") @(isCurrent ? "active-row" : "")">
+                            <td class="step-num">@(i + 1)</td>
+                            <td class="math-expr">
+                                @if (isVisible)
+                                {
+                                    <span>@step.Dividend &divide; 2</span>
+                                }
+                                else
+                                {
+                                    <span class="placeholder">&ndash;</span>
+                                }
+                            </td>
+                            <td class="quotient-val">
+                                @if (isVisible)
+                                {
+                                    <span>= <strong>@step.Quotient</strong></span>
+                                }
+                                else
+                                {
+                                    <span class="placeholder">&ndash;</span>
+                                }
+                            </td>
+                            <td class="remainder-val">
+                                @if (isVisible)
+                                {
+                                    <span class="bit-badge @(step.Remainder == 1 ? "bit-one" : "bit-zero")">
+                                        Rest <strong>@step.Remainder</strong>
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="placeholder">&ndash;</span>
+                                }
+                            </td>
+                            <td class="bit-pos">
+                                @if (isVisible)
+                                {
+                                    <span>2<sup>@i</sup> (@(1 << i)) @(i == 0 ? "(LSB \u2191)" : (i == Steps.Count - 1 ? "(MSB)" : ""))</span>
+                                }
+                                else
+                                {
+                                    <span class="placeholder">&ndash;</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Reading Order & Result Banner -->
+        <div class="result-banner">
+            <div class="banner-heading">
+                <span>Reste von unten nach oben gelesen (LSB &rarr; MSB):</span>
+            </div>
+            <div class="binary-display-boxes">
+                @for (var b = 7; b >= 0; b--)
+                {
+                    var isCalculated = b < CurrentStep;
+                    var bitVal = b < Steps.Count ? Steps[b].Remainder : 0;
+                    var isCurrentBit = b == CurrentStep - 1;
+
+                    <div class="bit-box @(isCalculated ? "calculated" : "empty") @(isCurrentBit ? "current-highlight" : "")">
+                        <span class="bit-weight">2<sup>@b</sup></span>
+                        <span class="bit-char">@(isCalculated ? bitVal.ToString() : "-")</span>
+                    </div>
+                }
+            </div>
+            <div class="banner-summary">
+                <span>Ergebnis: <strong>@DecimalInputByte<sub>10</sub></strong> = <strong class="highlight-mono">@(CurrentStep > 0 ? CurrentBinaryString : "...")<sub>2</sub></strong></span>
+            </div>
+        </div>
+
+        <!-- Narrator Card -->
+        <div class="narrator-card no-print">
+            <div class="narrator-icon">💡</div>
+            <div class="narrator-body">
+                <strong>Schritt-Erkl&auml;rung:</strong>
+                <p>@CurrentStepExplanation</p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- WORKSHEET / EXAM VIEW -->
+        <div class="worksheet-container">
+            <div class="worksheet-header">
+                <div class="worksheet-title">
+                    <h3>Grundlagen der Informatik &ndash; &Uuml;bungsaufgabe</h3>
+                    <p class="worksheet-subtitle">Thema: Umwandlung von Dezimalzahlen in Bin&auml;rzahlen (Divisionsverfahren)</p>
+                </div>
+                <div class="worksheet-controls no-print">
+                    <button class="player-btn" @onclick="RandomizeWorksheet">
+                        🎲 Neue Zahlen
+                    </button>
+                    <button class="player-btn @(ShowWorksheetSolution ? "active" : "")" @onclick="() => ShowWorksheetSolution = !ShowWorksheetSolution">
+                        @(ShowWorksheetSolution ? "👁️ Lösung verbergen" : "👁️ Lösung anzeigen")
+                    </button>
+                    <button class="player-btn primary" @onclick="TriggerPrint">
+                        🖨️ Drucken / PDF
+                    </button>
+                </div>
+            </div>
+
+            <div class="worksheet-task-desc">
+                <p>
+                    <strong>Aufgabe:</strong> Wandeln Sie die folgenden Dezimalzahlen durch fortlaufende ganzzahlige Division durch 2
+                    in das Dualsystem um. Notieren Sie alle Zwischenschritte mit Quotient und Rest und geben Sie die fertige Dualzahl an.
+                </p>
+            </div>
+
+            <div class="worksheet-grid">
+                <!-- Subtask 1 -->
+                <div class="worksheet-subtask">
+                    <div class="subtask-header">
+                        <strong>Teilaufgabe a)</strong> Berechnen Sie die Bin&auml;rdarstellung f&uuml;r: <span class="task-number">@WorksheetDec1<sub>D</sub></span>
+                    </div>
+                    <div class="subtask-calc-area">
+                        @if (ShowWorksheetSolution)
+                        {
+                            <div class="solution-box">
+                                <table class="mini-division-table">
+                                    @foreach (var s in GetDivisionSteps(WorksheetDec1))
+                                    {
+                                        <tr>
+                                            <td>@s.Dividend &divide; 2</td>
+                                            <td>= @s.Quotient</td>
+                                            <td>Rest <strong>@s.Remainder</strong></td>
+                                        </tr>
+                                    }
+                                </table>
+                                <div class="solution-result">
+                                    &rArr; <strong>@WorksheetDec1<sub>D</sub> = @ToBinary(WorksheetDec1)<sub>B</sub></strong>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="calc-grid-placeholder">
+                                <span class="calc-hint">Rechenweg (Division durch 2 &amp; Reste notieren):</span>
+                                <div class="grid-lines">
+                                    <div class="grid-line"></div>
+                                    <div class="grid-line"></div>
+                                    <div class="grid-line"></div>
+                                    <div class="grid-line"></div>
+                                    <div class="grid-line"></div>
+                                    <div class="grid-line"></div>
+                                </div>
+                                <div class="result-line-input">
+                                    <span>Ergebnis: </span>
+                                    <span class="dotted-underline"></span>
+                                    <span><sub>B</sub></span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Subtask 2 -->
+                <div class="worksheet-subtask">
+                    <div class="subtask-header">
+                        <strong>Teilaufgabe b)</strong> Berechnen Sie die Bin&auml;rdarstellung f&uuml;r: <span class="task-number">@WorksheetDec2<sub>D</sub></span>
+                    </div>
+                    <div class="subtask-calc-area">
+                        @if (ShowWorksheetSolution)
+                        {
+                            <div class="solution-box">
+                                <table class="mini-division-table">
+                                    @foreach (var s in GetDivisionSteps(WorksheetDec2))
+                                    {
+                                        <tr>
+                                            <td>@s.Dividend &divide; 2</td>
+                                            <td>= @s.Quotient</td>
+                                            <td>Rest <strong>@s.Remainder</strong></td>
+                                        </tr>
+                                    }
+                                </table>
+                                <div class="solution-result">
+                                    &rArr; <strong>@WorksheetDec2<sub>D</sub> = @ToBinary(WorksheetDec2)<sub>B</sub></strong>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="calc-grid-placeholder">
+                                <span class="calc-hint">Rechenweg (Division durch 2 &amp; Reste notieren):</span>
+                                <div class="grid-lines">
+                                    <div class="grid-line"></div>
+                                    <div class="grid-line"></div>
+                                    <div class="grid-line"></div>
+                                    <div class="grid-line"></div>
+                                    <div class="grid-line"></div>
+                                    <div class="grid-line"></div>
+                                </div>
+                                <div class="result-line-input">
+                                    <span>Ergebnis: </span>
+                                    <span class="dotted-underline"></span>
+                                    <span><sub>B</sub></span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</article>
+
+@code {
+    private enum ViewMode { Simulator, Worksheet }
+
+    private ViewMode ActiveView { get; set; } = ViewMode.Simulator;
+
+    [Parameter]
+    public int DecimalInput { get; set; } = 164;
+
+    [Parameter]
+    public bool Embedded { get; set; } = false;
+
+    private int CurrentStep { get; set; } = 0;
+    private int TotalSteps => Steps.Count;
+
+    private byte DecimalInputByte => (byte)Math.Clamp(DecimalInput, 0, 255);
+
+    private record DivStep(int Dividend, int Quotient, int Remainder);
+
+    private List<DivStep> Steps => GetDivisionSteps(DecimalInputByte);
+
+    private bool ShowWorksheetSolution { get; set; } = false;
+    private byte WorksheetDec1 { get; set; } = 222;
+    private byte WorksheetDec2 { get; set; } = 207;
+
+    private static List<DivStep> GetDivisionSteps(byte number)
+    {
+        var list = new List<DivStep>();
+        var current = (int)number;
+
+        if (current == 0)
+        {
+            list.Add(new DivStep(0, 0, 0));
+            return list;
+        }
+
+        while (current > 0)
+        {
+            var quotient = current / 2;
+            var remainder = current % 2;
+            list.Add(new DivStep(current, quotient, remainder));
+            current = quotient;
+        }
+
+        return list;
+    }
+
+    private void HandleDecimalChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var val))
+        {
+            DecimalInput = Math.Clamp(val, 0, 255);
+            CurrentStep = 0;
+        }
+    }
+
+    private void RandomizeInput()
+    {
+        var rand = new Random();
+        DecimalInput = rand.Next(1, 256);
+        CurrentStep = 0;
+    }
+
+    private void RandomizeWorksheet()
+    {
+        var rand = new Random();
+        WorksheetDec1 = (byte)rand.Next(30, 255);
+        WorksheetDec2 = (byte)rand.Next(30, 255);
+        ShowWorksheetSolution = false;
+    }
+
+    private void ResetPlayer() => CurrentStep = 0;
+    private void PreviousStep() { if (CurrentStep > 0) CurrentStep--; }
+    private void NextStep() { if (CurrentStep < TotalSteps) CurrentStep++; }
+    private void CompleteSolution() => CurrentStep = TotalSteps;
+
+    private string CurrentBinaryString
+    {
+        get
+        {
+            if (CurrentStep == 0) return "";
+            var bits = new List<char>();
+            for (var i = 0; i < CurrentStep && i < Steps.Count; i++)
+            {
+                bits.Add((char)('0' + Steps[i].Remainder));
+            }
+            bits.Reverse();
+            return new string(bits.ToArray());
+        }
+    }
+
+    private string FinalBinaryString => ToBinary(DecimalInputByte);
+
+    private string CurrentStepExplanation
+    {
+        get
+        {
+            if (CurrentStep == 0)
+            {
+                return $"Bereit zur Umrechnung von {DecimalInputByte}₁₀ in das Dualsystem. Klicken Sie auf 'Nächster Schritt' für die erste Division durch 2.";
+            }
+
+            var idx = CurrentStep - 1;
+            if (idx >= Steps.Count) return "Alle Schritte abgeschlossen.";
+            var s = Steps[idx];
+            var bitName = idx == 0 ? "LSB (niederwertigstes Bit, Stelle 2⁰)" : (idx == Steps.Count - 1 ? "MSB (höchstwertiges Bit)" : $"Stelle 2^{idx}");
+
+            return $"Schritt {CurrentStep}: {s.Dividend} ÷ 2 = {s.Quotient} mit Rest {s.Remainder}. Der Rest {s.Remainder} ist das Bit für die {bitName}. Weiter mit Quotient {s.Quotient}.";
+        }
+    }
+
+    private static string ToBinary(byte value)
+    {
+        var s = Convert.ToString(value, 2);
+        return s;
+    }
+
+    private async Task TriggerPrint()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("window.print");
+        }
+        catch { }
+    }
+}
