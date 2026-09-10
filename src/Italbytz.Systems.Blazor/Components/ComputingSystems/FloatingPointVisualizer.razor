@@ -1,0 +1,544 @@
+@namespace Italbytz.Systems.Blazor.Components.ComputingSystems
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+
+<article class="demo-card wide-card">
+    <div class="card-heading">
+        <p class="feature-kicker">Zahlensysteme &amp; Reelle Zahlen</p>
+        <h2>IEEE 754 Gleitkommadarstellung (Single Precision, 32 Bit)</h2>
+    </div>
+
+    <!-- View Switcher -->
+    <div class="view-switch no-print">
+        <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                @onclick="() => SetView(ViewMode.Simulator)">
+            🚀 Interaktiver Simulator (Step-by-Step)
+        </button>
+        <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                @onclick="() => SetView(ViewMode.Worksheet)">
+            🖨️ Klausur-Arbeitsblatt (Druckansicht)
+        </button>
+    </div>
+
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Input & Randomizer -->
+        <div class="input-grid no-print">
+            <label>
+                <span>Dezimalzahl (Float):</span>
+                <input type="number" step="any" value="@InputFloat" @onchange="HandleFloatChanged" />
+            </label>
+            <div class="preset-buttons">
+                <button class="preset-btn" @onclick="RandomizeInput">🎲 Zufall</button>
+                <button class="preset-btn" @onclick="() => SetInput(-0.375f)">&minus;0.375</button>
+                <button class="preset-btn" @onclick="() => SetInput(18.0f)">+18.0</button>
+                <button class="preset-btn" @onclick="() => SetInput(-12.5f)">&minus;12.5</button>
+                <button class="preset-btn" @onclick="() => SetInput(6.25f)">+6.25</button>
+                <button class="preset-btn" @onclick="() => SetInput(0.75f)">+0.75</button>
+                <button class="preset-btn" @onclick="() => SetInput(-42.5f)">&minus;42.5</button>
+            </div>
+        </div>
+
+        <!-- Step-by-Step Player Controls -->
+        <div class="player-toolbar no-print">
+            <div class="player-controls">
+                <button class="player-btn" title="Zum Start" disabled="@(CurrentStep == 0)" @onclick="ResetPlayer">
+                    ⏮ Start
+                </button>
+                <button class="player-btn" title="Vorheriger Schritt" disabled="@(CurrentStep == 0)" @onclick="PreviousStep">
+                    ◀ Zurück
+                </button>
+                <button class="player-btn primary" title="Nächster Schritt" disabled="@(CurrentStep >= TotalSteps)" @onclick="NextStep">
+                    ▶ Nächster Schritt
+                </button>
+                <button class="player-btn" title="Gesamtlösung anzeigen" disabled="@(CurrentStep >= TotalSteps)" @onclick="CompleteSolution">
+                    ⏭ Ende
+                </button>
+            </div>
+            <div class="player-progress">
+                <span>Schritt @CurrentStep von @TotalSteps: @StepTitle</span>
+            </div>
+        </div>
+
+        <!-- IEEE 754 Bitpattern Structure Box -->
+        <div class="bitpattern-container">
+            <div class="bit-group-header">
+                <div class="group-badge sign-badge">
+                    <span class="badge-title">s (1 Bit)</span>
+                    <span class="badge-sub">Bit 31</span>
+                </div>
+                <div class="group-badge exp-badge">
+                    <span class="badge-title">Exponent e (8 Bit)</span>
+                    <span class="badge-sub">Bits 30..23 (Bias +127)</span>
+                </div>
+                <div class="group-badge mant-badge">
+                    <span class="badge-title">Mantisse m (23 Bit)</span>
+                    <span class="badge-sub">Bits 22..0 (Nachkommastellen)</span>
+                </div>
+            </div>
+
+            <div class="bit-cells-container">
+                <!-- Sign Bit -->
+                <div class="bit-segment sign-segment @(CurrentStep == 1 || CurrentStep == 4 ? "highlight-segment" : "")">
+                    <div class="bit-cell sign-cell">@SignBit</div>
+                </div>
+
+                <!-- Exponent Bits -->
+                <div class="bit-segment exp-segment @(CurrentStep == 2 || CurrentStep == 4 ? "highlight-segment" : "")">
+                    @for (var i = 0; i < 8; i++)
+                    {
+                        var bit = ExpBits[i];
+                        <div class="bit-cell exp-cell">@bit</div>
+                    }
+                </div>
+
+                <!-- Mantissa Bits -->
+                <div class="bit-segment mant-segment @(CurrentStep == 3 || CurrentStep == 4 ? "highlight-segment" : "")">
+                    @for (var i = 0; i < 23; i++)
+                    {
+                        var bit = MantBits[i];
+                        <div class="bit-cell mant-cell">@bit</div>
+                    }
+                </div>
+            </div>
+
+            <div class="bit-indices">
+                <span class="index-left">31</span>
+                <span class="index-exp-start">30</span>
+                <span class="index-exp-end">23</span>
+                <span class="index-mant-start">22</span>
+                <span class="index-right">0</span>
+            </div>
+        </div>
+
+        <!-- Step Narrative & Trace Cards -->
+        <div class="step-card-grid">
+            <!-- Step 1: Sign Card -->
+            <div class="trace-card @(CurrentStep >= 1 ? "card-visible" : "card-dimmed") @(CurrentStep == 1 ? "active-card" : "")">
+                <div class="card-tag sign-tag">1. Vorzeichen s</div>
+                <div class="card-math">
+                    @if (CurrentStep >= 1)
+                    {
+                        <div class="math-row">
+                            <span class="math-label">Bit 31:</span>
+                            <span class="math-val sign-val">s = @Sign</span>
+                        </div>
+                        <div class="math-row">
+                            <span class="math-label">Faktor:</span>
+                            <span class="math-val sign-val">(&minus;1)<sup>@Sign</sup> = @(Sign == 1 ? "-1 (negativ)" : "+1 (positiv)")</span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="placeholder-text">Warte auf Schritt 1...</div>
+                    }
+                </div>
+            </div>
+
+            <!-- Step 2: Exponent Card -->
+            <div class="trace-card @(CurrentStep >= 2 ? "card-visible" : "card-dimmed") @(CurrentStep == 2 ? "active-card" : "")">
+                <div class="card-tag exp-tag">2. Exponent e &amp; Entzerrung</div>
+                <div class="card-math">
+                    @if (CurrentStep >= 2)
+                    {
+                        <div class="math-row">
+                            <span class="math-label">Binär:</span>
+                            <span class="math-val exp-val">@ExpBits<sub>2</sub> = @ExpRaw<sub>10</sub></span>
+                        </div>
+                        <div class="math-row">
+                            <span class="math-label">Unbias (e &minus; 127):</span>
+                            <span class="math-val exp-val">E = @ExpRaw &minus; 127 = @ExpUnbiased</span>
+                        </div>
+                        <div class="math-row">
+                            <span class="math-label">Faktor:</span>
+                            <span class="math-val exp-val">2<sup>@ExpUnbiased</sup> = @ExpFactorStr</span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="placeholder-text">Warte auf Schritt 2...</div>
+                    }
+                </div>
+            </div>
+
+            <!-- Step 3: Mantissa Card -->
+            <div class="trace-card @(CurrentStep >= 3 ? "card-visible" : "card-dimmed") @(CurrentStep == 3 ? "active-card" : "")">
+                <div class="card-tag mant-tag">3. Mantisse m &amp; Normalisierung</div>
+                <div class="card-math">
+                    @if (CurrentStep >= 3)
+                    {
+                        <div class="math-row">
+                            <span class="math-label">Bruch (m / 2<sup>23</sup>):</span>
+                            <span class="math-val mant-val">@MantRaw / 8388608 = @MantFractionStr</span>
+                        </div>
+                        <div class="math-row">
+                            <span class="math-label">Implizite Eins:</span>
+                            <span class="math-val mant-val">1 + @MantFractionStr = @MantWithOneStr</span>
+                        </div>
+                        @if (!string.IsNullOrEmpty(ActiveMantissaWeightsStr))
+                        {
+                            <div class="math-detail">
+                                <small>Aktive Gewichte: @ActiveMantissaWeightsStr</small>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="placeholder-text">Warte auf Schritt 3...</div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Final Formula / Step 4 Hero Evaluation -->
+        <div class="final-result-card @(CurrentStep >= 4 ? "result-visible" : "result-dimmed")">
+            <div class="result-header">
+                <span class="result-title">Gesamtformel: f = (&minus;1)<sup>s</sup> &middot; (1 + m/2<sup>23</sup>) &middot; 2<sup>e &minus; 127</sup></span>
+            </div>
+            <div class="result-body">
+                @if (CurrentStep >= 4)
+                {
+                    <div class="calculation-steps">
+                        <div class="step-line">
+                            f = <span class="sign-val">(@(Sign == 1 ? "-1" : "+1"))</span> &middot;
+                            <span class="mant-val">(@MantWithOneStr)</span> &middot;
+                            <span class="exp-val">(@ExpFactorStr)</span>
+                        </div>
+                        <div class="step-line equals-line">
+                            = <span class="highlight-val">@FinalResultStr</span>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="placeholder-text">Führe alle Schritte aus, um die Gesamtrechnung zu sehen.</div>
+                }
+            </div>
+        </div>
+
+        <!-- Narrator Box -->
+        <div class="narrator-box">
+            <div class="narrator-title">💡 @NarratorHeading</div>
+            <div class="narrator-text">@NarratorText</div>
+        </div>
+    }
+    else
+    {
+        <!-- Klausur / Übungsblatt Druckansicht -->
+        <div class="worksheet-view">
+            <div class="worksheet-toolbar no-print">
+                <div class="worksheet-controls">
+                    <button class="player-btn" @onclick="ToggleWorksheetSolution">
+                        @(ShowWorksheetSolution ? "🙈 Musterlösung verbergen" : "👁️ Musterlösung anzeigen")
+                    </button>
+                    <button class="player-btn" @onclick="RandomizeWorksheet">
+                        🎲 Neue Klausuraufgaben
+                    </button>
+                    <button class="player-btn primary" @onclick="PrintWorksheet">
+                        🖨️ Arbeitsblatt drucken / PDF
+                    </button>
+                </div>
+                <div class="worksheet-hint">
+                    Format: 1:1 kompatibel zu <code>hshlexercise</code> / <code>TIGleitkomma.tex</code>
+                </div>
+            </div>
+
+            <div class="worksheet-sheet">
+                <div class="sheet-title">Aufgabe: Gleitkommazahlen (IEEE 754)</div>
+                <p class="sheet-intro">
+                    Die Formel für einfach genaue 32-Bit Gleitkommazahlen nach IEEE 754 lautet:
+                </p>
+                <div class="sheet-formula-box">
+                    <em>f</em> = (&minus;1)<sup><em>s</em></sup> &middot; (1 + <em>m</em> / 2<sup>23</sup>) &middot; 2<sup><em>e</em> &minus; 127</sup>
+                </div>
+                <p class="sheet-desc">
+                    Dabei codiert das erste Bit <em>s</em>, die folgenden acht Bits <em>e</em> und die restlichen 23 Bits <em>m</em>. Berechnen Sie, welche Zahlen durch die folgenden Bitmuster dargestellt werden:
+                </p>
+
+                <!-- Teilaufgabe a -->
+                <div class="task-block">
+                    <div class="task-label">Teilaufgabe a)</div>
+                    <div class="task-bitpattern">
+                        <code>@WsTaskA_BitPatternFormatted</code>
+                    </div>
+
+                    @if (ShowWorksheetSolution)
+                    {
+                        <div class="worksheet-solution-box">
+                            <div class="sol-title">Musterlösung a):</div>
+                            <div class="sol-calc-grid">
+                                <div class="calc-row">= (&minus;1)<sup>@WsTaskA_Sign</sup> &middot; (1 + @WsTaskA_MantRaw / 2<sup>23</sup>) &middot; 2<sup>@WsTaskA_ExpBits_2 &minus; 127</sup></div>
+                                <div class="calc-row">= @(WsTaskA_Sign == 1 ? "−" : "+")(1 + @WsTaskA_FractionFormatted) &middot; 2<sup>@WsTaskA_ExpRaw &minus; 127</sup></div>
+                                <div class="calc-row">= @(WsTaskA_Sign == 1 ? "−" : "+")@WsTaskA_MantWithOneStr &middot; @WsTaskA_ExpFactorStr</div>
+                                <div class="calc-row sol-final">= <strong>@WsTaskA_FinalStr</strong></div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="worksheet-answer-field">
+                            <span class="field-placeholder">Berechnung &amp; Ergebnis hier eintragen...</span>
+                        </div>
+                    }
+                </div>
+
+                <!-- Teilaufgabe b -->
+                <div class="task-block">
+                    <div class="task-label">Teilaufgabe b)</div>
+                    <div class="task-bitpattern">
+                        <code>@WsTaskB_BitPatternFormatted</code>
+                    </div>
+
+                    @if (ShowWorksheetSolution)
+                    {
+                        <div class="worksheet-solution-box">
+                            <div class="sol-title">Musterlösung b):</div>
+                            <div class="sol-calc-grid">
+                                <div class="calc-row">= (&minus;1)<sup>@WsTaskB_Sign</sup> &middot; (1 + @WsTaskB_MantRaw / 2<sup>23</sup>) &middot; 2<sup>@WsTaskB_ExpBits_2 &minus; 127</sup></div>
+                                <div class="calc-row">= @(WsTaskB_Sign == 1 ? "−" : "+")(1 + @WsTaskB_FractionFormatted) &middot; 2<sup>@WsTaskB_ExpRaw &minus; 127</sup></div>
+                                <div class="calc-row">= @(WsTaskB_Sign == 1 ? "−" : "+")@WsTaskB_MantWithOneStr &middot; @WsTaskB_ExpFactorStr</div>
+                                <div class="calc-row sol-final">= <strong>@WsTaskB_FinalStr</strong></div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="worksheet-answer-field">
+                            <span class="field-placeholder">Berechnung &amp; Ergebnis hier eintragen...</span>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</article>
+
+@code {
+    public enum ViewMode { Simulator, Worksheet }
+
+    [SupplyParameterFromQuery(Name = "view")]
+    public string? QueryView { get; set; }
+
+    [SupplyParameterFromQuery(Name = "solution")]
+    public string? QuerySolution { get; set; }
+
+    [SupplyParameterFromQuery(Name = "val")]
+    public string? QueryVal { get; set; }
+
+    [Parameter]
+    public ViewMode ActiveView { get; set; } = ViewMode.Simulator;
+
+    [Parameter]
+    public float InputFloat { get; set; } = -0.375f;
+
+    [Parameter]
+    public bool ShowWorksheetSolution { get; set; } = false;
+
+    private int CurrentStep = 0;
+    private const int TotalSteps = 4;
+
+    private uint BitPattern = 0;
+    private int Sign = 1;
+    private byte ExpRaw = 125;
+    private int ExpUnbiased = -2;
+    private uint MantRaw = 0x400000;
+    private double MantFraction = 0.5;
+    private double MantWithOne = 1.5;
+    private double FinalResult = -0.375;
+
+    private string SignBit = "1";
+    private string ExpBits = "01111101";
+    private string MantBits = "10000000000000000000000";
+
+    // Worksheet task A & B
+    private uint WsTaskA_Bits = 0b1_01111101_10000000000000000000000; // -0.375
+    private uint WsTaskB_Bits = 0b0_10000011_00100000000000000000000; // 18.0
+
+    private static readonly float[] Presets =
+    [
+        -0.375f, 18.0f, -12.5f, 6.25f, 0.75f, -42.5f, 0.1875f, -1.5f, 2.625f, -8.25f
+    ];
+
+    protected override void OnInitialized()
+    {
+        Recompute();
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (string.Equals(QueryView, "worksheet", StringComparison.OrdinalIgnoreCase))
+        {
+            ActiveView = ViewMode.Worksheet;
+        }
+
+        if (string.Equals(QuerySolution, "true", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(QuerySolution, "1", StringComparison.OrdinalIgnoreCase))
+        {
+            ShowWorksheetSolution = true;
+        }
+
+        if (float.TryParse(QueryVal, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var f))
+        {
+            InputFloat = f;
+            Recompute();
+        }
+    }
+
+    private void Recompute()
+    {
+        BitPattern = BitConverter.SingleToUInt32Bits(InputFloat);
+        var bitStr = Convert.ToString(BitPattern, 2).PadLeft(32, '0');
+        SignBit = bitStr.Substring(0, 1);
+        ExpBits = bitStr.Substring(1, 8);
+        MantBits = bitStr.Substring(9, 23);
+
+        Sign = (int)((BitPattern >> 31) & 1);
+        ExpRaw = (byte)((BitPattern >> 23) & 0xFF);
+        ExpUnbiased = (int)ExpRaw - 127;
+        MantRaw = BitPattern & 0x7FFFFF;
+
+        MantFraction = (double)MantRaw / (1 << 23);
+        MantWithOne = 1.0 + MantFraction;
+        var signFactor = Sign == 1 ? -1.0 : 1.0;
+        var expFactor = Math.Pow(2.0, ExpUnbiased);
+        FinalResult = signFactor * MantWithOne * expFactor;
+    }
+
+    private void HandleFloatChanged(ChangeEventArgs e)
+    {
+        if (float.TryParse(e.Value?.ToString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var f))
+        {
+            SetInput(f);
+        }
+        else if (float.TryParse(e.Value?.ToString(), out var fLocal))
+        {
+            SetInput(fLocal);
+        }
+    }
+
+    private void SetInput(float value)
+    {
+        InputFloat = value;
+        Recompute();
+        CurrentStep = 0;
+    }
+
+    private void RandomizeInput()
+    {
+        var next = Presets[new Random().Next(Presets.Length)];
+        SetInput(next);
+    }
+
+    private void SetView(ViewMode mode)
+    {
+        ActiveView = mode;
+    }
+
+    private void ResetPlayer() => CurrentStep = 0;
+    private void PreviousStep() => CurrentStep = Math.Max(0, CurrentStep - 1);
+    private void NextStep() => CurrentStep = Math.Min(TotalSteps, CurrentStep + 1);
+    private void CompleteSolution() => CurrentStep = TotalSteps;
+
+    private void ToggleWorksheetSolution() => ShowWorksheetSolution = !ShowWorksheetSolution;
+
+    private void RandomizeWorksheet()
+    {
+        var rnd = new Random();
+        WsTaskA_Bits = BitConverter.SingleToUInt32Bits(Presets[rnd.Next(Presets.Length)]);
+        WsTaskB_Bits = BitConverter.SingleToUInt32Bits(Presets[rnd.Next(Presets.Length)]);
+    }
+
+    private async Task PrintWorksheet()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+
+    // Formatted strings
+    private string StepTitle => CurrentStep switch
+    {
+        0 => "Bitmuster Zerlegung (32 Bit)",
+        1 => "Vorzeichen bestimmen (s)",
+        2 => "Exponent & Bias berechnen (e - 127)",
+        3 => "Mantisse & Normalisierung (1 + m)",
+        4 => "Gesamtergebnis auswerten (f)",
+        _ => ""
+    };
+
+    private string ExpFactorStr
+    {
+        get
+        {
+            var factor = Math.Pow(2.0, ExpUnbiased);
+            return factor.ToString("G", System.Globalization.CultureInfo.InvariantCulture);
+        }
+    }
+
+    private string MantFractionStr => MantFraction.ToString("G", System.Globalization.CultureInfo.InvariantCulture);
+    private string MantWithOneStr => MantWithOne.ToString("G", System.Globalization.CultureInfo.InvariantCulture);
+    private string FinalResultStr => FinalResult.ToString("G", System.Globalization.CultureInfo.InvariantCulture);
+
+    private string ActiveMantissaWeightsStr
+    {
+        get
+        {
+            var terms = new List<string>();
+            for (var i = 0; i < 23; i++)
+            {
+                if (((MantRaw >> (22 - i)) & 1) == 1)
+                {
+                    var p = i + 1;
+                    terms.Add($"2^-{p} (={Math.Pow(2, -p).ToString(System.Globalization.CultureInfo.InvariantCulture)})");
+                }
+            }
+            return terms.Count > 0 ? string.Join(" + ", terms) : "";
+        }
+    }
+
+    private string NarratorHeading => CurrentStep switch
+    {
+        0 => "Aufbau des 32-Bit-Wortes",
+        1 => "Schritt 1: Vorzeichenbit (s)",
+        2 => "Schritt 2: Exponent unbiasten",
+        3 => "Schritt 3: Mantisse mit impliziter 1",
+        4 => "Schritt 4: Multiplikation zum Endergebnis",
+        _ => ""
+    };
+
+    private string NarratorText => CurrentStep switch
+    {
+        0 => "Ein 32-Bit IEEE 754 Float besteht aus 1 Vorzeichen-Bit (Bit 31), 8 Exponenten-Bits (Bits 30..23) mit Bias 127 und 23 Mantissen-Bits (Bits 22..0).",
+        1 => $"Bit 31 ist {SignBit}. Das bedeutet s = {Sign}. Der Vorzeichenfaktor ist (-1)^{Sign} = {(Sign == 1 ? "-1 (negative Zahl)" : "+1 (positive Zahl)")}.",
+        2 => $"Die 8 Exponentenbits ergeben {ExpBits}_2 = {ExpRaw}_10. Wegen des Bias 127 ziehen wir 127 ab: E = {ExpRaw} - 127 = {ExpUnbiased}. Der 2er-Potenzfaktor ist 2^{ExpUnbiased} = {ExpFactorStr}.",
+        3 => $"Die 23 Nachkommastellen m = {MantBits} entsprechen dem Bruch {MantRaw}/2^23 = {MantFractionStr}. Da es sich um eine normalisierte Gleitkommazahl handelt, addieren wir die implizite Eins: 1 + m = {MantWithOneStr}.",
+        4 => $"Nun setzen wir alle drei Faktoren in die Formel ein: f = {(Sign == 1 ? "-1" : "+1")} * {MantWithOneStr} * {ExpFactorStr} = {FinalResultStr}.",
+        _ => ""
+    };
+
+    // Worksheet Helpers
+    private string WsTaskA_BitPatternFormatted => FormatBitPattern(WsTaskA_Bits);
+    private string WsTaskB_BitPatternFormatted => FormatBitPattern(WsTaskB_Bits);
+
+    private int WsTaskA_Sign => (int)((WsTaskA_Bits >> 31) & 1);
+    private byte WsTaskA_ExpRaw => (byte)((WsTaskA_Bits >> 23) & 0xFF);
+    private string WsTaskA_ExpBits_2 => Convert.ToString(WsTaskA_ExpRaw, 2).PadLeft(8, '0');
+    private uint WsTaskA_MantRaw => WsTaskA_Bits & 0x7FFFFF;
+    private string WsTaskA_FractionFormatted => ((double)WsTaskA_MantRaw / (1 << 23)).ToString("G", System.Globalization.CultureInfo.InvariantCulture);
+    private string WsTaskA_MantWithOneStr => (1.0 + (double)WsTaskA_MantRaw / (1 << 23)).ToString("G", System.Globalization.CultureInfo.InvariantCulture);
+    private string WsTaskA_ExpFactorStr => Math.Pow(2.0, (int)WsTaskA_ExpRaw - 127).ToString("G", System.Globalization.CultureInfo.InvariantCulture);
+    private string WsTaskA_FinalStr => ((WsTaskA_Sign == 1 ? -1.0 : 1.0) * (1.0 + (double)WsTaskA_MantRaw / (1 << 23)) * Math.Pow(2.0, (int)WsTaskA_ExpRaw - 127)).ToString("G", System.Globalization.CultureInfo.InvariantCulture);
+
+    private int WsTaskB_Sign => (int)((WsTaskB_Bits >> 31) & 1);
+    private byte WsTaskB_ExpRaw => (byte)((WsTaskB_Bits >> 23) & 0xFF);
+    private string WsTaskB_ExpBits_2 => Convert.ToString(WsTaskB_ExpRaw, 2).PadLeft(8, '0');
+    private uint WsTaskB_MantRaw => WsTaskB_Bits & 0x7FFFFF;
+    private string WsTaskB_FractionFormatted => ((double)WsTaskB_MantRaw / (1 << 23)).ToString("G", System.Globalization.CultureInfo.InvariantCulture);
+    private string WsTaskB_MantWithOneStr => (1.0 + (double)WsTaskB_MantRaw / (1 << 23)).ToString("G", System.Globalization.CultureInfo.InvariantCulture);
+    private string WsTaskB_ExpFactorStr => Math.Pow(2.0, (int)WsTaskB_ExpRaw - 127).ToString("G", System.Globalization.CultureInfo.InvariantCulture);
+    private string WsTaskB_FinalStr => ((WsTaskB_Sign == 1 ? -1.0 : 1.0) * (1.0 + (double)WsTaskB_MantRaw / (1 << 23)) * Math.Pow(2.0, (int)WsTaskB_ExpRaw - 127)).ToString("G", System.Globalization.CultureInfo.InvariantCulture);
+
+    private string FormatBitPattern(uint pattern)
+    {
+        var str = Convert.ToString(pattern, 2).PadLeft(32, '0');
+        return $"{str[0]} | {str.Substring(1, 8)} | {str.Substring(9, 23)}";
+    }
+}

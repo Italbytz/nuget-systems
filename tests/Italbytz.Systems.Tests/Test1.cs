@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using Italbytz.ComputingSystems;
 using Italbytz.ComputingSystems.Abstractions;
 using Italbytz.Networking;
@@ -78,6 +78,30 @@ public sealed class ComputingSystemsTests
         Assert.AreEqual((sbyte)-5, solution.ComplementBinary);
         Assert.HasCount(3, solution.Steps);
         StringAssert.Contains(solution.Steps[1], "Invert bits");
+    }
+
+    [TestMethod]
+    public void Floating_point_solver_decodes_known_ieee754_numbers()
+    {
+        IFloatingPointSolver solver = new FloatingPointSolver();
+
+        // 1 | 01111101 | 10000000000000000000000 -> -0.375
+        uint pattern1 = 0b1_01111101_10000000000000000000000;
+        var sol1 = solver.Solve(new FloatingPointParameters(pattern1));
+        Assert.AreEqual(1, sol1.Sign);
+        Assert.AreEqual((byte)125, sol1.ExponentRaw);
+        Assert.AreEqual(-2, sol1.ExponentUnbiased);
+        Assert.AreEqual(1.5, sol1.MantissaWithImplicitOne, 1e-6);
+        Assert.AreEqual(-0.375, sol1.Value, 1e-6);
+
+        // 0 | 10000011 | 00100000000000000000000 -> 18.0
+        uint pattern2 = 0b0_10000011_00100000000000000000000;
+        var sol2 = solver.Solve(new FloatingPointParameters(pattern2));
+        Assert.AreEqual(0, sol2.Sign);
+        Assert.AreEqual((byte)131, sol2.ExponentRaw);
+        Assert.AreEqual(4, sol2.ExponentUnbiased);
+        Assert.AreEqual(1.125, sol2.MantissaWithImplicitOne, 1e-6);
+        Assert.AreEqual(18.0, sol2.Value, 1e-6);
     }
 
     [TestMethod]

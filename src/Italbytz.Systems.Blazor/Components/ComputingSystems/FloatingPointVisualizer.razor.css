@@ -1,0 +1,635 @@
+.demo-card {
+    --card-bg: #ffffff;
+    --card-border: rgba(20, 50, 47, 0.12);
+    --card-text: #14322f;
+    --kicker-color: #1f5d56;
+    --sub-card-bg: rgba(20, 50, 47, 0.03);
+    --sub-card-border: rgba(20, 50, 47, 0.08);
+
+    --sign-bg: rgba(244, 63, 94, 0.12);
+    --sign-border: #f43f5e;
+    --sign-text: #e11d48;
+    --exp-bg: rgba(2, 132, 199, 0.12);
+    --exp-border: #0284c7;
+    --exp-text: #0369a1;
+    --mant-bg: rgba(16, 185, 129, 0.12);
+    --mant-border: #10b981;
+    --mant-text: #059669;
+
+    --btn-bg: #ffffff;
+    --btn-border: rgba(20, 50, 47, 0.15);
+    --btn-text: #14322f;
+    --btn-hover-bg: #14322f;
+    --btn-hover-text: #f8f3e8;
+    --btn-primary-bg: #1f5d56;
+    --btn-primary-text: #ffffff;
+
+    --narrative-bg: rgba(31, 93, 86, 0.06);
+    --narrative-border: #1f5d56;
+    --narrative-title: #14322f;
+    --narrative-text: #355551;
+
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 1.25rem;
+    padding: 1.5rem;
+    color: var(--card-text);
+    box-shadow: 0 4px 20px rgba(20, 50, 47, 0.05);
+}
+
+:global(.is-embedded) .demo-card,
+:global(html.is-embedded) .demo-card,
+:global(body.is-embedded) .demo-card {
+    --card-bg: #0b0f19;
+    --card-border: transparent;
+    --card-text: #f8fafc;
+    --kicker-color: #38bdf8;
+    --sub-card-bg: #0f172a;
+    --sub-card-border: #1e293b;
+
+    --sign-bg: rgba(244, 63, 94, 0.2);
+    --sign-border: #fb7185;
+    --sign-text: #fda4af;
+    --exp-bg: rgba(2, 132, 199, 0.25);
+    --exp-border: #38bdf8;
+    --exp-text: #7dd3fc;
+    --mant-bg: rgba(16, 185, 129, 0.2);
+    --mant-border: #34d399;
+    --mant-text: #6ee7b7;
+
+    --btn-bg: #334155;
+    --btn-border: #475569;
+    --btn-text: #f8fafc;
+    --btn-hover-bg: #475569;
+    --btn-hover-text: #ffffff;
+    --btn-primary-bg: #0284c7;
+    --btn-primary-text: #ffffff;
+
+    --narrative-bg: rgba(56, 189, 248, 0.08);
+    --narrative-border: #38bdf8;
+    --narrative-title: #38bdf8;
+    --narrative-text: #cbd5e1;
+
+    box-shadow: none;
+    border: none;
+    border-radius: 0;
+    padding: 0.8rem 0;
+}
+
+.card-heading {
+    margin-bottom: 1rem;
+}
+
+.feature-kicker {
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--kicker-color);
+    margin: 0 0 0.25rem 0;
+}
+
+.card-heading h2 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.view-switch {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.view-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    background: var(--btn-bg);
+    color: var(--btn-text);
+    border: 1px solid var(--btn-border);
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.view-btn.active {
+    background: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
+    border-color: var(--btn-primary-bg);
+}
+
+.input-grid {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    background: var(--sub-card-bg);
+    border: 1px solid var(--sub-card-border);
+    border-radius: 0.75rem;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+}
+
+.input-grid label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+
+.input-grid input[type="number"] {
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--btn-border);
+    border-radius: 0.4rem;
+    background: var(--btn-bg);
+    color: var(--btn-text);
+    font-size: 0.95rem;
+    font-family: monospace;
+    width: 110px;
+}
+
+.preset-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.preset-btn {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    background: var(--btn-bg);
+    color: var(--btn-text);
+    border: 1px solid var(--btn-border);
+    border-radius: 0.4rem;
+    cursor: pointer;
+}
+
+.preset-btn:hover {
+    background: var(--btn-hover-bg);
+    color: var(--btn-hover-text);
+}
+
+.player-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--sub-card-bg);
+    border: 1px solid var(--sub-card-border);
+    border-radius: 0.75rem;
+    padding: 0.6rem 1rem;
+    margin-bottom: 1rem;
+}
+
+.player-controls {
+    display: flex;
+    gap: 0.4rem;
+}
+
+.player-btn {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    border-radius: 0.4rem;
+    border: 1px solid var(--btn-border);
+    background: var(--btn-bg);
+    color: var(--btn-text);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.player-btn.primary {
+    background: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
+    border-color: var(--btn-primary-bg);
+}
+
+.player-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.player-progress {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+/* 32-Bit Structure Box */
+.bitpattern-container {
+    background: var(--sub-card-bg);
+    border: 1px solid var(--sub-card-border);
+    border-radius: 0.75rem;
+    padding: 0.85rem 1rem;
+    margin-bottom: 1rem;
+}
+
+.bit-group-header {
+    display: grid;
+    grid-template-columns: 1fr 8fr 23fr;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.group-badge {
+    padding: 4px 6px;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.badge-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.badge-sub {
+    font-size: 0.65rem;
+    opacity: 0.85;
+}
+
+.sign-badge {
+    background: var(--sign-bg);
+    border: 1px solid var(--sign-border);
+    color: var(--sign-text);
+}
+
+.exp-badge {
+    background: var(--exp-bg);
+    border: 1px solid var(--exp-border);
+    color: var(--exp-text);
+}
+
+.mant-badge {
+    background: var(--mant-bg);
+    border: 1px solid var(--mant-border);
+    color: var(--mant-text);
+}
+
+.bit-cells-container {
+    display: grid;
+    grid-template-columns: 1fr 8fr 23fr;
+    gap: 6px;
+}
+
+.bit-segment {
+    display: flex;
+    gap: 2px;
+    border-radius: 6px;
+    padding: 4px;
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.sign-segment {
+    background: var(--sign-bg);
+    border-color: var(--sign-border);
+}
+
+.exp-segment {
+    background: var(--exp-bg);
+    border-color: var(--exp-border);
+}
+
+.mant-segment {
+    background: var(--mant-bg);
+    border-color: var(--mant-border);
+}
+
+.bit-segment.highlight-segment {
+    transform: scale(1.015);
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+}
+
+.bit-cell {
+    flex: 1;
+    min-width: 0;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: monospace;
+    font-size: 0.95rem;
+    font-weight: 700;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.sign-cell {
+    color: var(--sign-text);
+}
+
+.exp-cell {
+    color: var(--exp-text);
+}
+
+.mant-cell {
+    color: var(--mant-text);
+    font-size: 0.78rem;
+}
+
+.bit-indices {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    font-family: monospace;
+    opacity: 0.6;
+    margin-top: 4px;
+    padding: 0 4px;
+}
+
+/* Trace Cards Grid */
+.step-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.trace-card {
+    background: var(--sub-card-bg);
+    border: 1px solid var(--sub-card-border);
+    border-radius: 0.75rem;
+    padding: 0.85rem 1rem;
+    transition: all 0.2s ease;
+}
+
+.trace-card.active-card {
+    border-color: #38bdf8;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+}
+
+.trace-card.card-dimmed {
+    opacity: 0.45;
+}
+
+.card-tag {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+}
+
+.sign-tag { color: var(--sign-text); }
+.exp-tag { color: var(--exp-text); }
+.mant-tag { color: var(--mant-text); }
+
+.card-math {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    font-size: 0.88rem;
+}
+
+.math-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.math-label {
+    opacity: 0.8;
+}
+
+.math-val {
+    font-weight: 700;
+    font-family: monospace;
+}
+
+.sign-val { color: var(--sign-text); }
+.exp-val { color: var(--exp-text); }
+.mant-val { color: var(--mant-text); }
+
+.math-detail {
+    font-size: 0.75rem;
+    opacity: 0.75;
+    margin-top: 0.25rem;
+}
+
+.placeholder-text {
+    font-size: 0.82rem;
+    font-style: italic;
+    opacity: 0.5;
+}
+
+/* Final Result Card */
+.final-result-card {
+    background: linear-gradient(145deg, rgba(2, 132, 199, 0.15), rgba(16, 185, 129, 0.15));
+    border: 1.5px solid #0284c7;
+    border-radius: 0.75rem;
+    padding: 0.85rem 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.final-result-card.result-dimmed {
+    opacity: 0.45;
+}
+
+.result-header {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #38bdf8;
+    margin-bottom: 0.5rem;
+}
+
+.calculation-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    font-size: 1rem;
+    font-family: monospace;
+}
+
+.highlight-val {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.15);
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+/* Narrator Box */
+.narrator-box {
+    background: var(--narrative-bg);
+    border-left: 4px solid var(--narrative-border);
+    border-radius: 0 0.5rem 0.5rem 0;
+    padding: 0.75rem 1rem;
+}
+
+.narrator-title {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--narrative-title);
+    margin-bottom: 0.25rem;
+}
+
+.narrator-text {
+    font-size: 0.84rem;
+    line-height: 1.45;
+    color: var(--narrative-text);
+}
+
+/* Worksheet View */
+.worksheet-view {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.worksheet-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--sub-card-bg);
+    border: 1px solid var(--sub-card-border);
+    border-radius: 0.75rem;
+    padding: 0.6rem 1rem;
+}
+
+.worksheet-controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.worksheet-hint {
+    font-size: 0.82rem;
+    opacity: 0.7;
+}
+
+.worksheet-sheet {
+    background: #ffffff;
+    color: #1e293b;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.75rem;
+    padding: 1.5rem 2rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.sheet-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: #0f172a;
+}
+
+.sheet-intro, .sheet-desc {
+    font-size: 0.92rem;
+    line-height: 1.5;
+    margin-bottom: 0.5rem;
+    color: #334155;
+}
+
+.sheet-formula-box {
+    background: #f8fafc;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 0.6rem 1rem;
+    text-align: center;
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #0f172a;
+    margin: 0.5rem 0 1rem 0;
+    letter-spacing: 0.02em;
+}
+
+.task-block {
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px dashed #cbd5e1;
+}
+
+.task-label {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-bottom: 0.35rem;
+    color: #0f172a;
+}
+
+.task-bitpattern {
+    font-family: monospace;
+    font-size: 1.05rem;
+    background: #f1f5f9;
+    padding: 0.4rem 0.75rem;
+    border-radius: 4px;
+    display: inline-block;
+    margin-bottom: 0.75rem;
+    letter-spacing: 0.05em;
+    color: #0f172a;
+    font-weight: 700;
+}
+
+.worksheet-solution-box {
+    background: #ecfdf5;
+    border: 1.5px solid #10b981;
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    margin-top: 0.5rem;
+}
+
+.sol-title {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #065f46;
+    margin-bottom: 0.35rem;
+}
+
+.sol-calc-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    font-family: monospace;
+    font-size: 0.95rem;
+    color: #064e3b;
+    line-height: 1.5;
+}
+
+.sol-final {
+    font-size: 1.05rem;
+    color: #047857;
+    margin-top: 0.2rem;
+}
+
+.worksheet-answer-field {
+    min-height: 90px;
+    border-bottom: 1.5px solid #94a3b8;
+    background: #fafafa;
+    display: flex;
+    align-items: flex-end;
+    padding: 8px;
+    margin-top: 0.5rem;
+}
+
+.field-placeholder {
+    font-size: 0.82rem;
+    font-style: italic;
+    color: #94a3b8;
+}
+
+/* Media Print */
+@media print {
+    .no-print {
+        display: none !important;
+    }
+
+    .demo-card {
+        background: #ffffff !important;
+        color: #000000 !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+    }
+
+    .worksheet-sheet {
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+    }
+}
