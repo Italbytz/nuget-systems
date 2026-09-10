@@ -298,6 +298,37 @@
     [Parameter]
     public int AdditionRight { get; set; } = 29;
 
+    [Parameter]
+    public bool Embedded { get; set; } = false;
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "view")]
+    public string? ViewQuery { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "solution")]
+    public bool? SolutionQuery { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "embed")]
+    public bool? EmbedQuery { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (string.Equals(ViewQuery, "worksheet", StringComparison.OrdinalIgnoreCase))
+        {
+            ActiveView = ViewMode.Worksheet;
+        }
+        if (SolutionQuery.HasValue)
+        {
+            ShowWorksheetSolution = SolutionQuery.Value;
+        }
+        if (EmbedQuery.HasValue && EmbedQuery.Value)
+        {
+            Embedded = true;
+        }
+    }
+
     private int CurrentStep { get; set; } = 0;
     private int TotalSteps => Solution.Sum > 255 ? 9 : 8;
 
