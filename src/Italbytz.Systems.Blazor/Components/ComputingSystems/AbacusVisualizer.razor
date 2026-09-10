@@ -1,0 +1,340 @@
+@namespace Italbytz.Systems.Blazor.Components.ComputingSystems
+
+<div class="abacus-card">
+    <div class="abacus-header">
+        <div>
+            <h3 class="abacus-title">Abakus (Soroban)</h3>
+            <p class="abacus-subtitle">
+                Klassisches mechanisches Rechenhilfsmittel nach dem Bi-Quinär-System (1 Fünferperle oben, 4 Einerperlen unten pro Stelle).
+            </p>
+        </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="abacus-controls">
+        <div class="control-group">
+            <label class="control-label">Abgelesener Gesamtwert:</label>
+            <div class="value-display-row">
+                <span class="abacus-total-value">@TotalValue.ToString("N0", new System.Globalization.CultureInfo("de-DE"))</span>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label class="control-label">Zahl einstellen / Voreinstellungen:</label>
+            <div class="input-with-buttons">
+                <input type="number" min="0" max="99999" @bind="DirectNumberInput" @bind:after="ApplyDirectInput" class="abacus-input" placeholder="Zahl..." />
+                <button class="preset-btn" @onclick="Reset">0 (Reset)</button>
+                <button class="preset-btn" @onclick="() => SetValue(2026)">2026</button>
+                <button class="preset-btn" @onclick="() => SetValue(7115)">7115</button>
+                <button class="preset-btn" @onclick="() => SetValue(1423)">1423</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Soroban Frame -->
+    <div class="soroban-outer-frame">
+        <div class="soroban-board">
+            <!-- Beam dividing upper and lower deck -->
+            <div class="soroban-beam">
+                <div class="beam-line"></div>
+            </div>
+
+            <!-- Rods -->
+            <div class="soroban-rods-container">
+                @for (int col = 0; col < Columns.Length; col++)
+                {
+                    var colIndex = col;
+                    var colWeight = Columns[colIndex];
+                    var digit = ColumnDigits[colIndex];
+                    var hasFive = digit >= 5;
+                    var ones = digit % 5;
+
+                    <div class="soroban-rod-col">
+                        <!-- Wire in background -->
+                        <div class="soroban-wire"></div>
+
+                        <!-- Upper Deck (Value 5) -->
+                        <div class="soroban-deck upper-deck">
+                            <button class="soroban-bead upper-bead @(hasFive ? "bead-active-down" : "bead-inactive-up")"
+                                    @onclick="() => ToggleFive(colIndex)"
+                                    title="Fünferperle: @(hasFive ? "Aktiv (+5)" : "Inaktiv (0)")"
+                                    aria-label="Fünferperle Spalte @colWeight">
+                            </button>
+                        </div>
+
+                        <!-- Spacing for the beam -->
+                        <div class="beam-gap"></div>
+
+                        <!-- Lower Deck (Value 1 x 4) -->
+                        <div class="soroban-deck lower-deck">
+                            @for (int b = 0; b < 4; b++)
+                            {
+                                var beadIdx = b;
+                                var isUp = beadIdx < ones;
+                                <button class="soroban-bead lower-bead @(isUp ? "bead-active-up" : "bead-inactive-down")"
+                                        @onclick="() => ClickLowerBead(colIndex, beadIdx, isUp)"
+                                        title="Einerperle @(beadIdx + 1): @(isUp ? "Aktiv" : "Inaktiv")"
+                                        aria-label="Einerperle @(beadIdx + 1) Spalte @colWeight">
+                                </button>
+                            }
+                        </div>
+
+                        <!-- Column Label & Value -->
+                        <div class="column-footer">
+                            <div class="column-digit">@digit</div>
+                            <div class="column-weight">10<sup>@(4 - colIndex)</sup> (@colWeight)</div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Explanation Box -->
+    <div class="abacus-explanation">
+        <div class="info-icon">💡</div>
+        <div class="info-text">
+            <strong>Funktionsweise:</strong> Perlen werden durch Verschieben an den <em>Mittelbalken</em> aktiviert.
+            Oben zählt jede Perle <strong>5</strong> (nach unten an den Balken schieben), unten zählt jede Perle <strong>1</strong> (nach oben an den Balken schieben).
+            Jede Stange repräsentiert eine Dezimalstelle (Einer, Zehner, Hunderter, Tausender, Zehntausender).
+        </div>
+    </div>
+</div>
+
+<style>
+    .abacus-card {
+        background: #ffffff;
+        border-radius: 1.25rem;
+        border: 1px solid rgba(20, 50, 47, 0.1);
+        padding: 1.5rem;
+        box-shadow: 0 10px 30px rgba(20, 50, 47, 0.05);
+    }
+    .abacus-title { margin: 0 0 0.35rem; color: #14322f; font-size: 1.4rem; font-weight: 800; }
+    .abacus-subtitle { margin: 0; color: #486a65; font-size: 0.92rem; }
+    
+    .abacus-controls {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.25rem;
+        margin: 1.25rem 0;
+        padding: 1rem;
+        background: rgba(20, 50, 47, 0.04);
+        border-radius: 1rem;
+        align-items: center;
+    }
+    .control-label { display: block; font-size: 0.85rem; font-weight: 700; color: #355551; margin-bottom: 0.4rem; }
+    .abacus-total-value {
+        font-size: 2rem;
+        font-weight: 900;
+        color: #0284c7;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        letter-spacing: -0.02em;
+    }
+    .input-with-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+    .abacus-input {
+        width: 120px;
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.6rem;
+        border: 1px solid #cbd5e1;
+        font-weight: 700;
+        font-size: 1.1rem;
+        background: #ffffff;
+        color: #0f172a;
+    }
+    .preset-btn {
+        padding: 0.45rem 0.8rem;
+        border-radius: 0.6rem;
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #1e293b;
+        transition: all 0.15s;
+    }
+    .preset-btn:hover { background: #f1f5f9; border-color: #94a3b8; }
+
+    /* Soroban Frame */
+    .soroban-outer-frame {
+        overflow-x: auto;
+        padding: 0.5rem 0;
+        display: flex;
+        justify-content: center;
+    }
+    .soroban-board {
+        position: relative;
+        background: #1e293b;
+        border: 10px solid #475569;
+        border-radius: 1rem;
+        padding: 1rem 1.5rem;
+        box-shadow: 0 15px 35px rgba(0,0,0,0.4), inset 0 2px 8px rgba(0,0,0,0.6);
+        min-width: 520px;
+    }
+    .soroban-beam {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 96px;
+        height: 14px;
+        background: linear-gradient(180deg, #94a3b8 0%, #475569 50%, #334155 100%);
+        border-top: 2px solid #cbd5e1;
+        border-bottom: 2px solid #1e293b;
+        z-index: 10;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }
+    .soroban-rods-container {
+        display: flex;
+        justify-content: space-around;
+        gap: 1.25rem;
+        position: relative;
+    }
+    .soroban-rod-col {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+        width: 76px;
+    }
+    .soroban-wire {
+        position: absolute;
+        top: 0;
+        bottom: 50px;
+        width: 5px;
+        background: linear-gradient(90deg, #94a3b8, #f1f5f9 50%, #64748b);
+        border-radius: 2px;
+        z-index: 1;
+        box-shadow: 1px 0 3px rgba(0,0,0,0.4);
+    }
+    .soroban-deck {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        z-index: 5;
+    }
+    .upper-deck {
+        height: 70px;
+        justify-content: flex-start;
+    }
+    .beam-gap {
+        height: 20px;
+    }
+    .lower-deck {
+        height: 155px;
+        justify-content: flex-end;
+        gap: 2px;
+    }
+    .soroban-bead {
+        width: 72px;
+        height: 26px;
+        border: none;
+        border-radius: 13px;
+        background: radial-gradient(ellipse at 50% 30%, #fde68a 0%, #d97706 60%, #78350f 100%);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.6);
+        cursor: pointer;
+        transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.15s;
+        margin: 1px 0;
+        padding: 0;
+    }
+    .soroban-bead:hover {
+        filter: brightness(1.18);
+    }
+    
+    /* Upper Bead states: Inactive is up (translateY 0), Active is down against beam (translateY 38px) */
+    .upper-bead.bead-inactive-up { transform: translateY(0); }
+    .upper-bead.bead-active-down { transform: translateY(38px); }
+
+    /* Lower Bead states: Inactive is down (translateY 0), Active is up against beam (translateY -38px) */
+    .lower-bead.bead-inactive-down { transform: translateY(0); }
+    .lower-bead.bead-active-up { transform: translateY(-38px); }
+
+    .column-footer {
+        margin-top: 14px;
+        text-align: center;
+        z-index: 5;
+    }
+    .column-digit {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: #38bdf8;
+        font-family: ui-monospace, monospace;
+    }
+    .column-weight {
+        font-size: 0.75rem;
+        color: #94a3b8;
+        font-weight: 600;
+    }
+
+    .abacus-explanation {
+        display: flex;
+        gap: 0.75rem;
+        align-items: flex-start;
+        margin-top: 1.25rem;
+        padding: 0.9rem 1.25rem;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 0.75rem;
+        color: #166534;
+        font-size: 0.88rem;
+        line-height: 1.5;
+    }
+    .info-icon { font-size: 1.2rem; }
+</style>
+
+@code {
+    private readonly int[] Columns = { 10000, 1000, 100, 10, 1 };
+    private int[] ColumnDigits = { 0, 0, 0, 0, 0 };
+    private int DirectNumberInput = 0;
+
+    private int TotalValue => ColumnDigits.Select((d, idx) => d * Columns[idx]).Sum();
+
+    protected override void OnInitialized()
+    {
+        SetValue(0);
+    }
+
+    private void ToggleFive(int colIndex)
+    {
+        if (ColumnDigits[colIndex] >= 5)
+        {
+            ColumnDigits[colIndex] -= 5;
+        }
+        else
+        {
+            ColumnDigits[colIndex] += 5;
+        }
+        DirectNumberInput = TotalValue;
+    }
+
+    private void ClickLowerBead(int colIndex, int beadIdx, bool isCurrentlyActive)
+    {
+        int fivePart = ColumnDigits[colIndex] >= 5 ? 5 : 0;
+        int newOnes = isCurrentlyActive ? beadIdx : (beadIdx + 1);
+        ColumnDigits[colIndex] = fivePart + newOnes;
+        DirectNumberInput = TotalValue;
+    }
+
+    private void SetValue(int number)
+    {
+        if (number < 0) number = 0;
+        if (number > 99999) number = 99999;
+        DirectNumberInput = number;
+
+        int rem = number;
+        for (int i = 0; i < Columns.Length; i++)
+        {
+            ColumnDigits[i] = (rem / Columns[i]) % 10;
+            rem %= Columns[i];
+        }
+    }
+
+    private void ApplyDirectInput()
+    {
+        SetValue(DirectNumberInput);
+    }
+
+    private void Reset()
+    {
+        SetValue(0);
+    }
+}
