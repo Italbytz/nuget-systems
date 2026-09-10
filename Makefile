@@ -118,7 +118,8 @@ pages-prepare: docs demo-publish
 	cp $(DEMO_PUBLISH_DIR)/wwwroot/index.html $(DEMO_PUBLISH_DIR)/wwwroot/404.html
 	cp -R $(DOCFX_OUT_DIR)/. $(PAGES_DIR)
 	cp -R $(DEMO_PUBLISH_DIR)/wwwroot/. $(PAGES_DIR)/demos
-	@for route in binary-conversion number-conversion binary-arithmetic twos-complement cpu-simulator logic-simulator napier-bones normal-forms quine-mccluskey line-coding crc subnetting cpu-scheduling realtime-scheduling buddy-memory page-replacement; do \
+	cp $(DEMO_PUBLISH_DIR)/wwwroot/index.html $(PAGES_DIR)/404.html
+	@for route in binary-conversion number-conversion binary-arithmetic binary-addition twos-complement decimal-to-binary dezimal-zu-binaer binary-to-decimal binaer-zu-dezimal computing-systems operating-systems networking cpu-simulator logic-simulator logic-circuits napier-bones normal-forms quine-mccluskey line-coding bitencoding crc subnetting cpu-scheduling realtime-scheduling buddy-memory page-replacement; do \
 		mkdir -p $(PAGES_DIR)/demos/$$route; \
 		cp $(DEMO_PUBLISH_DIR)/wwwroot/index.html $(PAGES_DIR)/demos/$$route/index.html; \
 	done

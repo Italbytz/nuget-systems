@@ -242,6 +242,34 @@
     [Parameter]
     public bool Embedded { get; set; } = false;
 
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "view")]
+    public string? ViewQuery { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "solution")]
+    public bool? SolutionQuery { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (!string.IsNullOrWhiteSpace(ViewQuery))
+        {
+            if (ViewQuery.Equals("worksheet", StringComparison.OrdinalIgnoreCase) || ViewQuery.Equals("print", StringComparison.OrdinalIgnoreCase))
+            {
+                ActiveView = ViewMode.Worksheet;
+            }
+            else if (ViewQuery.Equals("simulator", StringComparison.OrdinalIgnoreCase))
+            {
+                ActiveView = ViewMode.Simulator;
+            }
+        }
+
+        if (SolutionQuery.HasValue)
+        {
+            ShowWorksheetSolution = SolutionQuery.Value;
+        }
+    }
+
     private int CurrentStep { get; set; } = 0;
     private const int TotalSteps = 8;
 
