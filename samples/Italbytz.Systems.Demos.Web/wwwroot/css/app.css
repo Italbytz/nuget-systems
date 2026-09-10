@@ -576,7 +576,9 @@ html.is-embedded body,
 }
 
 .is-embedded .wide-card,
-.is-embedded .demo-card {
+.is-embedded .demo-card,
+.is-embedded .abacus-card,
+.is-embedded .napier-card {
     max-width: 100% !important;
     width: 100% !important;
     margin: 0 !important;
