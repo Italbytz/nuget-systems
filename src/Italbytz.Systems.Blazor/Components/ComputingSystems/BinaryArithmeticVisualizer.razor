@@ -1,60 +1,291 @@
 @namespace Italbytz.Systems.Blazor.Components.ComputingSystems
+@inject IJSRuntime JSRuntime
 
-<article class="demo-card">
+<article class="demo-card wide-card">
     <div class="card-heading">
-        <p class="feature-kicker">Binary addition</p>
-        <h2>Add two 8-bit values</h2>
+        <p class="feature-kicker">Rechnerarchitektur & Binärarithmetik</p>
+        <h2>8-Bit-Binäraddition mit Übertrag</h2>
     </div>
 
-    <div class="input-grid two-up">
-        <label>
-            <span>Summand A</span>
-            <input type="number" min="0" max="255" @bind="AdditionLeft" />
-        </label>
-        <label>
-            <span>Summand B</span>
-            <input type="number" min="0" max="255" @bind="AdditionRight" />
-        </label>
+    <!-- View Switcher -->
+    <div class="view-switch no-print">
+        <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                @onclick="() => ActiveView = ViewMode.Simulator">
+            🚀 Interaktiver Simulator (Step-by-Step)
+        </button>
+        <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                @onclick="() => ActiveView = ViewMode.Worksheet">
+            🖨️ Klausur-Arbeitsblatt (Druckansicht)
+        </button>
     </div>
 
-    @{ var addition = AdditionSolution; }
-    <div class="result-stack">
-        <div class="metric-row">
-            <span>Binary A</span>
-            <strong>@ToBinary(AdditionLeftByte)</strong>
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Input & Randomizer -->
+        <div class="input-grid two-up no-print">
+            <label>
+                <span>Summand A (0 – 255)</span>
+                <input type="number" min="0" max="255" value="@AdditionLeft" @onchange="HandleLeftChanged" />
+            </label>
+            <label>
+                <span>Summand B (0 – 255)</span>
+                <input type="number" min="0" max="255" value="@AdditionRight" @onchange="HandleRightChanged" />
+            </label>
         </div>
-        <div class="metric-row">
-            <span>Binary B</span>
-            <strong>@ToBinary(AdditionRightByte)</strong>
-        </div>
-        <div class="metric-row accent-row">
-            <span>Sum</span>
-            <strong>@addition.Sum (@ToBinary((int)addition.Sum, 16))</strong>
-        </div>
-    </div>
 
-    <div class="table-shell">
-        <table class="trace-table">
-            <thead>
-                <tr>
-                    <th>Trace step</th>
-                    <th>Trace detail</th>
-                </tr>
-            </thead>
-            <tbody>
-                @for (var index = 0; index < addition.Steps.Count; index++)
+        <!-- Step-by-Step Player Controls -->
+        <div class="player-toolbar no-print">
+            <div class="player-controls">
+                <button class="player-btn" title="Neue Zufallsaufgabe" @onclick="RandomizeInputs">
+                    🎲 Zufallswerte
+                </button>
+                <button class="player-btn" title="Zum Start" disabled="@(CurrentStep == 0)" @onclick="ResetPlayer">
+                    ⏮ Start
+                </button>
+                <button class="player-btn" title="Vorheriger Schritt" disabled="@(CurrentStep == 0)" @onclick="PreviousStep">
+                    ◀ Zurück
+                </button>
+                <button class="player-btn primary" title="Nächster Schritt" disabled="@(CurrentStep >= TotalSteps)" @onclick="NextStep">
+                    ▶ Nächster Schritt
+                </button>
+                <button class="player-btn" title="Gesamtlösung anzeigen" disabled="@(CurrentStep >= TotalSteps)" @onclick="CompleteSolution">
+                    ⏭ Ende
+                </button>
+            </div>
+            <div class="player-progress">
+                @if (CurrentStep == 0)
                 {
-                    <tr>
-                        <td>@(index + 1)</td>
-                        <td>@addition.Steps[index]</td>
-                    </tr>
+                    <span>Bereit: Bit 0 ($2^0$) als Nächstes</span>
                 }
-            </tbody>
-        </table>
-    </div>
+                else if (CurrentStep <= 8)
+                {
+                    <span>Schritt @CurrentStep von @TotalSteps (Bit @(CurrentStep - 1): $2^{@(CurrentStep - 1)}$ = @(1 << (CurrentStep - 1)))</span>
+                }
+                else
+                {
+                    <span>Abgeschlossen: Alle Bits berechnet</span>
+                }
+            </div>
+        </div>
+
+        <!-- Visual Addition Matrix -->
+        <div class="addition-matrix">
+            <table class="matrix-table">
+                <thead>
+                    <tr>
+                        <th class="matrix-label">Stellenwert</th>
+                        <th class="matrix-cell header-cell">2⁸ (256)</th>
+                        @for (var b = 7; b >= 0; b--)
+                        {
+                            <th class="matrix-cell header-cell @(IsActiveBit(b) ? "active-col" : "")">
+                                2<sup>@b</sup> (@(1 << b))
+                            </th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Summand A -->
+                    <tr>
+                        <td class="matrix-label">Summand A (@AdditionLeftByte)</td>
+                        <td class="matrix-cell dimmed">0</td>
+                        @for (var b = 7; b >= 0; b--)
+                        {
+                            var bit = GetBit(AdditionLeftByte, b);
+                            <td class="matrix-cell @(IsActiveBit(b) ? "active-col" : "")">@bit</td>
+                        }
+                    </tr>
+                    <!-- Summand B -->
+                    <tr>
+                        <td class="matrix-label">+ Summand B (@AdditionRightByte)</td>
+                        <td class="matrix-cell dimmed">0</td>
+                        @for (var b = 7; b >= 0; b--)
+                        {
+                            var bit = GetBit(AdditionRightByte, b);
+                            <td class="matrix-cell @(IsActiveBit(b) ? "active-col" : "")">@bit</td>
+                        }
+                    </tr>
+                    <!-- Carry Bits -->
+                    <tr>
+                        <td class="matrix-label">Übertrag (Carry)</td>
+                        <td class="matrix-cell carry-cell @(CurrentStep >= 8 && CarryOutBits[7] == 1 ? "active-col" : (CurrentStep < 8 ? "dimmed" : ""))">
+                            @(CurrentStep >= 8 ? CarryOutBits[7] : "")
+                        </td>
+                        @for (var b = 7; b >= 0; b--)
+                        {
+                            var showCarry = b == 0 ? (CurrentStep >= 0) : (CurrentStep >= b);
+                            var carryVal = b == 0 ? 0 : CarryOutBits[b - 1];
+                            <td class="matrix-cell carry-cell @(IsActiveBit(b) ? "active-col" : (!showCarry ? "dimmed" : ""))">
+                                @(showCarry && (carryVal == 1 || b == 0) ? carryVal.ToString() : (showCarry ? "0" : ""))
+                            </td>
+                        }
+                    </tr>
+                    <!-- Divider line -->
+                    <tr class="matrix-divider">
+                        <td colspan="10"><hr /></td>
+                    </tr>
+                    <!-- Sum Result -->
+                    <tr>
+                        <td class="matrix-label"><strong>= Summe (@VisibleSumDec)</strong></td>
+                        <td class="matrix-cell sum-cell @(CurrentStep >= 8 && CarryOutBits[7] == 1 ? "active-col" : (CurrentStep < 8 ? "dimmed" : ""))">
+                            @(CurrentStep >= 8 ? ((Solution.Sum >> 8) & 1).ToString() : "")
+                        </td>
+                        @for (var b = 7; b >= 0; b--)
+                        {
+                            var isCalculated = CurrentStep > b;
+                            var sumBit = (Solution.Sum >> b) & 1;
+                            <td class="matrix-cell sum-cell @(IsActiveBit(b) ? "active-col" : (!isCalculated ? "dimmed" : ""))">
+                                @(isCalculated ? sumBit.ToString() : (IsActiveBit(b) ? "?" : "·"))
+                            </td>
+                        }
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Step Narrative Explanation -->
+        @if (CurrentStep > 0 && CurrentStep <= 8)
+        {
+            var bitIndex = CurrentStep - 1;
+            var aBit = GetBit(AdditionLeftByte, bitIndex);
+            var bBit = GetBit(AdditionRightByte, bitIndex);
+            var cIn = bitIndex == 0 ? 0 : CarryOutBits[bitIndex - 1];
+            var part = aBit + bBit + cIn;
+            var resBit = part & 1;
+            var cOut = (part >> 1) & 1;
+
+            <div class="narrative-card">
+                <h4>Erklärung zu Schritt @CurrentStep (Bit @bitIndex, $2^{@bitIndex} = @(1 << bitIndex)$):</h4>
+                <p>
+                    Rechnung an Stelle @bitIndex:
+                    <strong>Bit A (@aBit) + Bit B (@bBit) + Übertrag_in (@cIn) = @part</strong>
+                    $\implies$ <strong>Ergebnisbit = @resBit</strong>, neuer <strong>Übertrag (Carry Out) = @cOut</strong>.
+                </p>
+            </div>
+        }
+        else if (CurrentStep > 8)
+        {
+            <div class="narrative-card">
+                <h4>Berechnung vollständig!</h4>
+                <p>
+                    Gesamtsumme: <strong>@AdditionLeftByte + @AdditionRightByte = @Solution.Sum</strong>
+                    (Binär: <code>@ToBinary((int)Solution.Sum, Solution.Sum > 255 ? 9 : 8)</code>).
+                    @if (Solution.Sum > 255)
+                    {
+                        <span> Es ist ein 9-Bit-Übertrag ($2^8 = 256$) entstanden.</span>
+                    }
+                </p>
+            </div>
+        }
+    }
+    else
+    {
+        <!-- EXAM WORKSHEET (PRINT VIEW) -->
+        <div class="worksheet-container">
+            <div class="worksheet-header">
+                <div>
+                    <h3>Klausuraufgabe: Schriftliche Binäraddition</h3>
+                    <small>Modul: Grundlagen der Informatik / Rechnerstrukturen</small>
+                </div>
+                <div class="no-print">
+                    <span class="solution-badge">@(ShowWorksheetSolution ? "Musterlösung aktiv" : "Aufgabenblatt (leer)")</span>
+                </div>
+            </div>
+
+            <div class="worksheet-toolbar no-print">
+                <button class="player-btn" @onclick="RandomizeInputs">
+                    🎲 Neue Zufallsaufgabe
+                </button>
+                <button class="player-btn @(ShowWorksheetSolution ? "primary" : "")" @onclick="() => ShowWorksheetSolution = !ShowWorksheetSolution">
+                    @(ShowWorksheetSolution ? "👁️ Musterlösung ausblenden" : "✅ Musterlösung einblenden")
+                </button>
+                <button class="player-btn" @onclick="PrintWorksheet">
+                    🖨️ Drucken / PDF
+                </button>
+            </div>
+
+            <div class="worksheet-instruction">
+                <strong>Aufgabenstellung:</strong>
+                Führen Sie die schriftliche Addition der beiden 8-Bit-Dezimalzahlen
+                <strong>A = @(AdditionLeftByte)₁₀</strong> und <strong>B = @(AdditionRightByte)₁₀</strong>
+                im Dualsystem durch.
+                Tragen Sie die Binärdarstellungen, alle Überträge (Carry-Bits) und das Endergebnis in das vorgegebene Rechengitter ein.
+            </div>
+
+            <div class="addition-matrix">
+                <table class="matrix-table">
+                    <thead>
+                        <tr>
+                            <th class="matrix-label">Stellenwert</th>
+                            <th class="matrix-cell header-cell">2⁸</th>
+                            @for (var b = 7; b >= 0; b--)
+                            {
+                                <th class="matrix-cell header-cell">2<sup>@b</sup></th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="matrix-label">A = @AdditionLeftByte</td>
+                            <td class="matrix-cell dimmed">0</td>
+                            @for (var b = 7; b >= 0; b--)
+                            {
+                                <td class="matrix-cell">@(ShowWorksheetSolution ? GetBit(AdditionLeftByte, b).ToString() : "")</td>
+                            }
+                        </tr>
+                        <tr>
+                            <td class="matrix-label">+ B = @AdditionRightByte</td>
+                            <td class="matrix-cell dimmed">0</td>
+                            @for (var b = 7; b >= 0; b--)
+                            {
+                                <td class="matrix-cell">@(ShowWorksheetSolution ? GetBit(AdditionRightByte, b).ToString() : "")</td>
+                            }
+                        </tr>
+                        <tr>
+                            <td class="matrix-label">Übertrag (Ü)</td>
+                            <td class="matrix-cell carry-cell">@(ShowWorksheetSolution && CarryOutBits[7] == 1 ? "1" : "")</td>
+                            @for (var b = 7; b >= 0; b--)
+                            {
+                                var cVal = b == 0 ? 0 : CarryOutBits[b - 1];
+                                <td class="matrix-cell carry-cell">@(ShowWorksheetSolution ? (cVal == 1 ? "1" : "0") : "")</td>
+                            }
+                        </tr>
+                        <tr class="matrix-divider">
+                            <td colspan="10"><hr /></td>
+                        </tr>
+                        <tr>
+                            <td class="matrix-label"><strong>= Summe</strong></td>
+                            <td class="matrix-cell sum-cell">@(ShowWorksheetSolution ? ((Solution.Sum >> 8) & 1).ToString() : "")</td>
+                            @for (var b = 7; b >= 0; b--)
+                            {
+                                var sBit = (Solution.Sum >> b) & 1;
+                                <td class="matrix-cell sum-cell">@(ShowWorksheetSolution ? sBit.ToString() : "")</td>
+                            }
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            @if (ShowWorksheetSolution)
+            {
+                <div class="narrative-card">
+                    <h4>Musterlösung & Ergebnisprüfung:</h4>
+                    <p>
+                        A = @(AdditionLeftByte)₁₀ = <strong>@ToBinary(AdditionLeftByte)₂</strong><br />
+                        B = @(AdditionRightByte)₁₀ = <strong>@ToBinary(AdditionRightByte)₂</strong><br />
+                        <strong>A + B = @AdditionLeftByte + @AdditionRightByte = @(Solution.Sum)₁₀</strong> $\implies$ <strong>@ToBinary((int)Solution.Sum, Solution.Sum > 255 ? 9 : 8)₂</strong>
+                    </p>
+                </div>
+            }
+        </div>
+    }
 </article>
 
 @code {
+    private enum ViewMode { Simulator, Worksheet }
+
+    private ViewMode ActiveView { get; set; } = ViewMode.Simulator;
+    private bool ShowWorksheetSolution { get; set; } = false;
+
     private readonly BinaryAdditionSolver additionSolver = new();
 
     [Parameter]
@@ -63,12 +294,101 @@
     [Parameter]
     public int AdditionRight { get; set; } = 29;
 
+    private int CurrentStep { get; set; } = 0;
+    private int TotalSteps => Solution.Sum > 255 ? 9 : 8;
+
     private byte AdditionLeftByte => ClampToByte(AdditionLeft);
     private byte AdditionRightByte => ClampToByte(AdditionRight);
 
-    private BinaryAdditionSolution AdditionSolution =>
+    private BinaryAdditionSolution Solution =>
         (BinaryAdditionSolution)additionSolver.Solve(new BinaryAdditionParameters(AdditionLeftByte, AdditionRightByte));
 
+    private int[] CarryOutBits
+    {
+        get
+        {
+            var carries = new int[8];
+            var c = 0;
+            for (var bit = 0; bit < 8; bit++)
+            {
+                var leftBit = (AdditionLeftByte >> bit) & 1;
+                var rightBit = (AdditionRightByte >> bit) & 1;
+                var partial = leftBit + rightBit + c;
+                c = (partial >> 1) & 1;
+                carries[bit] = c;
+            }
+            return carries;
+        }
+    }
+
+    private int VisibleSumDec
+    {
+        get
+        {
+            if (CurrentStep == 0) return 0;
+            var mask = (1 << Math.Min(CurrentStep, 8)) - 1;
+            var val = (int)Solution.Sum & mask;
+            if (CurrentStep > 8) val = (int)Solution.Sum;
+            return val;
+        }
+    }
+
+    private bool IsActiveBit(int bitIndex)
+    {
+        return CurrentStep > 0 && (CurrentStep - 1) == bitIndex;
+    }
+
+    private static int GetBit(byte value, int bitIndex) => (value >> bitIndex) & 1;
     private static byte ClampToByte(int value) => (byte)Math.Clamp(value, 0, 255);
     private static string ToBinary(int value, int width = 8) => Convert.ToString(value, 2).PadLeft(width, '0');
+
+    private void HandleLeftChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var val))
+        {
+            AdditionLeft = val;
+            CurrentStep = 0;
+        }
+    }
+
+    private void HandleRightChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var val))
+        {
+            AdditionRight = val;
+            CurrentStep = 0;
+        }
+    }
+
+    private void RandomizeInputs()
+    {
+        AdditionLeft = Random.Shared.Next(5, 180);
+        AdditionRight = Random.Shared.Next(5, 120);
+        CurrentStep = 0;
+    }
+
+    private void NextStep()
+    {
+        if (CurrentStep < TotalSteps) CurrentStep++;
+    }
+
+    private void PreviousStep()
+    {
+        if (CurrentStep > 0) CurrentStep--;
+    }
+
+    private void ResetPlayer()
+    {
+        CurrentStep = 0;
+    }
+
+    private void CompleteSolution()
+    {
+        CurrentStep = TotalSteps;
+    }
+
+    private async Task PrintWorksheet()
+    {
+        await JSRuntime.InvokeVoidAsync("print");
+    }
 }
