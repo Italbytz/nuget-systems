@@ -1,0 +1,939 @@
+/* ==========================================================================
+   CN TOPOLOGIES VISUALIZER STYLES (Task 36: Rechnernetze Netzwerktopologien)
+   ========================================================================== */
+
+.topologies-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #e2e8f0;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem;
+    box-sizing: border-box;
+}
+
+.embed-mode {
+    padding: 0.5rem;
+    max-width: 100%;
+    gap: 0.75rem;
+    background: #0b0f19;
+}
+
+.text-green { color: #10b981; }
+.text-amber { color: #f59e0b; }
+.text-red { color: #ef4444; }
+
+/* Card Heading */
+.card-heading {
+    border-bottom: 1px solid #1e293b;
+    padding-bottom: 1rem;
+}
+
+.feature-kicker {
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #38bdf8;
+    margin: 0 0 0.25rem 0;
+}
+
+.card-heading h2 {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #f8fafc;
+    margin: 0 0 0.5rem 0;
+}
+
+.feature-intro {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: #94a3b8;
+    margin: 0;
+}
+
+/* View Switcher */
+.view-switch {
+    display: flex;
+    gap: 0.5rem;
+    border-bottom: 1px solid #334155;
+    padding-bottom: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.view-btn {
+    background: #1e293b;
+    color: #cbd5e1;
+    border: 1px solid #475569;
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.view-btn:hover {
+    background: #334155;
+    color: #f8fafc;
+}
+
+.view-btn.active {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #38bdf8;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+}
+
+/* Controls Panel: Topology Tab Selector */
+.controls-panel {
+    background: #111827;
+    border: 1px solid #1f2937;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.ctrl-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.topology-tabs {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.topo-tab-btn {
+    background: #1e293b;
+    color: #cbd5e1;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 0.45rem 0.8rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.topo-tab-btn:hover {
+    background: #334155;
+    color: #ffffff;
+    border-color: #64748b;
+}
+
+.topo-tab-btn.active {
+    background: #0369a1;
+    color: #ffffff;
+    border-color: #38bdf8;
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.35);
+}
+
+.topo-icon {
+    font-size: 1rem;
+}
+
+/* Topology Showcase Stage */
+.topo-stage {
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 1.25rem;
+}
+
+@media (max-width: 900px) {
+    .topo-stage {
+        grid-template-columns: 1fr;
+    }
+}
+
+.stage-card {
+    background: #111827;
+    border: 1px solid #1f2937;
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #1e293b;
+    padding-bottom: 0.5rem;
+}
+
+.card-title-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.card-title {
+    font-weight: 700;
+    font-size: 1rem;
+    color: #f8fafc;
+}
+
+.card-hint {
+    font-size: 0.75rem;
+    color: #94a3b8;
+}
+
+.card-tag {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.2rem 0.6rem;
+    background: #0369a1;
+    color: #bae6fd;
+    border-radius: 4px;
+}
+
+.action-btn {
+    border: none;
+    border-radius: 6px;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.action-btn.secondary {
+    background: #334155;
+    color: #e2e8f0;
+}
+
+.action-btn.secondary:hover {
+    background: #475569;
+}
+
+.action-btn.primary {
+    background: #0284c7;
+    color: #ffffff;
+}
+
+.action-btn.primary:hover {
+    background: #0369a1;
+}
+
+/* SVG Graph Viewport */
+.graph-viewport {
+    background: #080d1a;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    position: relative;
+}
+
+.topo-svg {
+    width: 100%;
+    max-height: 300px;
+    overflow: visible;
+}
+
+.topo-line {
+    cursor: pointer;
+    transition: stroke 0.2s, stroke-width 0.2s;
+}
+
+.line-active {
+    stroke: #38bdf8;
+    stroke-width: 3;
+    stroke-linecap: round;
+}
+
+.line-active:hover {
+    stroke: #7dd3fc;
+    stroke-width: 5;
+}
+
+.line-cut {
+    stroke: #ef4444;
+    stroke-width: 2.5;
+    stroke-dasharray: 6 6;
+}
+
+.cut-cross-icon {
+    font-size: 14px;
+    user-select: none;
+    pointer-events: none;
+}
+
+.topo-node-group {
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.topo-node-group:hover {
+    filter: brightness(1.2);
+}
+
+.node-circle {
+    fill: #0284c7;
+    stroke: #38bdf8;
+    stroke-width: 2.5;
+    transition: all 0.2s ease;
+}
+
+.central-circle {
+    fill: #b45309;
+    stroke: #f59e0b;
+    stroke-width: 3;
+}
+
+.node-failed .node-circle {
+    fill: #7f1d1d;
+    stroke: #ef4444;
+}
+
+.node-label {
+    fill: #ffffff;
+    font-weight: 700;
+    font-size: 11px;
+    user-select: none;
+    pointer-events: none;
+}
+
+.node-sublabel {
+    fill: #94a3b8;
+    font-size: 9.5px;
+    font-weight: 600;
+    user-select: none;
+    pointer-events: none;
+}
+
+/* Live Failure Status Banner */
+.failure-status-banner {
+    width: 100%;
+    border-radius: 6px;
+    padding: 0.6rem 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    box-sizing: border-box;
+    font-size: 0.85rem;
+    line-height: 1.35;
+}
+
+.status-healthy {
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    color: #a7f3d0;
+}
+
+.status-degraded {
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    color: #fde68a;
+}
+
+.status-down {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.5);
+    color: #fecaca;
+}
+
+.status-icon {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.status-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.status-content strong {
+    font-size: 0.9rem;
+    color: #ffffff;
+}
+
+/* Right Traits Body */
+.traits-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.trait-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #1e293b;
+    padding-bottom: 0.45rem;
+    font-size: 0.88rem;
+}
+
+.trait-label {
+    color: #94a3b8;
+    font-weight: 600;
+}
+
+.trait-value {
+    font-weight: 700;
+    text-align: right;
+}
+
+.val-green { color: #34d399; }
+.val-amber { color: #fbbf24; }
+.val-red { color: #f87171; }
+.val-neutral { color: #cbd5e1; }
+.val-blue { color: #38bdf8; }
+
+.klausur-highlight-box {
+    background: #0f172a;
+    border: 1px solid #0284c7;
+    border-left: 4px solid #38bdf8;
+    border-radius: 6px;
+    padding: 0.75rem;
+    margin-top: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.kh-badge {
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #38bdf8;
+}
+
+.kh-text {
+    margin: 0;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    color: #e2e8f0;
+}
+
+/* Comparison Matrix */
+.panel-card {
+    background: #111827;
+    border: 1px solid #1f2937;
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #1e293b;
+    padding-bottom: 0.5rem;
+}
+
+.panel-title {
+    font-weight: 700;
+    font-size: 1rem;
+    color: #f8fafc;
+}
+
+.toggle-btn {
+    background: transparent;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    border-radius: 4px;
+    padding: 0.3rem 0.6rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.toggle-btn:hover {
+    color: #ffffff;
+    border-color: #64748b;
+}
+
+.table-responsive {
+    overflow-x: auto;
+}
+
+.topo-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.topo-table th {
+    background: #1e293b;
+    color: #cbd5e1;
+    font-weight: 700;
+    text-align: left;
+    padding: 0.55rem 0.75rem;
+    border-bottom: 2px solid #334155;
+}
+
+.topo-table td {
+    padding: 0.55rem 0.75rem;
+    border-bottom: 1px solid #1e293b;
+    color: #cbd5e1;
+}
+
+.topo-table tr:hover {
+    background: #1e293b;
+    cursor: pointer;
+}
+
+.row-selected {
+    background: #172554 !important;
+}
+
+.topo-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.tag-yes {
+    background: #b45309;
+    color: #fef3c7;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.tag-no {
+    background: #1e293b;
+    color: #94a3b8;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.tag-warn {
+    background: #7f1d1d;
+    color: #fee2e2;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.tag-ok {
+    background: #064e3b;
+    color: #d1fae5;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.code-pill {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.8rem;
+    background: #0f172a;
+    color: #38bdf8;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid #1e293b;
+}
+
+/* ==========================================================================
+   VIEW 2: TRAINER VIEW (1:1 Zuordnungscheck)
+   ========================================================================== */
+.trainer-card {
+    gap: 1rem;
+}
+
+.exam-title-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.exam-rule-tag {
+    font-size: 0.75rem;
+    color: #38bdf8;
+    font-weight: 600;
+}
+
+.exam-prompt {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: #cbd5e1;
+    background: #1e293b;
+    border-left: 4px solid #0284c7;
+    border-radius: 4px;
+    padding: 0.75rem 1rem;
+    margin: 0 0 1rem 0;
+}
+
+.quiz-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.quiz-card {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 1rem;
+    transition: all 0.2s ease;
+}
+
+@media (max-width: 768px) {
+    .quiz-card {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+    .qc-arrow {
+        display: none;
+    }
+}
+
+.quiz-card.card-solved {
+    border-color: #059669;
+    background: #062118;
+}
+
+.qc-statement {
+    display: flex;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: #f1f5f9;
+}
+
+.qc-nr {
+    color: #38bdf8;
+    font-weight: 800;
+    font-size: 0.95rem;
+}
+
+.qc-arrow {
+    font-size: 1.25rem;
+    color: #64748b;
+}
+
+.qc-solution-slot {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.qc-sol-main {
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+.qc-sol-detail {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    line-height: 1.35;
+}
+
+.qc-placeholder {
+    font-size: 0.82rem;
+    color: #64748b;
+    font-style: italic;
+}
+
+/* ==========================================================================
+   VIEW 3: WORKSHEET VIEW (1:1 Exam-Replica matching CNGrundlagenTopologien.tex)
+   ========================================================================== */
+.worksheet-container {
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 0 !important;
+    margin: 0 auto;
+    max-width: 800px;
+}
+
+.worksheet-paper {
+    background: #ffffff;
+    color: #000000;
+    font-family: "Liberation Sans", "Helvetica Neue", Arial, sans-serif;
+    padding: 24px 32px;
+    box-sizing: border-box;
+}
+
+.exam-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 2px solid #000000;
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+}
+
+.exam-title-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.exam-sub {
+    font-size: 10pt;
+    color: #4b5563;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.exam-main-title {
+    font-size: 18pt;
+    font-weight: 800;
+    margin: 2px 0 0 0;
+    color: #000000;
+}
+
+.exam-task-label {
+    font-size: 10pt;
+    font-weight: 700;
+    color: #1f2937;
+    margin-top: 2px;
+}
+
+.exam-meta-box {
+    display: flex;
+    gap: 8px;
+}
+
+.toggle-sol-btn {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: #334155;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 8.5pt;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.toggle-sol-btn.active {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #0284c7;
+}
+
+.print-btn {
+    background: #0f172a;
+    color: #ffffff;
+    border: none;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 8.5pt;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* Student Info Strip */
+.student-info-strip {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 0.6fr;
+    gap: 16px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin-bottom: 14px;
+}
+
+.info-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.info-label {
+    font-size: 9pt;
+    font-weight: 600;
+    color: #334155;
+    white-space: nowrap;
+}
+
+.info-line {
+    flex: 1;
+    border-bottom: 1px solid #94a3b8;
+    height: 14px;
+}
+
+.points-field {
+    justify-content: flex-end;
+}
+
+.points-box {
+    font-size: 10pt;
+    font-weight: 700;
+    color: #000000;
+    border: 1px solid #000000;
+    padding: 2px 8px;
+    border-radius: 3px;
+    background: #ffffff;
+}
+
+/* Task Prompt Box */
+.task-prompt-box {
+    margin-bottom: 14px;
+}
+
+.task-text {
+    font-size: 10.5pt;
+    line-height: 1.45;
+    color: #000000;
+    margin: 0;
+}
+
+/* 5-Row Table matching \begin{tabular}{p{0.65\textwidth}p{0.35\textwidth}} */
+.ws-table-wrap {
+    margin-bottom: 18px;
+}
+
+.ws-topo-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.ws-topo-table td {
+    padding: 12px 10px;
+    border-top: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+    vertical-align: middle;
+}
+
+.col-stmt {
+    width: 65%;
+    font-size: 10pt;
+    line-height: 1.4;
+    color: #000000;
+    font-weight: 500;
+}
+
+.col-ans {
+    width: 35%;
+    padding-left: 14px !important;
+}
+
+.ws-sol-text {
+    display: block;
+    font-size: 10pt;
+    font-weight: 700;
+    color: #064e3b;
+    background: #f0fdf4;
+    border: 1px solid #059669;
+    border-radius: 3px;
+    padding: 4px 8px;
+}
+
+.ws-underline {
+    border-bottom: 1px dotted #64748b;
+    height: 16px;
+    width: 100%;
+}
+
+.ws-solution-note {
+    background: #f0fdf4;
+    border: 1.5px solid #059669;
+    border-radius: 4px;
+    padding: 10px 14px;
+    margin-top: 10px;
+}
+
+.ws-solution-title {
+    font-size: 9pt;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: #065f46;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+}
+
+.ws-sol-ul {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 8.5pt;
+    line-height: 1.45;
+    color: #064e3b;
+}
+
+.worksheet-footer {
+    margin-top: 18px;
+    border-top: 1px solid #cbd5e1;
+    padding-top: 6px;
+    font-size: 8pt;
+    color: #64748b;
+    text-align: center;
+}
+
+/* ==========================================================================
+   PRINT MEDIA - SINGLE PAGE A4 GUARANTEE
+   ========================================================================== */
+@media print {
+    @page {
+        size: A4 portrait;
+        margin: 10mm 15mm;
+    }
+
+    html, body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+
+    .topologies-container {
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+    }
+
+    .worksheet-paper {
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+        box-shadow: none !important;
+        page-break-inside: avoid !important;
+    }
+
+    .ws-topo-table td {
+        padding: 10px 8px !important;
+    }
+
+    .ws-sol-text {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    .ws-solution-note {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    .worksheet-footer {
+        position: fixed;
+        bottom: 5mm;
+        left: 0;
+        right: 0;
+    }
+}

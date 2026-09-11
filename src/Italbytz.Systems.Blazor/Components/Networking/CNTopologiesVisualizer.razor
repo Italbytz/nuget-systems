@@ -1,0 +1,967 @@
+@namespace Italbytz.Systems.Blazor.Components.Networking
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<article class="topologies-container @(IsEmbed ? "embed-mode" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
+
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
+    {
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Rechnernetze &bull; Grundlagen &amp; Netzstrukturen</p>
+            <h2>Netzwerktopologien (Bus, Ring, Stern, Masche, Baum &amp; Zelle)</h2>
+            <p class="feature-intro">
+                Die Netzwerktopologie bestimmt die geometrische und funktionale Anordnung von Knoten und Übertragungsmedien.
+                Untersuchen Sie die 7 zentralen Topologien hinsichtlich <strong>Ausfallsicherheit</strong>, 
+                <strong>zentralen Komponenten</strong>, <strong>Single Points of Failure (SPOF)</strong> 
+                und typischer Einsatzfelder wie Mobilfunk (GSM) oder Ad-hoc WLAN.
+            </p>
+        </div>
+    }
+
+    <!-- View Switcher -->
+    @if (!IsEmbed)
+    {
+        <div class="view-switch no-print">
+            <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Simulator)">
+                🚀 Interaktiver Topologie- &amp; Ausfall-Simulator
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Trainer ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Trainer)">
+                📝 Klausur-Trainer (1:1 Zuordnungscheck)
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Worksheet)">
+                🖨️ Klausur-Arbeitsblatt (Druckansicht 1:1)
+            </button>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 1: INTERACTIVE TOPOLOGY & FAILURE SIMULATOR                          -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Topology Tab Selector -->
+        <div class="controls-panel no-print">
+            <span class="ctrl-label">Netzwerktopologie wählen:</span>
+            <div class="topology-tabs">
+                @foreach (var topo in Topologies)
+                {
+                    <button class="topo-tab-btn @(SelectedTopoId == topo.Id ? "active" : "")"
+                            @onclick="() => SelectTopology(topo.Id)">
+                        <span class="topo-icon">@topo.Icon</span>
+                        <span class="topo-title">@topo.Name</span>
+                    </button>
+                }
+            </div>
+        </div>
+
+        <!-- Main Topology Showcase Stage -->
+        <div class="topo-stage">
+
+            <!-- Left / Top: Interactive SVG Network Graph & Failure Injector -->
+            <div class="stage-card graph-card">
+                <div class="card-header">
+                    <div class="card-title-wrap">
+                        <span class="card-title">Interaktiver Netzwerkgraph: @CurrentTopo.Name</span>
+                        <span class="card-hint">Klicken Sie auf Knoten oder Leitungen, um Defekte zu simulieren!</span>
+                    </div>
+                    <button class="action-btn secondary no-print" @onclick="ResetSimulation">
+                        🔄 Zurücksetzen
+                    </button>
+                </div>
+
+                <div class="graph-viewport">
+                    <svg viewBox="0 0 500 300" class="topo-svg">
+                        <defs>
+                            <radialGradient id="nodeGlow" cx="50%" cy="50%" r="50%">
+                                <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.8"/>
+                                <stop offset="100%" stop-color="#0284c7" stop-opacity="0.2"/>
+                            </radialGradient>
+                            <radialGradient id="centerGlow" cx="50%" cy="50%" r="50%">
+                                <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.9"/>
+                                <stop offset="100%" stop-color="#b45309" stop-opacity="0.2"/>
+                            </radialGradient>
+                        </defs>
+
+                        <!-- Links -->
+                        @foreach (var link in CurrentLinks)
+                        {
+                            var isCut = CutLinkIds.Contains(link.Id);
+                            <line x1="@link.X1" y1="@link.Y1" x2="@link.X2" y2="@link.Y2"
+                                  class="topo-line @(isCut ? "line-cut" : "line-active")"
+                                  @onclick="() => ToggleLinkCut(link.Id)" />
+                            
+                            @if (isCut)
+                            {
+                                <g>
+                                    <text x="@((link.X1 + link.X2) / 2)" y="@((link.Y1 + link.Y2) / 2)" 
+                                          class="cut-cross-icon" text-anchor="middle" dominant-baseline="central">⚡</text>
+                                </g>
+                            }
+                        }
+
+                        <!-- Nodes -->
+                        @foreach (var node in CurrentNodes)
+                        {
+                            var isFailed = FailedNodeIds.Contains(node.Id);
+                            <g class="topo-node-group @(isFailed ? "node-failed" : "node-ok")"
+                               @onclick="() => ToggleNodeFail(node.Id)">
+                                <circle cx="@node.X" cy="@node.Y" r="@(node.IsCentral ? 22 : 16)"
+                                        class="node-circle @(node.IsCentral ? "central-circle" : "")" />
+                                <text x="@node.X" y="@node.Y" class="node-label" 
+                                      dominant-baseline="central" text-anchor="middle">
+                                    @(isFailed ? "❌" : node.Label)
+                                </text>
+                                <text x="@node.X" y="@(node.Y + (node.IsCentral ? 32 : 24))" 
+                                      class="node-sublabel" text-anchor="middle">
+                                    @node.Sublabel
+                                </text>
+                            </g>
+                        }
+                    </svg>
+
+                    <!-- Live Failure Diagnostic Status Banner -->
+                    <div class="failure-status-banner @(IsNetworkDown ? "status-down" : (HasAnyFailure ? "status-degraded" : "status-healthy"))">
+                        <span class="status-icon">@(IsNetworkDown ? "🚨" : (HasAnyFailure ? "⚠️" : "✅"))</span>
+                        <div class="status-content">
+                            <strong>@StatusHeadline</strong>
+                            <span>@StatusDetails</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Architectural Characteristics & Key Exam Criteria -->
+            <div class="stage-card traits-card">
+                <div class="card-header">
+                    <span class="card-title">Topologie-Eigenschaften (Klausurrelevant)</span>
+                    <span class="card-tag">@CurrentTopo.Name</span>
+                </div>
+
+                <div class="traits-body">
+                    <div class="trait-row">
+                        <span class="trait-label">Zentrale Komponente:</span>
+                        <span class="trait-value @(CurrentTopo.HasCentralComponent ? "val-amber" : "val-green")">
+                            @(CurrentTopo.HasCentralComponent ? "Ja (z. B. " + CurrentTopo.CentralComponentName + ")" : "Nein (Vollständig dezentral)")
+                        </span>
+                    </div>
+
+                    <div class="trait-row">
+                        <span class="trait-label">Single Point of Failure (SPOF):</span>
+                        <span class="trait-value @(CurrentTopo.HasSinglePointOfFailure ? "val-red" : "val-green")">
+                            @(CurrentTopo.HasSinglePointOfFailure ? "Ja (" + CurrentTopo.SpofDescription + ")" : "Nein (Kein einzelner Ausfallpunkt)")
+                        </span>
+                    </div>
+
+                    <div class="trait-row">
+                        <span class="trait-label">Kabelausfall-Toleranz:</span>
+                        <span class="trait-value @(CurrentTopo.CableBreakCausesTotalFailure ? "val-red" : "val-green")">
+                            @(CurrentTopo.CableBreakCausesTotalFailure ? "Kompletter Netzausfall!" : "Kein Totalausfall (Teilnetz/Knoten isoliert)")
+                        </span>
+                    </div>
+
+                    <div class="trait-row">
+                        <span class="trait-label">Verkabelungsaufwand:</span>
+                        <span class="trait-value val-neutral">@CurrentTopo.CablingEffort</span>
+                    </div>
+
+                    <div class="trait-row">
+                        <span class="trait-label">Typische Praxis-Beispiele:</span>
+                        <span class="trait-value val-blue">@CurrentTopo.TypicalUsage</span>
+                    </div>
+
+                    <div class="klausur-highlight-box">
+                        <span class="kh-badge">Klausur-Merksatz</span>
+                        <p class="kh-text">@CurrentTopo.ExamTakeaway</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Comparison Matrix of All 7 Topologies -->
+        <div class="panel-card matrix-card">
+            <div class="panel-header">
+                <span class="panel-title">📊 Große Vergleichstabelle aller 7 Topologien</span>
+                <button class="toggle-btn no-print" @onclick="ToggleMatrix">
+                    @(ShowMatrix ? "▲ Tabelle einklappen" : "▼ Tabelle ausklappen")
+                </button>
+            </div>
+
+            @if (ShowMatrix)
+            {
+                <div class="table-responsive">
+                    <table class="topo-table">
+                        <thead>
+                            <tr>
+                                <th>Topologie</th>
+                                <th>Zentrale Komponente</th>
+                                <th>Single Point of Failure</th>
+                                <th>Kabelbruch &rarr; Totalausfall?</th>
+                                <th>Praxisbeispiel (Klausurlösung)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var topo in Topologies)
+                            {
+                                <tr class="@(SelectedTopoId == topo.Id ? "row-selected" : "")" @onclick="() => SelectTopology(topo.Id)">
+                                    <td><span class="topo-cell">@topo.Icon <strong>@topo.Name</strong></span></td>
+                                    <td>
+                                        <span class="@(topo.HasCentralComponent ? "tag-yes" : "tag-no")">
+                                            @(topo.HasCentralComponent ? "Ja" : "Nein")
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="@(topo.HasSinglePointOfFailure ? "tag-warn" : "tag-ok")">
+                                            @(topo.HasSinglePointOfFailure ? "Ja (" + topo.SpofShort + ")" : "Nein")
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="@(topo.CableBreakCausesTotalFailure ? "tag-warn" : "tag-ok")">
+                                            @(topo.CableBreakCausesTotalFailure ? "Ja" : "Nein")
+                                        </span>
+                                    </td>
+                                    <td><code class="code-pill">@topo.TypicalUsage</code></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 2: EXAM TRAINER (1:1 Zuordnungscheck CNGrundlagenTopologien)        -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Trainer)
+    {
+        <div class="panel-card trainer-card">
+            <div class="panel-header">
+                <div class="exam-title-wrap">
+                    <span class="panel-title">Klausur-Trainer: 1:1 Zuordnungsmatrix (5 Aussagen)</span>
+                    <span class="exam-rule-tag">Vorlage: CNGrundlagenTopologien.tex &bull; 5 Punkte</span>
+                </div>
+                <button class="action-btn primary" @onclick="ToggleTrainerSolution">
+                    @(ShowTrainerSolution ? "👁️ Musterlösung verbergen" : "💡 Musterlösung aufdecken & prüfen")
+                </button>
+            </div>
+
+            <div class="trainer-body">
+                <p class="exam-prompt">
+                    <em>„Es existieren unterschiedliche Netzwerktopologien (Bus, Ring, Stern, vollständig vermascht, teilweise vermascht, Baum und Zelle).<br />
+                    Schreiben Sie in der folgenden Tabelle in jede Zeile eine Netzwerktopologie, die zur jeweiligen Aussage passt.“</em>
+                </p>
+
+                <div class="quiz-grid">
+                    @foreach (var item in QuizItems)
+                    {
+                        <div class="quiz-card @(ShowTrainerSolution ? "card-solved" : "")">
+                            <div class="qc-statement">
+                                <span class="qc-nr">@item.Id.</span>
+                                <strong>@item.Statement</strong>
+                            </div>
+                            <div class="qc-arrow">&rarr;</div>
+                            <div class="qc-solution-slot">
+                                @if (ShowTrainerSolution)
+                                {
+                                    <div class="qc-sol-main text-green">
+                                        <strong>@item.OfficialAnswer</strong>
+                                    </div>
+                                    <div class="qc-sol-detail">
+                                        @item.Explanation
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="qc-placeholder">
+                                        Überlegen Sie, welche Topologie(n) passen, und klicken Sie auf „Musterlösung aufdecken“.
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 3: WORKSHEET VIEW (1:1 EXAM REPLICA MATCHING CNGrundlagenTopologien) -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Worksheet)
+    {
+        <div class="worksheet-paper">
+            
+            <!-- Exam Header -->
+            <div class="exam-header">
+                <div class="exam-title-group">
+                    <span class="exam-sub">Grundlagen der Informatik</span>
+                    <h1 class="exam-main-title">C N Topologies @(ShowSolution ? "- Lösung" : "")</h1>
+                    <span class="exam-task-label">Aufgabe 1 (Topologien)</span>
+                </div>
+                <div class="exam-meta-box no-print">
+                    <button class="toggle-sol-btn @(ShowSolution ? "active" : "")" @onclick="ToggleSolution">
+                        @(ShowSolution ? "👁️ Musterlösung ausblenden" : "💡 Musterlösung einblenden")
+                    </button>
+                    <button class="print-btn" @onclick="TriggerPrint">
+                        🖨️ Drucken / PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Student Info Strip -->
+            <div class="student-info-strip">
+                <div class="info-field">
+                    <span class="info-label">Name, Vorname:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field">
+                    <span class="info-label">Matrikelnummer:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field points-field">
+                    <span class="info-label">Punkte:</span>
+                    <div class="points-box">/ 5 P.</div>
+                </div>
+            </div>
+
+            <!-- Main Prompt matching CNGrundlagenTopologien.tex -->
+            <div class="task-prompt-box">
+                <p class="task-text">
+                    Es existieren unterschiedliche Netzwerktopologien (Bus, Ring, Stern, vollständig vermascht, teilweise vermascht, Baum und Zelle).<br />
+                    Schreiben Sie in der folgenden Tabelle in jede Zeile eine Netzwerktopologie, die zur jeweiligen Aussage passt.
+                </p>
+            </div>
+
+            <!-- 5-Row Table matching \begin{tabular}{p{0.65\textwidth}p{0.35\textwidth}} -->
+            <div class="ws-table-wrap">
+                <table class="ws-topo-table">
+                    <tbody>
+                        <tr>
+                            <td class="col-stmt">Mobiltelefone (GSM-Standard) verwenden diese Topologie</td>
+                            <td class="col-ans">
+                                @if (ShowSolution)
+                                {
+                                    <span class="ws-sol-text">Zelle</span>
+                                }
+                                else
+                                {
+                                    <div class="ws-underline"></div>
+                                }
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="col-stmt">Diese Topologie enthält einen Single Point of Failure</td>
+                            <td class="col-ans">
+                                @if (ShowSolution)
+                                {
+                                    <span class="ws-sol-text">Bus, Stern oder Zelle</span>
+                                }
+                                else
+                                {
+                                    <div class="ws-underline"></div>
+                                }
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="col-stmt">WLAN ohne Access Point verwendet diese Topologie</td>
+                            <td class="col-ans">
+                                @if (ShowSolution)
+                                {
+                                    <span class="ws-sol-text">Masche</span>
+                                }
+                                else
+                                {
+                                    <div class="ws-underline"></div>
+                                }
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="col-stmt">Ein Kabelausfall führt zum kompletten Netzwerkausfall</td>
+                            <td class="col-ans">
+                                @if (ShowSolution)
+                                {
+                                    <span class="ws-sol-text">Ring oder Bus</span>
+                                }
+                                else
+                                {
+                                    <div class="ws-underline"></div>
+                                }
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="col-stmt">Diese Topologie enthält keine zentrale Komponente</td>
+                            <td class="col-ans">
+                                @if (ShowSolution)
+                                {
+                                    <span class="ws-sol-text">Bus, Ring oder Masche</span>
+                                }
+                                else
+                                {
+                                    <div class="ws-underline"></div>
+                                }
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Footer for Worksheet -->
+            <div class="worksheet-footer">
+                <span>Intelligent Systems Design &bull; Hochschule Hamm-Lippstadt &bull; Rechnernetze</span>
+            </div>
+        </div>
+    }
+
+</article>
+
+@code {
+    [Parameter]
+    public bool IsEmbed { get; set; } = false;
+
+    public enum ViewMode
+    {
+        Simulator,
+        Trainer,
+        Worksheet
+    }
+
+    private ViewMode ActiveView { get; set; } = ViewMode.Simulator;
+    private bool ShowSolution { get; set; } = false;
+    private bool ShowTrainerSolution { get; set; } = false;
+    private bool ShowMatrix { get; set; } = false;
+    private string SelectedTopoId { get; set; } = "bus";
+
+    private HashSet<string> CutLinkIds { get; } = new();
+    private HashSet<string> FailedNodeIds { get; } = new();
+
+    public class TopoModel
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Icon { get; set; } = string.Empty;
+        public bool HasCentralComponent { get; set; }
+        public string CentralComponentName { get; set; } = string.Empty;
+        public bool HasSinglePointOfFailure { get; set; }
+        public string SpofDescription { get; set; } = string.Empty;
+        public string SpofShort { get; set; } = string.Empty;
+        public bool CableBreakCausesTotalFailure { get; set; }
+        public string CablingEffort { get; set; } = string.Empty;
+        public string TypicalUsage { get; set; } = string.Empty;
+        public string ExamTakeaway { get; set; } = string.Empty;
+    }
+
+    public class NodeModel
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Label { get; set; } = string.Empty;
+        public string Sublabel { get; set; } = string.Empty;
+        public double X { get; set; }
+        public double Y { get; set; }
+        public bool IsCentral { get; set; }
+    }
+
+    public class LinkModel
+    {
+        public string Id { get; set; } = string.Empty;
+        public double X1 { get; set; }
+        public double Y1 { get; set; }
+        public double X2 { get; set; }
+        public double Y2 { get; set; }
+        public bool IsCritical { get; set; }
+    }
+
+    public class QuizItemModel
+    {
+        public int Id { get; set; }
+        public string Statement { get; set; } = string.Empty;
+        public string OfficialAnswer { get; set; } = string.Empty;
+        public string Explanation { get; set; } = string.Empty;
+    }
+
+    private List<TopoModel> Topologies { get; set; } = new();
+    private List<NodeModel> CurrentNodes { get; set; } = new();
+    private List<LinkModel> CurrentLinks { get; set; } = new();
+    private List<QuizItemModel> QuizItems { get; set; } = new();
+
+    private TopoModel CurrentTopo => Topologies.FirstOrDefault(t => t.Id == SelectedTopoId) ?? Topologies[0];
+
+    protected override void OnInitialized()
+    {
+        InitializeTopologiesData();
+        InitializeQuizData();
+        CheckUrlParameters();
+        LoadTopologyGraph(SelectedTopoId);
+    }
+
+    protected override void OnParametersSet()
+    {
+        CheckUrlParameters();
+    }
+
+    private void CheckUrlParameters()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query.ToLowerInvariant();
+
+            if (query.Contains("embed=true") || query.Contains("embedded=true") || query.Contains("embed=1"))
+            {
+                IsEmbed = true;
+            }
+
+            if (query.Contains("view=worksheet") || query.Contains("view=sheet"))
+            {
+                ActiveView = ViewMode.Worksheet;
+            }
+
+            if (query.Contains("solution=true") || query.Contains("solution=1") || query.Contains("lsg=true"))
+            {
+                ShowSolution = true;
+            }
+        }
+        catch
+        {
+            // Fallback
+        }
+    }
+
+    private void InitializeTopologiesData()
+    {
+        Topologies = new List<TopoModel>
+        {
+            new TopoModel
+            {
+                Id = "bus",
+                Name = "Bus",
+                Icon = "🚌",
+                HasCentralComponent = false,
+                HasSinglePointOfFailure = true,
+                SpofDescription = "Busleitung & Abschlusswiderstände (Terminatoren)",
+                SpofShort = "Busleitung",
+                CableBreakCausesTotalFailure = true,
+                CablingEffort = "Sehr gering (1 durchgehendes Kabel)",
+                TypicalUsage = "10Base2 (Cheapernet), 10Base5, CAN-Bus im Kfz",
+                ExamTakeaway = "Keine zentrale Komponente, aber ein Kabelbruch führt durch Reflexionen zum Totalausfall des gesamten Netzwerks (SPOF)."
+            },
+            new TopoModel
+            {
+                Id = "ring",
+                Name = "Ring",
+                Icon = "⭕",
+                HasCentralComponent = false,
+                HasSinglePointOfFailure = true,
+                SpofDescription = "Ringkabel / jeder einzelne Knoten",
+                SpofShort = "Kabel/Knoten",
+                CableBreakCausesTotalFailure = true,
+                CablingEffort = "Gering (Punkt-zu-Punkt im Kreis)",
+                TypicalUsage = "Token Ring (IEEE 802.5), FDDI (Doppelring)",
+                ExamTakeaway = "Keine zentrale Komponente. Im einfachen Ring legt eine einzige Unterbrechung den Token-/Datenfluss vollständig lahm."
+            },
+            new TopoModel
+            {
+                Id = "star",
+                Name = "Stern",
+                Icon = "⭐",
+                HasCentralComponent = true,
+                CentralComponentName = "Zentraler Switch / Hub",
+                HasSinglePointOfFailure = true,
+                SpofDescription = "Zentraler Switch / Hub",
+                SpofShort = "Zentraler Switch",
+                CableBreakCausesTotalFailure = false,
+                CablingEffort = "Mittel (Separates Kabel pro Endgerät)",
+                TypicalUsage = "Moderne Ethernet-LANs (100Base-TX, 1000Base-T)",
+                ExamTakeaway = "Besitzt eine zentrale Komponente (Switch/Hub). Diese ist der SPOF. Ein Ausfall einzelner Endgerätekabel isoliert nur den jeweiligen Knoten."
+            },
+            new TopoModel
+            {
+                Id = "tree",
+                Name = "Baum",
+                Icon = "🌳",
+                HasCentralComponent = true,
+                CentralComponentName = "Wurzelknoten (Root / Core Switch)",
+                HasSinglePointOfFailure = true,
+                SpofDescription = "Wurzel & Zwischenverteiler",
+                SpofShort = "Wurzel / Core",
+                CableBreakCausesTotalFailure = false,
+                CablingEffort = "Mittel bis hoch (Hierarchische Struktur)",
+                TypicalUsage = "Unternehmensnetzwerke (Core, Distribution, Access)",
+                ExamTakeaway = "Hierarchie von Sternen. Ausfall von Blättern unkritisch, Ausfall der Wurzel oder eines Zwischenknotens trennt ganze Teilbäume ab."
+            },
+            new TopoModel
+            {
+                Id = "fullmesh",
+                Name = "Vollständig vermascht",
+                Icon = "🕸️",
+                HasCentralComponent = false,
+                HasSinglePointOfFailure = false,
+                SpofDescription = "Keiner (N*(N-1)/2 Pfade)",
+                SpofShort = "Keiner",
+                CableBreakCausesTotalFailure = false,
+                CablingEffort = "Extrem hoch (Quadratisch wachsend)",
+                TypicalUsage = "Kritische RZ-Backbones, militärische Kernsysteme",
+                ExamTakeaway = "Keine zentrale Komponente, kein SPOF. Höchste Redundanz, aber enorm teuer."
+            },
+            new TopoModel
+            {
+                Id = "mesh",
+                Name = "Teilweise vermascht (Masche)",
+                Icon = "🔀",
+                HasCentralComponent = false,
+                HasSinglePointOfFailure = false,
+                SpofDescription = "Keiner (Dynamisches Rerouting)",
+                SpofShort = "Keiner",
+                CableBreakCausesTotalFailure = false,
+                CablingEffort = "Moderat (Nur wichtige Knoten redundant)",
+                TypicalUsage = "WLAN ohne Access Point (Ad-hoc / Mesh), Internet-Backbone",
+                ExamTakeaway = "Keine zentrale Komponente, kein SPOF! Wird typischerweise bei Ad-hoc WLANs ohne Access Point verwendet."
+            },
+            new TopoModel
+            {
+                Id = "cell",
+                Name = "Zelle",
+                Icon = "📱",
+                HasCentralComponent = true,
+                CentralComponentName = "Basisstation / Funkmast (BTS)",
+                HasSinglePointOfFailure = true,
+                SpofDescription = "Basisstation der Funkzelle",
+                SpofShort = "Basisstation",
+                CableBreakCausesTotalFailure = false,
+                CablingEffort = "Drahtlos (Funkfeld)",
+                TypicalUsage = "Mobilfunk (GSM, LTE, 5G), DECT",
+                ExamTakeaway = "Funkzellen mit zentraler Basisstation. Fällt die Basisstation aus, ist die Zelle tot (SPOF). Typische Topologie für Mobiltelefone (GSM)."
+            }
+        };
+    }
+
+    private void InitializeQuizData()
+    {
+        QuizItems = new List<QuizItemModel>
+        {
+            new QuizItemModel
+            {
+                Id = 1,
+                Statement = "Mobiltelefone (GSM-Standard) verwenden diese Topologie",
+                OfficialAnswer = "Zelle",
+                Explanation = "Mobilfunknetze sind geometrisch in Waben/Funkzellen aufgeteilt, die jeweils von einer Basisstation (BTS/NodeB) bedient werden."
+            },
+            new QuizItemModel
+            {
+                Id = 2,
+                Statement = "Diese Topologie enthält einen Single Point of Failure",
+                OfficialAnswer = "Bus, Stern oder Zelle",
+                Explanation = "Beim Stern ist es der Switch, bei der Zelle die Basisstation, beim Bus das Hauptübertragungskabel / der Abschlusswiderstand."
+            },
+            new QuizItemModel
+            {
+                Id = 3,
+                Statement = "WLAN ohne Access Point verwendet diese Topologie",
+                OfficialAnswer = "Masche",
+                Explanation = "Im Ad-hoc-Modus (IBSS / 802.11s) kommunizieren WLAN-Endgeräte direkt und dezentral miteinander über vermaschte Verbindungen."
+            },
+            new QuizItemModel
+            {
+                Id = 4,
+                Statement = "Ein Kabelausfall führt zum kompletten Netzwerkausfall",
+                OfficialAnswer = "Ring oder Bus",
+                Explanation = "Beim einfachen Ring bricht der Token-/Paketumlauf ab; beim Bus führt ein Kabelbruch zu offenen Enden ohne Terminator und Signalreflexionen."
+            },
+            new QuizItemModel
+            {
+                Id = 5,
+                Statement = "Diese Topologie enthält keine zentrale Komponente",
+                OfficialAnswer = "Bus, Ring oder Masche",
+                Explanation = "Weder Bus, noch Ring, noch vermaschte Netze besitzen eine zentrale Vermittlungseinheit wie einen Switch oder eine Basisstation."
+            }
+        };
+    }
+
+    private void SelectTopology(string topoId)
+    {
+        SelectedTopoId = topoId;
+        ResetSimulation();
+        LoadTopologyGraph(topoId);
+    }
+
+    private void LoadTopologyGraph(string topoId)
+    {
+        CurrentNodes.Clear();
+        CurrentLinks.Clear();
+
+        switch (topoId)
+        {
+            case "bus":
+                // 5 Nodes along a horizontal bus line
+                CurrentNodes.Add(new NodeModel { Id = "b1", Label = "A", Sublabel = "Knoten 1", X = 80, Y = 100 });
+                CurrentNodes.Add(new NodeModel { Id = "b2", Label = "B", Sublabel = "Knoten 2", X = 160, Y = 100 });
+                CurrentNodes.Add(new NodeModel { Id = "b3", Label = "C", Sublabel = "Knoten 3", X = 250, Y = 100 });
+                CurrentNodes.Add(new NodeModel { Id = "b4", Label = "D", Sublabel = "Knoten 4", X = 340, Y = 100 });
+                CurrentNodes.Add(new NodeModel { Id = "b5", Label = "E", Sublabel = "Knoten 5", X = 420, Y = 100 });
+
+                // Main Bus Backbone Segments
+                CurrentLinks.Add(new LinkModel { Id = "l1", X1 = 40, Y1 = 180, X2 = 160, Y2 = 180, IsCritical = true });
+                CurrentLinks.Add(new LinkModel { Id = "l2", X1 = 160, Y1 = 180, X2 = 250, Y2 = 180, IsCritical = true });
+                CurrentLinks.Add(new LinkModel { Id = "l3", X1 = 250, Y1 = 180, X2 = 340, Y2 = 180, IsCritical = true });
+                CurrentLinks.Add(new LinkModel { Id = "l4", X1 = 340, Y1 = 180, X2 = 460, Y2 = 180, IsCritical = true });
+
+                // Drop Cables
+                CurrentLinks.Add(new LinkModel { Id = "d1", X1 = 80, Y1 = 116, X2 = 80, Y2 = 180, IsCritical = false });
+                CurrentLinks.Add(new LinkModel { Id = "d2", X1 = 160, Y1 = 116, X2 = 160, Y2 = 180, IsCritical = false });
+                CurrentLinks.Add(new LinkModel { Id = "d3", X1 = 250, Y1 = 116, X2 = 250, Y2 = 180, IsCritical = false });
+                CurrentLinks.Add(new LinkModel { Id = "d4", X1 = 340, Y1 = 116, X2 = 340, Y2 = 180, IsCritical = false });
+                CurrentLinks.Add(new LinkModel { Id = "d5", X1 = 420, Y1 = 116, X2 = 420, Y2 = 180, IsCritical = false });
+                break;
+
+            case "ring":
+                // 5 Nodes in a circle
+                double cx = 250, cy = 150, r = 100;
+                string[] labels = { "A", "B", "C", "D", "E" };
+                for (int i = 0; i < 5; i++)
+                {
+                    double angle = (i * 72 - 90) * Math.PI / 180.0;
+                    double nx = cx + r * Math.Cos(angle);
+                    double ny = cy + r * Math.Sin(angle);
+                    CurrentNodes.Add(new NodeModel { Id = $"r{i + 1}", Label = labels[i], Sublabel = $"Knoten {i + 1}", X = nx, Y = ny });
+                }
+                for (int i = 0; i < 5; i++)
+                {
+                    int next = (i + 1) % 5;
+                    CurrentLinks.Add(new LinkModel
+                    {
+                        Id = $"rl{i + 1}",
+                        X1 = CurrentNodes[i].X,
+                        Y1 = CurrentNodes[i].Y,
+                        X2 = CurrentNodes[next].X,
+                        Y2 = CurrentNodes[next].Y,
+                        IsCritical = true
+                    });
+                }
+                break;
+
+            case "star":
+                // Central Switch
+                CurrentNodes.Add(new NodeModel { Id = "s_center", Label = "SW", Sublabel = "Switch (SPOF)", X = 250, Y = 150, IsCentral = true });
+                // 5 Perimeter nodes
+                for (int i = 0; i < 5; i++)
+                {
+                    double angle = (i * 72 - 90) * Math.PI / 180.0;
+                    double nx = 250 + 110 * Math.Cos(angle);
+                    double ny = 150 + 110 * Math.Sin(angle);
+                    CurrentNodes.Add(new NodeModel { Id = $"s{i + 1}", Label = $"PC{i + 1}", Sublabel = $"Host {i + 1}", X = nx, Y = ny });
+                    CurrentLinks.Add(new LinkModel
+                    {
+                        Id = $"sl{i + 1}",
+                        X1 = 250,
+                        Y1 = 150,
+                        X2 = nx,
+                        Y2 = ny,
+                        IsCritical = false
+                    });
+                }
+                break;
+
+            case "tree":
+                // Root
+                CurrentNodes.Add(new NodeModel { Id = "t_root", Label = "Root", Sublabel = "Core Switch", X = 250, Y = 60, IsCentral = true });
+                // Layer 1
+                CurrentNodes.Add(new NodeModel { Id = "t_d1", Label = "Dist 1", Sublabel = "Verteiler 1", X = 150, Y = 150, IsCentral = true });
+                CurrentNodes.Add(new NodeModel { Id = "t_d2", Label = "Dist 2", Sublabel = "Verteiler 2", X = 350, Y = 150, IsCentral = true });
+                CurrentLinks.Add(new LinkModel { Id = "tl_r1", X1 = 250, Y1 = 60, X2 = 150, Y2 = 150, IsCritical = true });
+                CurrentLinks.Add(new LinkModel { Id = "tl_r2", X1 = 250, Y1 = 60, X2 = 350, Y2 = 150, IsCritical = true });
+
+                // Leaves
+                CurrentNodes.Add(new NodeModel { Id = "t_l1", Label = "PC 1", Sublabel = "Host", X = 100, Y = 240 });
+                CurrentNodes.Add(new NodeModel { Id = "t_l2", Label = "PC 2", Sublabel = "Host", X = 200, Y = 240 });
+                CurrentNodes.Add(new NodeModel { Id = "t_l3", Label = "PC 3", Sublabel = "Host", X = 300, Y = 240 });
+                CurrentNodes.Add(new NodeModel { Id = "t_l4", Label = "PC 4", Sublabel = "Host", X = 400, Y = 240 });
+
+                CurrentLinks.Add(new LinkModel { Id = "tl_d11", X1 = 150, Y1 = 150, X2 = 100, Y2 = 240, IsCritical = false });
+                CurrentLinks.Add(new LinkModel { Id = "tl_d12", X1 = 150, Y1 = 150, X2 = 200, Y2 = 240, IsCritical = false });
+                CurrentLinks.Add(new LinkModel { Id = "tl_d21", X1 = 350, Y1 = 150, X2 = 300, Y2 = 240, IsCritical = false });
+                CurrentLinks.Add(new LinkModel { Id = "tl_d22", X1 = 350, Y1 = 150, X2 = 400, Y2 = 240, IsCritical = false });
+                break;
+
+            case "fullmesh":
+                // 4 Nodes with all N*(N-1)/2 = 6 links
+                CurrentNodes.Add(new NodeModel { Id = "fm1", Label = "A", Sublabel = "Router 1", X = 150, Y = 80 });
+                CurrentNodes.Add(new NodeModel { Id = "fm2", Label = "B", Sublabel = "Router 2", X = 350, Y = 80 });
+                CurrentNodes.Add(new NodeModel { Id = "fm3", Label = "C", Sublabel = "Router 3", X = 350, Y = 220 });
+                CurrentNodes.Add(new NodeModel { Id = "fm4", Label = "D", Sublabel = "Router 4", X = 150, Y = 220 });
+
+                int fmlIdx = 1;
+                for (int i = 0; i < CurrentNodes.Count; i++)
+                {
+                    for (int j = i + 1; j < CurrentNodes.Count; j++)
+                    {
+                        CurrentLinks.Add(new LinkModel
+                        {
+                            Id = $"fml_{fmlIdx++}",
+                            X1 = CurrentNodes[i].X,
+                            Y1 = CurrentNodes[i].Y,
+                            X2 = CurrentNodes[j].X,
+                            Y2 = CurrentNodes[j].Y,
+                            IsCritical = false
+                        });
+                    }
+                }
+                break;
+
+            case "mesh":
+                // Partial mesh (Ad-hoc WLAN / Mesh)
+                CurrentNodes.Add(new NodeModel { Id = "m1", Label = "A", Sublabel = "Host A", X = 120, Y = 100 });
+                CurrentNodes.Add(new NodeModel { Id = "m2", Label = "B", Sublabel = "Host B", X = 250, Y = 70 });
+                CurrentNodes.Add(new NodeModel { Id = "m3", Label = "C", Sublabel = "Host C", X = 380, Y = 100 });
+                CurrentNodes.Add(new NodeModel { Id = "m4", Label = "D", Sublabel = "Host D", X = 330, Y = 220 });
+                CurrentNodes.Add(new NodeModel { Id = "m5", Label = "E", Sublabel = "Host E", X = 170, Y = 220 });
+
+                CurrentLinks.Add(new LinkModel { Id = "ml1", X1 = 120, Y1 = 100, X2 = 250, Y2 = 70, IsCritical = false });
+                CurrentLinks.Add(new LinkModel { Id = "ml2", X1 = 250, Y1 = 70, X2 = 380, Y2 = 100, IsCritical = false });
+                CurrentLinks.Add(new LinkModel { Id = "ml3", X1 = 380, Y1 = 100, X2 = 330, Y2 = 220, IsCritical = false });
+                CurrentLinks.Add(new LinkModel { Id = "ml4", X1 = 330, Y1 = 220, X2 = 170, Y2 = 220, IsCritical = false });
+                CurrentLinks.Add(new LinkModel { Id = "ml5", X1 = 170, Y1 = 220, X2 = 120, Y2 = 100, IsCritical = false });
+                CurrentLinks.Add(new LinkModel { Id = "ml6", X1 = 120, Y1 = 100, X2 = 330, Y2 = 220, IsCritical = false }); // Cross-link
+                break;
+
+            case "cell":
+                // Base Station in center
+                CurrentNodes.Add(new NodeModel { Id = "c_bts", Label = "BTS", Sublabel = "Basisstation (SPOF)", X = 250, Y = 150, IsCentral = true });
+                // 5 Mobile Phones
+                for (int i = 0; i < 5; i++)
+                {
+                    double angle = (i * 72 - 90) * Math.PI / 180.0;
+                    double nx = 250 + 110 * Math.Cos(angle);
+                    double ny = 150 + 110 * Math.Sin(angle);
+                    CurrentNodes.Add(new NodeModel { Id = $"phone_{i + 1}", Label = $"GSM{i + 1}", Sublabel = "Mobilgerät", X = nx, Y = ny });
+                    CurrentLinks.Add(new LinkModel
+                    {
+                        Id = $"cell_link_{i + 1}",
+                        X1 = 250,
+                        Y1 = 150,
+                        X2 = nx,
+                        Y2 = ny,
+                        IsCritical = false
+                    });
+                }
+                break;
+        }
+    }
+
+    private void ToggleLinkCut(string linkId)
+    {
+        if (CutLinkIds.Contains(linkId))
+            CutLinkIds.Remove(linkId);
+        else
+            CutLinkIds.Add(linkId);
+    }
+
+    private void ToggleNodeFail(string nodeId)
+    {
+        if (FailedNodeIds.Contains(nodeId))
+            FailedNodeIds.Remove(nodeId);
+        else
+            FailedNodeIds.Add(nodeId);
+    }
+
+    private void ResetSimulation()
+    {
+        CutLinkIds.Clear();
+        FailedNodeIds.Clear();
+    }
+
+    private bool HasAnyFailure => CutLinkIds.Count > 0 || FailedNodeIds.Count > 0;
+
+    private bool IsNetworkDown
+    {
+        get
+        {
+            if (SelectedTopoId == "bus")
+            {
+                // Any cut in backbone links l1-l4 causes total failure
+                return CutLinkIds.Any(id => id.StartsWith("l"));
+            }
+            if (SelectedTopoId == "ring")
+            {
+                // Any link cut in a single ring halts circulation
+                return CutLinkIds.Count > 0 || FailedNodeIds.Count > 0;
+            }
+            if (SelectedTopoId == "star")
+            {
+                // Failure of central switch causes total network outage
+                return FailedNodeIds.Contains("s_center");
+            }
+            if (SelectedTopoId == "tree")
+            {
+                return FailedNodeIds.Contains("t_root") || CutLinkIds.Contains("tl_r1") && CutLinkIds.Contains("tl_r2");
+            }
+            if (SelectedTopoId == "cell")
+            {
+                // Failure of base station downs the cell
+                return FailedNodeIds.Contains("c_bts");
+            }
+            return false;
+        }
+    }
+
+    private string StatusHeadline
+    {
+        get
+        {
+            if (IsNetworkDown) return "🚨 TOTALER NETZWERKAUSFALL (SPOF ausgelöst!)";
+            if (HasAnyFailure) return "⚠️ TEILAUSFALL / REDUNDANZ AKTIV";
+            return "✅ NETZWERK VOLL FUNKTIONSFÄHIG";
+        }
+    }
+
+    private string StatusDetails
+    {
+        get
+        {
+            if (IsNetworkDown)
+            {
+                if (SelectedTopoId == "bus") return "Die Busleitung wurde unterbrochen. Ohne beidseitige Terminierung führen Reflexionen zum Stillstand aller Knoten!";
+                if (SelectedTopoId == "ring") return "Ein Link oder Knoten im Ring ist unterbrochen. Der Datenumlauf ist gestoppt!";
+                if (SelectedTopoId == "star") return "Der zentrale Switch (Single Point of Failure) ist ausgefallen. Kein Knoten kann mehr kommunizieren!";
+                if (SelectedTopoId == "cell") return "Die zentrale Basisstation ist ausgefallen. Alle Mobiltelefone in dieser Funkzelle haben kein Netz!";
+                if (SelectedTopoId == "tree") return "Der Wurzel-Switch ist ausgefallen. Die Kommunikation zwischen den Teilbäumen ist blockiert!";
+            }
+            if (HasAnyFailure)
+            {
+                if (SelectedTopoId == "mesh" || SelectedTopoId == "fullmesh")
+                    return "Ein Link oder Knoten ist defekt. Dank redundanter Pfade routet das Netz den Verkehr transparent um (Kein SPOF)!";
+                if (SelectedTopoId == "star" || SelectedTopoId == "cell")
+                    return "Ein einzelnes Endgerät ist getrennt. Alle anderen Teilnehmer und das Kernnetz arbeiten ungestört weiter.";
+                return "Teile des Netzes sind isoliert, das Kernnetz arbeitet aber teilweise weiter.";
+            }
+            return "Alle Knoten und Verbindungsleitungen sind intakt. Klicken Sie auf eine Leitung oder einen Knoten, um Störungen zu provozieren.";
+        }
+    }
+
+    private void ToggleMatrix()
+    {
+        ShowMatrix = !ShowMatrix;
+    }
+
+    private void SetView(ViewMode mode)
+    {
+        ActiveView = mode;
+    }
+
+    private void ToggleSolution()
+    {
+        ShowSolution = !ShowSolution;
+    }
+
+    private void ToggleTrainerSolution()
+    {
+        ShowTrainerSolution = !ShowTrainerSolution;
+    }
+
+    private async Task TriggerPrint()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+}
