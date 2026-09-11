@@ -1,0 +1,725 @@
+@namespace Italbytz.Systems.Blazor.Components.Networking
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<article class="netmc-container @(IsEmbed ? "embed-mode" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
+
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
+    {
+        <div class="card-heading no-print">
+            <span class="badge-cat">Rechnernetze &bull; Wissensprüfung &amp; Schichtenmodell</span>
+            <h1 class="header-title">Multiple-Choice Fragen zu Rechnernetzen</h1>
+            <p class="feature-intro">
+                Überprüfen Sie Ihr Verständnis der Kernkonzepte der Rechnernetze:
+                <strong>Bitübertragung &amp; Leitungscodes (L1)</strong>, 
+                <strong>Ethernet, MAC &amp; Spanning Tree (L2)</strong>, 
+                <strong>IP-Routing, ICMP &amp; Gateways (L3)</strong>, 
+                <strong>TCP vs. UDP (L4)</strong> sowie 
+                <strong>DHCP, Telnet &amp; Topologien (L7)</strong>.
+                Mit offizieller Klausur-Bewertungslogik (+1 Punkt richtig, &minus;1 Punkt falsch, min. 0 Punkte).
+            </p>
+        </div>
+    }
+
+    <!-- View Switcher -->
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
+    {
+        <nav class="view-tabs no-print">
+            <button class="tab-btn @(ActiveView == ViewMode.ExamSim ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.ExamSim)">
+                <span class="tab-icon">📝</span> Klausur-Simulation (9 Zufallsfragen)
+            </button>
+            <button class="tab-btn @(ActiveView == ViewMode.StudyCatalog ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.StudyCatalog)">
+                <span class="tab-icon">📚</span> Vollständiger Fragenkatalog &amp; Lernmodus (24 Aussagen)
+            </button>
+            <button class="tab-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Worksheet)">
+                <span class="tab-icon">🖨️</span> Klausur-Arbeitsblatt (1:1 Druckansicht)
+            </button>
+        </nav>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 1: EXAM SIMULATION (9 Random Questions with Official Scoring)       -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.ExamSim)
+    {
+        <section class="panel-card exam-sim-card">
+            <div class="panel-header">
+                <div class="exam-title-wrap">
+                    <span class="panel-title">Klausur-Simulation: 9 Fragen zu Rechnernetzen</span>
+                    <span class="exam-rule-tag">Regel: +1 Punkt für richtig, &minus;1 Punkt für falsch, Gesamtergebnis &ge; 0 Punkte</span>
+                </div>
+                <div class="header-actions no-print">
+                    <button class="action-btn secondary" @onclick="GenerateNewExamSet">
+                        🔄 Neue 9 Fragen ziehen
+                    </button>
+                    @if (!ExamEvaluated)
+                    {
+                        <button class="action-btn primary" @onclick="EvaluateExam">
+                            ✅ Jetzt auswerten
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="action-btn accent" @onclick="ResetExamAnswers">
+                            ✏️ Nochmals versuchen
+                        </button>
+                    }
+                </div>
+            </div>
+
+            <!-- Score Banner (shown when evaluated) -->
+            @if (ExamEvaluated)
+            {
+                <div class="score-banner @(CalculatedScore >= 5 ? "score-pass" : "score-fail")">
+                    <div class="score-icon">@(CalculatedScore >= 5 ? "🏆" : "⚠️")</div>
+                    <div class="score-details">
+                        <div class="score-main-line">
+                            <strong>Ergebnis: @CalculatedScore von 9 Punkten</strong>
+                            <span class="score-percent">(@((CalculatedScore * 100) / 9)%) &bull; @(CalculatedScore >= 5 ? "Bestanden" : "Nicht bestanden (mind. 5 P. empfohlen)")</span>
+                        </div>
+                        <div class="score-breakdown">
+                            <span class="tag-correct">✅ @CountCorrect Richtig (+@CountCorrect P.)</span>
+                            <span class="tag-incorrect">❌ @CountIncorrect Falsch (&minus;@CountIncorrect P.)</span>
+                            <span class="tag-unanswered">⚪ @CountUnanswered Unbeantwortet (0 P.)</span>
+                            <span class="tag-min-note">Min-Cap 0 Pkt: @(RawScore < 0 ? "wirksam (Rohpunkte: " + RawScore + ")" : "nicht nötig")</span>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- Questions Table -->
+            <div class="table-responsive">
+                <table class="mc-table">
+                    <thead>
+                        <tr>
+                            <th class="col-nr">#</th>
+                            <th class="col-question">Frage / Aussage</th>
+                            <th class="col-choice">Wahr</th>
+                            <th class="col-choice">Falsch</th>
+                            @if (ExamEvaluated)
+                            {
+                                <th class="col-status">Ergebnis</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int i = 0; i < CurrentExamQuestions.Count; i++)
+                        {
+                            var q = CurrentExamQuestions[i];
+                            var index = i;
+                            var rowState = GetQuestionResultClass(q);
+
+                            <tr class="@rowState">
+                                <td class="col-nr font-mono">@(index + 1)</td>
+                                <td class="col-question">
+                                    <span class="cat-pill cat-@q.Category.ToLowerInvariant()">@q.CategoryLabel</span>
+                                    <div class="q-text">@q.ActiveText</div>
+                                    @if (ExamEvaluated)
+                                    {
+                                        <div class="explanation-box">
+                                            <strong>Erläuterung:</strong> @q.Explanation
+                                        </div>
+                                    }
+                                </td>
+                                <td class="col-choice text-center">
+                                    <label class="radio-label">
+                                        <input type="radio"
+                                               name="@($"exam-q-{q.Id}-{index}")"
+                                               checked="@(q.UserChoice == true)"
+                                               disabled="@ExamEvaluated"
+                                               @onchange="() => SetExamChoice(index, true)" />
+                                    </label>
+                                </td>
+                                <td class="col-choice text-center">
+                                    <label class="radio-label">
+                                        <input type="radio"
+                                               name="@($"exam-q-{q.Id}-{index}")"
+                                               checked="@(q.UserChoice == false)"
+                                               disabled="@ExamEvaluated"
+                                               @onchange="() => SetExamChoice(index, false)" />
+                                    </label>
+                                </td>
+                                @if (ExamEvaluated)
+                                {
+                                    <td class="col-status text-center">
+                                        @if (q.UserChoice == null)
+                                        {
+                                            <span class="status-unanswered" title="Nicht beantwortet (0 Pkt)">⚪ 0</span>
+                                        }
+                                        else if (q.UserChoice == q.ActiveCorrectAnswer)
+                                        {
+                                            <span class="status-correct" title="Richtig (+1 Pkt)">✅ +1</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="status-incorrect" title="Falsch (-1 Pkt)">❌ &minus;1</span>
+                                        }
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    }
+    else if (ActiveView == ViewMode.StudyCatalog)
+    {
+        <!-- ========================================================================= -->
+        <!-- VIEW 2: STUDY CATALOG (All 12 Pairs / 24 Statements with Filter)         -->
+        <!-- ========================================================================= -->
+        <section class="panel-card catalog-card">
+            <div class="panel-header">
+                <div>
+                    <span class="panel-title">Vollständiger Fragenkatalog (13 Fragen / 24 Aussagen)</span>
+                    <p class="panel-sub">Lernen Sie alle Fragentypen und die typischen Fallen (Invertierungen) der Klausur.</p>
+                </div>
+                <div class="catalog-filters no-print">
+                    <button class="filter-chip @(SelectedCategory == "ALL" ? "active" : "")"
+                            @onclick='() => SetCategoryFilter("ALL")'>
+                        Alle (@AllQuestions.Count)
+                    </button>
+                    <button class="filter-chip @(SelectedCategory == "L1" ? "active" : "")"
+                            @onclick='() => SetCategoryFilter("L1")'>
+                        L1: Bitübertragung
+                    </button>
+                    <button class="filter-chip @(SelectedCategory == "L2" ? "active" : "")"
+                            @onclick='() => SetCategoryFilter("L2")'>
+                        L2: Sicherung
+                    </button>
+                    <button class="filter-chip @(SelectedCategory == "L3" ? "active" : "")"
+                            @onclick='() => SetCategoryFilter("L3")'>
+                        L3: Vermittlung
+                    </button>
+                    <button class="filter-chip @(SelectedCategory == "L4" ? "active" : "")"
+                            @onclick='() => SetCategoryFilter("L4")'>
+                        L4: Transport
+                    </button>
+                    <button class="filter-chip @(SelectedCategory == "L7" ? "active" : "")"
+                            @onclick='() => SetCategoryFilter("L7")'>
+                        L7: Anwendung
+                    </button>
+                    <button class="filter-chip @(SelectedCategory == "Topology" ? "active" : "")"
+                            @onclick='() => SetCategoryFilter("Topology")'>
+                        Topologien
+                    </button>
+                </div>
+            </div>
+
+            <div class="catalog-list">
+                @foreach (var q in FilteredCatalogQuestions)
+                {
+                    <div class="catalog-item">
+                        <div class="catalog-item-header">
+                            <span class="cat-pill cat-@q.Category.ToLowerInvariant()">@q.CategoryLabel</span>
+                            <span class="catalog-item-id">Frage #@q.Id</span>
+                        </div>
+
+                        <!-- Statement 1 (Standard) -->
+                        <div class="statement-box @(q.CorrectAnswer ? "is-true" : "is-false")">
+                            <div class="statement-main">
+                                <span class="statement-badge @(q.CorrectAnswer ? "badge-wahr" : "badge-falsch")">
+                                    @(q.CorrectAnswer ? "WAHR" : "FALSCH")
+                                </span>
+                                <span class="statement-text">@q.Text</span>
+                            </div>
+                        </div>
+
+                        <!-- Statement 2 (Alternative / Inverted, if present) -->
+                        @if (!string.IsNullOrEmpty(q.AlternativeText))
+                        {
+                            <div class="statement-box alternative @(q.AlternativeAnswer ? "is-true" : "is-false")">
+                                <div class="statement-main">
+                                    <span class="statement-badge @(q.AlternativeAnswer ? "badge-wahr" : "badge-falsch")">
+                                        @(q.AlternativeAnswer ? "WAHR" : "FALSCH")
+                                    </span>
+                                    <span class="statement-text">@q.AlternativeText</span>
+                                </div>
+                                <span class="invert-note">⚠️ Klausur-Variante</span>
+                            </div>
+                        }
+
+                        <div class="catalog-explanation">
+                            <strong>Didaktische Begründung:</strong> @q.Explanation
+                        </div>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+    else if (ActiveView == ViewMode.Worksheet)
+    {
+        <!-- ========================================================================= -->
+        <!-- VIEW 3: 1:1 PRINTABLE EXAM WORKSHEET                                     -->
+        <!-- ========================================================================= -->
+        <div class="worksheet-body">
+            <div class="no-print worksheet-controls">
+                <button class="action-btn secondary" @onclick="ToggleWorksheetSolution">
+                    @(WorksheetSolutionVisible ? "Musterlösung verbergen" : "Musterlösung einblenden")
+                </button>
+                <button class="action-btn accent" @onclick="GenerateNewWorksheetSet">
+                    🔄 Neue 9 Fragen ziehen
+                </button>
+                <button class="action-btn primary" @onclick="TriggerPrint">
+                    🖨️ Drucken / PDF Export
+                </button>
+            </div>
+
+            <!-- Authentic HSHL Exam Header -->
+            <header class="ws-header">
+                <div class="ws-header-top">
+                    <div class="ws-uni-title">Hochschule Hamm-Lippstadt</div>
+                    <div class="ws-course-title">Grundlagen der Informatik &bull; Rechnernetze</div>
+                </div>
+                <div class="ws-header-main">
+                    <div class="ws-task-title">
+                        Networks Multiple Choice @(WorksheetSolutionVisible ? "- Lösung" : "")
+                    </div>
+                    <div class="ws-meta-block">
+                        <div class="ws-meta-line"><span>Name:</span> _________________________________</div>
+                        <div class="ws-meta-line"><span>Matrikel-Nr.:</span> ___________________________</div>
+                        <div class="ws-meta-line"><span>Datum:</span> _________________________________</div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="ws-task-intro">
+                <strong>Aufgabe: Multiple Choice (9 Punkte)</strong><br />
+                Im Folgenden finden Sie einige Multiple Choice Fragen. Jede richtig beantwortete Frage gibt einen Punkt, jede falsch beantwortete Frage gibt einen Minuspunkt. Die Gesamtaufgabe gibt allerdings mindestens Null Punkte.
+            </div>
+
+            <!-- Table matching XeLaTeX LaTeX output -->
+            <table class="ws-table">
+                <thead>
+                    <tr>
+                        <th class="ws-col-question">Frage</th>
+                        <th class="ws-col-ans">wahr</th>
+                        <th class="ws-col-ans">falsch</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (int i = 0; i < WorksheetQuestions.Count; i++)
+                    {
+                        var q = WorksheetQuestions[i];
+                        <tr class="@(i % 2 == 0 ? "row-even" : "row-odd")">
+                            <td class="ws-col-question">@q.ActiveText</td>
+                            <td class="ws-col-ans text-center">
+                                @if (WorksheetSolutionVisible)
+                                {
+                                    <span class="mc-box @(q.ActiveCorrectAnswer ? "marked" : "")">
+                                        @(q.ActiveCorrectAnswer ? "X" : "")
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="mc-box"></span>
+                                }
+                            </td>
+                            <td class="ws-col-ans text-center">
+                                @if (WorksheetSolutionVisible)
+                                {
+                                    <span class="mc-box @(!q.ActiveCorrectAnswer ? "marked" : "")">
+                                        @(!q.ActiveCorrectAnswer ? "X" : "")
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="mc-box"></span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            @if (WorksheetSolutionVisible)
+            {
+                <div class="ws-solution-note">
+                    <strong>Hinweis zur Korrektur:</strong> Die Bewertung erfolgt strikt nach Formel:
+                    <code>Punkte = MAX(0, Richtig &minus; Falsch)</code>.
+                    Unbeantwortete Fragen zählen 0 Punkte.
+                </div>
+            }
+
+            <footer class="ws-footer">
+                <span>Intelligent Systems Design &bull; Prof. Dr. Robin Nunkesser &bull; Rechnernetze</span>
+            </footer>
+        </div>
+    }
+
+</article>
+
+@code {
+    [Parameter]
+    public bool IsEmbed { get; set; } = false;
+
+    public enum ViewMode
+    {
+        ExamSim,
+        StudyCatalog,
+        Worksheet
+    }
+
+    public class QuestionModel
+    {
+        public int Id { get; set; }
+        public string Category { get; set; } = "";
+        public string CategoryLabel { get; set; } = "";
+        public string Text { get; set; } = "";
+        public bool CorrectAnswer { get; set; }
+        public string? AlternativeText { get; set; }
+        public bool AlternativeAnswer { get; set; }
+        public string Explanation { get; set; } = "";
+
+        // Runtime properties for exam instance
+        public string ActiveText { get; set; } = "";
+        public bool ActiveCorrectAnswer { get; set; }
+        public bool? UserChoice { get; set; } = null;
+    }
+
+    private ViewMode ActiveView { get; set; } = ViewMode.ExamSim;
+    private string SelectedCategory { get; set; } = "ALL";
+
+    // Exam state
+    private List<QuestionModel> CurrentExamQuestions { get; set; } = new();
+    private bool ExamEvaluated { get; set; } = false;
+    private int CalculatedScore { get; set; } = 0;
+    private int RawScore { get; set; } = 0;
+    private int CountCorrect { get; set; } = 0;
+    private int CountIncorrect { get; set; } = 0;
+    private int CountUnanswered { get; set; } = 0;
+
+    // Worksheet state
+    private List<QuestionModel> WorksheetQuestions { get; set; } = new();
+    private bool WorksheetSolutionVisible { get; set; } = false;
+
+    private static readonly List<QuestionModel> AllQuestions = new()
+    {
+        new QuestionModel
+        {
+            Id = 1,
+            Category = "L2",
+            CategoryLabel = "Sicherungsschicht",
+            Text = "Die Mindestlänge von Rahmen dient dazu, Kollisionen erkennen zu können.",
+            CorrectAnswer = true,
+            AlternativeText = "Die Mindestlänge von Rahmen reicht um Kollisionen zu vermeiden.",
+            AlternativeAnswer = false,
+            Explanation = "Bei CSMA/CD können Kollisionen prinzipbedingt nicht vermieden werden (das geschieht erst durch Switched Ethernet / Vollduplex). Die Mindestrahmenlänge stellt sicher, dass der Sender noch sendet, während die Kollisionsmitteilung (Jam-Signal) über die maximale Netzwerkausdehnung zurückkehrt."
+        },
+        new QuestionModel
+        {
+            Id = 2,
+            Category = "L4",
+            CategoryLabel = "Transportschicht",
+            Text = "Bei bekannter IP-Adresse eines Webservers können wir Webseiten anfragen.",
+            CorrectAnswer = true,
+            AlternativeText = "Bei bekannter IP-Adresse eines Servers können wir mit dessen Prozessen kommunizieren.",
+            AlternativeAnswer = false,
+            Explanation = "Zur Kommunikation mit einem bestimmten Prozess auf einem Server reicht die IP-Adresse allein nicht aus. Auf Schicht 4 wird zwingend eine Portnummer benötigt (z. B. Port 80/443 für Webserver), um das richtige Empfängerprogramm (Socket) zu adressieren."
+        },
+        new QuestionModel
+        {
+            Id = 3,
+            Category = "L4",
+            CategoryLabel = "Transportschicht",
+            Text = "UDP ist für Videotelefonie besser geeignet als TCP.",
+            CorrectAnswer = true,
+            AlternativeText = "TCP ist für Videotelefonie besser geeignet als UDP.",
+            AlternativeAnswer = false,
+            Explanation = "Videotelefonie und Audio-Streaming sind echtzeitkritisch. UDP vermeidet Retransmission-Timeouts und Head-of-Line Blocking von TCP. Einzelne verworfene Pakete fallen im Datenstrom kaum auf, während TCP-Neuübertragungen zu spürbaren Verzögerungen führen."
+        },
+        new QuestionModel
+        {
+            Id = 4,
+            Category = "L2",
+            CategoryLabel = "Sicherungsschicht",
+            Text = "Alle Netzwerkgeräte im gleichen physischen Netz empfangen Rahmen mit der Zieladresse FF-FF-FF-FF-FF-FF.",
+            CorrectAnswer = true,
+            Explanation = "Die MAC-Adresse FF-FF-FF-FF-FF-FF ist die standardisierte Broadcast-Adresse auf Schicht 2 (Ethernet). Jeder Netzwerkkarten-Controller im selben Broadcast-Bereich akzeptiert diesen Rahmen und leitet ihn an das Betriebssystem weiter."
+        },
+        new QuestionModel
+        {
+            Id = 5,
+            Category = "Topology",
+            CategoryLabel = "Topologien",
+            Text = "Die Netzwerktopologie Bus enthält einen Single Point of Failure.",
+            CorrectAnswer = true,
+            AlternativeText = "Die Netzwerktopologie Maschen enthält einen Single Point of Failure.",
+            AlternativeAnswer = false,
+            Explanation = "Ein Busnetz basiert auf einem gemeinsamen Übertragungsmedium. Ein Kabelbruch oder ein defekter Abschlusswiderstand legt das gesamte Netzwerk lahm (SPOF). Ein Maschennetz hingegen besitzt redundante Pfade und keinen zentralen Ausfallpunkt."
+        },
+        new QuestionModel
+        {
+            Id = 6,
+            Category = "L2",
+            CategoryLabel = "Sicherungsschicht",
+            Text = "Bridges untersuchen Rahmen mit Prüfsummen auf Korrektheit.",
+            CorrectAnswer = true,
+            AlternativeText = "Router untersuchen Rahmen mit Prüfsummen auf Korrektheit.",
+            AlternativeAnswer = false,
+            Explanation = "Bridges und Switches arbeiten auf Schicht 2 und prüfen die Frame Check Sequence (FCS/CRC-32) des Ethernet-Rahmens. Fehlerhafte Rahmen werden verworfen. Router arbeiten auf Schicht 3 und prüfen den IP-Header."
+        },
+        new QuestionModel
+        {
+            Id = 7,
+            Category = "L2",
+            CategoryLabel = "Sicherungsschicht",
+            Text = "Bridges vermeiden Kreise mit dem Spanning Tree Protocol.",
+            CorrectAnswer = true,
+            AlternativeText = "Router vermeiden Kreise mit dem Spanning Tree Protocol.",
+            AlternativeAnswer = false,
+            Explanation = "Das Spanning Tree Protocol (IEEE 802.1D) deaktiviert gezielt redundante Bridge-/Switch-Ports auf Schicht 2, um Endlosschleifen und Broadcast-Stürme zu verhindern. Router auf Schicht 3 nutzen Routing-Protokolle (OSPF, BGP) und das TTL-Feld im IP-Header."
+        },
+        new QuestionModel
+        {
+            Id = 8,
+            Category = "L1",
+            CategoryLabel = "Bitübertragung",
+            Text = "Der Leitungscode Non-Return-To-Zero (NRZ) verursacht Probleme bei der Taktwiederherstellung.",
+            CorrectAnswer = true,
+            AlternativeText = "Der Leitungscode Manchester verursacht Probleme bei der Taktwiederherstellung.",
+            AlternativeAnswer = false,
+            Explanation = "NRZ bleibt bei aufeinanderfolgenden gleichen Bits (lange Folgen von 0en oder 1en) konstant auf einem Spannungspegel. Ohne Signalflanken kann der Empfänger seinen Takt nicht nachjustieren. Manchester garantiert bei jedem Bit eine Pegelflanke in der Bitmitte."
+        },
+        new QuestionModel
+        {
+            Id = 9,
+            Category = "L3",
+            CategoryLabel = "Vermittlungsschicht",
+            Text = "Gateways in der Vermittlungsschicht von Computernetzen sind heutzutage selten nötig.",
+            CorrectAnswer = true,
+            AlternativeText = "Gateways in der Vermittlungsschicht von Computernetzen werden häufig eingesetzt.",
+            AlternativeAnswer = false,
+            Explanation = "Da das Internet Protocol (IPv4/IPv6) heute praktisch universell als Schicht-3-Standard etabliert ist, sind protokollübersetzende L3-Gateways (wie früher zwischen IPX/SPX und AppleTalk) kaum noch erforderlich. Die Kopplung erfolgt durch Standard-Router."
+        },
+        new QuestionModel
+        {
+            Id = 10,
+            Category = "L7",
+            CategoryLabel = "Anwendungsschicht",
+            Text = "Telnet ermöglicht die unverschlüsselte Fernsteuerung von Computern.",
+            CorrectAnswer = true,
+            AlternativeText = "Telnet ermöglicht die verschlüsselte Fernsteuerung von Computern.",
+            AlternativeAnswer = false,
+            Explanation = "Telnet überträgt alle Daten &ndash; inklusive Benutzernamen und Passwörtern &ndash; im Klartext über TCP. Für verschlüsselte Verbindungen wird heute ausschließlich SSH (Port 22) eingesetzt."
+        },
+        new QuestionModel
+        {
+            Id = 11,
+            Category = "L7",
+            CategoryLabel = "Anwendungsschicht",
+            Text = "DHCP ermöglicht die Zuweisung der Netzwerkkonfiguration an Netzwerkgeräte.",
+            CorrectAnswer = true,
+            AlternativeText = "ICMP ermöglicht die Zuweisung der Netzwerkkonfiguration an Netzwerkgeräte.",
+            AlternativeAnswer = false,
+            Explanation = "DHCP (Dynamic Host Configuration Protocol) verteilt dynamisch IP-Adresse, Subnetzmaske, Standard-Gateway und DNS-Server. ICMP dient zur Übertragung von Diagnose- und Statusnachrichten."
+        },
+        new QuestionModel
+        {
+            Id = 12,
+            Category = "L3",
+            CategoryLabel = "Vermittlungsschicht",
+            Text = "ICMP dient dazu, Diagnose- und Fehlermeldungen auszutauschen.",
+            CorrectAnswer = true,
+            AlternativeText = "DHCP dient dazu, Diagnose- und Fehlermeldungen auszutauschen.",
+            AlternativeAnswer = false,
+            Explanation = "Das Internet Control Message Protocol (ICMP) ist Bestandteil der IP-Schicht und übermittelt Fehlerzustände (z. B. 'Destination Unreachable', 'Time Exceeded') sowie Ping-Anfragen."
+        },
+        new QuestionModel
+        {
+            Id = 13,
+            Category = "L2",
+            CategoryLabel = "Sicherungsschicht",
+            Text = "Im Ethernet-Rahmen stehen die MAC-Adressen von Sender und Empfänger.",
+            CorrectAnswer = true,
+            AlternativeText = "Im Ethernet-Rahmen stehen die IP-Adressen von Sender und Empfänger.",
+            AlternativeAnswer = false,
+            Explanation = "Der Schicht-2 Ethernet-Header enthält Ziel-MAC (6 Byte), Quell-MAC (6 Byte) und EtherType (2 Byte). Die IP-Adressen befinden sich erst im gekapselten Schicht-3 IP-Paket-Header."
+        }
+    };
+
+    private IEnumerable<QuestionModel> FilteredCatalogQuestions =>
+        SelectedCategory == "ALL"
+            ? AllQuestions
+            : AllQuestions.Where(q => q.Category.Equals(SelectedCategory, StringComparison.OrdinalIgnoreCase));
+
+    protected override void OnInitialized()
+    {
+        GenerateNewExamSet();
+        GenerateNewWorksheetSet();
+        CheckUrlParameters();
+    }
+
+    protected override void OnParametersSet()
+    {
+        CheckUrlParameters();
+    }
+
+    private void CheckUrlParameters()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query.ToLowerInvariant();
+
+            if (query.Contains("embed=true") || query.Contains("embedded=true") || query.Contains("embed=1"))
+            {
+                IsEmbed = true;
+            }
+
+            if (query.Contains("view=worksheet") || query.Contains("view=sheet") || query.Contains("view=print"))
+            {
+                ActiveView = ViewMode.Worksheet;
+            }
+            else if (query.Contains("view=catalog") || query.Contains("view=study"))
+            {
+                ActiveView = ViewMode.StudyCatalog;
+            }
+            else
+            {
+                ActiveView = ViewMode.ExamSim;
+            }
+
+            if (query.Contains("solution=true") || query.Contains("sol=true") || query.Contains("loesung=true"))
+            {
+                WorksheetSolutionVisible = true;
+            }
+        }
+        catch
+        {
+            // Fallback
+        }
+    }
+
+    private void SetView(ViewMode mode)
+    {
+        ActiveView = mode;
+    }
+
+    private void SetCategoryFilter(string cat)
+    {
+        SelectedCategory = cat;
+    }
+
+    private void GenerateNewExamSet()
+    {
+        var rng = new Random();
+        var selectedBase = AllQuestions.OrderBy(_ => rng.Next()).Take(9).ToList();
+
+        CurrentExamQuestions = selectedBase.Select(q =>
+        {
+            bool useAlternative = !string.IsNullOrEmpty(q.AlternativeText) && rng.Next(2) == 1;
+            return new QuestionModel
+            {
+                Id = q.Id,
+                Category = q.Category,
+                CategoryLabel = q.CategoryLabel,
+                Text = q.Text,
+                CorrectAnswer = q.CorrectAnswer,
+                AlternativeText = q.AlternativeText,
+                AlternativeAnswer = q.AlternativeAnswer,
+                Explanation = q.Explanation,
+                ActiveText = useAlternative ? q.AlternativeText! : q.Text,
+                ActiveCorrectAnswer = useAlternative ? q.AlternativeAnswer : q.CorrectAnswer,
+                UserChoice = null
+            };
+        }).ToList();
+
+        ExamEvaluated = false;
+        CalculatedScore = 0;
+        RawScore = 0;
+        CountCorrect = 0;
+        CountIncorrect = 0;
+        CountUnanswered = 0;
+    }
+
+    private void SetExamChoice(int index, bool choice)
+    {
+        if (!ExamEvaluated && index >= 0 && index < CurrentExamQuestions.Count)
+        {
+            CurrentExamQuestions[index].UserChoice = choice;
+        }
+    }
+
+    private void EvaluateExam()
+    {
+        CountCorrect = 0;
+        CountIncorrect = 0;
+        CountUnanswered = 0;
+
+        foreach (var q in CurrentExamQuestions)
+        {
+            if (q.UserChoice == null)
+            {
+                CountUnanswered++;
+            }
+            else if (q.UserChoice == q.ActiveCorrectAnswer)
+            {
+                CountCorrect++;
+            }
+            else
+            {
+                CountIncorrect++;
+            }
+        }
+
+        RawScore = CountCorrect - CountIncorrect;
+        CalculatedScore = Math.Max(0, RawScore);
+        ExamEvaluated = true;
+    }
+
+    private void ResetExamAnswers()
+    {
+        foreach (var q in CurrentExamQuestions)
+        {
+            q.UserChoice = null;
+        }
+        ExamEvaluated = false;
+        CalculatedScore = 0;
+        RawScore = 0;
+    }
+
+    private string GetQuestionResultClass(QuestionModel q)
+    {
+        if (!ExamEvaluated) return "";
+        if (q.UserChoice == null) return "row-unanswered";
+        return q.UserChoice == q.ActiveCorrectAnswer ? "row-correct" : "row-incorrect";
+    }
+
+    private void GenerateNewWorksheetSet()
+    {
+        var rng = new Random();
+        var selected = AllQuestions.OrderBy(_ => rng.Next()).Take(9).ToList();
+
+        WorksheetQuestions = selected.Select(q =>
+        {
+            bool useAlternative = !string.IsNullOrEmpty(q.AlternativeText) && rng.Next(2) == 1;
+            return new QuestionModel
+            {
+                Id = q.Id,
+                Category = q.Category,
+                CategoryLabel = q.CategoryLabel,
+                Text = q.Text,
+                CorrectAnswer = q.CorrectAnswer,
+                AlternativeText = q.AlternativeText,
+                AlternativeAnswer = q.AlternativeAnswer,
+                Explanation = q.Explanation,
+                ActiveText = useAlternative ? q.AlternativeText! : q.Text,
+                ActiveCorrectAnswer = useAlternative ? q.AlternativeAnswer : q.CorrectAnswer
+            };
+        }).ToList();
+    }
+
+    private void ToggleWorksheetSolution()
+    {
+        WorksheetSolutionVisible = !WorksheetSolutionVisible;
+    }
+
+    private async Task TriggerPrint()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+}
