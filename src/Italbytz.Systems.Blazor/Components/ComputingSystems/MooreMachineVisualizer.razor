@@ -1,0 +1,1095 @@
+@using Microsoft.AspNetCore.Components
+@using Microsoft.JSInterop
+@implements IDisposable
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<div class="moore-container @(IsEmbed ? "is-embedded" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-mode" : "simulator-mode")">
+    @if (!IsEmbed)
+    {
+        <header class="component-header">
+            <div class="header-titles">
+                <span class="kicker">Grundlagen der Informatik &bull; Technische Informatik</span>
+                <h2>Endliche Moore-Zustandsautomaten</h2>
+                <p class="subtitle">Zustandsgraphen, synchrone Schaltwerkssynthese &amp; D-Flip-Flop-Steuerung</p>
+            </div>
+            <div class="view-switcher no-print">
+                <button class="btn-toggle @(ActiveView == ViewMode.StepByStep ? "active" : "")" @onclick="() => SetView(ViewMode.StepByStep)">
+                    ▶️ Interaktiver Simulator
+                </button>
+                <button class="btn-toggle @(ActiveView == ViewMode.Worksheet ? "active" : "")" @onclick="() => SetView(ViewMode.Worksheet)">
+                    📄 Klausur-Übungsblatt
+                </button>
+            </div>
+        </header>
+    }
+
+    @if (ActiveView == ViewMode.StepByStep)
+    {
+        <!-- CONTROLS & STATUS BAR -->
+        <div class="card toolbar-card no-print">
+            <div class="toolbar-section">
+                <span class="tool-label">Eingangssignal (Zählrichtung):</span>
+                <div class="input-toggle-group">
+                    <button class="btn-input @(InputSignal == 0 ? "active-backward" : "")" @onclick="() => SetInput(0)">
+                        e = 0 (Rückwärts / Halt bei 0)
+                    </button>
+                    <button class="btn-input @(InputSignal == 1 ? "active-forward" : "")" @onclick="() => SetInput(1)">
+                        e = 1 (Vorwärts / Halt bei 2)
+                    </button>
+                </div>
+            </div>
+
+            <div class="toolbar-section clock-controls">
+                <button class="btn-clock" @onclick="StepClock" title="Takt-Impuls auslösen">
+                    ⏱️ Takt (Clock)
+                </button>
+                <button class="btn-autoplay @(IsAutoPlaying ? "active-playing" : "")" @onclick="ToggleAutoPlay">
+                    @(IsAutoPlaying ? "⏸️ Pause" : "▶️ Auto-Takt")
+                </button>
+                <button class="btn-reset" @onclick="ResetToS0" title="Auf Anfangszustand S0 zurücksetzen">
+                    ↺ Reset (S₀)
+                </button>
+            </div>
+
+            <div class="toolbar-section state-summary-pill">
+                <span class="pill-label">Zustand:</span>
+                <strong class="pill-val">S@(CurrentState)</strong>
+                <span class="pill-code">(z₀z₁ = @(Z0)@(Z1))</span>
+                <span class="pill-sep">&bull;</span>
+                <span class="pill-label">Ausgang:</span>
+                <strong class="pill-val">@(OutputVal)</strong>
+                <span class="pill-code">(a₀a₁ = @(A0)@(A1))</span>
+            </div>
+        </div>
+
+        <!-- SIMULATOR TABS -->
+        <div class="tab-nav no-print">
+            <button class="tab-btn @(ActiveTab == SimTab.CircuitAndGraph ? "active" : "")" @onclick="() => ActiveTab = SimTab.CircuitAndGraph">
+                🔄 Zustandsgraph &amp; D-Flip-Flop-Schaltwerk
+            </button>
+            <button class="tab-btn @(ActiveTab == SimTab.TruthTables ? "active" : "")" @onclick="() => ActiveTab = SimTab.TruthTables">
+                📋 Wahrheitstafeln (Synthese)
+            </button>
+            <button class="tab-btn @(ActiveTab == SimTab.KVMaps ? "active" : "")" @onclick="() => ActiveTab = SimTab.KVMaps">
+                🗺️ KV-Diagramme &amp; Schaltfunktionen
+            </button>
+        </div>
+
+        @if (ActiveTab == SimTab.CircuitAndGraph)
+        {
+            <div class="sim-grid">
+                <!-- LEFT: STATE DIAGRAM -->
+                <div class="card sim-card">
+                    <div class="card-header">
+                        <h3>Zustandsübergangsgraph</h3>
+                        <span class="badge badge-accent">3 Zustände (S₀, S₁, S₂)</span>
+                    </div>
+                    <div class="graph-canvas-wrap">
+                        <svg viewBox="0 0 460 300" class="state-graph-svg">
+                            <!-- Definitions: Arrow Markers -->
+                            <defs>
+                                <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                    <path d="M 0 1 L 8 5 L 0 9 z" fill="@(IsEmbed ? "#94a3b8" : "#475569")" />
+                                </marker>
+                                <marker id="arrow-active" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                    <path d="M 0 1 L 8 5 L 0 9 z" fill="#0284c7" />
+                                </marker>
+                            </defs>
+
+                            <!-- Self Loop S0: e=0 -->
+                            <path d="M 75 125 C 20 80, 20 220, 75 175" fill="none"
+                                  stroke="@(CurrentState == 0 && InputSignal == 0 ? "#0284c7" : (IsEmbed ? "#334155" : "#cbd5e1"))"
+                                  stroke-width="@(CurrentState == 0 && InputSignal == 0 ? "3" : "2")"
+                                  marker-end="@(CurrentState == 0 && InputSignal == 0 ? "url(#arrow-active)" : "url(#arrow)")" />
+                            <text x="18" y="154" fill="@(CurrentState == 0 && InputSignal == 0 ? "#38bdf8" : (IsEmbed ? "#94a3b8" : "#475569"))" font-size="12" font-weight="bold">e = 0</text>
+
+                            <!-- Forward Edge S0 -> S1: e=1 -->
+                            <path d="M 125 130 C 160 105, 200 105, 235 130" fill="none"
+                                  stroke="@(CurrentState == 0 && InputSignal == 1 ? "#0284c7" : (IsEmbed ? "#334155" : "#cbd5e1"))"
+                                  stroke-width="@(CurrentState == 0 && InputSignal == 1 ? "3" : "2")"
+                                  marker-end="@(CurrentState == 0 && InputSignal == 1 ? "url(#arrow-active)" : "url(#arrow)")" />
+                            <text x="180" y="105" text-anchor="middle" fill="@(CurrentState == 0 && InputSignal == 1 ? "#38bdf8" : (IsEmbed ? "#94a3b8" : "#475569"))" font-size="12" font-weight="bold">e = 1</text>
+
+                            <!-- Backward Edge S1 -> S0: e=0 -->
+                            <path d="M 235 170 C 200 195, 160 195, 125 170" fill="none"
+                                  stroke="@(CurrentState == 1 && InputSignal == 0 ? "#0284c7" : (IsEmbed ? "#334155" : "#cbd5e1"))"
+                                  stroke-width="@(CurrentState == 1 && InputSignal == 0 ? "3" : "2")"
+                                  marker-end="@(CurrentState == 1 && InputSignal == 0 ? "url(#arrow-active)" : "url(#arrow)")" />
+                            <text x="180" y="205" text-anchor="middle" fill="@(CurrentState == 1 && InputSignal == 0 ? "#38bdf8" : (IsEmbed ? "#94a3b8" : "#475569"))" font-size="12" font-weight="bold">e = 0</text>
+
+                            <!-- Forward Edge S1 -> S2: e=1 -->
+                            <path d="M 285 130 C 320 105, 360 105, 395 130" fill="none"
+                                  stroke="@(CurrentState == 1 && InputSignal == 1 ? "#0284c7" : (IsEmbed ? "#334155" : "#cbd5e1"))"
+                                  stroke-width="@(CurrentState == 1 && InputSignal == 1 ? "3" : "2")"
+                                  marker-end="@(CurrentState == 1 && InputSignal == 1 ? "url(#arrow-active)" : "url(#arrow)")" />
+                            <text x="340" y="105" text-anchor="middle" fill="@(CurrentState == 1 && InputSignal == 1 ? "#38bdf8" : (IsEmbed ? "#94a3b8" : "#475569"))" font-size="12" font-weight="bold">e = 1</text>
+
+                            <!-- Backward Edge S2 -> S1: e=0 -->
+                            <path d="M 395 170 C 360 195, 320 195, 285 170" fill="none"
+                                  stroke="@(CurrentState == 2 && InputSignal == 0 ? "#0284c7" : (IsEmbed ? "#334155" : "#cbd5e1"))"
+                                  stroke-width="@(CurrentState == 2 && InputSignal == 0 ? "3" : "2")"
+                                  marker-end="@(CurrentState == 2 && InputSignal == 0 ? "url(#arrow-active)" : "url(#arrow)")" />
+                            <text x="340" y="205" text-anchor="middle" fill="@(CurrentState == 2 && InputSignal == 0 ? "#38bdf8" : (IsEmbed ? "#94a3b8" : "#475569"))" font-size="12" font-weight="bold">e = 0</text>
+
+                            <!-- Self Loop S2: e=1 -->
+                            <path d="M 385 125 C 440 80, 440 220, 385 175" fill="none"
+                                  stroke="@(CurrentState == 2 && InputSignal == 1 ? "#0284c7" : (IsEmbed ? "#334155" : "#cbd5e1"))"
+                                  stroke-width="@(CurrentState == 2 && InputSignal == 1 ? "3" : "2")"
+                                  marker-end="@(CurrentState == 2 && InputSignal == 1 ? "url(#arrow-active)" : "url(#arrow)")" />
+                            <text x="442" y="154" fill="@(CurrentState == 2 && InputSignal == 1 ? "#38bdf8" : (IsEmbed ? "#94a3b8" : "#475569"))" font-size="12" font-weight="bold">e = 1</text>
+
+                            <!-- State Nodes -->
+                            <!-- Node S0 -->
+                            <g class="state-node-g @(CurrentState == 0 ? "is-active-node" : "")" @onclick="() => SetState(0)" style="cursor: pointer;">
+                                <circle cx="100" cy="150" r="30" class="node-circle node-s0" />
+                                <text x="100" y="145" text-anchor="middle" class="node-text-name">S₀</text>
+                                <line x1="80" y1="151" x2="120" y2="151" class="node-divider" />
+                                <text x="100" y="165" text-anchor="middle" class="node-text-sub">00 / 0</text>
+                            </g>
+
+                            <!-- Node S1 -->
+                            <g class="state-node-g @(CurrentState == 1 ? "is-active-node" : "")" @onclick="() => SetState(1)" style="cursor: pointer;">
+                                <circle cx="260" cy="150" r="30" class="node-circle node-s1" />
+                                <text x="260" y="145" text-anchor="middle" class="node-text-name">S₁</text>
+                                <line x1="240" y1="151" x2="280" y2="151" class="node-divider" />
+                                <text x="260" y="165" text-anchor="middle" class="node-text-sub">01 / 1</text>
+                            </g>
+
+                            <!-- Node S2 -->
+                            <g class="state-node-g @(CurrentState == 2 ? "is-active-node" : "")" @onclick="() => SetState(2)" style="cursor: pointer;">
+                                <circle cx="360" cy="150" r="30" class="node-circle node-s2" />
+                                <text x="360" y="145" text-anchor="middle" class="node-text-name">S₂</text>
+                                <line x1="340" y1="151" x2="380" y2="151" class="node-divider" />
+                                <text x="360" y="165" text-anchor="middle" class="node-text-sub">10 / 2</text>
+                            </g>
+
+                            <!-- Legend / Node Format Note -->
+                            <text x="230" y="275" text-anchor="middle" class="graph-legend-text">Knotenaufbau: Name / Zustandskodierung z₀z₁ / Zahlenausgabe</text>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- RIGHT: SYNCHRONOUS CIRCUIT DIAGRAM -->
+                <div class="card sim-card">
+                    <div class="card-header">
+                        <h3>Synchrones Schaltwerk (Schaltbild)</h3>
+                        <span class="badge">2 D-Flip-Flops &amp; Logikgatter</span>
+                    </div>
+                    <div class="circuit-canvas-wrap">
+                        <svg viewBox="0 0 520 300" class="circuit-svg">
+                            <!-- FLIP FLOP 0 (Bit z0) -->
+                            <g class="flip-flop-group">
+                                <rect x="310" y="50" width="70" height="90" rx="4" class="ff-box @(Z0 == 1 ? "ff-active" : "")" />
+                                <text x="345" y="72" text-anchor="middle" class="ff-title">FF 0</text>
+                                <text x="320" y="95" class="ff-pin">D</text>
+                                <text x="370" y="95" text-anchor="end" class="ff-pin">Q</text>
+                                <text x="320" y="125" class="ff-pin">&gt;</text>
+                                <text x="345" y="130" text-anchor="middle" class="ff-sub">z₀ = @Z0</text>
+                            </g>
+
+                            <!-- FLIP FLOP 1 (Bit z1) -->
+                            <g class="flip-flop-group">
+                                <rect x="310" y="170" width="70" height="90" rx="4" class="ff-box @(Z1 == 1 ? "ff-active" : "")" />
+                                <text x="345" y="192" text-anchor="middle" class="ff-title">FF 1</text>
+                                <text x="320" y="215" class="ff-pin">D</text>
+                                <text x="370" y="215" text-anchor="end" class="ff-pin">Q</text>
+                                <text x="320" y="245" class="ff-pin">&gt;</text>
+                                <text x="345" y="250" text-anchor="middle" class="ff-sub">z₁ = @Z1</text>
+                            </g>
+
+                            <!-- INPUT SIGNAL 'e' -->
+                            <g class="input-line-group">
+                                <rect x="15" y="130" width="45" height="30" rx="4" class="wire-box @(InputSignal == 1 ? "box-high" : "box-low")" />
+                                <text x="37" y="150" text-anchor="middle" class="wire-box-text">e = @InputSignal</text>
+                                <line x1="60" y1="145" x2="100" y2="145" class="wire @(InputSignal == 1 ? "wire-high" : "wire-low")" />
+                            </g>
+
+                            <!-- CLOCK INPUT -->
+                            <g class="clock-line-group">
+                                <rect x="230" y="270" width="55" height="24" rx="3" class="clk-box" />
+                                <text x="257" y="286" text-anchor="middle" class="clk-text">⏱️ CLK</text>
+                                <path d="M 285 282 L 300 282 L 300 125 L 310 125 M 300 245 L 310 245" fill="none" class="wire-clk" />
+                            </g>
+
+                            <!-- COMBINATIONAL LOGIC FOR D0 and D1 -->
+                            <!-- D0 Logic Block -->
+                            <rect x="100" y="60" width="130" height="70" rx="4" class="logic-box" />
+                            <text x="165" y="80" text-anchor="middle" class="logic-title">Steuerlogik D₀</text>
+                            <text x="165" y="100" text-anchor="middle" class="logic-eq">(e &and; z₀) &or; (e &and; z₁)</text>
+                            <text x="165" y="118" text-anchor="middle" class="logic-val">D₀ = @D0Next</text>
+
+                            <!-- Line from D0 block to FF0 D input -->
+                            <line x1="230" y1="95" x2="310" y2="95" class="wire @(D0Next == 1 ? "wire-high" : "wire-low")" />
+
+                            <!-- D1 Logic Block -->
+                            <rect x="100" y="180" width="130" height="70" rx="4" class="logic-box" />
+                            <text x="165" y="200" text-anchor="middle" class="logic-title">Steuerlogik D₁</text>
+                            <text x="165" y="218" text-anchor="middle" class="logic-eq">(e &and; &not;z₀ &and; &not;z₁) &or; (&not;e &and; z₀)</text>
+                            <text x="165" y="238" text-anchor="middle" class="logic-val">D₁ = @D1Next</text>
+
+                            <!-- Line from D1 block to FF1 D input -->
+                            <line x1="230" y1="215" x2="310" y2="215" class="wire @(D1Next == 1 ? "wire-high" : "wire-low")" />
+
+                            <!-- OUTPUTS -->
+                            <!-- a0 Output -->
+                            <line x1="380" y1="95" x2="430" y2="95" class="wire @(A0 == 1 ? "wire-high" : "wire-low")" />
+                            <circle cx="450" cy="95" r="14" class="out-lamp @(A0 == 1 ? "lamp-on" : "lamp-off")" />
+                            <text x="450" y="99" text-anchor="middle" class="lamp-label">a₀</text>
+                            <text x="475" y="99" class="lamp-sub">= @A0</text>
+
+                            <!-- a1 Output -->
+                            <line x1="380" y1="215" x2="430" y2="215" class="wire @(A1 == 1 ? "wire-high" : "wire-low")" />
+                            <circle cx="450" cy="215" r="14" class="out-lamp @(A1 == 1 ? "lamp-on" : "lamp-off")" />
+                            <text x="450" y="219" text-anchor="middle" class="lamp-label">a₁</text>
+                            <text x="475" y="219" class="lamp-sub">= @A1</text>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        }
+        else if (ActiveTab == SimTab.TruthTables)
+        {
+            <!-- TRUTH TABLES FOR SYNTHESIS -->
+            <div class="card truth-tables-card">
+                <div class="card-header">
+                    <h3>Synthese-Wahrheitstafeln (Kodierung mit z₀, z₁)</h3>
+                    <span class="badge">Zustände: S₀=00, S₁=01, S₂=10, Don't Care=11</span>
+                </div>
+
+                <div class="tables-split-layout">
+                    <!-- TRANSITION TABLE -->
+                    <div class="table-column">
+                        <h4>Übergangsfunktion (Folgezustand z₀ⁿᵉˣᵗ, z₁ⁿᵉˣᵗ)</h4>
+                        <table class="exam-style-table">
+                            <thead>
+                                <tr>
+                                    <th colspan="2">Alter Zustand</th>
+                                    <th>Eingang</th>
+                                    <th colspan="2">Neuer Zustand</th>
+                                    <th>Bedeutung</th>
+                                </tr>
+                                <tr>
+                                    <th>z₀</th>
+                                    <th>z₁</th>
+                                    <th>e</th>
+                                    <th>z₀ⁿᵉˣᵗ</th>
+                                    <th>z₁ⁿᵉˣᵗ</th>
+                                    <th>Übergang</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="@(CurrentState == 0 && InputSignal == 0 ? "active-row" : "")">
+                                    <td>0</td><td>0</td><td>0</td><td><strong>0</strong></td><td><strong>0</strong></td><td>S₀ &rarr; S₀ (Halt)</td>
+                                </tr>
+                                <tr class="@(CurrentState == 0 && InputSignal == 1 ? "active-row" : "")">
+                                    <td>0</td><td>0</td><td>1</td><td><strong>0</strong></td><td><strong>1</strong></td><td>S₀ &rarr; S₁ (Vorwärts)</td>
+                                </tr>
+                                <tr class="@(CurrentState == 1 && InputSignal == 0 ? "active-row" : "")">
+                                    <td>0</td><td>1</td><td>0</td><td><strong>0</strong></td><td><strong>0</strong></td><td>S₁ &rarr; S₀ (Rückwärts)</td>
+                                </tr>
+                                <tr class="@(CurrentState == 1 && InputSignal == 1 ? "active-row" : "")">
+                                    <td>0</td><td>1</td><td>1</td><td><strong>1</strong></td><td><strong>0</strong></td><td>S₁ &rarr; S₂ (Vorwärts)</td>
+                                </tr>
+                                <tr class="@(CurrentState == 2 && InputSignal == 0 ? "active-row" : "")">
+                                    <td>1</td><td>0</td><td>0</td><td><strong>0</strong></td><td><strong>1</strong></td><td>S₂ &rarr; S₁ (Rückwärts)</td>
+                                </tr>
+                                <tr class="@(CurrentState == 2 && InputSignal == 1 ? "active-row" : "")">
+                                    <td>1</td><td>0</td><td>1</td><td><strong>1</strong></td><td><strong>0</strong></td><td>S₂ &rarr; S₂ (Halt)</td>
+                                </tr>
+                                <tr class="dc-row">
+                                    <td>1</td><td>1</td><td>0</td><td class="dc-val">-</td><td class="dc-val">-</td><td>Don't Care (nicht erreichbar)</td>
+                                </tr>
+                                <tr class="dc-row">
+                                    <td>1</td><td>1</td><td>1</td><td class="dc-val">-</td><td class="dc-val">-</td><td>Don't Care (nicht erreichbar)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- OUTPUT TABLE -->
+                    <div class="table-column">
+                        <h4>Ausgabefunktion (Ausgänge a₀, a₁)</h4>
+                        <table class="exam-style-table">
+                            <thead>
+                                <tr>
+                                    <th colspan="2">Zustand</th>
+                                    <th colspan="2">Ausgang</th>
+                                    <th>Zahlenwert</th>
+                                </tr>
+                                <tr>
+                                    <th>z₀</th>
+                                    <th>z₁</th>
+                                    <th>a₀</th>
+                                    <th>a₁</th>
+                                    <th>Dezimal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="@(CurrentState == 0 ? "active-row" : "")">
+                                    <td>0</td><td>0</td><td><strong>0</strong></td><td><strong>0</strong></td><td>0</td>
+                                </tr>
+                                <tr class="@(CurrentState == 1 ? "active-row" : "")">
+                                    <td>0</td><td>1</td><td><strong>0</strong></td><td><strong>1</strong></td><td>1</td>
+                                </tr>
+                                <tr class="@(CurrentState == 2 ? "active-row" : "")">
+                                    <td>1</td><td>0</td><td><strong>1</strong></td><td><strong>0</strong></td><td>2</td>
+                                </tr>
+                                <tr class="dc-row">
+                                    <td>1</td><td>1</td><td class="dc-val">-</td><td class="dc-val">-</td><td>-</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <div class="synthesis-note">
+                            <strong>Didaktischer Hinweis:</strong><br />
+                            Bei 3 Zuständen bleiben $2^2 - 3 = 1$ Zustandskombination ($z_0z_1 = 11_2$) ungenutzt.
+                            In den KV-Diagrammen werden diese Stellen als <em>Don't Cares ($-$)</em> eingetragen und zur optimalen Blockbildung mit $1$ oder $0$ belegt.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+        else if (ActiveTab == SimTab.KVMaps)
+        {
+            <!-- KV MAPS MINIMIZATION -->
+            <div class="card kv-maps-card">
+                <div class="card-header">
+                    <h3>Minimierung der Steuer- und Ausgangsfunktionen via KV-Diagramme</h3>
+                    <span class="badge badge-accent">3 Eingangsvariablen (e &times; z₀z₁)</span>
+                </div>
+
+                <div class="kv-grid-4col">
+                    <!-- KV MAP z0_next -->
+                    <div class="kv-box">
+                        <div class="kv-title">D₀ = z₀ⁿᵉˣᵗ</div>
+                        <table class="sim-kv-mini">
+                            <thead>
+                                <tr>
+                                    <th rowspan="2">e</th>
+                                    <th colspan="4">z₀z₁</th>
+                                </tr>
+                                <tr>
+                                    <th>00</th><th>01</th><th>11</th><th>10</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <th>0</th>
+                                    <td>0</td><td>0</td><td class="dc-cell">-</td><td>0</td>
+                                </tr>
+                                <tr>
+                                    <th>1</th>
+                                    <td>0</td><td class="minterm-cell">1</td><td class="dc-cell dc-chosen">-</td><td class="minterm-cell">1</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div class="kv-formula">
+                            D₀ = <strong>(e &and; z₀) &or; (e &and; z₁)</strong>
+                        </div>
+                    </div>
+
+                    <!-- KV MAP z1_next -->
+                    <div class="kv-box">
+                        <div class="kv-title">D₁ = z₁ⁿᵉˣᵗ</div>
+                        <table class="sim-kv-mini">
+                            <thead>
+                                <tr>
+                                    <th rowspan="2">e</th>
+                                    <th colspan="4">z₀z₁</th>
+                                </tr>
+                                <tr>
+                                    <th>00</th><th>01</th><th>11</th><th>10</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <th>0</th>
+                                    <td>0</td><td>0</td><td class="dc-cell dc-chosen">-</td><td class="minterm-cell">1</td>
+                                </tr>
+                                <tr>
+                                    <th>1</th>
+                                    <td class="minterm-cell">1</td><td>0</td><td class="dc-cell">-</td><td>0</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div class="kv-formula">
+                            D₁ = <strong>(e &and; &not;z₀ &and; &not;z₁) &or; (&not;e &and; z₀)</strong>
+                        </div>
+                    </div>
+
+                    <!-- KV MAP a0 -->
+                    <div class="kv-box">
+                        <div class="kv-title">a₀ (Ausgang)</div>
+                        <table class="sim-kv-mini">
+                            <thead>
+                                <tr>
+                                    <th rowspan="2">z₀</th>
+                                    <th colspan="2">z₁</th>
+                                </tr>
+                                <tr>
+                                    <th>0</th><th>1</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <th>0</th>
+                                    <td>0</td><td>0</td>
+                                </tr>
+                                <tr>
+                                    <th>1</th>
+                                    <td class="minterm-cell">1</td><td class="dc-cell dc-chosen">-</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div class="kv-formula">
+                            a₀ = <strong>z₀</strong>
+                        </div>
+                    </div>
+
+                    <!-- KV MAP a1 -->
+                    <div class="kv-box">
+                        <div class="kv-title">a₁ (Ausgang)</div>
+                        <table class="sim-kv-mini">
+                            <thead>
+                                <tr>
+                                    <th rowspan="2">z₀</th>
+                                    <th colspan="2">z₁</th>
+                                </tr>
+                                <tr>
+                                    <th>0</th><th>1</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <th>0</th>
+                                    <td>0</td><td class="minterm-cell">1</td>
+                                </tr>
+                                <tr>
+                                    <th>1</th>
+                                    <td>0</td><td class="dc-cell dc-chosen">-</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div class="kv-formula">
+                            a₁ = <strong>z₁</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <!-- WORKSHEET VIEW (1:1 EXAM EQUIVALENT TIMoore_01.tex) -->
+        <div class="worksheet-paper">
+            <div class="ws-header-row no-print">
+                <div class="ws-controls">
+                    <button class="btn-ws-primary" @onclick="ToggleSolution">
+                        @(ShowSolution ? "👁️ Lösung verbergen" : "👁️ Lösung anzeigen")
+                    </button>
+                    <button class="btn-ws-secondary" @onclick="TriggerPrint">
+                        🖨️ Drucken / PDF Export
+                    </button>
+                </div>
+            </div>
+
+            <!-- EXAM BANNER -->
+            <div class="exam-title-block">
+                <div class="exam-kicker">Grundlagen der Informatik &bull; Übungsaufgabe</div>
+                <h1 class="exam-h1">Aufgabe: Entwurf eines Moore-Automaten</h1>
+                <div class="exam-points">Erreichbare Punkte: 10 Punkte</div>
+            </div>
+
+            <!-- INTRODUCTORY TEXT & EXAMPLE (LAMP) -->
+            <div class="exam-intro-box">
+                <p>
+                    Mit Automaten kann man zustandsbasiert modellieren. Hauptteile der Modellierung sind dabei die Zustandsmenge
+                    (hier: <code>{AUS, AN}</code>), die Eingabemenge (hier: <code>{Schalter}</code>), die Ausgabemenge (hier: <code>{Lampe}</code> bzw. <code>{0, 1}</code>)
+                    und die Funktionen, die Zustandsübergänge und Ausgaben beschreiben.
+                </p>
+
+                <!-- INTRO TABLES (LAMP) -->
+                <div class="intro-tables-row">
+                    <table class="exam-intro-table">
+                        <thead>
+                            <tr>
+                                <th>Alter Zustand</th>
+                                <th>Eingabe</th>
+                                <th>Neuer Zustand</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>AUS</td><td>&not;Schalter</td><td>AUS</td></tr>
+                            <tr><td>AUS</td><td>Schalter</td><td>AN</td></tr>
+                            <tr><td>AN</td><td>&not;Schalter</td><td>AN</td></tr>
+                            <tr><td>AN</td><td>Schalter</td><td>AUS</td></tr>
+                        </tbody>
+                    </table>
+
+                    <table class="exam-intro-table">
+                        <thead>
+                            <tr>
+                                <th>Zustand</th>
+                                <th>Ausgabe</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>AUS</td><td>0</td></tr>
+                            <tr><td>AN</td><td>1</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <p>
+                    Automaten können durch Schaltwerke umgesetzt werden. Dazu führt man eine Synthese durch, in der Zustände, Eingaben und Ausgaben
+                    auf Speicherzustände, Eingänge und Ausgänge eines Schaltwerks übertragen werden und die Funktionen auf möglichst minimale
+                    Boolesche Funktionen übertragen werden.
+                </p>
+                <p>
+                    Hier also z.&thinsp;B. <code>{AUS, AN} &rarr; {0, 1}</code>, Eingabe und Ausgabe werden direkt als Eingangs- und Ausgangsvariable übernommen:
+                </p>
+
+                <div class="intro-tables-row">
+                    <table class="exam-intro-table">
+                        <thead>
+                            <tr>
+                                <th>Zustand</th>
+                                <th>Schalter</th>
+                                <th>Zustand<sub>neu</sub></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>0</td><td>0</td><td>0</td></tr>
+                            <tr><td>0</td><td>1</td><td>1</td></tr>
+                            <tr><td>1</td><td>0</td><td>1</td></tr>
+                            <tr><td>1</td><td>1</td><td>0</td></tr>
+                        </tbody>
+                    </table>
+
+                    <table class="exam-intro-table">
+                        <thead>
+                            <tr>
+                                <th>Zustand</th>
+                                <th>Lampe</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>0</td><td>0</td></tr>
+                            <tr><td>1</td><td>1</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <p>
+                    Die entsprechenden Funktionen sind dann:
+                </p>
+                <div class="exam-formula-center">
+                    <strong>Zustand<sub>neu</sub> = (&not;Zustand &and; Schalter) &or; (Zustand &and; &not;Schalter)</strong><br />
+                    <strong>Lampe = Zustand</strong>
+                </div>
+            </div>
+
+            <!-- TEILAUFGABE 1 -->
+            <div class="exam-part page-break-before">
+                <div class="part-title">Teilaufgabe 1 (2,5 Punkte)</div>
+                <p class="part-prompt">
+                    Modellieren Sie einen Automaten zum Zählen, der die Zahlen 0, 1 und 2 ausgeben kann und dabei je nach Eingabe vorwärts oder rückwärts zählt.
+                    Gehen Sie dabei davon aus, dass eine alleine Eingabe die Zählrichtung bestimmt und beim Vorwärtszählen nach einer 2 weiterhin eine 2 ausgegeben wird,
+                    beim Rückwärtszählen nach einer 0 weiterhin eine 0.
+                </p>
+
+                <div class="ws-diagram-box">
+                    <svg viewBox="0 0 500 180" class="ws-graph-svg">
+                        <defs>
+                            <marker id="ws-arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                <path d="M 0 1 L 8 5 L 0 9 z" fill="#000000" />
+                            </marker>
+                        </defs>
+
+                        <!-- Self loop 0: e=0 -->
+                        <path d="M 75 60 C 25 30, 25 130, 75 100" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#ws-arrow)" />
+                        <text x="22" y="85" font-size="11" font-weight="bold">@(ShowSolution ? "e = 0" : "")</text>
+
+                        <!-- Forward S0 -> S1: e=1 -->
+                        <path d="M 125 65 C 155 45, 195 45, 225 65" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#ws-arrow)" />
+                        <text x="175" y="45" text-anchor="middle" font-size="11" font-weight="bold">@(ShowSolution ? "e = 1" : "")</text>
+
+                        <!-- Backward S1 -> S0: e=0 -->
+                        <path d="M 225 95 C 195 115, 155 115, 125 95" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#ws-arrow)" />
+                        <text x="175" y="125" text-anchor="middle" font-size="11" font-weight="bold">@(ShowSolution ? "e = 0" : "")</text>
+
+                        <!-- Forward S1 -> S2: e=1 -->
+                        <path d="M 275 65 C 305 45, 345 45, 355 65" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#ws-arrow)" />
+                        <text x="315" y="45" text-anchor="middle" font-size="11" font-weight="bold">@(ShowSolution ? "e = 1" : "")</text>
+
+                        <!-- Backward S2 -> S1: e=0 -->
+                        <path d="M 355 95 C 345 115, 305 115, 275 95" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#ws-arrow)" />
+                        <text x="315" y="125" text-anchor="middle" font-size="11" font-weight="bold">@(ShowSolution ? "e = 0" : "")</text>
+
+                        <!-- Self loop 2: e=1 -->
+                        <path d="M 405 60 C 455 30, 455 130, 405 100" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#ws-arrow)" />
+                        <text x="460" y="85" font-size="11" font-weight="bold">@(ShowSolution ? "e = 1" : "")</text>
+
+                        <!-- Nodes -->
+                        <circle cx="100" cy="80" r="25" fill="#ffffff" stroke="#000000" stroke-width="1.5" />
+                        <text x="100" y="75" text-anchor="middle" font-size="12" font-weight="bold">@(ShowSolution ? "S₀" : "")</text>
+                        <line x1="80" y1="80" x2="120" y2="80" stroke="#000000" stroke-width="1" />
+                        <text x="100" y="95" text-anchor="middle" font-size="10">@(ShowSolution ? "0" : "")</text>
+
+                        <circle cx="250" cy="80" r="25" fill="#ffffff" stroke="#000000" stroke-width="1.5" />
+                        <text x="250" y="75" text-anchor="middle" font-size="12" font-weight="bold">@(ShowSolution ? "S₁" : "")</text>
+                        <line x1="230" y1="80" x2="270" y2="80" stroke="#000000" stroke-width="1" />
+                        <text x="250" y="95" text-anchor="middle" font-size="10">@(ShowSolution ? "1" : "")</text>
+
+                        <circle cx="380" cy="80" r="25" fill="#ffffff" stroke="#000000" stroke-width="1.5" />
+                        <text x="380" y="75" text-anchor="middle" font-size="12" font-weight="bold">@(ShowSolution ? "S₂" : "")</text>
+                        <line x1="360" y1="80" x2="400" y2="80" stroke="#000000" stroke-width="1" />
+                        <text x="380" y="95" text-anchor="middle" font-size="10">@(ShowSolution ? "2" : "")</text>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- TEILAUFGABE 2 -->
+            <div class="exam-part">
+                <div class="part-title">Teilaufgabe 2 (2,5 Punkte)</div>
+                <p class="part-prompt">
+                    Führen Sie eine Synthese durch. Überlegen Sie dazu zunächst, wie Sie Zustände, Eingaben und Ausgaben auf Speicherzustände,
+                    Eingänge und Ausgänge übertragen und füllen Sie dann die folgenden Wahrheitstafeln aus:
+                </p>
+
+                <div class="intro-tables-row">
+                    <!-- TRANSITION TABLE -->
+                    <table class="exam-kv-table">
+                        <thead>
+                            <tr>
+                                <th colspan="2">Zustand</th>
+                                <th>Schalter</th>
+                                <th colspan="2">Zustand<sub>neu</sub></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>0</td><td>0</td><td>0</td>
+                                <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "0" : "")</td>
+                                <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "0" : "")</td>
+                            </tr>
+                            <tr>
+                                <td>0</td><td>0</td><td>1</td>
+                                <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "0" : "")</td>
+                                <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "1" : "")</td>
+                            </tr>
+                            <tr>
+                                <td>0</td><td>1</td><td>0</td>
+                                <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "0" : "")</td>
+                                <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "0" : "")</td>
+                            </tr>
+                            <tr>
+                                <td>0</td><td>1</td><td>1</td>
+                                <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "1" : "")</td>
+                                <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "0" : "")</td>
+                            </tr>
+                            <tr>
+                                <td>1</td><td>0</td><td>0</td>
+                                <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "0" : "")</td>
+                                <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "1" : "")</td>
+                            </tr>
+                            <tr>
+                                <td>1</td><td>0</td><td>1</td>
+                                <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "1" : "")</td>
+                                <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "0" : "")</td>
+                            </tr>
+                            <tr>
+                                <td>1</td><td>1</td><td>0</td>
+                                <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "-" : "")</td>
+                                <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "-" : "")</td>
+                            </tr>
+                            <tr>
+                                <td>1</td><td>1</td><td>1</td>
+                                <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "-" : "")</td>
+                                <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "-" : "")</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- OUTPUT TABLE -->
+                    <table class="exam-kv-table">
+                        <thead>
+                            <tr>
+                                <th colspan="2">Zustand</th>
+                                <th colspan="2">Ausgang</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>0</td><td>0</td>
+                                <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "0" : "")</td>
+                                <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "0" : "")</td>
+                            </tr>
+                            <tr>
+                                <td>0</td><td>1</td>
+                                <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "0" : "")</td>
+                                <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "1" : "")</td>
+                            </tr>
+                            <tr>
+                                <td>1</td><td>0</td>
+                                <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "1" : "")</td>
+                                <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "0" : "")</td>
+                            </tr>
+                            <tr>
+                                <td>1</td><td>1</td>
+                                <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "-" : "")</td>
+                                <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "-" : "")</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TEILAUFGABE 3 -->
+            <div class="exam-part page-break-before">
+                <div class="part-title">Teilaufgabe 3 (2,5 Punkte)</div>
+                <p class="part-prompt">
+                    Minimieren Sie in den nächsten Schritten die entsprechenden Booleschen Funktionen.
+                    Zunächst können Sie die Funktionen für die Zustandsübergänge minimieren:
+                </p>
+
+                <div class="intro-tables-row">
+                    <!-- KV MAP z0_next -->
+                    <div class="ws-kv-col">
+                        <div class="ws-kv-label">KV-Diagramm für z₀<sup>next</sup></div>
+                        <table class="exam-kv-table">
+                            <thead>
+                                <tr>
+                                    <th rowspan="2">Eingang</th>
+                                    <th colspan="4">Zustand</th>
+                                </tr>
+                                <tr>
+                                    <th>00</th><th>01</th><th>11</th><th>10</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <th>0</th>
+                                    <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "0" : "")</td>
+                                    <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "0" : "")</td>
+                                    <td class="@(ShowSolution ? "sol-revealed dc-chosen" : "blank-slot")">@(ShowSolution ? "-" : "")</td>
+                                    <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "0" : "")</td>
+                                </tr>
+                                <tr>
+                                    <th>1</th>
+                                    <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "0" : "")</td>
+                                    <td class="@(ShowSolution ? "sol-revealed sol-high" : "blank-slot")">@(ShowSolution ? "1" : "")</td>
+                                    <td class="@(ShowSolution ? "sol-revealed dc-chosen" : "blank-slot")">@(ShowSolution ? "-" : "")</td>
+                                    <td class="@(ShowSolution ? "sol-revealed sol-high" : "blank-slot")">@(ShowSolution ? "1" : "")</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- KV MAP z1_next -->
+                    <div class="ws-kv-col">
+                        <div class="ws-kv-label">KV-Diagramm für z₁<sup>next</sup></div>
+                        <table class="exam-kv-table">
+                            <thead>
+                                <tr>
+                                    <th rowspan="2">Eingang</th>
+                                    <th colspan="4">Zustand</th>
+                                </tr>
+                                <tr>
+                                    <th>00</th><th>01</th><th>11</th><th>10</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <th>0</th>
+                                    <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "0" : "")</td>
+                                    <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "0" : "")</td>
+                                    <td class="@(ShowSolution ? "sol-revealed dc-chosen" : "blank-slot")">@(ShowSolution ? "-" : "")</td>
+                                    <td class="@(ShowSolution ? "sol-revealed sol-high" : "blank-slot")">@(ShowSolution ? "1" : "")</td>
+                                </tr>
+                                <tr>
+                                    <th>1</th>
+                                    <td class="@(ShowSolution ? "sol-revealed sol-high" : "blank-slot")">@(ShowSolution ? "1" : "")</td>
+                                    <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "0" : "")</td>
+                                    <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "-" : "")</td>
+                                    <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "0" : "")</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                @if (ShowSolution)
+                {
+                    <div class="ws-solution-box">
+                        <strong>Musterlösung Übergangsfunktionen:</strong><br />
+                        z₀<sup>next</sup> = (e &and; z₀) &or; (e &and; z₁)<br />
+                        z₁<sup>next</sup> = (e &and; &not;z₀ &and; &not;z₁) &or; (&not;e &and; z₀)
+                    </div>
+                }
+                else
+                {
+                    <div class="ws-answer-lines"></div>
+                }
+            </div>
+
+            <!-- TEILAUFGABE 4 -->
+            <div class="exam-part">
+                <div class="part-title">Teilaufgabe 4 (2,5 Punkte)</div>
+                <p class="part-prompt">
+                    Minimieren Sie nun die Ausgangsfunktionen:
+                </p>
+
+                <div class="intro-tables-row">
+                    <!-- KV MAP a0 -->
+                    <div class="ws-kv-col">
+                        <div class="ws-kv-label">KV-Diagramm für a₀</div>
+                        <table class="exam-kv-table">
+                            <thead>
+                                <tr>
+                                    <th rowspan="2">Zustand</th>
+                                    <th colspan="2">Ausgang</th>
+                                </tr>
+                                <tr>
+                                    <th>0</th><th>1</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <th>0</th>
+                                    <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "0" : "")</td>
+                                    <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "0" : "")</td>
+                                </tr>
+                                <tr>
+                                    <th>1</th>
+                                    <td class="@(ShowSolution ? "sol-revealed sol-high" : "blank-slot")">@(ShowSolution ? "1" : "")</td>
+                                    <td class="@(ShowSolution ? "sol-revealed dc-chosen" : "blank-slot")">@(ShowSolution ? "-" : "")</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- KV MAP a1 -->
+                    <div class="ws-kv-col">
+                        <div class="ws-kv-label">KV-Diagramm für a₁</div>
+                        <table class="exam-kv-table">
+                            <thead>
+                                <tr>
+                                    <th rowspan="2">Zustand</th>
+                                    <th colspan="2">Ausgang</th>
+                                </tr>
+                                <tr>
+                                    <th>0</th><th>1</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <th>0</th>
+                                    <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "0" : "")</td>
+                                    <td class="@(ShowSolution ? "sol-revealed sol-high" : "blank-slot")">@(ShowSolution ? "1" : "")</td>
+                                </tr>
+                                <tr>
+                                    <th>1</th>
+                                    <td class="@(ShowSolution ? "sol-revealed" : "blank-slot")">@(ShowSolution ? "0" : "")</td>
+                                    <td class="@(ShowSolution ? "sol-revealed dc-chosen" : "blank-slot")">@(ShowSolution ? "-" : "")</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                @if (ShowSolution)
+                {
+                    <div class="ws-solution-box">
+                        <strong>Musterlösung Ausgangsfunktionen:</strong><br />
+                        a₀ = z₀<br />
+                        a₁ = z₁
+                    </div>
+                }
+                else
+                {
+                    <div class="ws-answer-lines"></div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    public enum ViewMode
+    {
+        StepByStep,
+        Worksheet
+    }
+
+    public enum SimTab
+    {
+        CircuitAndGraph,
+        TruthTables,
+        KVMaps
+    }
+
+    private ViewMode ActiveView = ViewMode.StepByStep;
+    private SimTab ActiveTab = SimTab.CircuitAndGraph;
+    private bool ShowSolution = false;
+    private bool IsEmbed = false;
+
+    // Moore State Machine Simulation State
+    // States: 0 = S0 (00), 1 = S1 (01), 2 = S2 (10)
+    private int CurrentState = 0;
+    private int InputSignal = 1; // 0 = Backward / Stop at 0, 1 = Forward / Stop at 2
+
+    // Flip Flop outputs: z0, z1
+    private int Z0 => (CurrentState >> 1) & 1;
+    private int Z1 => CurrentState & 1;
+
+    // Next Flip Flop inputs: D0 = z0^next, D1 = z1^next
+    // From equations:
+    // z0_next = (e & z0) | (e & z1)
+    // z1_next = (e & !z0 & !z1) | (!e & z0)
+    private int D0Next
+    {
+        get
+        {
+            bool term1 = (InputSignal == 1) && (Z0 == 1);
+            bool term2 = (InputSignal == 1) && (Z1 == 1);
+            return (term1 || term2) ? 1 : 0;
+        }
+    }
+
+    private int D1Next
+    {
+        get
+        {
+            bool term1 = (InputSignal == 1) && (Z0 == 0) && (Z1 == 0);
+            bool term2 = (InputSignal == 0) && (Z0 == 1);
+            return (term1 || term2) ? 1 : 0;
+        }
+    }
+
+    // Outputs: a0 = z0, a1 = z1
+    private int A0 => Z0;
+    private int A1 => Z1;
+    private int OutputVal => CurrentState;
+
+    // Autoplay timer
+    private bool IsAutoPlaying = false;
+    private System.Threading.Timer? AutoPlayTimer;
+
+    protected override void OnInitialized()
+    {
+        ReadQueryParameters();
+    }
+
+    protected override void OnParametersSet()
+    {
+        ReadQueryParameters();
+    }
+
+    private void ReadQueryParameters()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query;
+            if (!string.IsNullOrEmpty(query))
+            {
+                if (query.Contains("view=worksheet", StringComparison.OrdinalIgnoreCase))
+                {
+                    ActiveView = ViewMode.Worksheet;
+                }
+                if (query.Contains("solution=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    ShowSolution = true;
+                }
+                if (query.Contains("embed=true", StringComparison.OrdinalIgnoreCase) || query.Contains("embedded=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsEmbed = true;
+                }
+            }
+        }
+        catch
+        {
+            // Ignore URI parsing issues during prerender
+        }
+    }
+
+    private void SetView(ViewMode view)
+    {
+        ActiveView = view;
+        StopAutoPlay();
+    }
+
+    private void SetInput(int val)
+    {
+        InputSignal = val;
+    }
+
+    private void SetState(int state)
+    {
+        CurrentState = Math.Clamp(state, 0, 2);
+    }
+
+    private void ResetToS0()
+    {
+        CurrentState = 0;
+        InputSignal = 1;
+    }
+
+    private void StepClock()
+    {
+        // Transition based on current state and input
+        if (CurrentState == 0)
+        {
+            CurrentState = (InputSignal == 1) ? 1 : 0;
+        }
+        else if (CurrentState == 1)
+        {
+            CurrentState = (InputSignal == 1) ? 2 : 0;
+        }
+        else if (CurrentState == 2)
+        {
+            CurrentState = (InputSignal == 1) ? 2 : 1;
+        }
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void ToggleAutoPlay()
+    {
+        if (IsAutoPlaying)
+        {
+            StopAutoPlay();
+        }
+        else
+        {
+            IsAutoPlaying = true;
+            AutoPlayTimer = new System.Threading.Timer(_ =>
+            {
+                StepClock();
+            }, null, 0, 1200);
+        }
+    }
+
+    private void StopAutoPlay()
+    {
+        IsAutoPlaying = false;
+        AutoPlayTimer?.Dispose();
+        AutoPlayTimer = null;
+    }
+
+    private void ToggleSolution()
+    {
+        ShowSolution = !ShowSolution;
+    }
+
+    private async Task TriggerPrint()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+
+    public void Dispose()
+    {
+        StopAutoPlay();
+    }
+}
