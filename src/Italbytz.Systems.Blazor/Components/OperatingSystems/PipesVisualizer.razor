@@ -1,0 +1,994 @@
+@namespace Italbytz.Systems.Blazor.Components.OperatingSystems
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+<article class="pipes-container @(IsEmbed ? "embed-mode" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
+
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
+    {
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Betriebssysteme &bull; Interprozesskommunikation</p>
+            <h2>Pipes &amp; FIFO-Puffer (POSIX IPC)</h2>
+            <p class="feature-intro">
+                Pipes stellen einen unidirektionalen Datenstrom (FIFO-Kanal) zwischen Prozessen bereit. 
+                Erkunden Sie schrittweise Pufferkapazitäten, blockierendes Lesen und Schreiben, 
+                den EOF-Signalfluss beim Schließen von Dateideskriptoren (<code>close(pipefd[1])</code>) 
+                sowie <code>SIGPIPE</code> bei unterbrochenen Verbindungen.
+            </p>
+        </div>
+    }
+
+    <!-- View Switcher -->
+    @if (!IsEmbed)
+    {
+        <div class="view-switch no-print">
+            <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Simulator)">
+                🚀 Interaktiver Pipeline-Simulator &amp; Puffer-Visualisierung
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Worksheet)">
+                🖨️ Klausur-Arbeitsblatt (Druckansicht 1:1)
+            </button>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- SIMULATOR VIEW                                                            -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Controls & Presets Panel -->
+        <div class="controls-panel no-print">
+            <div class="toolbar-grid">
+                <div class="btn-group">
+                    <button class="action-btn" @onclick="GoToStart" disabled="@(CurrentStepIndex == 0)" title="An den Anfang">
+                        ⏮️ Anfang
+                    </button>
+                    <button class="action-btn" @onclick="StepBack" disabled="@(CurrentStepIndex == 0)" title="Schritt zurück">
+                        ◀️ Zurück
+                    </button>
+                    <button class="action-btn primary" @onclick="ToggleAutoPlay">
+                        @(IsPlaying ? "⏸️ Pause" : "▶️ Auto-Play")
+                    </button>
+                    <button class="action-btn primary" @onclick="StepForward" disabled="@(CurrentStepIndex >= ActiveSchedule.Count)" title="Nächster Schritt">
+                        Nächster Schritt (@(CurrentStepIndex)/@ActiveSchedule.Count) ⏭️
+                    </button>
+                    <button class="action-btn" @onclick="ResetSimulation" title="Simulation zurücksetzen">
+                        🔄 Reset
+                    </button>
+                </div>
+
+                <div class="mode-toggle-group">
+                    <span class="preset-label">Kanalart:</span>
+                    <button class="mode-btn @(!IsNamedPipe ? "active-unnamed" : "")" @onclick="() => SetPipeType(false)">
+                        📁 Anonyme Pipe (In-Memory)
+                    </button>
+                    <button class="mode-btn @(IsNamedPipe ? "active-named" : "")" @onclick="() => SetPipeType(true)">
+                        📄 Named Pipe / FIFO (/tmp/fifo)
+                    </button>
+                </div>
+
+                <div class="preset-group">
+                    <span class="preset-label">Szenarien:</span>
+                    <button class="preset-btn @(SelectedPreset == "Standard" ? "active" : "")" @onclick='() => LoadPreset("Standard")'>
+                        1. Standard-Stream (Hello IPC)
+                    </button>
+                    <button class="preset-btn @(SelectedPreset == "BufferFull" ? "active" : "")" @onclick='() => LoadPreset("BufferFull")'>
+                        2. Puffer voll (Writer blockiert)
+                    </button>
+                    <button class="preset-btn @(SelectedPreset == "EOFDemo" ? "active" : "")" @onclick='() => LoadPreset("EOFDemo")'>
+                        3. EOF (Write-End closed)
+                    </button>
+                    <button class="preset-btn @(SelectedPreset == "BrokenPipe" ? "active" : "")" @onclick='() => LoadPreset("BrokenPipe")'>
+                        4. Broken Pipe (SIGPIPE)
+                    </button>
+                </div>
+
+                <div class="speed-control">
+                    <span class="preset-label">Tempo:</span>
+                    <select class="speed-select" @bind="PlaySpeedMs">
+                        <option value="1500">Normal (1.5s)</option>
+                        <option value="800">Schnell (0.8s)</option>
+                        <option value="2500">Gemächlich (2.5s)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status & Event Alert Banners -->
+        @if (IsSigpipeTriggered)
+        {
+            <div class="alert-banner sigpipe-banner">
+                <span class="alert-icon">💥</span>
+                <div class="alert-content">
+                    <strong class="alert-title">SIGPIPE AUSGELÖST (BROKEN PIPE)!</strong>
+                    <span class="alert-desc">Writer versuchte in eine Pipe zu schreiben, deren Lese-Deskriptor (<code>pipefd[0]</code>) geschlossen ist. Betriebssystem sendet Signal SIGPIPE (Fehler EPIPE).</span>
+                </div>
+            </div>
+        }
+        else if (IsEofReached)
+        {
+            <div class="alert-banner eof-banner">
+                <span class="alert-icon">🏁</span>
+                <div class="alert-content">
+                    <strong class="alert-title">END OF FILE (EOF) ERREICHT!</strong>
+                    <span class="alert-desc">Schreibseite geschlossen (<code>close(pipefd[1])</code>) und Puffer geleert. Der Systemaufruf <code>read()</code> liefert 0 Bytes zurück.</span>
+                </div>
+            </div>
+        }
+        else if (IsWriterBlocked)
+        {
+            <div class="alert-banner blocked-banner">
+                <span class="alert-icon">⏳</span>
+                <div class="alert-content">
+                    <strong class="alert-title">SCHREIBER BLOCKIERT (PUFFER VOLL)!</strong>
+                    <span class="alert-desc">Die Pipe-Pufferkapazität (@BufferCapacity Bytes) ist erschöpft. <code>write()</code> blockiert, bis der Leser Daten abruft.</span>
+                </div>
+            </div>
+        }
+        else if (IsReaderBlocked)
+        {
+            <div class="alert-banner blocked-banner">
+                <span class="alert-icon">⏳</span>
+                <div class="alert-content">
+                    <strong class="alert-title">LESER BLOCKIERT (PUFFER LEER)!</strong>
+                    <span class="alert-desc">Keine Daten im FIFO-Puffer verfügbar. <code>read()</code> pausiert den Prozess, bis neue Bytes eintreffen.</span>
+                </div>
+            </div>
+        }
+
+        <!-- Interactive Pipeline Layout: Writer -> FIFO Buffer -> Reader -->
+        <div class="pipeline-grid">
+            
+            <!-- Left: Writer / Producer Process -->
+            <div class="panel-card process-card writer-card">
+                <div class="panel-header">
+                    <div class="process-header-info">
+                        <span class="panel-title process-title writer-title">✍️ Schreiber-Prozess (Producer)</span>
+                        <span class="pid-badge">PID @(IsNamedPipe ? "4096 (Client)" : "1001 (Parent)")</span>
+                    </div>
+                    <span class="fd-pill @(IsWriteEndOpen ? "fd-open" : "fd-closed")">
+                        pipefd[1]: @(IsWriteEndOpen ? "🔓 Offen" : "🔒 Geschlossen")
+                    </span>
+                </div>
+                
+                <div class="process-body">
+                    <div class="code-action-snippet mono">
+                        <span class="snippet-label">Aktueller Systemaufruf:</span>
+                        <div class="snippet-code @(IsWriterBlocked ? "code-blocked" : "")">
+                            @WriterCurrentCall
+                        </div>
+                    </div>
+
+                    <div class="process-state-indicator">
+                        <span class="state-lbl">Prozesszustand:</span>
+                        <span class="state-badge @GetWriterStatusClass()">@GetWriterStatusText()</span>
+                    </div>
+
+                    <div class="stream-stat">
+                        <span class="stat-lbl">Geschriebene Bytes:</span>
+                        <strong class="stat-val mono">@TotalBytesWritten Bytes</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Center: Kernel FIFO Ring Buffer -->
+            <div class="panel-card buffer-card">
+                <div class="panel-header">
+                    <div class="buffer-title-wrap">
+                        <span class="panel-title">🚰 Kernel FIFO-Puffer @(IsNamedPipe ? "(/tmp/my_fifo)" : "(In-Memory)")</span>
+                    </div>
+                    <span class="capacity-pill">
+                        @CurrentBuffer.Count / @BufferCapacity Bytes
+                    </span>
+                </div>
+
+                <div class="buffer-body">
+                    
+                    <!-- Visual Capacity Meter -->
+                    <div class="capacity-bar-wrap">
+                        <div class="capacity-bar-fill @(CurrentBuffer.Count >= BufferCapacity ? "bar-full" : "")" 
+                             style="width: @(BufferPercentage)%">
+                        </div>
+                    </div>
+
+                    <!-- FIFO Slot Display -->
+                    <div class="fifo-slots-container">
+                        @for (int i = 0; i < BufferCapacity; i++)
+                        {
+                            var slotIdx = i;
+                            var hasData = slotIdx < CurrentBuffer.Count;
+                            var byteVal = hasData ? CurrentBuffer[slotIdx] : ' ';
+
+                            <div class="fifo-slot @(hasData ? "slot-filled" : "slot-empty")">
+                                <span class="slot-idx">#@slotIdx</span>
+                                <span class="slot-char mono">@(hasData ? byteVal.ToString() : "·")</span>
+                                @if (slotIdx == 0 && hasData)
+                                {
+                                    <span class="head-marker" title="Lese-Kopf (FIFO Kopf)">Head</span>
+                                }
+                                @if (slotIdx == CurrentBuffer.Count - 1 && hasData)
+                                {
+                                    <span class="tail-marker" title="Schreib-Kopf (FIFO Ende)">Tail</span>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <div class="buffer-flow-labels">
+                        <span class="flow-arrow flow-in">⬇️ Schreiben (write)</span>
+                        <span class="flow-fifo-desc">First-In First-Out (FIFO)</span>
+                        <span class="flow-arrow flow-out">Lesen (read) ➡️</span>
+                    </div>
+
+                    <!-- Step Explanation Box -->
+                    <div class="step-explainer-box">
+                        <div class="explainer-header">
+                            <span class="explainer-badge">Schritt @(CurrentStepIndex) von @ActiveSchedule.Count</span>
+                            @if (CurrentStepIndex > 0 && CurrentStepIndex <= ActiveSchedule.Count)
+                            {
+                                var cur = ActiveSchedule[CurrentStepIndex - 1];
+                                <span class="actor-tag tag-@cur.Actor">@cur.ActorName</span>
+                            }
+                        </div>
+                        <p class="explainer-desc">
+                            @CurrentStepExplanation
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Right: Reader / Consumer Process -->
+            <div class="panel-card process-card reader-card">
+                <div class="panel-header">
+                    <div class="process-header-info">
+                        <span class="panel-title process-title reader-title">📖 Leser-Prozess (Consumer)</span>
+                        <span class="pid-badge">PID @(IsNamedPipe ? "4097 (Server)" : "1002 (Child)")</span>
+                    </div>
+                    <span class="fd-pill @(IsReadEndOpen ? "fd-open" : "fd-closed")">
+                        pipefd[0]: @(IsReadEndOpen ? "🔓 Offen" : "🔒 Geschlossen")
+                    </span>
+                </div>
+
+                <div class="process-body">
+                    <div class="code-action-snippet mono">
+                        <span class="snippet-label">Aktueller Systemaufruf:</span>
+                        <div class="snippet-code @(IsReaderBlocked ? "code-blocked" : "")">
+                            @ReaderCurrentCall
+                        </div>
+                    </div>
+
+                    <div class="process-state-indicator">
+                        <span class="state-lbl">Prozesszustand:</span>
+                        <span class="state-badge @GetReaderStatusClass()">@GetReaderStatusText()</span>
+                    </div>
+
+                    <!-- Received Data Accumulator -->
+                    <div class="received-stream-box">
+                        <span class="stream-title">Empfangener Datenstrom:</span>
+                        <div class="stream-data mono">
+                            @(string.IsNullOrEmpty(ReceivedText) ? "noch keine Daten..." : ReceivedText)
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- IPCS Category Comparison Drawer / Explainer -->
+        <div class="panel-card ipcs-card">
+            <div class="panel-header">
+                <span class="panel-title">ℹ️ Linux <code>ipcs</code> Kategorien &amp; Einordnung (Klausurrelevant)</span>
+                <button class="toggle-ipcs-btn" @onclick="ToggleIpcsDetails">
+                    @(ShowIpcsDetails ? "▲ Details einklappen" : "▼ Details ausklappen")
+                </button>
+            </div>
+
+            @if (ShowIpcsDetails)
+            {
+                <div class="ipcs-body">
+                    <div class="ipcs-grid">
+                        <div class="ipcs-cat-box cat-shm">
+                            <h4 class="cat-title">💾 Shared Memory (Geteilter Speicher)</h4>
+                            <p class="cat-desc">
+                                Prozesse greifen direkt auf denselben physischen RAM-Bereich zu. Schnellste IPC, da keine Kernel-Kopien nötig sind.
+                            </p>
+                            <div class="cat-assignment">
+                                <strong>Pipes:</strong> Nutzen Shared Memory im Kernel-Space (Puffer im RAM), um Daten zwischen Parent und Child zu übertragen.
+                            </div>
+                        </div>
+
+                        <div class="ipcs-cat-box cat-mq">
+                            <h4 class="cat-title">📬 Message Queues (Nachrichtenwarteschlangen)</h4>
+                            <p class="cat-desc">
+                                Diskrete Nachrichten werden in einer Warteschlange abgelegt und nach Typ oder Priorität abgeholt.
+                            </p>
+                            <div class="cat-assignment">
+                                <strong>Named Pipes (FIFOs):</strong> Nutzen wie Message Queues einen Dateisystem-Eintrag (Inode), um Daten asynchron zwischen unabhängigen Prozessen auszutauschen.
+                            </div>
+                        </div>
+
+                        <div class="ipcs-cat-box cat-sem">
+                            <h4 class="cat-title">🚦 Semaphores (Semaphoren)</h4>
+                            <p class="cat-desc">
+                                Zählsperren zur Synchronisation und Vermeidung von Race Conditions (kein Datentransport, sondern Zugriffskoordination).
+                            </p>
+                            <div class="cat-assignment">
+                                <strong>Synchronisation:</strong> Pipes besitzen interne implizite Semaphoren/Locks für atomare Writes (&le; <code>PIPE_BUF</code>).
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Terminal Console Output -->
+        <div class="panel-card console-card">
+            <div class="panel-header">
+                <span class="panel-title">🖥️ System-Trace &amp; Konsolenausgabe</span>
+                <span class="console-hint">Protokolliert pipe(), write(), read() und Signalübertragungen</span>
+            </div>
+            <div class="console-body mono">
+                @if (!ConsoleLines.Any())
+                {
+                    <span class="console-empty">Simulation bereit. Klicken Sie auf „Nächster Schritt“ oder „Auto-Play“...</span>
+                }
+                else
+                {
+                    @foreach (var line in ConsoleLines)
+                    {
+                        <div class="console-row @(line.IsError ? "console-error" : "")">
+                            <span class="console-ts">[@line.StepNum]</span>
+                            <span class="console-src tag-@line.Actor">@line.ActorName:</span>
+                            <span class="console-msg">@line.Message</span>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- WORKSHEET VIEW (1:1 EXAM REPLICA MATCHING BSIPCKategorien.tex)           -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Worksheet)
+    {
+        <div class="worksheet-paper">
+            
+            <!-- Exam Header -->
+            <div class="exam-header">
+                <div class="exam-title-group">
+                    <span class="exam-sub">Betriebssysteme</span>
+                    <h1 class="exam-main-title">Pipes @(ShowSolution ? "- Lösung" : "")</h1>
+                    <span class="exam-task-label">Aufgabe 1 (Arten von Interprozesskommunikation)</span>
+                </div>
+                <div class="exam-meta-box no-print">
+                    <button class="toggle-sol-btn @(ShowSolution ? "active" : "")" @onclick="ToggleSolution">
+                        @(ShowSolution ? "👁️ Musterlösung ausblenden" : "💡 Musterlösung einblenden")
+                    </button>
+                    <button class="print-btn" @onclick="TriggerPrint">
+                        🖨️ Drucken / PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Student Info Fields -->
+            <div class="student-info-strip">
+                <div class="info-field">
+                    <span class="info-label">Name, Vorname:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field">
+                    <span class="info-label">Matrikelnummer:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field points-field">
+                    <span class="info-label">Punkte:</span>
+                    <div class="points-box">/ 5 P.</div>
+                </div>
+            </div>
+
+            <!-- Task Question matching BSIPCKategorien.tex -->
+            <div class="task-prompt-box">
+                <p class="task-text">
+                    Der Befehl <code class="mono">ipcs</code> gibt Auskunft über drei verschiedene Arten der Interprozesskommunikation:
+                    „Message Queues“, „Shared Memory“ und „Semaphores“. In welche Kategorien fallen Pipes und Named Pipes am ehesten?
+                </p>
+            </div>
+
+            <!-- Answer Section -->
+            @if (!ShowSolution)
+            {
+                <div class="ws-answer-lines">
+                    <div class="answer-line"></div>
+                    <div class="answer-line"></div>
+                    <div class="answer-line"></div>
+                    <div class="answer-line"></div>
+                    <div class="answer-line"></div>
+                    <div class="answer-line"></div>
+                    <div class="answer-line"></div>
+                    <div class="answer-line"></div>
+                </div>
+            }
+            else
+            {
+                <div class="ws-solution-box">
+                    <div class="sol-hdr bold">Musterlösung:</div>
+                    <div class="sol-bullet-list">
+                        <p class="sol-item">
+                            &bull; <strong>Pipes</strong> realisieren IPC in <em>Shared Memory</em> (gemeinsamer Ringspeicher im Kernel-Adressraum).
+                        </p>
+                        <p class="sol-item">
+                            &bull; <strong>Named Pipes (FIFOs)</strong> nutzen ähnlich wie <em>Message Queues</em> eine Datei im Dateisystem zum Datenaustausch zwischen unabhängigen Prozessen.
+                        </p>
+                    </div>
+                </div>
+            }
+
+            <div class="exam-footer">
+                <span class="exam-footer-note">Intelligent Systems Design &bull; Hochschule Hamm-Lippstadt &bull; Betriebssysteme</span>
+            </div>
+
+        </div>
+    }
+
+</article>
+
+@code {
+    public enum ViewMode { Simulator, Worksheet }
+    public enum ProcState { Ready, Running, Blocked, Exited }
+
+    [Parameter] public ViewMode ActiveView { get; set; } = ViewMode.Simulator;
+    [Parameter] public bool IsEmbed { get; set; } = false;
+    [Parameter] public bool ShowSolution { get; set; } = false;
+    [Parameter] public string SelectedPreset { get; set; } = "Standard";
+    [Parameter] public bool IsNamedPipe { get; set; } = false;
+
+    public int CurrentStepIndex { get; set; } = 0;
+    public bool IsPlaying { get; set; } = false;
+    public int PlaySpeedMs { get; set; } = 1500;
+    public bool ShowIpcsDetails { get; set; } = true;
+
+    // Simulation Data Models
+    public class PipeStep
+    {
+        public string Actor { get; set; } = "writer"; // writer, reader, kernel
+        public string ActorName { get; set; } = "Schreiber";
+        public string ActionType { get; set; } = "write";
+        public string Explanation { get; set; } = "";
+        public string WriterCall { get; set; } = "idle";
+        public string ReaderCall { get; set; } = "idle";
+        public ProcState WriterState { get; set; }
+        public ProcState ReaderState { get; set; }
+        public bool WriteEndOpen { get; set; }
+        public bool ReadEndOpen { get; set; }
+        public List<char> BufferContent { get; set; } = new();
+        public string ReceivedAccumulated { get; set; } = "";
+        public int BytesWrittenTotal { get; set; }
+        public bool Sigpipe { get; set; }
+        public bool Eof { get; set; }
+        public string? ConsoleLog { get; set; }
+        public bool IsError { get; set; }
+    }
+
+    public class ConsoleLine
+    {
+        public int StepNum { get; set; }
+        public string Actor { get; set; } = "";
+        public string ActorName { get; set; } = "";
+        public string Message { get; set; } = "";
+        public bool IsError { get; set; }
+    }
+
+    // Pipeline State Variables
+    public int BufferCapacity { get; set; } = 8;
+    public List<char> CurrentBuffer { get; set; } = new();
+    public string ReceivedText { get; set; } = "";
+    public int TotalBytesWritten { get; set; } = 0;
+
+    public bool IsWriteEndOpen { get; set; } = true;
+    public bool IsReadEndOpen { get; set; } = true;
+
+    public ProcState WriterState { get; set; } = ProcState.Ready;
+    public ProcState ReaderState { get; set; } = ProcState.Ready;
+
+    public string WriterCurrentCall { get; set; } = "idle";
+    public string ReaderCurrentCall { get; set; } = "idle";
+
+    public bool IsWriterBlocked => (WriterState == ProcState.Blocked);
+    public bool IsReaderBlocked => (ReaderState == ProcState.Blocked);
+    public bool IsSigpipeTriggered { get; set; } = false;
+    public bool IsEofReached { get; set; } = false;
+
+    public int BufferPercentage => (int)Math.Round((double)CurrentBuffer.Count / BufferCapacity * 100);
+    public string CurrentStepExplanation { get; set; } = "Bereit. Klicken Sie auf „Nächster Schritt“ oder „Auto-Play“.";
+
+    public List<PipeStep> ActiveSchedule { get; set; } = new();
+    public List<ConsoleLine> ConsoleLines { get; set; } = new();
+
+    private CancellationTokenSource? _playCts;
+
+    protected override void OnInitialized()
+    {
+        ReadQueryParameters();
+        LoadPreset(SelectedPreset);
+    }
+
+    protected override void OnParametersSet()
+    {
+        ReadQueryParameters();
+    }
+
+    private void ReadQueryParameters()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query;
+            if (!string.IsNullOrEmpty(query))
+            {
+                if (query.Contains("view=worksheet", StringComparison.OrdinalIgnoreCase))
+                {
+                    ActiveView = ViewMode.Worksheet;
+                }
+                if (query.Contains("solution=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    ShowSolution = true;
+                }
+                if (query.Contains("embed=true", StringComparison.OrdinalIgnoreCase) || query.Contains("embedded=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsEmbed = true;
+                    ShowIpcsDetails = false;
+                }
+                if (query.Contains("mode=named", StringComparison.OrdinalIgnoreCase) || query.Contains("fifo=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsNamedPipe = true;
+                }
+                if (query.Contains("preset=full", StringComparison.OrdinalIgnoreCase))
+                {
+                    SelectedPreset = "BufferFull";
+                }
+                else if (query.Contains("preset=eof", StringComparison.OrdinalIgnoreCase))
+                {
+                    SelectedPreset = "EOFDemo";
+                }
+                else if (query.Contains("preset=broken", StringComparison.OrdinalIgnoreCase))
+                {
+                    SelectedPreset = "BrokenPipe";
+                }
+            }
+        }
+        catch { }
+    }
+
+    public void SetView(ViewMode mode)
+    {
+        ActiveView = mode;
+    }
+
+    public void ToggleSolution()
+    {
+        ShowSolution = !ShowSolution;
+    }
+
+    public void ToggleIpcsDetails()
+    {
+        ShowIpcsDetails = !ShowIpcsDetails;
+    }
+
+    public void SetPipeType(bool isNamed)
+    {
+        IsNamedPipe = isNamed;
+        ResetSimulation();
+    }
+
+    public async Task TriggerPrint()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+
+    public void LoadPreset(string preset)
+    {
+        StopAutoPlay();
+        SelectedPreset = preset;
+        CurrentStepIndex = 0;
+        ConsoleLines.Clear();
+
+        BuildSchedule(preset);
+        ApplySimulationState();
+    }
+
+    private void BuildSchedule(string preset)
+    {
+        ActiveSchedule.Clear();
+
+        if (preset == "Standard")
+        {
+            // Scenario 1: Standard write and read stream
+            ActiveSchedule.Add(new PipeStep
+            {
+                Actor = "kernel", ActorName = "Kernel", ActionType = "init",
+                Explanation = IsNamedPipe 
+                    ? "Dateisystem erzeugt FIFO-Node: mkfifo(\"/tmp/my_fifo\", 0666)." 
+                    : "Kernel erzeugt anonyme Pipe: int pipe(int pipefd[2]). pipefd[0]=3 (Read), pipefd[1]=4 (Write).",
+                WriterCall = "pipe(pipefd)", ReaderCall = "waiting",
+                WriterState = ProcState.Ready, ReaderState = ProcState.Ready,
+                WriteEndOpen = true, ReadEndOpen = true,
+                BufferContent = new List<char>(), ReceivedAccumulated = "", BytesWrittenTotal = 0,
+                ConsoleLog = IsNamedPipe ? "FIFO special file created at /tmp/my_fifo." : "pipe() created pipefd[0]=3 (read) and pipefd[1]=4 (write)."
+            });
+            ActiveSchedule.Add(new PipeStep
+            {
+                Actor = "writer", ActorName = "Schreiber", ActionType = "write",
+                Explanation = "Schreiber schreibt 4 Bytes in den Kanal: write(pipefd[1], \"HELL\", 4).",
+                WriterCall = "write(pipefd[1], \"HELL\", 4)", ReaderCall = "idle",
+                WriterState = ProcState.Running, ReaderState = ProcState.Ready,
+                WriteEndOpen = true, ReadEndOpen = true,
+                BufferContent = new List<char> { 'H', 'E', 'L', 'L' }, ReceivedAccumulated = "", BytesWrittenTotal = 4,
+                ConsoleLog = "write(pipefd[1], \"HELL\", 4) -> 4 bytes written to buffer."
+            });
+            ActiveSchedule.Add(new PipeStep
+            {
+                Actor = "reader", ActorName = "Leser", ActionType = "read",
+                Explanation = "Leser ruft 2 Bytes ab: read(pipefd[0], buf, 2). FIFO-Prinzip: 'H' und 'E' werden entnommen.",
+                WriterCall = "idle", ReaderCall = "read(pipefd[0], buf, 2)",
+                WriterState = ProcState.Ready, ReaderState = ProcState.Running,
+                WriteEndOpen = true, ReadEndOpen = true,
+                BufferContent = new List<char> { 'L', 'L' }, ReceivedAccumulated = "HE", BytesWrittenTotal = 4,
+                ConsoleLog = "read(pipefd[0], buf, 2) -> read \"HE\" (2 bytes)."
+            });
+            ActiveSchedule.Add(new PipeStep
+            {
+                Actor = "writer", ActorName = "Schreiber", ActionType = "write",
+                Explanation = "Schreiber schreibt weitere 4 Bytes: write(pipefd[1], \"OIPC\", 4).",
+                WriterCall = "write(pipefd[1], \"OIPC\", 4)", ReaderCall = "idle",
+                WriterState = ProcState.Running, ReaderState = ProcState.Ready,
+                WriteEndOpen = true, ReadEndOpen = true,
+                BufferContent = new List<char> { 'L', 'L', 'O', 'I', 'P', 'C' }, ReceivedAccumulated = "HE", BytesWrittenTotal = 8,
+                ConsoleLog = "write(pipefd[1], \"OIPC\", 4) -> 4 bytes appended to buffer."
+            });
+            ActiveSchedule.Add(new PipeStep
+            {
+                Actor = "reader", ActorName = "Leser", ActionType = "read",
+                Explanation = "Leser ruft alle verbleibenden 6 Bytes ab: read(pipefd[0], buf, 6).",
+                WriterCall = "idle", ReaderCall = "read(pipefd[0], buf, 6)",
+                WriterState = ProcState.Ready, ReaderState = ProcState.Running,
+                WriteEndOpen = true, ReadEndOpen = true,
+                BufferContent = new List<char>(), ReceivedAccumulated = "HELLOIPC", BytesWrittenTotal = 8,
+                ConsoleLog = "read(pipefd[0], buf, 6) -> read \"LLOIPC\" (6 bytes). Puffer nun leer."
+            });
+        }
+        else if (preset == "BufferFull")
+        {
+            // Scenario 2: Buffer Full -> Writer Blocks!
+            ActiveSchedule.Add(new PipeStep
+            {
+                Actor = "writer", ActorName = "Schreiber", ActionType = "write",
+                Explanation = "Schreiber befüllt den Puffer mit 6 Bytes: write(pipefd[1], \"DATA12\", 6).",
+                WriterCall = "write(pipefd[1], \"DATA12\", 6)", ReaderCall = "idle",
+                WriterState = ProcState.Running, ReaderState = ProcState.Ready,
+                WriteEndOpen = true, ReadEndOpen = true,
+                BufferContent = new List<char> { 'D', 'A', 'T', 'A', '1', '2' }, ReceivedAccumulated = "", BytesWrittenTotal = 6,
+                ConsoleLog = "write(pipefd[1], \"DATA12\", 6) -> 6 bytes in buffer (75% full)."
+            });
+            ActiveSchedule.Add(new PipeStep
+            {
+                Actor = "writer", ActorName = "Schreiber", ActionType = "write",
+                Explanation = "Schreiber schreibt weitere 2 Bytes: write(pipefd[1], \"34\", 2). Pufferkapazität (8 Bytes) ist nun zu 100% erschöpft!",
+                WriterCall = "write(pipefd[1], \"34\", 2)", ReaderCall = "idle",
+                WriterState = ProcState.Running, ReaderState = ProcState.Ready,
+                WriteEndOpen = true, ReadEndOpen = true,
+                BufferContent = new List<char> { 'D', 'A', 'T', 'A', '1', '2', '3', '4' }, ReceivedAccumulated = "", BytesWrittenTotal = 8,
+                ConsoleLog = "write(pipefd[1], \"34\", 2) -> Puffer voll (8/8 Bytes)."
+            });
+            ActiveSchedule.Add(new PipeStep
+            {
+                Actor = "writer", ActorName = "Schreiber", ActionType = "block",
+                Explanation = "Schreiber versucht noch 3 Bytes zu schreiben: write(pipefd[1], \"XYZ\", 3). Da der Puffer voll ist, BLOCKIERT der Schreiber!",
+                WriterCall = "write(pipefd[1], \"XYZ\", 3) [BLOCKIERT]", ReaderCall = "idle",
+                WriterState = ProcState.Blocked, ReaderState = ProcState.Ready,
+                WriteEndOpen = true, ReadEndOpen = true,
+                BufferContent = new List<char> { 'D', 'A', 'T', 'A', '1', '2', '3', '4' }, ReceivedAccumulated = "", BytesWrittenTotal = 8,
+                ConsoleLog = "write(pipefd[1], \"XYZ\", 3) -> PUFFER VOLL! Prozess blockiert in TASK_UNINTERRUPTIBLE."
+            });
+            ActiveSchedule.Add(new PipeStep
+            {
+                Actor = "reader", ActorName = "Leser", ActionType = "read",
+                Explanation = "Leser konsumiert 4 Bytes: read(pipefd[0], buf, 4). Pufferplatz wird frei ➔ Schreiber wird wieder aufgeweckt!",
+                WriterCall = "waking up...", ReaderCall = "read(pipefd[0], buf, 4)",
+                WriterState = ProcState.Ready, ReaderState = ProcState.Running,
+                WriteEndOpen = true, ReadEndOpen = true,
+                BufferContent = new List<char> { '1', '2', '3', '4' }, ReceivedAccumulated = "DATA", BytesWrittenTotal = 8,
+                ConsoleLog = "read(pipefd[0], buf, 4) -> 4 bytes drained. Freier Puffer verfügbar."
+            });
+            ActiveSchedule.Add(new PipeStep
+            {
+                Actor = "writer", ActorName = "Schreiber", ActionType = "write",
+                Explanation = "Der aufgeweckte Schreiber kann nun seine 3 Bytes platzieren: 'X', 'Y', 'Z'.",
+                WriterCall = "write resumed: \"XYZ\"", ReaderCall = "idle",
+                WriterState = ProcState.Running, ReaderState = ProcState.Ready,
+                WriteEndOpen = true, ReadEndOpen = true,
+                BufferContent = new List<char> { '1', '2', '3', '4', 'X', 'Y', 'Z' }, ReceivedAccumulated = "DATA", BytesWrittenTotal = 11,
+                ConsoleLog = "write(pipefd[1], \"XYZ\", 3) finished successfully."
+            });
+        }
+        else if (preset == "EOFDemo")
+        {
+            // Scenario 3: Closing write end -> EOF
+            ActiveSchedule.Add(new PipeStep
+            {
+                Actor = "writer", ActorName = "Schreiber", ActionType = "write",
+                Explanation = "Schreiber sendet Nachricht: write(pipefd[1], \"BYE\", 3).",
+                WriterCall = "write(pipefd[1], \"BYE\", 3)", ReaderCall = "idle",
+                WriterState = ProcState.Running, ReaderState = ProcState.Ready,
+                WriteEndOpen = true, ReadEndOpen = true,
+                BufferContent = new List<char> { 'B', 'Y', 'E' }, ReceivedAccumulated = "", BytesWrittenTotal = 3,
+                ConsoleLog = "write(pipefd[1], \"BYE\", 3) sent."
+            });
+            ActiveSchedule.Add(new PipeStep
+            {
+                Actor = "writer", ActorName = "Schreiber", ActionType = "close",
+                Explanation = "Schreiber ist fertig und schließt die Schreibseite: close(pipefd[1]).",
+                WriterCall = "close(pipefd[1])", ReaderCall = "idle",
+                WriterState = ProcState.Exited, ReaderState = ProcState.Ready,
+                WriteEndOpen = false, ReadEndOpen = true,
+                BufferContent = new List<char> { 'B', 'Y', 'E' }, ReceivedAccumulated = "", BytesWrittenTotal = 3,
+                ConsoleLog = "close(pipefd[1]) -> Write-End closed by writer."
+            });
+            ActiveSchedule.Add(new PipeStep
+            {
+                Actor = "reader", ActorName = "Leser", ActionType = "read",
+                Explanation = "Leser liest die verbleibenden Bytes: read(pipefd[0], buf, 3) ➔ empfängt \"BYE\".",
+                WriterCall = "exited", ReaderCall = "read(pipefd[0], buf, 3)",
+                WriterState = ProcState.Exited, ReaderState = ProcState.Running,
+                WriteEndOpen = false, ReadEndOpen = true,
+                BufferContent = new List<char>(), ReceivedAccumulated = "BYE", BytesWrittenTotal = 3,
+                ConsoleLog = "read(pipefd[0], buf, 3) -> returned 3 bytes: \"BYE\"."
+            });
+            ActiveSchedule.Add(new PipeStep
+            {
+                Actor = "reader", ActorName = "Leser", ActionType = "eof",
+                Explanation = "Leser ruft erneut read() auf. Da der Puffer leer und die Schreibseite geschlossen ist, liefert read() SOFORT 0 (EOF)!",
+                WriterCall = "exited", ReaderCall = "read(pipefd[0], buf, 4) == 0 (EOF)",
+                WriterState = ProcState.Exited, ReaderState = ProcState.Exited,
+                WriteEndOpen = false, ReadEndOpen = true,
+                BufferContent = new List<char>(), ReceivedAccumulated = "BYE", BytesWrittenTotal = 3,
+                Eof = true,
+                ConsoleLog = "read() returned 0 -> End of File (EOF) signal received. Reader terminates cleanly."
+            });
+        }
+        else if (preset == "BrokenPipe")
+        {
+            // Scenario 4: Broken Pipe & SIGPIPE
+            ActiveSchedule.Add(new PipeStep
+            {
+                Actor = "writer", ActorName = "Schreiber", ActionType = "write",
+                Explanation = "Schreiber befüllt Pipe initial mit \"TEST\".",
+                WriterCall = "write(pipefd[1], \"TEST\", 4)", ReaderCall = "idle",
+                WriterState = ProcState.Running, ReaderState = ProcState.Ready,
+                WriteEndOpen = true, ReadEndOpen = true,
+                BufferContent = new List<char> { 'T', 'E', 'S', 'T' }, ReceivedAccumulated = "", BytesWrittenTotal = 4,
+                ConsoleLog = "write(pipefd[1], \"TEST\", 4) successful."
+            });
+            ActiveSchedule.Add(new PipeStep
+            {
+                Actor = "reader", ActorName = "Leser", ActionType = "close",
+                Explanation = "Leser bricht vorzeitig ab und schließt seinen Lese-Deskriptor: close(pipefd[0])!",
+                WriterCall = "idle", ReaderCall = "close(pipefd[0])",
+                WriterState = ProcState.Ready, ReaderState = ProcState.Exited,
+                WriteEndOpen = true, ReadEndOpen = false,
+                BufferContent = new List<char> { 'T', 'E', 'S', 'T' }, ReceivedAccumulated = "", BytesWrittenTotal = 4,
+                ConsoleLog = "close(pipefd[0]) -> Reader closed read end and exited."
+            });
+            ActiveSchedule.Add(new PipeStep
+            {
+                Actor = "writer", ActorName = "Schreiber", ActionType = "sigpipe",
+                Explanation = "Schreiber versucht erneut zu schreiben: write(pipefd[1], \"FAIL\", 4). Da kein Leser mehr existiert, sendet der Kernel SIGPIPE (EPIPE)!",
+                WriterCall = "write(pipefd[1], \"FAIL\", 4) -> SIGPIPE!", ReaderCall = "closed",
+                WriterState = ProcState.Exited, ReaderState = ProcState.Exited,
+                WriteEndOpen = true, ReadEndOpen = false,
+                BufferContent = new List<char> { 'T', 'E', 'S', 'T' }, ReceivedAccumulated = "", BytesWrittenTotal = 4,
+                Sigpipe = true, IsError = true,
+                ConsoleLog = "FEHLER: Kernel sendet Signal SIGPIPE an PID 1001 (errno=EPIPE: Broken pipe)!"
+            });
+        }
+    }
+
+    private void ApplySimulationState()
+    {
+        if (CurrentStepIndex == 0)
+        {
+            CurrentBuffer = new List<char>();
+            ReceivedText = "";
+            TotalBytesWritten = 0;
+            IsWriteEndOpen = true;
+            IsReadEndOpen = true;
+            WriterState = ProcState.Ready;
+            ReaderState = ProcState.Ready;
+            WriterCurrentCall = "idle";
+            ReaderCurrentCall = "idle";
+            IsSigpipeTriggered = false;
+            IsEofReached = false;
+            CurrentStepExplanation = "Bereit. Klicken Sie auf „Nächster Schritt“ oder „Auto-Play“.";
+            ConsoleLines.Clear();
+            return;
+        }
+
+        var step = ActiveSchedule[CurrentStepIndex - 1];
+        CurrentBuffer = new List<char>(step.BufferContent);
+        ReceivedText = step.ReceivedAccumulated;
+        TotalBytesWritten = step.BytesWrittenTotal;
+        IsWriteEndOpen = step.WriteEndOpen;
+        IsReadEndOpen = step.ReadEndOpen;
+        WriterState = step.WriterState;
+        ReaderState = step.ReaderState;
+        WriterCurrentCall = step.WriterCall;
+        ReaderCurrentCall = step.ReaderCall;
+        IsSigpipeTriggered = step.Sigpipe;
+        IsEofReached = step.Eof;
+        CurrentStepExplanation = step.Explanation;
+
+        // Rebuild console output up to CurrentStepIndex
+        ConsoleLines.Clear();
+        for (int i = 0; i < CurrentStepIndex; i++)
+        {
+            var s = ActiveSchedule[i];
+            if (!string.IsNullOrEmpty(s.ConsoleLog))
+            {
+                ConsoleLines.Add(new ConsoleLine
+                {
+                    StepNum = i + 1,
+                    Actor = s.Actor,
+                    ActorName = s.ActorName,
+                    Message = s.ConsoleLog,
+                    IsError = s.IsError
+                });
+            }
+        }
+    }
+
+    public void StepForward()
+    {
+        if (CurrentStepIndex < ActiveSchedule.Count)
+        {
+            CurrentStepIndex++;
+            ApplySimulationState();
+        }
+        else
+        {
+            StopAutoPlay();
+        }
+    }
+
+    public void StepBack()
+    {
+        StopAutoPlay();
+        if (CurrentStepIndex > 0)
+        {
+            CurrentStepIndex--;
+            ApplySimulationState();
+        }
+    }
+
+    public void GoToStart()
+    {
+        StopAutoPlay();
+        CurrentStepIndex = 0;
+        ApplySimulationState();
+    }
+
+    public void ResetSimulation()
+    {
+        LoadPreset(SelectedPreset);
+    }
+
+    public void ToggleAutoPlay()
+    {
+        if (IsPlaying)
+        {
+            StopAutoPlay();
+        }
+        else
+        {
+            StartAutoPlay();
+        }
+    }
+
+    private void StartAutoPlay()
+    {
+        if (CurrentStepIndex >= ActiveSchedule.Count)
+        {
+            CurrentStepIndex = 0;
+            ApplySimulationState();
+        }
+
+        IsPlaying = true;
+        _playCts = new CancellationTokenSource();
+        var token = _playCts.Token;
+
+        _ = Task.Run(async () =>
+        {
+            while (IsPlaying && !token.IsCancellationRequested)
+            {
+                await Task.Delay(PlaySpeedMs, token);
+                if (token.IsCancellationRequested) break;
+
+                await InvokeAsync(() =>
+                {
+                    if (CurrentStepIndex < ActiveSchedule.Count)
+                    {
+                        StepForward();
+                    }
+                    else
+                    {
+                        StopAutoPlay();
+                    }
+                    StateHasChanged();
+                });
+            }
+        }, token);
+    }
+
+    private void StopAutoPlay()
+    {
+        IsPlaying = false;
+        _playCts?.Cancel();
+        _playCts = null;
+    }
+
+    private string GetWriterStatusText()
+    {
+        return WriterState switch
+        {
+            ProcState.Ready => "Bereit",
+            ProcState.Running => "Schreibt (aktiv)",
+            ProcState.Blocked => "Blockiert (Puffer voll)",
+            ProcState.Exited => "Beendet (close)",
+            _ => "Bereit"
+        };
+    }
+
+    private string GetWriterStatusClass()
+    {
+        return WriterState switch
+        {
+            ProcState.Ready => "state-ready",
+            ProcState.Running => "state-running",
+            ProcState.Blocked => "state-blocked",
+            ProcState.Exited => "state-exited",
+            _ => "state-ready"
+        };
+    }
+
+    private string GetReaderStatusText()
+    {
+        return ReaderState switch
+        {
+            ProcState.Ready => "Bereit",
+            ProcState.Running => "Liest (aktiv)",
+            ProcState.Blocked => "Blockiert (Puffer leer)",
+            ProcState.Exited => "Beendet (EOF)",
+            _ => "Bereit"
+        };
+    }
+
+    private string GetReaderStatusClass()
+    {
+        return ReaderState switch
+        {
+            ProcState.Ready => "state-ready",
+            ProcState.Running => "state-running",
+            ProcState.Blocked => "state-blocked",
+            ProcState.Exited => "state-exited",
+            _ => "state-ready"
+        };
+    }
+
+    public void Dispose()
+    {
+        StopAutoPlay();
+    }
+}
