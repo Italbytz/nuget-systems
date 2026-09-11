@@ -1,0 +1,1221 @@
+/* ==========================================================================
+   IPC VISUALIZER STYLES (Task 22: Shared Memory, Sockets, Semaphores, Files)
+   ========================================================================== */
+
+.ipc-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #e2e8f0;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem;
+    box-sizing: border-box;
+}
+
+.embed-mode {
+    padding: 0.5rem;
+    max-width: 100%;
+    gap: 0.75rem;
+    background: #0b0f19;
+}
+
+.mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+/* Card Heading */
+.card-heading {
+    border-bottom: 1px solid #1e293b;
+    padding-bottom: 1rem;
+}
+
+.feature-kicker {
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #38bdf8;
+    margin: 0 0 0.25rem 0;
+}
+
+.card-heading h2 {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #f8fafc;
+    margin: 0 0 0.5rem 0;
+}
+
+.feature-intro {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: #94a3b8;
+    margin: 0;
+}
+
+/* View Switcher */
+.view-switch {
+    display: flex;
+    gap: 0.5rem;
+    border-bottom: 1px solid #334155;
+    padding-bottom: 0.75rem;
+}
+
+.view-btn {
+    background: #1e293b;
+    color: #cbd5e1;
+    border: 1px solid #475569;
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.view-btn:hover {
+    background: #334155;
+    color: #f8fafc;
+}
+
+.view-btn.active {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #38bdf8;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+}
+
+/* Controls Panel */
+.controls-panel {
+    background: #111827;
+    border: 1px solid #1f2937;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.mechanism-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.selector-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #94a3b8;
+}
+
+.mechanism-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.mech-tab-btn {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 0.4rem 0.75rem;
+    color: #cbd5e1;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: all 0.15s ease;
+}
+
+.mech-tab-btn:hover {
+    background: #334155;
+    color: #f8fafc;
+}
+
+.mech-tab-btn.active {
+    background: #0369a1;
+    border-color: #38bdf8;
+    color: #ffffff;
+}
+
+.mech-tab-btn.exam-highlight {
+    border-color: #f59e0b;
+}
+
+.mech-tab-btn.exam-highlight.active {
+    background: #b45309;
+    border-color: #fbbf24;
+}
+
+.exam-tag {
+    font-size: 0.65rem;
+    background: rgba(245, 158, 11, 0.25);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.5);
+    padding: 0.1rem 0.3rem;
+    border-radius: 4px;
+    font-weight: 700;
+}
+
+.toolbar-grid {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.btn-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.action-btn {
+    background: #1f2937;
+    color: #e5e7eb;
+    border: 1px solid #374151;
+    border-radius: 6px;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.action-btn:hover:not(:disabled) {
+    background: #374151;
+    color: #ffffff;
+}
+
+.action-btn.primary {
+    background: #0284c7;
+    border-color: #0369a1;
+    color: #ffffff;
+}
+
+.action-btn.primary:hover:not(:disabled) {
+    background: #0369a1;
+}
+
+.action-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.speed-group {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.speed-label {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    font-weight: 600;
+}
+
+.speed-dropdown {
+    background: #1f2937;
+    border: 1px solid #374151;
+    color: #e5e7eb;
+    padding: 0.35rem 0.5rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+}
+
+/* Mechanism Summary Banner */
+.mech-summary-banner {
+    display: flex;
+    gap: 1rem;
+    background: #111827;
+    border: 1px solid #1f2937;
+    border-left: 5px solid #10b981;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    align-items: center;
+}
+
+.banner-icon {
+    font-size: 2rem;
+    flex-shrink: 0;
+}
+
+.banner-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.banner-title-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.banner-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #f8fafc;
+    margin: 0;
+}
+
+.cat-badge {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-weight: 700;
+}
+
+.badge-exam {
+    background: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.badge-standard {
+    background: rgba(56, 189, 248, 0.2);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.4);
+}
+
+.speed-pill {
+    font-size: 0.75rem;
+    background: #1e293b;
+    color: #cbd5e1;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    border: 1px solid #334155;
+}
+
+.banner-desc {
+    font-size: 0.85rem;
+    color: #94a3b8;
+    margin: 0;
+    line-height: 1.4;
+}
+
+/* Architecture Stage */
+.architecture-stage {
+    display: grid;
+    grid-template-columns: 1fr 1.4fr 1fr;
+    gap: 0.75rem;
+}
+
+@media (max-width: 900px) {
+    .architecture-stage {
+        grid-template-columns: 1fr;
+    }
+}
+
+.process-card {
+    background: #111827;
+    border: 1px solid #1f2937;
+    border-radius: 8px;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.process-card.active-actor {
+    border-color: #38bdf8;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.2);
+}
+
+.process-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #1f2937;
+    padding-bottom: 0.5rem;
+}
+
+.proc-id {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.proc-icon {
+    font-size: 1.3rem;
+}
+
+.proc-pid {
+    display: block;
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+.state-badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+    border-radius: 9999px;
+}
+
+.state-running {
+    background: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.state-ready {
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+.state-blocked {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.process-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.code-snippet-box {
+    background: #030712;
+    border: 1px solid #1f2937;
+    border-radius: 6px;
+    padding: 0.5rem;
+    font-size: 0.75rem;
+}
+
+.snippet-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    color: #64748b;
+    display: block;
+    margin-bottom: 0.2rem;
+}
+
+.snippet-code {
+    color: #f1f5f9;
+    word-break: break-all;
+}
+
+.var-status-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.8rem;
+    background: #0d131f;
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+}
+
+.var-row {
+    display: flex;
+    justify-content: space-between;
+}
+
+.var-name {
+    color: #94a3b8;
+}
+
+.var-val {
+    color: #38bdf8;
+    font-weight: 600;
+}
+
+/* Central Channel Card */
+.channel-card {
+    background: #111827;
+    border: 1px solid #1f2937;
+    border-radius: 8px;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.channel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #0284c7;
+    padding-bottom: 0.4rem;
+}
+
+.channel-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #f8fafc;
+}
+
+.channel-location-tag {
+    font-size: 0.7rem;
+    background: #1e293b;
+    color: #38bdf8;
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+}
+
+.channel-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    flex-grow: 1;
+}
+
+/* Shared Memory Specifics */
+.shm-visualizer {
+    background: #030712;
+    border: 1px solid #1f2937;
+    border-radius: 6px;
+    padding: 0.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.memory-map-title {
+    font-size: 0.75rem;
+    color: #10b981;
+    font-weight: 700;
+    text-align: center;
+}
+
+.memory-slots {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.35rem;
+}
+
+.mem-slot {
+    border: 1px solid #334155;
+    border-radius: 4px;
+    padding: 0.35rem 0.2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 0.7rem;
+    background: #0f172a;
+}
+
+.mem-slot.slot-occupied {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: #10b981;
+}
+
+.mem-slot.slot-active {
+    box-shadow: 0 0 8px #10b981;
+}
+
+.slot-idx {
+    font-size: 0.65rem;
+    color: #64748b;
+}
+
+.slot-val {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #f8fafc;
+    margin: 0.1rem 0;
+}
+
+.slot-status {
+    font-size: 0.6rem;
+    color: #94a3b8;
+}
+
+.shm-pointer-legend {
+    font-size: 0.7rem;
+    color: #94a3b8;
+}
+
+.shm-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: #10b981;
+    border-radius: 50%;
+    margin-right: 4px;
+}
+
+/* File Visualizer */
+.file-visualizer {
+    background: #030712;
+    border: 1px solid #1f2937;
+    border-radius: 6px;
+    padding: 0.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.file-icon-box {
+    font-size: 1.8rem;
+    text-align: center;
+}
+
+.file-path {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #f59e0b;
+}
+
+.file-meta {
+    font-size: 0.7rem;
+    color: #64748b;
+}
+
+.file-content-preview {
+    background: #111827;
+    border: 1px dashed #374151;
+    padding: 0.4rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    color: #e2e8f0;
+}
+
+.file-note, .sem-note, .socket-note, .mq-note {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    line-height: 1.35;
+}
+
+/* Semaphore Visualizer */
+.sem-visualizer {
+    background: #030712;
+    border: 1px solid #1f2937;
+    border-radius: 6px;
+    padding: 0.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.sem-meter-box {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.sem-counter-circle {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    border: 2px solid #8b5cf6;
+}
+
+.sem-green {
+    background: rgba(16, 185, 129, 0.2);
+    border-color: #10b981;
+    color: #34d399;
+}
+
+.sem-red {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: #ef4444;
+    color: #f87171;
+}
+
+.sem-counter-num {
+    font-size: 1.1rem;
+    line-height: 1;
+}
+
+.sem-counter-lbl {
+    font-size: 0.55rem;
+}
+
+.sem-gate-status {
+    font-size: 0.8rem;
+    color: #e2e8f0;
+}
+
+.queue-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-top: 0.25rem;
+}
+
+.waiter-pill {
+    font-size: 0.7rem;
+    background: rgba(239, 68, 68, 0.2);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: #fca5a5;
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+}
+
+.no-waiters {
+    font-size: 0.7rem;
+    color: #64748b;
+}
+
+/* Socket Visualizer */
+.socket-visualizer {
+    background: #030712;
+    border: 1px solid #1f2937;
+    border-radius: 6px;
+    padding: 0.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.socket-endpoints {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.socket-end {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.7rem;
+    background: #1e293b;
+    padding: 0.35rem 0.5rem;
+    border-radius: 4px;
+}
+
+.end-label {
+    color: #64748b;
+    font-weight: 700;
+}
+
+.end-addr {
+    color: #38bdf8;
+}
+
+.socket-pipe-anim {
+    flex-grow: 1;
+    border-bottom: 2px dashed #0284c7;
+    text-align: center;
+    padding-bottom: 0.2rem;
+}
+
+.stream-pulse {
+    font-size: 0.65rem;
+    color: #94a3b8;
+}
+
+.stream-pulse.pulsing {
+    color: #38bdf8;
+    font-weight: 700;
+}
+
+/* Message Queue Visualizer */
+.mq-visualizer {
+    background: #030712;
+    border: 1px solid #1f2937;
+    border-radius: 6px;
+    padding: 0.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.mq-box-title {
+    font-size: 0.75rem;
+    color: #ec4899;
+    font-weight: 700;
+}
+
+.mq-messages {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.mq-msg-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #1f2937;
+    border: 1px solid #374151;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+}
+
+.msg-prio {
+    background: #ec4899;
+    color: white;
+    font-size: 0.65rem;
+    padding: 0.1rem 0.3rem;
+    border-radius: 3px;
+    font-weight: 700;
+}
+
+.mq-empty {
+    font-size: 0.7rem;
+    color: #64748b;
+    text-align: center;
+    padding: 0.5rem 0;
+}
+
+/* Step Info Box */
+.channel-step-info {
+    background: #0b1329;
+    border: 1px solid #1d4ed8;
+    border-radius: 6px;
+    padding: 0.5rem;
+    font-size: 0.75rem;
+    color: #93c5fd;
+    line-height: 1.35;
+}
+
+/* Panel Card Styling */
+.panel-card {
+    background: #111827;
+    border: 1px solid #1f2937;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #1f2937;
+    padding-bottom: 0.4rem;
+}
+
+.panel-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #f8fafc;
+}
+
+.toggle-ipcs-btn {
+    background: #1e293b;
+    color: #38bdf8;
+    border: 1px solid #334155;
+    border-radius: 4px;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* Taxonomy Table */
+.table-responsive {
+    overflow-x: auto;
+}
+
+.ipc-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+    text-align: left;
+}
+
+.ipc-table th, .ipc-table td {
+    padding: 0.45rem 0.6rem;
+    border-bottom: 1px solid #1f2937;
+}
+
+.ipc-table th {
+    background: #0f172a;
+    color: #94a3b8;
+    font-weight: 700;
+}
+
+.highlight-row {
+    background: rgba(245, 158, 11, 0.08);
+}
+
+.tag-weiter {
+    background: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    font-size: 0.7rem;
+    padding: 0.1rem 0.35rem;
+    border-radius: 4px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.tag-standard {
+    background: #1e293b;
+    color: #94a3b8;
+    font-size: 0.7rem;
+    padding: 0.1rem 0.35rem;
+    border-radius: 4px;
+}
+
+.perf-best {
+    color: #34d399;
+    font-weight: 700;
+}
+
+.perf-fast {
+    color: #38bdf8;
+}
+
+.perf-mid {
+    color: #f59e0b;
+}
+
+/* Quiz Card */
+.exam-quiz-card {
+    background: #111827;
+    border: 1px solid #f59e0b;
+}
+
+.exam-badge-score {
+    font-size: 0.75rem;
+    color: #fbbf24;
+    font-weight: 700;
+}
+
+.quiz-question {
+    font-size: 0.85rem;
+    color: #f1f5f9;
+    line-height: 1.4;
+    margin: 0 0 0.5rem 0;
+}
+
+.quiz-options-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 0.4rem;
+}
+
+.quiz-opt-btn {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 0.45rem 0.6rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #e2e8f0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s ease;
+}
+
+.quiz-opt-btn:hover {
+    background: #334155;
+}
+
+.quiz-opt-btn.selected {
+    background: #0369a1;
+    border-color: #38bdf8;
+    color: white;
+}
+
+.quiz-opt-btn.correct-highlight {
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.2);
+}
+
+.quiz-opt-btn.incorrect-highlight {
+    border-color: #ef4444;
+    background: rgba(239, 68, 68, 0.15);
+}
+
+.opt-verdict {
+    font-size: 0.7rem;
+    font-weight: 700;
+    margin-left: auto;
+}
+
+.verdict-correct {
+    color: #34d399;
+}
+
+.verdict-wrong {
+    color: #f87171;
+}
+
+.quiz-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.quiz-feedback-text {
+    font-size: 0.8rem;
+    color: #fbbf24;
+}
+
+/* Console Card */
+.console-card {
+    background: #030712;
+    border: 1px solid #1f2937;
+}
+
+.console-hint {
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+.console-body {
+    max-height: 140px;
+    overflow-y: auto;
+    font-size: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.35rem;
+}
+
+.console-empty {
+    color: #64748b;
+    font-style: italic;
+}
+
+.console-row {
+    display: flex;
+    gap: 0.4rem;
+}
+
+.console-ts {
+    color: #64748b;
+}
+
+.tag-a { color: #38bdf8; font-weight: 700; }
+.tag-b { color: #34d399; font-weight: 700; }
+.tag-system { color: #fbbf24; font-weight: 700; }
+
+.console-msg {
+    color: #e2e8f0;
+}
+
+.console-error {
+    color: #f87171;
+}
+
+/* ==========================================================================
+   WORKSHEET VIEW (1:1 EXAM FIDELITY)
+   ========================================================================== */
+
+.worksheet-container {
+    background: #ffffff;
+    color: #000000;
+    padding: 0;
+    max-width: 100%;
+}
+
+.worksheet-paper {
+    background: #ffffff;
+    color: #000000;
+    padding: 15mm 20mm;
+    max-width: 210mm;
+    margin: 0 auto;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 12mm;
+    page-break-inside: avoid;
+    break-inside: avoid;
+}
+
+.exam-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 2px solid #000000;
+    padding-bottom: 3mm;
+}
+
+.exam-sub {
+    font-size: 11pt;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #4b5563;
+    display: block;
+    margin-bottom: 1mm;
+}
+
+.exam-main-title {
+    font-size: 22pt;
+    font-weight: 800;
+    color: #000000;
+    margin: 0 0 2mm 0;
+    line-height: 1.1;
+}
+
+.exam-task-label {
+    font-size: 12pt;
+    font-weight: 700;
+    color: #000000;
+}
+
+.exam-meta-box {
+    display: flex;
+    gap: 4mm;
+}
+
+.toggle-sol-btn, .print-btn {
+    background: #f3f4f6;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    padding: 2mm 4mm;
+    font-size: 9pt;
+    font-weight: 600;
+    cursor: pointer;
+    color: #111827;
+}
+
+.toggle-sol-btn.active {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #0369a1;
+}
+
+.student-info-strip {
+    display: grid;
+    grid-template-columns: 2fr 2fr 1fr;
+    gap: 6mm;
+    border-bottom: 1px solid #d1d5db;
+    padding-bottom: 4mm;
+}
+
+.info-field {
+    display: flex;
+    align-items: flex-end;
+    gap: 2mm;
+}
+
+.info-label {
+    font-size: 10pt;
+    font-weight: 600;
+    color: #374151;
+    white-space: nowrap;
+}
+
+.info-line {
+    flex-grow: 1;
+    border-bottom: 1px dotted #9ca3af;
+    height: 4mm;
+}
+
+.points-field {
+    justify-content: flex-end;
+}
+
+.points-box {
+    border: 1.5px solid #000000;
+    padding: 1.5mm 4mm;
+    font-size: 11pt;
+    font-weight: 800;
+}
+
+.task-prompt-box {
+    font-size: 11.5pt;
+    line-height: 1.5;
+    color: #111827;
+}
+
+.task-text {
+    margin: 0;
+}
+
+.ws-answer-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 8mm;
+    margin-top: 4mm;
+    margin-bottom: 6mm;
+}
+
+.answer-line {
+    border-bottom: 1px dotted #6b7280;
+    height: 1px;
+    width: 100%;
+}
+
+.ws-solution-box {
+    border: 1.5px solid #000000;
+    border-radius: 4px;
+    padding: 5mm 6mm;
+    background: #fdfdfd;
+    display: flex;
+    flex-direction: column;
+    gap: 3mm;
+}
+
+.sol-hdr {
+    font-size: 11pt;
+    font-weight: 800;
+    color: #166534;
+}
+
+.sol-bullet-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2.5mm;
+    font-size: 11pt;
+    color: #111827;
+}
+
+.worksheet-footer {
+    border-top: 1px solid #e5e7eb;
+    padding-top: 4mm;
+    margin-top: auto;
+    font-size: 8pt;
+    color: #6b7280;
+    text-align: center;
+}
+
+/* ==========================================================================
+   PRINT STYLESHEET (Single-Page A4 Precision)
+   ========================================================================== */
+
+@media print {
+    @page {
+        size: A4 portrait;
+        margin: 10mm 15mm;
+    }
+
+    body, html {
+        background: #ffffff !important;
+        color: #000000 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+
+    .ipc-container {
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+    }
+
+    .worksheet-paper {
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+
+    .ws-answer-lines {
+        gap: 7.5mm !important;
+    }
+}

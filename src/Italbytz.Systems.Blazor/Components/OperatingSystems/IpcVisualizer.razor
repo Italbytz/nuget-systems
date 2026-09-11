@@ -1,0 +1,1286 @@
+@namespace Italbytz.Systems.Blazor.Components.OperatingSystems
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+<article class="ipc-container @(IsEmbed ? "embed-mode" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
+
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
+    {
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Betriebssysteme &bull; Interprozesskommunikation</p>
+            <h2>IPC-Mechanismen: Shared Memory, Sockets, Semaphoren &amp; Dateien</h2>
+            <p class="feature-intro">
+                Interprozesskommunikation (IPC) umfasst Verfahren, mit denen Prozesse Daten austauschen oder 
+                ihre Abläufe synchronisieren. Neben den klassischen Vorlesungs-Mechanismen (Signale, Pipes, 
+                Message Queues, Sockets) zählen im weiteren Sinne auch <strong>Dateien</strong>, 
+                <strong>Semaphoren / Mutexe</strong> und <strong>Geteilter Speicher (Shared Memory)</strong> dazu.
+            </p>
+        </div>
+    }
+
+    <!-- View Switcher -->
+    @if (!IsEmbed)
+    {
+        <div class="view-switch no-print">
+            <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Simulator)">
+                🚀 Interaktiver IPC-Explorer &amp; Mechanismen-Vergleich
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Worksheet)">
+                🖨️ Klausur-Arbeitsblatt (Druckansicht 1:1)
+            </button>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- SIMULATOR VIEW                                                            -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Controls & Mechanism Selector -->
+        <div class="controls-panel no-print">
+            <div class="mechanism-selector">
+                <span class="selector-label">IPC-Mechanismus wählen:</span>
+                <div class="mechanism-tabs">
+                    @foreach (var mech in AvailableMechanisms)
+                    {
+                        <button class="mech-tab-btn @(SelectedMechanismId == mech.Id ? "active" : "") @(mech.IsExamAnswer ? "exam-highlight" : "")"
+                                @onclick="() => SelectMechanism(mech.Id)">
+                            <span class="tab-icon">@mech.Icon</span>
+                            <span class="tab-title">@mech.Name</span>
+                            @if (mech.IsExamAnswer)
+                            {
+                                <span class="exam-tag">★ Weiter gefasst</span>
+                            }
+                        </button>
+                    }
+                </div>
+            </div>
+
+            <div class="toolbar-grid">
+                <div class="btn-group">
+                    <button class="action-btn" @onclick="GoToStart" disabled="@(CurrentStepIndex == 0)" title="An den Anfang">
+                        ⏮️ Anfang
+                    </button>
+                    <button class="action-btn" @onclick="StepBack" disabled="@(CurrentStepIndex == 0)" title="Schritt zurück">
+                        ◀️ Zurück
+                    </button>
+                    <button class="action-btn primary" @onclick="ToggleAutoPlay">
+                        @(IsPlaying ? "⏸️ Pause" : "▶️ Auto-Play")
+                    </button>
+                    <button class="action-btn primary" @onclick="StepForward" disabled="@(CurrentStepIndex >= ActiveSchedule.Count)" title="Nächster Schritt">
+                        Nächster Schritt (@(CurrentStepIndex)/@ActiveSchedule.Count) ⏭️
+                    </button>
+                    <button class="action-btn" @onclick="ResetSimulation" title="Simulation zurücksetzen">
+                        🔄 Reset
+                    </button>
+                </div>
+
+                <div class="speed-group">
+                    <label class="speed-label" for="speedSelect">Tempo:</label>
+                    <select id="speedSelect" class="speed-dropdown" @bind="SelectedSpeed">
+                        <option value="2500">Langsam (2.5s)</option>
+                        <option value="1500">Normal (1.5s)</option>
+                        <option value="800">Schnell (0.8s)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mechanism Summary Banner -->
+        <div class="mech-summary-banner" style="border-left-color: @CurrentMechanism.ColorHex;">
+            <div class="banner-icon" style="color: @CurrentMechanism.ColorHex;">@CurrentMechanism.Icon</div>
+            <div class="banner-text">
+                <div class="banner-title-row">
+                    <h3 class="banner-title">@CurrentMechanism.Name</h3>
+                    <span class="cat-badge @(CurrentMechanism.IsExamAnswer ? "badge-exam" : "badge-standard")">
+                        @(CurrentMechanism.IsExamAnswer ? "★ Weiterer Begriff (Klausurrelevant)" : "Vorlesungs-Klassiker")
+                    </span>
+                    <span class="speed-pill">Performance: @CurrentMechanism.PerformanceRating</span>
+                </div>
+                <p class="banner-desc">@CurrentMechanism.Description</p>
+            </div>
+        </div>
+
+        <!-- Interactive Architecture Stage -->
+        <div class="architecture-stage">
+
+            <!-- Process A (Sender / Producer) -->
+            <div class="process-card proc-sender @(IsSenderActive ? "active-actor" : "")">
+                <div class="process-header">
+                    <div class="proc-id">
+                        <span class="proc-icon">📤</span>
+                        <div>
+                            <strong>Prozess A (Sender)</strong>
+                            <small class="proc-pid">PID: 2048 (Sender/Erzeuger)</small>
+                        </div>
+                    </div>
+                    <span class="state-badge @GetSenderStatusClass()">@GetSenderStatusText()</span>
+                </div>
+
+                <div class="process-body">
+                    <div class="code-snippet-box mono">
+                        <span class="snippet-label">Aktueller Systemaufruf / Operation:</span>
+                        <div class="snippet-code">@SenderCurrentCall</div>
+                    </div>
+
+                    <div class="var-status-panel">
+                        <div class="var-row">
+                            <span class="var-name">Puffer-Aktion:</span>
+                            <span class="var-val mono">@SenderActionDetail</span>
+                        </div>
+                        <div class="var-row">
+                            <span class="var-name">Kopier-Aufwand:</span>
+                            <span class="var-val mono">@CurrentMechanism.CopyOverheadSender</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Central Communication Medium / Channel -->
+            <div class="channel-card">
+                <div class="channel-header" style="border-bottom-color: @CurrentMechanism.ColorHex;">
+                    <span class="channel-title">@CurrentMechanism.MediumName</span>
+                    <span class="channel-location-tag">@CurrentMechanism.StorageLocation</span>
+                </div>
+
+                <div class="channel-body">
+                    
+                    @if (SelectedMechanismId == "shm")
+                    {
+                        <!-- Shared Memory Visualizer -->
+                        <div class="shm-visualizer">
+                            <div class="memory-map-title">Gemeinsamer physischer RAM-Block (0x7FFE_0000 - Zero Copy)</div>
+                            <div class="memory-slots">
+                                @for (int i = 0; i < ShmSlots.Length; i++)
+                                {
+                                    var slot = ShmSlots[i];
+                                    <div class="mem-slot @(slot.IsWritten ? "slot-occupied" : "slot-empty") @(slot.IsHighlighted ? "slot-active" : "")">
+                                        <span class="slot-idx">#@i</span>
+                                        <span class="slot-val mono">@(slot.IsWritten ? slot.Value : "—")</span>
+                                        <span class="slot-status">@(slot.IsWritten ? "Gültig" : "Frei")</span>
+                                    </div>
+                                }
+                            </div>
+                            <div class="shm-pointer-legend">
+                                <span class="legend-item"><span class="dot shm-dot"></span> Direkter Lese-/Schreibzugriff beider Adressräume (ohne Kernel-Kopie!)</span>
+                            </div>
+                        </div>
+                    }
+                    else if (SelectedMechanismId == "file")
+                    {
+                        <!-- File Storage Visualizer -->
+                        <div class="file-visualizer">
+                            <div class="file-icon-box">📁</div>
+                            <div class="file-details">
+                                <div class="file-path mono">/var/tmp/shared_dataset.dat</div>
+                                <div class="file-meta">Dateisystem: ext4 &bull; Inode: 488219 &bull; Größe: @FileSizeInBytes Bytes</div>
+                                <div class="file-content-preview mono">
+                                    @(string.IsNullOrEmpty(FileContentPreview) ? "[Datei leer oder wird erzeugt...]" : FileContentPreview)
+                                </div>
+                            </div>
+                            <div class="file-note">
+                                ℹ️ Persistente Speicherung: Daten überleben Prozess-Ende, erfordert Dateisystem-I/O &amp; Page Cache.
+                            </div>
+                        </div>
+                    }
+                    else if (SelectedMechanismId == "sem")
+                    {
+                        <!-- Semaphore / Mutex Visualizer -->
+                        <div class="sem-visualizer">
+                            <div class="sem-meter-box">
+                                <div class="sem-counter-circle @(SemValue > 0 ? "sem-green" : "sem-red")">
+                                    <span class="sem-counter-num">@SemValue</span>
+                                    <span class="sem-counter-lbl">sem_t Zähler</span>
+                                </div>
+                                <div class="sem-gate-status">
+                                    <strong>Status:</strong> @(SemValue > 0 ? "Tor OFFEN (Ressource frei)" : "Tor GESPERRT (Ressource belegt)")
+                                </div>
+                            </div>
+                            <div class="sem-queue-box">
+                                <span class="queue-lbl">Warteschlange blockierter Threads/Prozesse:</span>
+                                <div class="queue-pills">
+                                    @if (SemWaitersCount == 0)
+                                    {
+                                        <span class="no-waiters">Keine Prozesse blockiert</span>
+                                    }
+                                    else
+                                    {
+                                        for (int w = 0; w < SemWaitersCount; w++)
+                                        {
+                                            <span class="waiter-pill">PID @(2049 + w) (wartet auf sem_post)</span>
+                                        }
+                                    }
+                                </div>
+                            </div>
+                            <div class="sem-note">
+                                ℹ️ Semaphoren übertragen selbst keine Dateninhalte, sondern koordinieren atomar Zugriffsrechte!
+                            </div>
+                        </div>
+                    }
+                    else if (SelectedMechanismId == "socket")
+                    {
+                        <!-- Socket Visualizer -->
+                        <div class="socket-visualizer">
+                            <div class="socket-endpoints">
+                                <div class="socket-end">
+                                    <span class="end-label">Sender Socket</span>
+                                    <span class="end-addr mono">127.0.0.1:49152</span>
+                                </div>
+                                <div class="socket-pipe-anim">
+                                    <div class="stream-pulse @(IsStreamingSocket ? "pulsing" : "")">
+                                        <span>TCP-Pakete / Stream</span>
+                                    </div>
+                                </div>
+                                <div class="socket-end">
+                                    <span class="end-label">Server Socket</span>
+                                    <span class="end-addr mono">127.0.0.1:8080 (LISTEN)</span>
+                                </div>
+                            </div>
+                            <div class="socket-note">
+                                ℹ️ Funktioniert lokal (UNIX Domain Socket) und über Rechnernetze (TCP/IP). Hohe Flexibilität, aber Netzwerk-Stack-Overhead.
+                            </div>
+                        </div>
+                    }
+                    else if (SelectedMechanismId == "mq")
+                    {
+                        <!-- Message Queue Visualizer -->
+                        <div class="mq-visualizer">
+                            <div class="mq-box-title">POSIX Message Queue: <code>/my_queue</code> (Kernel-Raum)</div>
+                            <div class="mq-messages">
+                                @if (!MqMessages.Any())
+                                {
+                                    <div class="mq-empty">[Keine Nachrichten in der Warteschlange]</div>
+                                }
+                                else
+                                {
+                                    @foreach (var msg in MqMessages)
+                                    {
+                                        <div class="mq-msg-card">
+                                            <span class="msg-prio">Prio @msg.Priority</span>
+                                            <span class="msg-payload mono">@msg.Payload</span>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                            <div class="mq-note">
+                                ℹ️ Strukturierte Botschaften mit Priorität. Empfänger kann gezielt bestimmte Nachrichtentypen abholen.
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <!-- Signals / Pipes Fallback Visualizer -->
+                        <div class="signals-visualizer">
+                            <div class="sig-pill">
+                                <span class="sig-name">SIGUSR1 (10)</span> &bull; Asynchrone Benachrichtigung durch den Kernel
+                            </div>
+                            <p class="sig-text">
+                                Signale übermitteln lediglich die Signalnummer und unterbrechen den Zielprozess zur Ausführung des Signal-Handlers.
+                            </p>
+                        </div>
+                    }
+
+                    <!-- Current Step Narrative -->
+                    <div class="channel-step-info">
+                        <strong>SCHRITT @CurrentStepIndex VON @ActiveSchedule.Count:</strong>
+                        <span>@CurrentStepExplanation</span>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Process B (Receiver / Consumer) -->
+            <div class="process-card proc-receiver @(IsReceiverActive ? "active-actor" : "")">
+                <div class="process-header">
+                    <div class="proc-id">
+                        <span class="proc-icon">📥</span>
+                        <div>
+                            <strong>Prozess B (Empfänger)</strong>
+                            <small class="proc-pid">PID: 2049 (Consumer/Verbraucher)</small>
+                        </div>
+                    </div>
+                    <span class="state-badge @GetReceiverStatusClass()">@GetReceiverStatusText()</span>
+                </div>
+
+                <div class="process-body">
+                    <div class="code-snippet-box mono">
+                        <span class="snippet-label">Aktueller Systemaufruf / Operation:</span>
+                        <div class="snippet-code">@ReceiverCurrentCall</div>
+                    </div>
+
+                    <div class="var-status-panel">
+                        <div class="var-row">
+                            <span class="var-name">Puffer-Aktion:</span>
+                            <span class="var-val mono">@ReceiverActionDetail</span>
+                        </div>
+                        <div class="var-row">
+                            <span class="var-name">Empfangenes Ergebnis:</span>
+                            <span class="var-val mono">@ReceiverResultPreview</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Matrix & Taxonomy Section (Comprehensive Overview) -->
+        <div class="panel-card taxonomy-card">
+            <div class="panel-header">
+                <span class="panel-title">📊 Große IPC-Vergleichsmatrix &amp; Systemtaxonomie</span>
+                <button class="toggle-ipcs-btn" @onclick="ToggleTaxonomy">
+                    @(ShowTaxonomy ? "▲ Tabelle einklappen" : "▼ Tabelle ausklappen")
+                </button>
+            </div>
+
+            @if (ShowTaxonomy)
+            {
+                <div class="taxonomy-body">
+                    <div class="table-responsive">
+                        <table class="ipc-table">
+                            <thead>
+                                <tr>
+                                    <th>Mechanismus</th>
+                                    <th>Kategorie</th>
+                                    <th>Speicherort / Medium</th>
+                                    <th>Datenformat</th>
+                                    <th>Kopplung / Reichweite</th>
+                                    <th>Performance</th>
+                                    <th>Synchronisation</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="highlight-row">
+                                    <td><strong>Geteilter Speicher (Shared Memory)</strong></td>
+                                    <td><span class="tag-weiter">★ Weiterer Begriff</span></td>
+                                    <td>Gemeinsamer physischer RAM (virtuell gemappt)</td>
+                                    <td>Beliebige Datenstrukturen</td>
+                                    <td>Lokal (gleiches System)</td>
+                                    <td><span class="perf-best">Extrem schnell (Zero-Copy)</span></td>
+                                    <td>Explizit nötig (Mutex/Semaphore)</td>
+                                </tr>
+                                <tr class="highlight-row">
+                                    <td><strong>Dateien (Files)</strong></td>
+                                    <td><span class="tag-weiter">★ Weiterer Begriff</span></td>
+                                    <td>Dateisystem / Inodes (SSD/HDD/PageCache)</td>
+                                    <td>Bytestrom / Formatierte Dateien</td>
+                                    <td>Lokal / NFS</td>
+                                    <td><span class="perf-mid">Mäßig (I/O-Overhead)</span></td>
+                                    <td>File-Locking (<code>flock</code> / <code>fcntl</code>)</td>
+                                </tr>
+                                <tr class="highlight-row">
+                                    <td><strong>Semaphoren / Mutexe</strong></td>
+                                    <td><span class="tag-weiter">★ Weiterer Begriff</span></td>
+                                    <td>Kernel / Shared Memory Futex</td>
+                                    <td>Reine Signal-/Zählerwerte (keine Nutzdaten)</td>
+                                    <td>Lokal (Threads &amp; Prozesse)</td>
+                                    <td><span class="perf-best">Sehr schnell</span></td>
+                                    <td>Dient selbst der Synchronisation</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Pipes (anonym)</strong></td>
+                                    <td><span class="tag-standard">Vorlesung</span></td>
+                                    <td>Kernel-Ringspeicher (RAM)</td>
+                                    <td>Unstrukturierter Bytestrom (FIFO)</td>
+                                    <td>Nur verwandte Prozesse (Parent/Child)</td>
+                                    <td><span class="perf-fast">Schnell (2x Kopieren)</span></td>
+                                    <td>Implizit blockierend (read/write)</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Named Pipes (FIFOs)</strong></td>
+                                    <td><span class="tag-standard">Vorlesung</span></td>
+                                    <td>Kernel-Puffer mit Dateisystem-Knoten</td>
+                                    <td>Unstrukturierter Bytestrom (FIFO)</td>
+                                    <td>Beliebige lokale Prozesse</td>
+                                    <td><span class="perf-fast">Schnell</span></td>
+                                    <td>Implizit blockierend</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Message Queues</strong></td>
+                                    <td><span class="tag-standard">Vorlesung</span></td>
+                                    <td>Kernel-Warteschlange</td>
+                                    <td>Strukturierte Nachrichten + Typ/Priorität</td>
+                                    <td>Beliebige lokale Prozesse</td>
+                                    <td><span class="perf-fast">Schnell</span></td>
+                                    <td>Blockierend oder nicht-blockierend</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Sockets</strong></td>
+                                    <td><span class="tag-standard">Vorlesung</span></td>
+                                    <td>Netzwerk-Stack / UNIX Domain Socket</td>
+                                    <td>Bytestrom (TCP) oder Datagramme (UDP)</td>
+                                    <td>Lokal oder über Rechnernetze hinweg</td>
+                                    <td><span class="perf-mid">Mäßig (Protokoll-Stack)</span></td>
+                                    <td>Synchron oder asynchron</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Signale</strong></td>
+                                    <td><span class="tag-standard">Vorlesung</span></td>
+                                    <td>Kernel-Interrupt / Prozesstabelle</td>
+                                    <td>Ganzzahlige Signal-ID (z.B. SIGKILL, SIGUSR1)</td>
+                                    <td>Beliebige Prozesse mit Rechten</td>
+                                    <td><span class="perf-best">Sehr schnell</span></td>
+                                    <td>Asynchron (unterbricht Programmlauf)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Exam Self-Check Card -->
+        <div class="panel-card exam-quiz-card">
+            <div class="panel-header">
+                <span class="panel-title">📝 Klausur-Selbsttest: Aufgabe 1 (BSIPCWeitereArten.tex)</span>
+                <span class="exam-badge-score">Klausurrelevanz: Hoch (5 Punkte)</span>
+            </div>
+            <div class="quiz-body">
+                <p class="quiz-question">
+                    <em>„In der Vorlesung haben wir Signale, Pipes, Named Pipes, Message Queues und Socketverbindungen 
+                    als Möglichkeiten der Interprozesskommunikation kennengelernt. Wenn man den Begriff weiter fasst, 
+                    fallen aber noch einige weitere Möglichkeiten darunter. Nennen Sie mindestens zwei.“</em>
+                </p>
+
+                <div class="quiz-options-grid">
+                    @foreach (var opt in QuizOptions)
+                    {
+                        <button class="quiz-opt-btn @(opt.IsSelected ? "selected" : "") @(ShowQuizSolution ? (opt.IsCorrect ? "correct-highlight" : "incorrect-highlight") : "")"
+                                @onclick="() => ToggleQuizOption(opt)">
+                            <span class="opt-checkbox">@(opt.IsSelected ? "☑" : "☐")</span>
+                            <span class="opt-title">@opt.Title</span>
+                            @if (ShowQuizSolution)
+                            {
+                                <span class="opt-verdict @(opt.IsCorrect ? "verdict-correct" : "verdict-wrong")">
+                                    @(opt.IsCorrect ? "✓ Richtig (Klausurlösung)" : "✗ Bereits in Vorlesung / kein IPC")
+                                </span>
+                            }
+                        </button>
+                    }
+                </div>
+
+                <div class="quiz-actions">
+                    <button class="action-btn primary" @onclick="ToggleQuizSolution">
+                        @(ShowQuizSolution ? "👁️ Lösung verbergen" : "💡 Lösung aufdecken & prüfen")
+                    </button>
+                    <button class="action-btn" @onclick="ResetQuiz">
+                        🔄 Zurücksetzen
+                    </button>
+                    @if (ShowQuizSolution)
+                    {
+                        <div class="quiz-feedback-text">
+                            <strong>Ergebnis:</strong> Sie haben @QuizScore von @QuizOptions.Count(o => o.IsCorrect) korrekten weiteren IPC-Mechanismen markiert.
+                            (Erforderlich für volle Punktzahl: mindestens 2!).
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Terminal Console Output -->
+        <div class="panel-card console-card">
+            <div class="panel-header">
+                <span class="panel-title">🖥️ System-Trace &amp; Protokollausgabe</span>
+                <span class="console-hint">Protokolliert POSIX-Aufrufe und Zustandsänderungen</span>
+            </div>
+            <div class="console-body mono">
+                @if (!ConsoleLines.Any())
+                {
+                    <span class="console-empty">Simulation bereit. Klicken Sie auf „Nächster Schritt“ oder „Auto-Play“...</span>
+                }
+                else
+                {
+                    @foreach (var line in ConsoleLines)
+                    {
+                        <div class="console-row @(line.IsError ? "console-error" : "")">
+                            <span class="console-ts">[@line.StepNum]</span>
+                            <span class="console-src tag-@line.Actor">@line.ActorName:</span>
+                            <span class="console-msg">@line.Message</span>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- WORKSHEET VIEW (1:1 EXAM REPLICA MATCHING BSIPCWeitereArten.tex)         -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Worksheet)
+    {
+        <div class="worksheet-paper">
+            
+            <!-- Exam Header -->
+            <div class="exam-header">
+                <div class="exam-title-group">
+                    <span class="exam-sub">Grundlagen der Informatik</span>
+                    <h1 class="exam-main-title">I P C @(ShowSolution ? "- Lösung" : "")</h1>
+                    <span class="exam-task-label">Aufgabe 1 (Arten von Interprozesskommunikation)</span>
+                </div>
+                <div class="exam-meta-box no-print">
+                    <button class="toggle-sol-btn @(ShowSolution ? "active" : "")" @onclick="ToggleSolution">
+                        @(ShowSolution ? "👁️ Musterlösung ausblenden" : "💡 Musterlösung einblenden")
+                    </button>
+                    <button class="print-btn" @onclick="TriggerPrint">
+                        🖨️ Drucken / PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Student Info Fields -->
+            <div class="student-info-strip">
+                <div class="info-field">
+                    <span class="info-label">Name, Vorname:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field">
+                    <span class="info-label">Matrikelnummer:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field points-field">
+                    <span class="info-label">Punkte:</span>
+                    <div class="points-box">/ 5 P.</div>
+                </div>
+            </div>
+
+            <!-- Task Question matching BSIPCWeitereArten.tex -->
+            <div class="task-prompt-box">
+                <p class="task-text">
+                    In der Vorlesung haben wir Signale, Pipes, Named Pipes, Message Queues und Socketverbindungen 
+                    als Möglichkeiten der Interprozesskommunikation kennengelernt. Wenn man den Begriff weiter fasst 
+                    fallen aber noch einige weitere Möglichkeiten darunter. Nennen Sie mindestens zwei.
+                </p>
+            </div>
+
+            <!-- Answer Section -->
+            @if (!ShowSolution)
+            {
+                <div class="ws-answer-lines">
+                    <div class="answer-line"></div>
+                    <div class="answer-line"></div>
+                    <div class="answer-line"></div>
+                    <div class="answer-line"></div>
+                    <div class="answer-line"></div>
+                    <div class="answer-line"></div>
+                    <div class="answer-line"></div>
+                    <div class="answer-line"></div>
+                </div>
+            }
+            else
+            {
+                <div class="ws-solution-box">
+                    <div class="sol-hdr bold">Musterlösung:</div>
+                    <div class="sol-bullet-list">
+                        <div class="sol-item">&bull; <strong>Dateien</strong></div>
+                        <div class="sol-item">&bull; <strong>Semaphoren/Mutexe</strong></div>
+                        <div class="sol-item">&bull; <strong>Geteilter Speicher</strong></div>
+                    </div>
+                </div>
+            }
+
+            <!-- Footer for Worksheet -->
+            <div class="worksheet-footer">
+                <span>Intelligent Systems Design &bull; Hochschule Hamm-Lippstadt &bull; Betriebssysteme</span>
+            </div>
+
+        </div>
+    }
+
+</article>
+
+@code {
+    public enum ViewMode { Simulator, Worksheet }
+
+    [Parameter] public bool IsEmbed { get; set; }
+
+    private ViewMode ActiveView { get; set; } = ViewMode.Simulator;
+    private bool ShowSolution { get; set; } = false;
+    private bool ShowTaxonomy { get; set; } = true;
+    private bool ShowQuizSolution { get; set; } = false;
+
+    private string SelectedMechanismId { get; set; } = "shm";
+    private int CurrentStepIndex { get; set; } = 0;
+    private bool IsPlaying { get; set; } = false;
+    private int SelectedSpeed { get; set; } = 1500;
+    private CancellationTokenSource? _autoPlayCts;
+
+    // Simulation states
+    private bool IsSenderActive { get; set; } = false;
+    private bool IsReceiverActive { get; set; } = false;
+    private string SenderCurrentCall { get; set; } = "idle";
+    private string ReceiverCurrentCall { get; set; } = "idle";
+    private string SenderActionDetail { get; set; } = "Bereit zum Schreiben";
+    private string ReceiverActionDetail { get; set; } = "Bereit zum Lesen";
+    private string ReceiverResultPreview { get; set; } = "Keine Daten";
+    private string CurrentStepExplanation { get; set; } = "Simulation bereit. Wählen Sie einen Mechanismus und starten Sie die Schritte.";
+
+    // Shared Memory state
+    public class ShmSlotModel
+    {
+        public bool IsWritten { get; set; }
+        public string Value { get; set; } = "";
+        public bool IsHighlighted { get; set; }
+    }
+    private ShmSlotModel[] ShmSlots { get; set; } = new ShmSlotModel[6]
+    {
+        new() { IsWritten = false, Value = "" },
+        new() { IsWritten = false, Value = "" },
+        new() { IsWritten = false, Value = "" },
+        new() { IsWritten = false, Value = "" },
+        new() { IsWritten = false, Value = "" },
+        new() { IsWritten = false, Value = "" },
+    };
+
+    // File state
+    private int FileSizeInBytes { get; set; } = 0;
+    private string FileContentPreview { get; set; } = "";
+
+    // Semaphore state
+    private int SemValue { get; set; } = 1;
+    private int SemWaitersCount { get; set; } = 0;
+
+    // Socket state
+    private bool IsStreamingSocket { get; set; } = false;
+
+    // Message Queue state
+    public record MqMessageItem(int Priority, string Payload);
+    private List<MqMessageItem> MqMessages { get; set; } = new();
+
+    // Trace log
+    public record TraceLogLine(int StepNum, string Actor, string ActorName, string Message, bool IsError = false);
+    private List<TraceLogLine> ConsoleLines { get; set; } = new();
+
+    // Mechanism Definition
+    public record MechanismDef(
+        string Id,
+        string Name,
+        string Icon,
+        bool IsExamAnswer,
+        string ColorHex,
+        string PerformanceRating,
+        string Description,
+        string MediumName,
+        string StorageLocation,
+        string CopyOverheadSender
+    );
+
+    private List<MechanismDef> AvailableMechanisms { get; set; } = new()
+    {
+        new("shm", "Geteilter Speicher", "💾", true, "#10b981", "Extrem hoch (Zero-Copy)",
+            "Mehrere Prozesse blenden denselben physischen RAM-Bereich in ihren virtuellen Adressraum ein. Datenzugriff erfolgt ohne Kernel-Kopien direkt über Zeiger. Schnellste Form der IPC!",
+            "Gemeinsamer physischer Adressraum (RAM)", "Arbeitsspeicher (RAM)", "0 Kopien (direkter RAM-Schreibzugriff)"),
+
+        new("file", "Dateien (Files)", "📁", true, "#f59e0b", "Mäßig (Dateisystem/Disk)",
+            "Prozesse nutzen das Dateisystem als gemeinsamen Speicher. Sehr robust und persistent (Daten überdauern Prozess-Terminierung), aber erfordert I/O-Zugriffe und Dateisperren.",
+            "Dateisystem-Inode (ext4/NTFS)", "Speichermedium (SSD/HDD/PageCache)", "Schreiben in PageCache / Kernel"),
+
+        new("sem", "Semaphoren / Mutexe", "🚦", true, "#8b5cf6", "Sehr hoch (Atomare Zähler)",
+            "Dient der Synchronisation und Koordination von Prozessen (z.B. Schutz kritischer Abschnitte). Überträgt keine Nutzdaten, fällt im weiteren Sinne aber unter IPC!",
+            "Atomare Zählsperre (futex/Kernel)", "Kernel / Geteilter Speicher", "Kein Datenpuffer (reiner Steuerungszähler)"),
+
+        new("socket", "Sockets (Netzwerk)", "🌐", false, "#3b82f6", "Mäßig (Netzwerk-Stack)",
+            "Erlaubt Kommunikation zwischen beliebigen Prozessen auf demselben System (UNIX Domain) oder über IP-Netzwerke hinweg.",
+            "Socket-Puffer & Netzwerk-Stack", "Kernel-Netzwerkpuffer & LAN/WAN", "Kopie in Socket-Buffer"),
+
+        new("mq", "Message Queues", "📬", false, "#ec4899", "Hoch (Priorisierte Nachrichten)",
+            "Diskrete Nachrichten mit Typ und Priorität werden in einer Kernel-Warteschlange abgelegt und asynchron konsumiert.",
+            "Kernel-Warteschlange", "Kernel-Adressraum", "Kopie in Kernel-Queue"),
+
+        new("signals", "Signale & Pipes", "⚡", false, "#06b6d4", "Sehr hoch (Signale) / Hoch (Pipes)",
+            "Klassische asynchrone Prozess-Benachrichtigung durch ganzzahlige Signale (z.B. SIGUSR1) oder FIFO-Datenströme.",
+            "Prozesstabelle & Ringspeicher", "Kernel-Adressraum", "Signal-Queue / Pipe-Buffer")
+    };
+
+    private MechanismDef CurrentMechanism => AvailableMechanisms.FirstOrDefault(m => m.Id == SelectedMechanismId) ?? AvailableMechanisms[0];
+
+    // Simulation schedule step
+    public record StepAction(
+        string SenderCall,
+        string ReceiverCall,
+        bool SenderActive,
+        bool ReceiverActive,
+        string SenderDetail,
+        string ReceiverDetail,
+        string ResultPreview,
+        string Explanation,
+        Action? Mutator = null
+    );
+
+    private List<StepAction> ActiveSchedule { get; set; } = new();
+
+    // Quiz Options
+    public class QuizOptionItem
+    {
+        public string Title { get; set; } = "";
+        public bool IsCorrect { get; set; }
+        public bool IsSelected { get; set; }
+    }
+
+    private List<QuizOptionItem> QuizOptions { get; set; } = new()
+    {
+        new() { Title = "Dateien (Files)", IsCorrect = true, IsSelected = false },
+        new() { Title = "Signale", IsCorrect = false, IsSelected = false },
+        new() { Title = "Semaphoren / Mutexe", IsCorrect = true, IsSelected = false },
+        new() { Title = "Named Pipes (FIFOs)", IsCorrect = false, IsSelected = false },
+        new() { Title = "Geteilter Speicher (Shared Memory)", IsCorrect = true, IsSelected = false },
+        new() { Title = "Message Queues", IsCorrect = false, IsSelected = false },
+    };
+
+    private int QuizScore => QuizOptions.Count(o => o.IsSelected && o.IsCorrect);
+
+    protected override void OnInitialized()
+    {
+        ReadQueryParameters();
+        SelectMechanism("shm");
+    }
+
+    protected override void OnParametersSet()
+    {
+        ReadQueryParameters();
+    }
+
+    private void ReadQueryParameters()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query;
+            if (!string.IsNullOrEmpty(query))
+            {
+                if (query.Contains("view=worksheet", StringComparison.OrdinalIgnoreCase))
+                {
+                    ActiveView = ViewMode.Worksheet;
+                }
+                if (query.Contains("solution=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    ShowSolution = true;
+                }
+                if (query.Contains("embed=true", StringComparison.OrdinalIgnoreCase) || query.Contains("embedded=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsEmbed = true;
+                    ShowTaxonomy = false;
+                }
+            }
+        }
+        catch { }
+    }
+
+    private void SetView(ViewMode mode)
+    {
+        ActiveView = mode;
+        if (mode == ViewMode.Simulator)
+        {
+            ResetSimulation();
+        }
+    }
+
+    private void ToggleSolution()
+    {
+        ShowSolution = !ShowSolution;
+    }
+
+    private void ToggleTaxonomy()
+    {
+        ShowTaxonomy = !ShowTaxonomy;
+    }
+
+    private void ToggleQuizOption(QuizOptionItem item)
+    {
+        item.IsSelected = !item.IsSelected;
+    }
+
+    private void ToggleQuizSolution()
+    {
+        ShowQuizSolution = !ShowQuizSolution;
+    }
+
+    private void ResetQuiz()
+    {
+        ShowQuizSolution = false;
+        foreach (var opt in QuizOptions)
+        {
+            opt.IsSelected = false;
+        }
+    }
+
+    private async Task TriggerPrint()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("window.print");
+        }
+        catch { }
+    }
+
+    private void SelectMechanism(string id)
+    {
+        SelectedMechanismId = id;
+        BuildScheduleForMechanism(id);
+        ResetSimulation();
+    }
+
+    private void BuildScheduleForMechanism(string id)
+    {
+        ActiveSchedule.Clear();
+
+        if (id == "shm")
+        {
+            ActiveSchedule.Add(new StepAction(
+                "int fd = shm_open(\"/myshm\", O_CREAT | O_RDWR, 0666);",
+                "int fd = shm_open(\"/myshm\", O_RDWR, 0666);",
+                true, true,
+                "Shared Memory Objekt im RAM angelegt",
+                "Objekt /myshm geöffnet",
+                "Noch keine Daten",
+                "Prozess A erzeugt das Shared-Memory-Segment mit shm_open(), Prozess B öffnet die Referenz darauf.",
+                () => { AddLog("A", "shm_open(\"/myshm\") erzeugt Segment"); AddLog("B", "shm_open(\"/myshm\") bindet Segment ein"); }
+            ));
+
+            ActiveSchedule.Add(new StepAction(
+                "ftruncate(fd, 4096); ptrA = mmap(..., fd, 0);",
+                "ptrB = mmap(..., fd, 0);",
+                true, true,
+                "Größe 4 KB festgelegt & gemappt",
+                "In Adressraum von B gemappt",
+                "RAM-Block gemappt",
+                "ftruncate() reserviert die physische Größe im RAM. mmap() projiziert dieselben physischen Speicherseiten in beide Prozess-Adressräume.",
+                () => { AddLog("A", "ftruncate(4096) + mmap() -> Adr 0x7ffe0000"); AddLog("B", "mmap() -> Adr 0x7ffe0000"); }
+            ));
+
+            ActiveSchedule.Add(new StepAction(
+                "*((int*)ptrA) = 42; // Direkter Speicher-Schreibzugriff",
+                "while(*((int*)ptrB) == 0); // Polling / Wait",
+                true, false,
+                "Wert 42 in Slot #0 geschrieben",
+                "Wartet auf Aktualisierung",
+                "Slot #0 = 42",
+                "Prozess A schreibt direkt über einen Zeiger den Wert 42 in den RAM. Dies erfordert KEINE Kopie in den Kernel-Space (Zero-Copy)!",
+                () => { 
+                    ShmSlots[0].IsWritten = true; 
+                    ShmSlots[0].Value = "42"; 
+                    ShmSlots[0].IsHighlighted = true;
+                    AddLog("A", "*ptrA = 42 geschrieben (Zero-Copy!)"); 
+                }
+            ));
+
+            ActiveSchedule.Add(new StepAction(
+                "sem_post(sem); // Synchronisations-Signal",
+                "sem_wait(sem); // Erhält Zugriff",
+                false, true,
+                "Freigabe signalisiert",
+                "Signal empfangen, liest *ptrB",
+                "Gelesen: 42",
+                "Da Shared Memory keine automatische Synchronisation bietet, wird ein Semaphor genutzt, um Prozess B mitzuteilen, dass der Wert fertig geschrieben ist.",
+                () => { 
+                    ReceiverResultPreview = "Gelesen: 42 (aus RAM)";
+                    AddLog("A", "sem_post(sem) sendet Freigabe");
+                    AddLog("B", "sem_wait() entsperrt -> Wert 42 erfolgreich gelesen!");
+                }
+            ));
+
+            ActiveSchedule.Add(new StepAction(
+                "munmap(ptrA, 4096); close(fd);",
+                "munmap(ptrB, 4096); close(fd); shm_unlink(\"/myshm\");",
+                false, false,
+                "Segment entkoppelt",
+                "Segment gelöscht",
+                "Transfer abgeschlossen",
+                "Beide Prozesse heben das Mapping auf. shm_unlink() entfernt das Segment aus dem System.",
+                () => { AddLog("System", "munmap() & shm_unlink() ausgeführt. Bereinigt."); }
+            ));
+        }
+        else if (id == "file")
+        {
+            ActiveSchedule.Add(new StepAction(
+                "int fd = open(\"/tmp/data.dat\", O_WRONLY | O_CREAT, 0644);",
+                "sleep(1); // Wartet auf Dateierstellung",
+                true, false,
+                "Datei im Dateisystem angelegt",
+                "Wartet",
+                "Datei leer",
+                "Prozess A erstellt die Datei '/tmp/data.dat' über den Systemaufruf open(). Das Betriebssystem allokiert einen Inode.",
+                () => { 
+                    FileSizeInBytes = 0;
+                    FileContentPreview = "Öffne Datei...";
+                    AddLog("A", "open(\"/tmp/data.dat\", O_CREAT) -> Inode 488219 allokiert"); 
+                }
+            ));
+
+            ActiveSchedule.Add(new StepAction(
+                "flock(fd, LOCK_EX); // Exklusiver Lock",
+                "int fd = open(\"/tmp/data.dat\", O_RDONLY); flock(..., LOCK_SH);",
+                true, true,
+                "Datei gesperrt für Schreiben",
+                "Blockiert am Lock",
+                "Gesperrt",
+                "Zur Vermeidung von Race Conditions sperrt Prozess A die Datei mit flock(LOCK_EX). Prozess B muss warten.",
+                () => { AddLog("A", "flock(LOCK_EX) Sperre gesetzt"); AddLog("B", "open() erfolgreich, wartet auf Lock..."); }
+            ));
+
+            ActiveSchedule.Add(new StepAction(
+                "write(fd, \"Sensordaten: Temp=21.5C\", 24);",
+                "Wartet auf Entsperrung...",
+                true, false,
+                "24 Bytes geschrieben",
+                "Blockiert",
+                "Geschrieben",
+                "Prozess A schreibt Daten in den Page Cache des Kernels. Die Daten werden gepuffert und später auf Disk synchronisiert.",
+                () => { 
+                    FileSizeInBytes = 24;
+                    FileContentPreview = "Sensordaten: Temp=21.5C";
+                    AddLog("A", "write() transferiert 24 Bytes in Dateisystem");
+                }
+            ));
+
+            ActiveSchedule.Add(new StepAction(
+                "flock(fd, LOCK_UN); close(fd);",
+                "read(fd, buf, 24); // Liest Datei",
+                false, true,
+                "Lock freigegeben & geschlossen",
+                "24 Bytes gelesen",
+                "Temp=21.5C empfangen",
+                "Prozess A gibt den Lock frei. Prozess B wird entsperrt, liest den Inhalt der Datei und verarbeitet die Daten.",
+                () => { 
+                    ReceiverResultPreview = "Gelesen: 'Sensordaten: Temp=21.5C'";
+                    AddLog("A", "flock(LOCK_UN) & close(fd)");
+                    AddLog("B", "read() liefert 24 Bytes aus Datei!");
+                }
+            ));
+        }
+        else if (id == "sem")
+        {
+            ActiveSchedule.Add(new StepAction(
+                "sem_t *s = sem_open(\"/mysem\", O_CREAT, 0644, 1);",
+                "sem_t *s = sem_open(\"/mysem\", 0);",
+                true, true,
+                "Semaphor mit Zähler 1 initialisiert",
+                "Semaphor geöffnet",
+                "Semaphor: 1",
+                "Prozess A initialisiert einen benannten POSIX-Semaphor mit dem Anfangswert 1 (binärer Semaphor / Mutex).",
+                () => { 
+                    SemValue = 1;
+                    SemWaitersCount = 0;
+                    AddLog("A", "sem_open(\"/mysem\", val=1) erzeugt");
+                    AddLog("B", "sem_open(\"/mysem\") verbunden");
+                }
+            ));
+
+            ActiveSchedule.Add(new StepAction(
+                "sem_wait(s); // Zähler 1 -> 0 (Betritt Kritischen Abschnitt)",
+                "sem_wait(s); // Zähler 0 -> BLOCKIERT!",
+                true, true,
+                "Hält Lock (Kritischer Abschnitt)",
+                "BLOCKIERT in Warteschlange",
+                "Semaphor: 0",
+                "Prozess A führt sem_wait() aus. Der Zähler sinkt auf 0. Prozess B führt ebenfalls sem_wait() aus, findet den Zähler 0 vor und wird vom Kernel blockiert!",
+                () => { 
+                    SemValue = 0;
+                    SemWaitersCount = 1;
+                    AddLog("A", "sem_wait() dekrementiert Zähler auf 0 -> Betritt kritischen Abschnitt");
+                    AddLog("B", "sem_wait() bei Zähler 0 -> Prozess B blockiert (Schlafzustand)!");
+                }
+            ));
+
+            ActiveSchedule.Add(new StepAction(
+                "Kritischer Abschnitt: Modifiziere Ressource...",
+                "Wartet in Kernel-Wait-Queue...",
+                true, false,
+                "Arbeitet ungestört",
+                "Wartet auf Aufweck-Signal",
+                "Exklusiver Zugriff aktiv",
+                "Prozess A arbeitet garantiert ohne Race Condition, da Prozess B durch den Semaphor sicher ausgesperrt ist.",
+                () => { AddLog("A", "Arbeitet im kritischen Abschnitt..."); }
+            ));
+
+            ActiveSchedule.Add(new StepAction(
+                "sem_post(s); // Zähler inkrementiert -> Weckt B auf",
+                "Aufgewacht! Betritt Kritischen Abschnitt",
+                false, true,
+                "Kritischen Abschnitt verlassen",
+                "Zähler übernommen",
+                "Prozess B aktiv",
+                "Prozess A verlässt den kritischen Abschnitt und ruft sem_post() auf. Der Kernel weckt Prozess B auf, der nun seinerseits den Abschnitt betritt.",
+                () => { 
+                    SemWaitersCount = 0;
+                    SemValue = 0; // B has it now
+                    ReceiverResultPreview = "Erfolgreich synchronisiert";
+                    AddLog("A", "sem_post() aufgerufen -> Kernel weckt Prozess B auf!");
+                    AddLog("B", "Prozess B läuft weiter im geschützten Abschnitt.");
+                }
+            ));
+        }
+        else if (id == "socket")
+        {
+            ActiveSchedule.Add(new StepAction(
+                "socket(AF_INET, SOCK_STREAM, 0);",
+                "socket(AF_INET, SOCK_STREAM, 0); bind(); listen();",
+                true, true,
+                "Client-Socket erzeugt",
+                "Server-Socket lauscht auf Port 8080",
+                "Sockets bereit",
+                "Prozess B agiert als Server (bind + listen). Prozess A erzeugt einen Client-Socket für TCP/IP.",
+                () => { AddLog("B", "Server lauscht auf 127.0.0.1:8080"); AddLog("A", "Client-Socket erzeugt"); }
+            ));
+
+            ActiveSchedule.Add(new StepAction(
+                "connect(fd, &serverAddr, ...);",
+                "accept(fd, ...);",
+                true, true,
+                "TCP SYN gesendet (Handshake)",
+                "Verbindung akzeptiert",
+                "Verbunden",
+                "Drei-Wege-Handshake verbindet beide Prozesse über den Netzwerk-Stack des Kernels.",
+                () => { 
+                    IsStreamingSocket = true;
+                    AddLog("A", "connect() initiiert Handshake");
+                    AddLog("B", "accept() liefert neuen Verbindungs-Socket!");
+                }
+            ));
+
+            ActiveSchedule.Add(new StepAction(
+                "send(sock, \"GET /api/status HTTP/1.1\\r\\n\", 28, 0);",
+                "recv(clientSock, buf, 1024, 0);",
+                true, true,
+                "28 Bytes gesendet",
+                "28 Bytes empfangen",
+                "Request erhalten",
+                "Daten werden über den Netzwerk-Puffer transportiert. Funktioniert lokal sowie über das weltweite Internet.",
+                () => { 
+                    ReceiverResultPreview = "GET /api/status HTTP/1.1";
+                    AddLog("A", "send() überträgt HTTP Request");
+                    AddLog("B", "recv() liest 28 Bytes aus TCP-Buffer");
+                }
+            ));
+
+            ActiveSchedule.Add(new StepAction(
+                "close(sock);",
+                "close(clientSock);",
+                false, false,
+                "Verbindung geschlossen",
+                "Verbindung beendet",
+                "Transfer beendet",
+                "TCP FIN/ACK beendet die Sitzung sauber.",
+                () => { 
+                    IsStreamingSocket = false;
+                    AddLog("System", "Socket-Verbindung geschlossen.");
+                }
+            ));
+        }
+        else if (id == "mq")
+        {
+            ActiveSchedule.Add(new StepAction(
+                "mq_open(\"/queue\", O_WRONLY | O_CREAT, ...);",
+                "mq_open(\"/queue\", O_RDONLY, ...);",
+                true, true,
+                "Queue geöffnet",
+                "Queue geöffnet",
+                "Warteschlange aktiv",
+                "Beide Prozesse öffnen die POSIX Message Queue '/queue' im Kernel.",
+                () => { 
+                    MqMessages.Clear();
+                    AddLog("A", "mq_open(\"/queue\") verbunden"); 
+                    AddLog("B", "mq_open(\"/queue\") verbunden"); 
+                }
+            ));
+
+            ActiveSchedule.Add(new StepAction(
+                "mq_send(mq, \"Kritischer Alarm\", 16, 10); // Prio 10",
+                "Wartet oder arbeitet asynchron...",
+                true, false,
+                "Nachricht mit Prio 10 eingereiht",
+                "Bereit zum Abruf",
+                "1 Nachricht in Queue",
+                "Prozess A sendet eine Nachricht mit hoher Priorität (10). Der Kernel speichert die Nachricht in der Warteschlange.",
+                () => { 
+                    MqMessages.Add(new MqMessageItem(10, "Kritischer Alarm"));
+                    AddLog("A", "mq_send(\"Kritischer Alarm\", prio=10)");
+                }
+            ));
+
+            ActiveSchedule.Add(new StepAction(
+                "mq_send(mq, \"Normaler Status\", 15, 1); // Prio 1",
+                "mq_receive(mq, buf, msg_len, &prio);",
+                true, true,
+                "Nachricht mit Prio 1 eingereiht",
+                "Liest höchst-priorisierte Nachricht",
+                "Kritischer Alarm empfangen",
+                "Prozess B ruft mit mq_receive() die Nachricht mit der höchsten Priorität (10) ab, obwohl andere Nachrichten vorliegen.",
+                () => { 
+                    MqMessages.Add(new MqMessageItem(1, "Normaler Status"));
+                    MqMessages.RemoveAt(0); // Prio 10 consumed
+                    ReceiverResultPreview = "Empfangen (Prio 10): 'Kritischer Alarm'";
+                    AddLog("B", "mq_receive() liefert prioritäre Nachricht 'Kritischer Alarm'!");
+                }
+            ));
+        }
+        else
+        {
+            ActiveSchedule.Add(new StepAction(
+                "kill(pidB, SIGUSR1);",
+                "Signal-Handler aktiviert",
+                true, true,
+                "Signal SIGUSR1 (10) gesendet",
+                "Unterbrochen, Handler läuft",
+                "Signal empfangen",
+                "Signale übertragen keine Dateninhalte, sondern triggern asynchrone Handler-Funktionen im Zielprozess.",
+                () => { 
+                    ReceiverResultPreview = "SIGUSR1 empfangen";
+                    AddLog("A", "kill(pidB, SIGUSR1) gesendet");
+                    AddLog("B", "Signal-Handler für SIGUSR1 ausgeführt!");
+                }
+            ));
+        }
+    }
+
+    private void ResetSimulation()
+    {
+        StopAutoPlay();
+        CurrentStepIndex = 0;
+        ConsoleLines.Clear();
+
+        // Reset state values
+        for (int i = 0; i < ShmSlots.Length; i++)
+        {
+            ShmSlots[i].IsWritten = false;
+            ShmSlots[i].Value = "";
+            ShmSlots[i].IsHighlighted = false;
+        }
+        FileSizeInBytes = 0;
+        FileContentPreview = "";
+        SemValue = 1;
+        SemWaitersCount = 0;
+        IsStreamingSocket = false;
+        MqMessages.Clear();
+
+        IsSenderActive = false;
+        IsReceiverActive = false;
+        SenderCurrentCall = "idle";
+        ReceiverCurrentCall = "idle";
+        SenderActionDetail = "Bereit zum Start";
+        ReceiverActionDetail = "Bereit zum Start";
+        ReceiverResultPreview = "Keine Daten";
+        CurrentStepExplanation = "Simulation bereit. Klicken Sie auf „Nächster Schritt“ oder „Auto-Play“.";
+    }
+
+    private void GoToStart()
+    {
+        ResetSimulation();
+    }
+
+    private void StepForward()
+    {
+        if (CurrentStepIndex < ActiveSchedule.Count)
+        {
+            var step = ActiveSchedule[CurrentStepIndex];
+            SenderCurrentCall = step.SenderCall;
+            ReceiverCurrentCall = step.ReceiverCall;
+            IsSenderActive = step.SenderActive;
+            IsReceiverActive = step.ReceiverActive;
+            SenderActionDetail = step.SenderDetail;
+            ReceiverActionDetail = step.ReceiverDetail;
+            ReceiverResultPreview = step.ResultPreview;
+            CurrentStepExplanation = step.Explanation;
+
+            step.Mutator?.Invoke();
+            CurrentStepIndex++;
+        }
+        else
+        {
+            StopAutoPlay();
+        }
+    }
+
+    private void StepBack()
+    {
+        if (CurrentStepIndex > 1)
+        {
+            int target = CurrentStepIndex - 1;
+            ResetSimulation();
+            for (int i = 0; i < target; i++)
+            {
+                StepForward();
+            }
+        }
+        else
+        {
+            ResetSimulation();
+        }
+    }
+
+    private void ToggleAutoPlay()
+    {
+        if (IsPlaying)
+        {
+            StopAutoPlay();
+        }
+        else
+        {
+            StartAutoPlay();
+        }
+    }
+
+    private void StartAutoPlay()
+    {
+        if (CurrentStepIndex >= ActiveSchedule.Count)
+        {
+            ResetSimulation();
+        }
+
+        IsPlaying = true;
+        _autoPlayCts = new CancellationTokenSource();
+        _ = RunAutoPlayLoop(_autoPlayCts.Token);
+    }
+
+    private void StopAutoPlay()
+    {
+        IsPlaying = false;
+        _autoPlayCts?.Cancel();
+        _autoPlayCts = null;
+    }
+
+    private async Task RunAutoPlayLoop(CancellationToken token)
+    {
+        while (!token.IsCancellationRequested && CurrentStepIndex < ActiveSchedule.Count)
+        {
+            StepForward();
+            StateHasChanged();
+            try
+            {
+                await Task.Delay(SelectedSpeed, token);
+            }
+            catch (TaskCanceledException)
+            {
+                break;
+            }
+        }
+        IsPlaying = false;
+        StateHasChanged();
+    }
+
+    private void AddLog(string actor, string msg, bool isError = false)
+    {
+        ConsoleLines.Add(new TraceLogLine(ConsoleLines.Count + 1, actor.ToLower(), actor, msg, isError));
+    }
+
+    private string GetSenderStatusClass() => IsSenderActive ? "state-running" : "state-ready";
+    private string GetSenderStatusText() => IsSenderActive ? "Aktiv / Rechnend" : "Bereit (Ready)";
+
+    private string GetReceiverStatusClass()
+    {
+        if (SemWaitersCount > 0 && SelectedMechanismId == "sem") return "state-blocked";
+        return IsReceiverActive ? "state-running" : "state-ready";
+    }
+
+    private string GetReceiverStatusText()
+    {
+        if (SemWaitersCount > 0 && SelectedMechanismId == "sem") return "Blockiert (Wait)";
+        return IsReceiverActive ? "Aktiv / Rechnend" : "Bereit (Ready)";
+    }
+
+    public void Dispose()
+    {
+        StopAutoPlay();
+    }
+}
