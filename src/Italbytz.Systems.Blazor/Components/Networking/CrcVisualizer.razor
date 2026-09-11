@@ -1,55 +1,889 @@
 @namespace Italbytz.Systems.Blazor.Components.Networking
+@using Italbytz.Networking
+@using Italbytz.Networking.Abstractions
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
 
-<article class="demo-card">
-    <div class="card-heading">
-        <p class="feature-kicker">CRC</p>
-        <h2>Generate the calculation and check values</h2>
-    </div>
-
-    <label>
-        <span>Term</span>
-        <input type="number" min="0" max="255" @bind="CrcTerm" />
-    </label>
-
-    @{ var crc = CrcSolution; }
-    <div class="code-output">
-        <div>
-            <span>Calculation</span>
-            <pre>@crc.Calculation</pre>
+<article class="crc-container @(IsEmbed ? "embed-mode" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
+    
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
+    {
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Rechnernetze &bull; Sicherungsschicht (Data Link Layer)</p>
+            <h2>Zyklische Redundanzprüfung (CRC-5 Modulo-2 Polynomdivision)</h2>
+            <p class="feature-intro">
+                Schritt-für-Schritt-Ablaufverfolgung der binären Modulo-2-Division (XOR-Arithmetik) mit dem Standard-Generatorpolynom 
+                $G(x) = x^5 + x^2 + 1$ ($\texttt{100101}_2$), Berechnung der 5-Bit-Prüfsumme (FCS) und Verifikation beim Empfänger.
+            </p>
         </div>
-        <div>
-            <span>Check</span>
-            <pre>@crc.Check</pre>
-        </div>
-    </div>
+    }
 
-    <div class="table-shell">
-        <table class="trace-table">
-            <thead>
-                <tr>
-                    <th>Trace step</th>
-                    <th>Trace detail</th>
-                </tr>
-            </thead>
-            <tbody>
-                @for (var index = 0; index < crc.Steps.Count; index++)
+    <!-- View Switcher -->
+    @if (!IsEmbed)
+    {
+        <div class="view-switch no-print">
+            <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Simulator)">
+                🚀 Interaktiver Simulator (Step-Trace)
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Worksheet)">
+                🖨️ Klausur-Arbeitsblatt (Druckansicht)
+            </button>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- SIMULATOR VIEW                                                            -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Controls Panel -->
+        <div class="controls-panel no-print">
+            <div class="config-grid">
+                <label class="control-label">
+                    <span>Nutzdaten (Binärstring):</span>
+                    <div class="input-with-action">
+                        <input type="text" class="form-input mono" @bind="BinaryInput" @bind:after="OnBinaryInputChanged" placeholder="z. B. 101010" />
+                        <span class="input-badge">@(BinaryInput.Length) Bits</span>
+                    </div>
+                </label>
+
+                <label class="control-label">
+                    <span>Dezimalwert:</span>
+                    <input type="number" class="form-input" min="0" max="255" @bind="DecimalInput" @bind:after="OnDecimalInputChanged" />
+                </label>
+
+                <label class="control-label">
+                    <span>Generatorpolynom:</span>
+                    <select class="form-input select" @bind="SelectedPolynomialKey" @bind:after="OnPolynomialChanged">
+                        <option value="CRC5">CRC-5: x⁵ + x² + 1 (100101₂)</option>
+                        <option value="CRC4">CRC-4: x⁴ + x + 1 (10011₂)</option>
+                        <option value="CRC8">CRC-8: x⁸ + x² + x + 1 (100000111₂)</option>
+                    </select>
+                </label>
+            </div>
+
+            <!-- Presets Bar -->
+            <div class="preset-bar">
+                <span class="preset-label">Beispiele:</span>
+                <button class="preset-btn" @onclick="() => LoadPreset(42)">Vorlesung (101010₂ = 42)</button>
+                <button class="preset-btn" @onclick="() => LoadPreset(53)">Klausur-Set 1 (110101₂ = 53)</button>
+                <button class="preset-btn" @onclick="() => LoadPreset(39)">Klausur-Set 2 (100111₂ = 39)</button>
+                <button class="preset-btn" @onclick="() => LoadPreset(56)">Klausur-Set 3 (111000₂ = 56)</button>
+                <button class="preset-btn random" @onclick="GenerateRandom">🎲 Zufallswert</button>
+            </div>
+        </div>
+
+        <!-- Mode Tabs: Sender (Calculation) vs Receiver (Check) vs Side-by-Side -->
+        <div class="mode-tabs no-print">
+            <button class="mode-tab @(ActivePhase == CrcPhase.Calculation ? "active" : "")"
+                    @onclick="() => SetPhase(CrcPhase.Calculation)">
+                📤 Sender: Prüfsummen-Berechnung (Padding &amp; Division)
+            </button>
+            <button class="mode-tab @(ActivePhase == CrcPhase.Check ? "active" : "")"
+                    @onclick="() => SetPhase(CrcPhase.Check)">
+                📥 Empfänger: Rahmenprüfung (Verifikation &amp; Fehlertest)
+            </button>
+            <button class="mode-tab @(ActivePhase == CrcPhase.SideBySide ? "active" : "")"
+                    @onclick="() => SetPhase(CrcPhase.SideBySide)">
+                ⚖️ Gegenüberstellung (Berechnung vs. Prüfung)
+            </button>
+        </div>
+
+        @if (ActiveTrace != null)
+        {
+            var maxSteps = ActiveTrace.Steps.Count;
+            var currentStep = CurrentStepIndex < maxSteps ? ActiveTrace.Steps[CurrentStepIndex] : ActiveTrace.Steps.LastOrDefault();
+
+            <!-- Player Toolbar (only in Single Phase modes) -->
+            @if (ActivePhase != CrcPhase.SideBySide)
+            {
+                <div class="player-toolbar no-print">
+                    <div class="player-controls">
+                        <button class="player-btn" title="Start" disabled="@(CurrentStepIndex == 0)" @onclick="GoToStart">⏮ Start</button>
+                        <button class="player-btn" title="Zurück" disabled="@(CurrentStepIndex == 0)" @onclick="PreviousStep">◀ Zurück</button>
+                        <button class="player-btn primary" title="Nächster Schritt" disabled="@(CurrentStepIndex >= maxSteps - 1)" @onclick="NextStep">▶ Weiter</button>
+                        <button class="player-btn" title="Ende" disabled="@(CurrentStepIndex >= maxSteps - 1)" @onclick="GoToEnd">⏭ Ende</button>
+                        <button class="player-btn reset" title="Zurücksetzen" @onclick="GoToStart">🔄 Reset</button>
+                    </div>
+
+                    <div class="player-progress">
+                        <span class="step-indicator">
+                            <strong>Schritt @(CurrentStepIndex + 1) / @maxSteps:</strong>
+                            <span>@(currentStep?.Title ?? "")</span>
+                        </span>
+                        <input type="range" min="0" max="@(maxSteps - 1)" value="@CurrentStepIndex" @oninput="OnSliderChanged" class="step-slider" />
+                    </div>
+                </div>
+
+                <!-- Step Narrator Card -->
+                @if (currentStep != null)
                 {
-                    <tr>
-                        <td>@(index + 1)</td>
-                        <td>@crc.Steps[index]</td>
-                    </tr>
+                    <div class="narrator-card">
+                        <div class="narrator-header">
+                            <div class="step-badge @(ActivePhase == CrcPhase.Calculation ? "badge-calc" : "badge-check")">
+                                @if (ActivePhase == CrcPhase.Calculation)
+                                {
+                                    <span>📤 Sender-Schritt @(CurrentStepIndex + 1)</span>
+                                }
+                                else
+                                {
+                                    <span>📥 Empfänger-Schritt @(CurrentStepIndex + 1)</span>
+                                }
+                            </div>
+                            <div class="narrator-title">@currentStep.Title</div>
+                        </div>
+
+                        <p class="narrator-text">@currentStep.Explanation</p>
+
+                        @if (currentStep.IsXorApplied)
+                        {
+                            <div class="xor-math-box">
+                                <div class="math-row">
+                                    <span class="math-label">Aktueller Block:</span>
+                                    <span class="math-bits">@currentStep.DividendWindow</span>
+                                </div>
+                                <div class="math-row">
+                                    <span class="math-label">Polynom ($G$):</span>
+                                    <span class="math-bits poly">@currentStep.PolyWindow</span>
+                                    <span class="math-op">&oplus; (Modulo-2 / XOR)</span>
+                                </div>
+                                <div class="math-divider"></div>
+                                <div class="math-row">
+                                    <span class="math-label">Neuer Rest:</span>
+                                    <span class="math-bits result">@currentStep.XorResultWindow</span>
+                                </div>
+                            </div>
+                        }
+                    </div>
                 }
-            </tbody>
-        </table>
-    </div>
+            }
+
+            <!-- Transmission / Frame Status Bar -->
+            <div class="frame-status-card">
+                <div class="frame-col">
+                    <span class="frame-label">Nutzdaten ($M$):</span>
+                    <span class="frame-val mono blue">@BinaryInput</span>
+                </div>
+                <div class="frame-col">
+                    <span class="frame-label">Polynom ($G(x)$):</span>
+                    <span class="frame-val mono amber">@SelectedPolyString</span>
+                </div>
+                <div class="frame-col">
+                    <span class="frame-label">Berechneter Rest ($R$ / FCS):</span>
+                    <span class="frame-val mono emerald">@CalculationResult.RemainderString</span>
+                </div>
+                <div class="frame-col highlight">
+                    <span class="frame-label">Gesendeter Rahmen ($T = M \circ R$):</span>
+                    <span class="frame-val mono bold">
+                        <span class="blue">@BinaryInput</span><span class="emerald">@CalculationResult.RemainderString</span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Error Injection Bar in Check Mode -->
+            @if (ActivePhase == CrcPhase.Check)
+            {
+                <div class="error-injection-card no-print">
+                    <div class="error-header">
+                        <span class="error-icon">⚡</span>
+                        <strong>Kanal-Simulation / Bitfehler injizieren:</strong>
+                        <span class="error-help">Klicken Sie auf ein Bit, um es zu invertieren (Übertragungsfehler simulieren).</span>
+                    </div>
+                    <div class="bit-flip-strip">
+                        @for (int i = 0; i < ReceivedBits.Length; i++)
+                        {
+                            var bitIndex = i;
+                            var isFlipped = ReceivedBits[bitIndex] != TransmittedBits[bitIndex];
+                            <button class="bit-box @(isFlipped ? "flipped" : "") @(bitIndex < BinaryInput.Length ? "data-bit" : "fcs-bit")"
+                                    @onclick="() => ToggleReceivedBit(bitIndex)"
+                                    title="Bit @bitIndex klicken zum Invertieren">
+                                <span class="bit-pos">Pos @(ReceivedBits.Length - 1 - bitIndex)</span>
+                                <span class="bit-char">@ReceivedBits[bitIndex]</span>
+                                @if (isFlipped)
+                                {
+                                    <span class="flip-tag">FEHLER</span>
+                                }
+                            </button>
+                        }
+                    </div>
+                    @if (HasTransmissionError)
+                    {
+                        <div class="error-alert">
+                            ⚠️ <strong>Übertragungsfehler aktiv!</strong> Das Prüfergebnis am Empfänger wird von 0 abweichen (Rest $\neq 0$).
+                            <button class="reset-err-btn" @onclick="ResetTransmissionErrors">Fehler zurücksetzen</button>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="success-alert">
+                            ✅ <strong>Fehlerfreie Übertragung:</strong> Der Empfänger wird den Rest 0 errechnen.
+                        </div>
+                    }
+                </div>
+            }
+
+            <!-- Main Division Trace Display -->
+            @if (ActivePhase == CrcPhase.SideBySide)
+            {
+                <div class="side-by-side-grid">
+                    <div class="side-panel">
+                        <div class="side-heading">
+                            <h3>📤 Sender: Berechnung für @BinaryInput</h3>
+                            <span class="side-badge">Rest: @CalculationResult.RemainderString</span>
+                        </div>
+                        <div class="division-paper">
+                            <pre class="division-text">@FormatDivisionTrace(CalculationResult)</pre>
+                        </div>
+                    </div>
+
+                    <div class="side-panel">
+                        <div class="side-heading">
+                            <h3>📥 Empfänger: Prüfung für @TransmittedBits</h3>
+                            <span class="side-badge @(CheckResult.Remainder == 0 ? "success" : "danger")">
+                                Rest: @CheckResult.RemainderString @(CheckResult.Remainder == 0 ? "(Korrekt ✓)" : "(Fehler ✗)")
+                            </span>
+                        </div>
+                        <div class="division-paper">
+                            <pre class="division-text">@FormatDivisionTrace(CheckResult)</pre>
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <!-- Single Active Trace Visualizer -->
+                <div class="division-view-card">
+                    <div class="division-header">
+                        <div class="div-title">
+                            <h3>@(ActivePhase == CrcPhase.Calculation ? "Modulo-2-Division (Berechnung Prüfsumme)" : "Modulo-2-Division (Empfängerprüfung)")</h3>
+                            <span class="div-meta">
+                                Dividend: <code class="mono">@ActiveTrace.InitialDividendString</code> &bull; 
+                                Generator: <code class="mono">@SelectedPolyString</code>
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="division-paper">
+                        <div class="division-lines">
+                            @for (int i = 0; i <= CurrentStepIndex && i < ActiveTrace.Steps.Count; i++)
+                            {
+                                var step = ActiveTrace.Steps[i];
+                                var isCurrent = (i == CurrentStepIndex);
+                                <div class="step-trace-row @(isCurrent ? "current-row" : "")">
+                                    <div class="trace-gutter">Schritt @(i + 1)</div>
+                                    <div class="trace-content">
+                                        <div class="trace-line dividend-line">
+                                            @RenderBitRow(step.PaddedBeforeString, step.ActiveBitIndex, SelectedPolyDegree + 1)
+                                        </div>
+                                        @if (step.IsXorApplied)
+                                        {
+                                            <div class="trace-line poly-line">
+                                                @RenderPolyRow(step.PolyAlignedString, step.ActiveBitIndex)
+                                            </div>
+                                            <div class="trace-line divider-line">
+                                                @RenderDividerRow(step.ActiveBitIndex, SelectedPolyDegree + 1, step.PaddedBeforeString.Length)
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+
+                            @if (CurrentStepIndex >= ActiveTrace.Steps.Count - 1)
+                            {
+                                <div class="final-result-row">
+                                    <div class="trace-gutter">Ergebnis</div>
+                                    <div class="trace-content">
+                                        <div class="trace-line result-line">
+                                            <span class="res-label">Endergebnis (Rest):</span>
+                                            <span class="res-value mono @(ActiveTrace.Remainder == 0 ? "emerald" : (ActivePhase == CrcPhase.Calculation ? "emerald" : "red"))">
+                                                @ActiveTrace.RemainderString
+                                            </span>
+                                            @if (ActivePhase == CrcPhase.Check)
+                                            {
+                                                <span class="res-verdict @(ActiveTrace.Remainder == 0 ? "verdict-pass" : "verdict-fail")">
+                                                    @(ActiveTrace.Remainder == 0 ? "✓ Fehlerfreie Übertragung (Rest = 0)" : "✗ Übertragungsfehler erkannt (Rest ≠ 0)")
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="res-verdict verdict-pass">
+                                                    &rarr; Übertragen wird: <strong class="mono">@BinaryInput @ActiveTrace.RemainderString</strong>
+                                                </span>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    }
+
+    <!-- ========================================================================= -->
+    <!-- WORKSHEET VIEW (1:1 EXAM REPLICA)                                         -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Worksheet)
+    {
+        <div class="worksheet-paper">
+            
+            <!-- Exam Header -->
+            <div class="exam-header">
+                <div class="exam-title-block">
+                    <span class="exam-sub">Rechnernetze &bull; Sicherungsschicht</span>
+                    <h1 class="exam-main-title">Übungs- und Klausuraufgabe: Zyklische Redundanzprüfung (CRC-5)</h1>
+                </div>
+                <div class="exam-meta-box no-print">
+                    <button class="toggle-sol-btn @(ShowSolution ? "active" : "")" @onclick="ToggleSolution">
+                        @(ShowSolution ? "👁️ Musterlösung ausblenden" : "💡 Musterlösung einblenden")
+                    </button>
+                    <button class="print-btn" @onclick="TriggerPrint">
+                        🖨️ Seite drucken / PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Student Info Fields -->
+            <div class="student-info-strip">
+                <div class="info-field">
+                    <span class="info-label">Name, Vorname:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field">
+                    <span class="info-label">Matrikelnummer:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field points-field">
+                    <span class="info-label">Punkte:</span>
+                    <div class="points-box">/ 6 P.</div>
+                </div>
+            </div>
+
+            <!-- Task Description -->
+            <div class="task-prompt-box">
+                <div class="task-number">Aufgabe 1 (Zyklische Redundanzprüfung)</div>
+                <p class="task-text">
+                    Berechnen Sie die <strong>CRC-5-Prüfsumme</strong> für die Bitfolge <code class="exam-code">@BinaryInput</code> 
+                    unter Verwendung des Standard-Generatorpolynoms $G(x) = x^5 + x^2 + 1$ ($\texttt{100101}_2$).
+                    Zeigen Sie anschließend anhand der Modulo-2-Division auf der Empfängerseite, dass bei fehlerfreier Übertragung 
+                    des erzeugten Rahmens das Prüfergebnis $0$ ist.
+                </p>
+            </div>
+
+            <!-- Side-by-Side Exam Columns -->
+            <div class="exam-columns-grid">
+                
+                <!-- Left: Calculation -->
+                <div class="exam-column">
+                    <div class="column-header">
+                        <span class="col-title">Berechnung für @BinaryInput:</span>
+                        <span class="col-pts">(3 Punkte)</span>
+                    </div>
+
+                    @if (ShowSolution)
+                    {
+                        <div class="solution-box">
+                            <pre class="sol-pre">@FormatDivisionTrace(CalculationResult)</pre>
+                            <div class="sol-summary">
+                                <strong>Berechnete Prüfsumme (FCS):</strong> <code class="mono bold">@CalculationResult.RemainderString</code><br />
+                                <strong>Zu übertragender Rahmen:</strong> <code class="mono bold">@BinaryInput @CalculationResult.RemainderString</code>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="blank-writing-area">
+                            <div class="grid-watermark">Berechnung: Anfügen von 5 Nullen (@BinaryInput@("00000")), Modulo-2-Division durch 100101</div>
+                            <div class="ruled-lines">
+                                @for (int l = 0; l < 14; l++)
+                                {
+                                    <div class="ruled-line"></div>
+                                }
+                            </div>
+                            <div class="blank-answer-slot">
+                                <span>Prüfsumme (FCS):</span>
+                                <div class="answer-box"></div>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <!-- Right: Check -->
+                <div class="exam-column">
+                    <div class="column-header">
+                        <span class="col-title">Prüfung für @TransmittedBits:</span>
+                        <span class="col-pts">(3 Punkte)</span>
+                    </div>
+
+                    @if (ShowSolution)
+                    {
+                        <div class="solution-box">
+                            <pre class="sol-pre">@FormatDivisionTrace(CheckResult)</pre>
+                            <div class="sol-summary">
+                                <strong>Prüfsummen-Rest:</strong> <code class="mono bold">@CheckResult.RemainderString</code><br />
+                                <strong>Bewertung:</strong> <span class="pass-tag">Rest = 0 &rarr; Übertragung fehlerfrei</span>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="blank-writing-area">
+                            <div class="grid-watermark">Prüfung: Division des empfangenen Rahmens (@TransmittedBits) durch 100101</div>
+                            <div class="ruled-lines">
+                                @for (int l = 0; l < 14; l++)
+                                {
+                                    <div class="ruled-line"></div>
+                                }
+                            </div>
+                            <div class="blank-answer-slot">
+                                <span>Rest am Empfänger:</span>
+                                <div class="answer-box"></div>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+            </div>
+
+            <!-- Footer / Evaluation -->
+            <div class="exam-footer">
+                <div class="exam-footer-note">
+                    Hinweis: Bei der Modulo-2-Arithmetik entspricht die bitweise Addition und Subtraktion der XOR-Verknüpfung ($1 \oplus 1 = 0, 1 \oplus 0 = 1, 0 \oplus 0 = 0$) ohne Überträge.
+                </div>
+            </div>
+
+        </div>
+    }
+
 </article>
 
 @code {
-    private readonly CRCSolver crcSolver = new();
+    public enum ViewMode { Simulator, Worksheet }
+    public enum CrcPhase { Calculation, Check, SideBySide }
 
-    [Parameter]
-    public int CrcTerm { get; set; } = 42;
+    [Parameter] public int CrcTerm { get; set; } = 42;
+    [Parameter] public string? View { get; set; }
+    [Parameter] public bool? Solution { get; set; }
+    [Parameter] public bool? Embed { get; set; }
 
-    private CRCSolution CrcSolution =>
-        (CRCSolution)crcSolver.Solve(new CRCParameters((byte)Math.Clamp(CrcTerm, 0, 255)));
+    private ViewMode ActiveView = ViewMode.Simulator;
+    private CrcPhase ActivePhase = CrcPhase.Calculation;
+    private bool ShowSolution = false;
+    private bool IsEmbed = false;
+
+    private string BinaryInput = "101010";
+    private int DecimalInput = 42;
+    private string SelectedPolynomialKey = "CRC5";
+
+    // Polynomial definitions
+    private ushort SelectedPolyBits = 0x25; // 100101_2
+    private int SelectedPolyDegree = 5;
+    private string SelectedPolyString = "100101";
+
+    // Calculation and Check Traces
+    private CrcTraceModel CalculationResult = new();
+    private CrcTraceModel CheckResult = new();
+    private CrcTraceModel? ActiveTrace => ActivePhase == CrcPhase.Calculation ? CalculationResult : CheckResult;
+
+    // Error simulation state
+    private char[] TransmittedBits = Array.Empty<char>();
+    private char[] ReceivedBits = Array.Empty<char>();
+    private bool HasTransmissionError => !TransmittedBits.SequenceEqual(ReceivedBits);
+
+    // Player Stepper
+    private int CurrentStepIndex = 0;
+
+    protected override void OnInitialized()
+    {
+        ReadQueryParameters();
+        ApplyInputs(CrcTerm);
+    }
+
+    protected override void OnParametersSet()
+    {
+        ReadQueryParameters();
+    }
+
+    private void ReadQueryParameters()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query;
+            if (string.IsNullOrEmpty(query)) return;
+
+            var pairs = query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var pair in pairs)
+            {
+                var parts = pair.Split('=', 2);
+                var key = parts[0].ToLowerInvariant();
+                var val = parts.Length > 1 ? Uri.UnescapeDataString(parts[1]) : "";
+
+                if (key == "view")
+                {
+                    ActiveView = val.Equals("worksheet", StringComparison.OrdinalIgnoreCase) ? ViewMode.Worksheet : ViewMode.Simulator;
+                }
+                else if (key == "solution" && bool.TryParse(val, out var solBool))
+                {
+                    ShowSolution = solBool;
+                }
+                else if (key == "embed" && bool.TryParse(val, out var embedBool))
+                {
+                    IsEmbed = embedBool;
+                }
+                else if (key == "term" && int.TryParse(val, out var t))
+                {
+                    CrcTerm = Math.Clamp(t, 0, 255);
+                    ApplyInputs(CrcTerm);
+                }
+            }
+        }
+        catch
+        {
+            // fallback
+        }
+    }
+
+    private void SetView(ViewMode mode)
+    {
+        ActiveView = mode;
+        UpdateUrl();
+    }
+
+    private void SetPhase(CrcPhase phase)
+    {
+        ActivePhase = phase;
+        CurrentStepIndex = 0;
+    }
+
+    private void ToggleSolution()
+    {
+        ShowSolution = !ShowSolution;
+        UpdateUrl();
+    }
+
+    private void UpdateUrl()
+    {
+        var uri = NavigationManager.GetUriWithQueryParameters(new Dictionary<string, object?>
+        {
+            ["view"] = ActiveView == ViewMode.Worksheet ? "worksheet" : null,
+            ["solution"] = ShowSolution ? "true" : null,
+            ["term"] = CrcTerm != 42 ? CrcTerm : null,
+            ["embed"] = IsEmbed ? "true" : null
+        });
+        NavigationManager.NavigateTo(uri, replace: true);
+    }
+
+    private async Task TriggerPrint()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+
+    private void ApplyInputs(int decimalVal)
+    {
+        DecimalInput = decimalVal;
+        BinaryInput = Convert.ToString(DecimalInput, 2).PadLeft(6, '0');
+        Recalculate();
+    }
+
+    private void OnBinaryInputChanged()
+    {
+        // Sanitize binary string
+        var clean = new string(BinaryInput.Where(c => c == '0' || c == '1').ToArray());
+        if (string.IsNullOrEmpty(clean)) clean = "0";
+        if (clean.Length > 12) clean = clean.Substring(0, 12);
+        
+        BinaryInput = clean;
+        try
+        {
+            DecimalInput = Convert.ToInt32(BinaryInput, 2);
+            CrcTerm = DecimalInput;
+        }
+        catch
+        {
+            DecimalInput = 0;
+            CrcTerm = 0;
+        }
+        Recalculate();
+    }
+
+    private void OnDecimalInputChanged()
+    {
+        DecimalInput = Math.Clamp(DecimalInput, 0, 255);
+        CrcTerm = DecimalInput;
+        BinaryInput = Convert.ToString(DecimalInput, 2).PadLeft(6, '0');
+        Recalculate();
+    }
+
+    private void OnPolynomialChanged()
+    {
+        switch (SelectedPolynomialKey)
+        {
+            case "CRC4":
+                SelectedPolyBits = 0x13; // 10011_2
+                SelectedPolyDegree = 4;
+                SelectedPolyString = "10011";
+                break;
+            case "CRC8":
+                SelectedPolyBits = 0x107; // 100000111_2
+                SelectedPolyDegree = 8;
+                SelectedPolyString = "100000111";
+                break;
+            case "CRC5":
+            default:
+                SelectedPolyBits = 0x25; // 100101_2
+                SelectedPolyDegree = 5;
+                SelectedPolyString = "100101";
+                break;
+        }
+        Recalculate();
+    }
+
+    private void LoadPreset(int term)
+    {
+        SelectedPolynomialKey = "CRC5";
+        OnPolynomialChanged();
+        ApplyInputs(term);
+    }
+
+    private void GenerateRandom()
+    {
+        var rnd = new Random();
+        var randomVal = rnd.Next(16, 64);
+        ApplyInputs(randomVal);
+    }
+
+    private void Recalculate()
+    {
+        // 1. Calculate Sender Trace (Calculation)
+        CalculationResult = ComputeCrcTrace(BinaryInput, SelectedPolyString, SelectedPolyDegree, isCheck: false);
+
+        // 2. Set transmitted frame
+        var frameStr = BinaryInput + CalculationResult.RemainderString;
+        TransmittedBits = frameStr.ToCharArray();
+        ReceivedBits = frameStr.ToCharArray();
+
+        // 3. Calculate Check Trace
+        CheckResult = ComputeCrcTrace(new string(ReceivedBits), SelectedPolyString, SelectedPolyDegree, isCheck: true);
+
+        // Reset step index if out of bounds
+        if (CurrentStepIndex >= (ActiveTrace?.Steps.Count ?? 1))
+        {
+            CurrentStepIndex = 0;
+        }
+    }
+
+    private void ToggleReceivedBit(int index)
+    {
+        if (index >= 0 && index < ReceivedBits.Length)
+        {
+            ReceivedBits[index] = ReceivedBits[index] == '0' ? '1' : '0';
+            CheckResult = ComputeCrcTrace(new string(ReceivedBits), SelectedPolyString, SelectedPolyDegree, isCheck: true);
+        }
+    }
+
+    private void ResetTransmissionErrors()
+    {
+        ReceivedBits = (char[])TransmittedBits.Clone();
+        CheckResult = ComputeCrcTrace(new string(ReceivedBits), SelectedPolyString, SelectedPolyDegree, isCheck: true);
+    }
+
+    // =========================================================================
+    // PLAYER CONTROLS
+    // =========================================================================
+    private void GoToStart() => CurrentStepIndex = 0;
+    private void PreviousStep() => CurrentStepIndex = Math.Max(0, CurrentStepIndex - 1);
+    private void NextStep() => CurrentStepIndex = Math.Min((ActiveTrace?.Steps.Count ?? 1) - 1, CurrentStepIndex + 1);
+    private void GoToEnd() => CurrentStepIndex = Math.Max(0, (ActiveTrace?.Steps.Count ?? 1) - 1);
+    private void OnSliderChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var idx))
+        {
+            CurrentStepIndex = Math.Clamp(idx, 0, (ActiveTrace?.Steps.Count ?? 1) - 1);
+        }
+    }
+
+    // =========================================================================
+    // CRC TRACE COMPUTATION ENGINE
+    // =========================================================================
+    private CrcTraceModel ComputeCrcTrace(string inputBits, string polyBits, int polyDegree, bool isCheck)
+    {
+        var model = new CrcTraceModel
+        {
+            InputBits = inputBits,
+            PolyString = polyBits,
+            PolyDegree = polyDegree,
+            IsCheck = isCheck
+        };
+
+        // Padded bits
+        string workingBits = isCheck ? inputBits : inputBits + new string('0', polyDegree);
+        model.InitialDividendString = workingBits;
+
+        int totalLen = workingBits.Length;
+        int polyLen = polyBits.Length; // polyDegree + 1
+        int numDivisionSteps = totalLen - polyDegree;
+
+        char[] currentPadded = workingBits.ToCharArray();
+
+        for (int i = 0; i < numDivisionSteps; i++)
+        {
+            var step = new CrcStepDetail
+            {
+                StepIndex = i,
+                ActiveBitIndex = i,
+                PaddedBeforeString = new string(currentPadded)
+            };
+
+            bool isOne = currentPadded[i] == '1';
+            step.IsXorApplied = isOne;
+
+            // Dividend window
+            int windowEnd = Math.Min(i + polyLen, totalLen);
+            step.DividendWindow = new string(currentPadded, i, windowEnd - i);
+            step.PolyWindow = polyBits;
+
+            // Aligned poly string for entire row display
+            step.PolyAlignedString = new string(' ', i) + polyBits + new string(' ', totalLen - i - polyLen);
+
+            if (isOne)
+            {
+                step.Title = $"Bit an Position {totalLen - 1 - i} ist 1 → XOR mit Generatorpolynom";
+                step.Explanation = $"Das führende Bit an Index {i} ist '1'. Das Generatorpolynom {polyBits} wird bitweise per Modulo-2 (XOR) abgezogen.";
+
+                // Perform XOR
+                for (int p = 0; p < polyLen; p++)
+                {
+                    char bitA = currentPadded[i + p];
+                    char bitB = polyBits[p];
+                    currentPadded[i + p] = (bitA == bitB) ? '0' : '1';
+                }
+
+                step.XorResultWindow = new string(currentPadded, i, windowEnd - i);
+            }
+            else
+            {
+                step.Title = $"Bit an Position {totalLen - 1 - i} ist 0 → Kein XOR (Verschiebung)";
+                step.Explanation = $"Das führende Bit an Index {i} ist '0'. Keine XOR-Operation notwendig. Die Division geht direkt zum nächsten Bit über.";
+                step.XorResultWindow = step.DividendWindow;
+            }
+
+            step.PaddedAfterString = new string(currentPadded);
+            model.Steps.Add(step);
+        }
+
+        // Remainder is the last polyDegree bits
+        string remainderStr = new string(currentPadded, totalLen - polyDegree, polyDegree);
+        model.RemainderString = remainderStr;
+        model.Remainder = Convert.ToUInt16(remainderStr, 2);
+
+        return model;
+    }
+
+    private string FormatDivisionTrace(CrcTraceModel trace)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine(trace.InitialDividendString);
+
+        foreach (var step in trace.Steps)
+        {
+            if (step.IsXorApplied)
+            {
+                sb.AppendLine(step.PolyAlignedString.TrimEnd());
+                sb.AppendLine(new string(' ', step.ActiveBitIndex) + new string('-', trace.PolyDegree + 1));
+                
+                // Show current remainder
+                var remPadded = step.PaddedAfterString;
+                sb.AppendLine(remPadded);
+            }
+        }
+
+        sb.AppendLine();
+        sb.AppendLine($"Rest = {trace.RemainderString}");
+        return sb.ToString();
+    }
+
+    // =========================================================================
+    // MARKUP RENDERING HELPERS
+    // =========================================================================
+    private RenderFragment RenderBitRow(string bits, int activeIdx, int polyLen) => builder =>
+    {
+        for (int b = 0; b < bits.Length; b++)
+        {
+            bool inActiveWindow = (b >= activeIdx && b < activeIdx + polyLen);
+            bool isLeading = (b == activeIdx);
+            bool isZeroPad = !CheckResult.IsCheck && (b >= bits.Length - SelectedPolyDegree);
+            string cls = "bit-cell";
+            if (isLeading) cls += " leading-bit";
+            else if (inActiveWindow) cls += " active-window-bit";
+            if (isZeroPad) cls += " pad-bit";
+
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "class", cls);
+            builder.AddContent(2, bits[b]);
+            builder.CloseElement();
+        }
+    };
+
+    private RenderFragment RenderPolyRow(string alignedPoly, int activeIdx) => builder =>
+    {
+        for (int b = 0; b < alignedPoly.Length; b++)
+        {
+            char c = alignedPoly[b];
+            string cls = "bit-cell poly-cell";
+            if (c == ' ') cls += " empty";
+
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "class", cls);
+            builder.AddContent(2, c == ' ' ? "\u00A0" : c.ToString());
+            builder.CloseElement();
+        }
+    };
+
+    private RenderFragment RenderDividerRow(int activeIdx, int polyLen, int totalLen) => builder =>
+    {
+        for (int b = 0; b < totalLen; b++)
+        {
+            bool isDash = (b >= activeIdx && b < activeIdx + polyLen);
+            string cls = "bit-cell dash-cell";
+
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "class", cls);
+            builder.AddContent(2, isDash ? "-" : "\u00A0");
+            builder.CloseElement();
+        }
+    };
+
+    // =========================================================================
+    // DATA STRUCTURES
+    // =========================================================================
+    public class CrcTraceModel
+    {
+        public string InputBits { get; set; } = "";
+        public string InitialDividendString { get; set; } = "";
+        public string PolyString { get; set; } = "";
+        public int PolyDegree { get; set; } = 5;
+        public bool IsCheck { get; set; }
+        public string RemainderString { get; set; } = "";
+        public ushort Remainder { get; set; }
+        public List<CrcStepDetail> Steps { get; set; } = new();
+    }
+
+    public class CrcStepDetail
+    {
+        public int StepIndex { get; set; }
+        public int ActiveBitIndex { get; set; }
+        public string Title { get; set; } = "";
+        public string Explanation { get; set; } = "";
+        public bool IsXorApplied { get; set; }
+        public string DividendWindow { get; set; } = "";
+        public string PolyWindow { get; set; } = "";
+        public string XorResultWindow { get; set; } = "";
+        public string PaddedBeforeString { get; set; } = "";
+        public string PolyAlignedString { get; set; } = "";
+        public string PaddedAfterString { get; set; } = "";
+    }
 }

@@ -1,0 +1,902 @@
+@namespace Italbytz.Systems.Blazor.Components.Networking
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<article class="mst-container @(IsEmbed ? "embed-mode" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
+
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
+    {
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Rechnernetze &bull; Sicherungsschicht (Data Link Layer)</p>
+            <h2>Spannbaumberechnung &amp; Spanning Tree Protocol (Kruskal &amp; Prim)</h2>
+            <p class="feature-intro">
+                Schritt-für-Schritt-Ablaufverfolgung der minimalen Spannbaum-Konstruktion (MST) zur Schleifenvermeidung 
+                in Switch- und Bridge-Netzwerken. Interaktive Visualisierung von Kantensortierung, Zykluserkennung (Disjoint-Set Union) 
+                und minimalen Schnittkanten.
+            </p>
+        </div>
+    }
+
+    <!-- View Switcher -->
+    @if (!IsEmbed)
+    {
+        <div class="view-switch no-print">
+            <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Simulator)">
+                🚀 Interaktiver Simulator &amp; Graph-Trace
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Worksheet)">
+                🖨️ Klausur-Arbeitsblatt (Druckansicht)
+            </button>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- SIMULATOR VIEW                                                            -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Controls Panel -->
+        <div class="controls-panel no-print">
+            <div class="config-grid">
+                <label class="control-label">
+                    <span>Algorithmus:</span>
+                    <select class="form-input select" @bind="SelectedAlgorithm" @bind:after="Recalculate">
+                        <option value="Kruskal">Kruskal-Algorithmus (Global sortierte Kanten &amp; Zyklusvermeidung)</option>
+                        <option value="Prim">Prim-Algorithmus (Wachsender Baum ab Startknoten)</option>
+                    </select>
+                </label>
+
+                @if (SelectedAlgorithm == "Prim")
+                {
+                    <label class="control-label">
+                        <span>Startknoten (Prim):</span>
+                        <select class="form-input select" @bind="PrimStartNode" @bind:after="Recalculate">
+                            @foreach (var n in Nodes)
+                            {
+                                <option value="@n.Id">Knoten @n.Id</option>
+                            }
+                        </select>
+                    </label>
+                }
+
+                <label class="control-label">
+                    <span>Topologie / Graph:</span>
+                    <select class="form-input select" @bind="SelectedPresetKey" @bind:after="OnPresetChanged">
+                        <option value="Standard">Vorlesungs-Netz (8 Knoten, 12 Kanten)</option>
+                        <option value="Exam1">Klausur-Graph (6 Knoten, 9 Kanten)</option>
+                        <option value="BridgeTopology">Bridge-Netzwerk (7 Bridges, 10 Segmente)</option>
+                    </select>
+                </label>
+            </div>
+
+            <!-- Presets Bar -->
+            <div class="preset-bar">
+                <span class="preset-label">Beispiele:</span>
+                <button class="preset-btn" @onclick='() => LoadPreset("Standard")'>Vorlesung (8 Knoten)</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("Exam1")'>Klausur-Graph (6 Knoten)</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("BridgeTopology")'>Bridge-Topologie</button>
+                <button class="preset-btn random" @onclick="GenerateRandomGraph">🎲 Zufallsgraph</button>
+            </div>
+        </div>
+
+        @if (MstResult != null)
+        {
+            var maxSteps = MstResult.Steps.Count;
+            var currentStep = CurrentStepIndex < maxSteps ? MstResult.Steps[CurrentStepIndex] : MstResult.Steps.LastOrDefault();
+
+            <!-- Player Toolbar -->
+            <div class="player-toolbar no-print">
+                <div class="player-controls">
+                    <button class="player-btn" title="Start" disabled="@(CurrentStepIndex == 0)" @onclick="GoToStart">⏮ Start</button>
+                    <button class="player-btn" title="Zurück" disabled="@(CurrentStepIndex == 0)" @onclick="PreviousStep">◀ Zurück</button>
+                    <button class="player-btn primary" title="Nächster Schritt" disabled="@(CurrentStepIndex >= maxSteps - 1)" @onclick="NextStep">▶ Weiter</button>
+                    <button class="player-btn title" title="Ende" disabled="@(CurrentStepIndex >= maxSteps - 1)" @onclick="GoToEnd">⏭ Ende</button>
+                    <button class="player-btn reset" title="Zurücksetzen" @onclick="GoToStart">🔄 Reset</button>
+                </div>
+
+                <div class="player-progress">
+                    <span class="step-indicator">
+                        <strong>Schritt @(CurrentStepIndex) / @(maxSteps - 1):</strong>
+                        <span>@(currentStep?.Title ?? "")</span>
+                    </span>
+                    <input type="range" min="0" max="@(maxSteps - 1)" value="@CurrentStepIndex" @oninput="OnSliderChanged" class="step-slider" />
+                </div>
+            </div>
+
+            <!-- Narrator Card -->
+            @if (currentStep != null)
+            {
+                <div class="narrator-card">
+                    <div class="narrator-header">
+                        <div class="step-badge @(currentStep.IsAccepted ? "badge-accept" : (currentStep.IsCycle ? "badge-cycle" : "badge-init"))">
+                            @if (CurrentStepIndex == 0)
+                            {
+                                <span>🏁 Initialisierung</span>
+                            }
+                            else if (currentStep.IsAccepted)
+                            {
+                                <span>✓ Kante aufgenommen</span>
+                            }
+                            else
+                            {
+                                <span>✗ Zyklus verworfen</span>
+                            }
+                        </div>
+                        <div class="narrator-title">@currentStep.Title</div>
+                    </div>
+                    <p class="narrator-text">@currentStep.Explanation</p>
+                    <div class="mst-status-strip">
+                        <span>Gewählte Kanten im Spannbaum: <strong>@currentStep.TreeEdges.Count / @(Nodes.Count - 1)</strong></span>
+                        <span>Aktuelles Gesamtgewicht: <strong class="emerald mono">@currentStep.CurrentTotalWeight</strong></span>
+                    </div>
+                </div>
+            }
+
+            <!-- Main Display: SVG Graph & Edge Table -->
+            <div class="main-display-grid">
+
+                <!-- Left: SVG Graph Canvas -->
+                <div class="graph-card">
+                    <div class="graph-header">
+                        <h3>Netzwerktopologie &amp; Spannbaum-Kanten</h3>
+                        <div class="graph-legend">
+                            <span class="leg-item"><span class="leg-dot tree-dot"></span> Im Spannbaum</span>
+                            <span class="leg-item"><span class="leg-dot active-dot"></span> In Prüfung</span>
+                            <span class="leg-item"><span class="leg-dot cycle-dot"></span> Zyklus (Verworfen)</span>
+                        </div>
+                    </div>
+
+                    <div class="svg-container">
+                        <svg class="graph-svg" viewBox="0 0 680 440">
+                            <!-- Edges -->
+                            @foreach (var edge in Edges)
+                            {
+                                var n1 = Nodes.First(n => n.Id == edge.From);
+                                var n2 = Nodes.First(n => n.Id == edge.To);
+                                bool isInTree = currentStep?.TreeEdges.Any(e => IsSameEdge(e, edge)) ?? false;
+                                bool isEvaluating = currentStep != null && IsSameEdge(currentStep.CurrentEdge, edge);
+                                bool wasRejectedAsCycle = currentStep != null && currentStep.RejectedEdges.Any(e => IsSameEdge(e, edge));
+
+                                string edgeCls = "graph-edge";
+                                if (isInTree) edgeCls += " tree-edge";
+                                else if (isEvaluating) edgeCls += " evaluating-edge";
+                                else if (wasRejectedAsCycle) edgeCls += " cycle-edge";
+
+                                <line x1="@n1.X" y1="@n1.Y" x2="@n2.X" y2="@n2.Y" class="@edgeCls" />
+
+                                <!-- Edge Weight Badge -->
+                                var midX = (n1.X + n2.X) / 2;
+                                var midY = (n1.Y + n2.Y) / 2;
+                                <g transform="translate(@midX, @midY)">
+                                    <circle r="12" class="weight-bg @(isInTree ? "weight-tree" : (isEvaluating ? "weight-active" : ""))" />
+                                    @((MarkupString)$"<text y=\"4\" text-anchor=\"middle\" class=\"weight-text {(isInTree ? "text-tree" : "")}\">{edge.Weight}</text>")
+                                </g>
+                            }
+
+                            <!-- Nodes -->
+                            @foreach (var node in Nodes)
+                            {
+                                bool isVisited = currentStep?.VisitedNodes.Contains(node.Id) ?? false;
+                                string nodeColor = GetNodeComponentColor(currentStep, node.Id);
+
+                                <g class="node-group">
+                                    <circle cx="@node.X" cy="@node.Y" r="22" class="graph-node @(isVisited ? "node-visited" : "")" style="stroke: @nodeColor;" />
+                                    @((MarkupString)$"<text x=\"{node.X}\" y=\"{node.Y + 6}\" text-anchor=\"middle\" class=\"node-label\">{node.Id}</text>")
+                                </g>
+                            }
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Right: Step Table & Edge Sequence -->
+                <div class="tables-panel">
+                    <div class="sub-table-card">
+                        <div class="sub-table-header">
+                            <h4>Kantenliste (@SelectedAlgorithm-Reihenfolge)</h4>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="edge-queue-table">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Kante</th>
+                                        <th>Gewicht</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @for (int i = 0; i < MstResult.Steps.Count; i++)
+                                    {
+                                        if (i == 0) continue; // Skip init step
+                                        var stepObj = MstResult.Steps[i];
+                                        bool isPastOrCurrent = (i <= CurrentStepIndex);
+                                        bool isCur = (i == CurrentStepIndex);
+
+                                        <tr class="@(isCur ? "active-row" : "") @(isPastOrCurrent ? "revealed" : "future")">
+                                            <td>@(i)</td>
+                                            <td class="mono bold">@stepObj.CurrentEdge?.From &ndash; @stepObj.CurrentEdge?.To</td>
+                                            <td class="mono blue bold">@stepObj.CurrentEdge?.Weight</td>
+                                            <td>
+                                                @if (isPastOrCurrent)
+                                                {
+                                                    @if (stepObj.IsAccepted)
+                                                    {
+                                                        <span class="status-tag tag-accept">✓ Im Baum</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="status-tag tag-cycle">✗ Zyklus</span>
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <span class="status-tag tag-pending">&bull; Ausstehend</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- MST Summary Card -->
+                    <div class="mst-summary-card">
+                        <div class="summary-row">
+                            <span>Kanten im Spannbaum:</span>
+                            <strong class="mono blue">@((currentStep?.TreeEdges.Count ?? 0)) Kanten</strong>
+                        </div>
+                        <div class="summary-row">
+                            <span>Minimales Gesamtgewicht:</span>
+                            <strong class="mono emerald bold">@((currentStep?.CurrentTotalWeight ?? 0))</strong>
+                        </div>
+                        <div class="summary-row">
+                            <span>Knoten abgedeckt:</span>
+                            <strong class="mono">@((currentStep?.VisitedNodes.Count ?? 0)) von @Nodes.Count</strong>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        }
+    }
+
+    <!-- ========================================================================= -->
+    <!-- WORKSHEET VIEW (1:1 EXAM REPLICA)                                         -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Worksheet)
+    {
+        <div class="worksheet-paper">
+
+            <!-- Exam Header -->
+            <div class="exam-header">
+                <div class="exam-title-block">
+                    <span class="exam-sub">Rechnernetze &bull; Sicherungsschicht</span>
+                    <h1 class="exam-main-title">Übungs- und Klausuraufgabe: Minimaler Spannbaum (Spanning Tree)</h1>
+                </div>
+                <div class="exam-meta-box no-print">
+                    <button class="toggle-sol-btn @(ShowSolution ? "active" : "")" @onclick="ToggleSolution">
+                        @(ShowSolution ? "👁️ Musterlösung ausblenden" : "💡 Musterlösung einblenden")
+                    </button>
+                    <button class="print-btn" @onclick="TriggerPrint">
+                        🖨️ Seite drucken / PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Student Info Fields -->
+            <div class="student-info-strip">
+                <div class="info-field">
+                    <span class="info-label">Name, Vorname:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field">
+                    <span class="info-label">Matrikelnummer:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field points-field">
+                    <span class="info-label">Punkte:</span>
+                    <div class="points-box">/ 6 P.</div>
+                </div>
+            </div>
+
+            <!-- Task Description matching CNSicherungsschichtSpannbaumGeneratorText -->
+            <div class="task-prompt-box">
+                <div class="task-number">Aufgabe (Spannbaumberechnung)</div>
+                <p class="task-text">
+                    Bestimmen Sie für den unten abgebildeten gewichteten Graphen einen <strong>minimalen Spannbaum (MST)</strong> 
+                    mithilfe des Algorithmus von <strong>Kruskal</strong> oder <strong>Prim</strong>.
+                    Geben Sie die gewählten Kanten in der Reihenfolge ihrer Auswahl sowie das <strong>Gesamtgewicht</strong> des Spannbaums an.
+                </p>
+            </div>
+
+            <!-- Worksheet 2-Column Grid: Left Graph, Right Solution / Answer Lines -->
+            <div class="worksheet-grid">
+                
+                <!-- Left: Static Graph Diagram -->
+                <div class="ws-graph-box">
+                    <div class="ws-box-title">Gegebener Graph</div>
+                    <svg class="ws-svg" viewBox="0 0 680 440">
+                        @foreach (var edge in Edges)
+                        {
+                            var n1 = Nodes.First(n => n.Id == edge.From);
+                            var n2 = Nodes.First(n => n.Id == edge.To);
+                            bool inTree = ShowSolution && MstResult != null && MstResult.FinalTreeEdges.Any(e => IsSameEdge(e, edge));
+
+                            <line x1="@n1.X" y1="@n1.Y" x2="@n2.X" y2="@n2.Y" stroke="@(inTree ? "#059669" : "#000000")" stroke-width="@(inTree ? "4" : "2")" />
+                            var midX = (n1.X + n2.X) / 2;
+                            var midY = (n1.Y + n2.Y) / 2;
+                            <g transform="translate(@midX, @midY)">
+                                <circle r="11" fill="@(inTree ? "#d1fae5" : "#ffffff")" stroke="@(inTree ? "#059669" : "#000000")" stroke-width="1.5" />
+                                @((MarkupString)$"<text y=\"4\" text-anchor=\"middle\" font-family=\"sans-serif\" font-size=\"11\" font-weight=\"bold\" fill=\"{(inTree ? "#065f46" : "#000000")}\">{edge.Weight}</text>")
+                            </g>
+                        }
+                        @foreach (var node in Nodes)
+                        {
+                            <g>
+                                <circle cx="@node.X" cy="@node.Y" r="20" fill="#ffffff" stroke="#000000" stroke-width="2" />
+                                @((MarkupString)$"<text x=\"{node.X}\" y=\"{node.Y + 6}\" text-anchor=\"middle\" font-family=\"sans-serif\" font-size=\"14\" font-weight=\"bold\">{node.Id}</text>")
+                            </g>
+                        }
+                    </svg>
+                </div>
+
+                <!-- Right: Answer / Solution Box -->
+                <div class="ws-answer-box">
+                    <div class="ws-box-title">Antwortbereich (Kantenfolge &amp; Gewicht)</div>
+
+                    @if (ShowSolution && MstResult != null)
+                    {
+                        <div class="ws-solution-content">
+                            <div class="sol-tree-list">
+                                <strong>Gewählte Kanten im Minimalen Spannbaum (Kruskal):</strong>
+                                <ol class="sol-edge-ol">
+                                    @foreach (var edge in MstResult.FinalTreeEdges)
+                                    {
+                                        <li>
+                                            <code class="mono bold">@edge.From &ndash; @edge.To</code> (Kosten: @edge.Weight)
+                                        </li>
+                                    }
+                                </ol>
+                            </div>
+
+                            @if (MstResult.FinalRejectedEdges.Count > 0)
+                            {
+                                <div class="sol-rejected-list">
+                                    <span class="sol-rej-label">Verworfene Kanten (Zyklusbildung):</span>
+                                    <span class="sol-rej-items">
+                                        @string.Join(", ", MstResult.FinalRejectedEdges.Select(e => $"{e.From}-{e.To} ({e.Weight})"))
+                                    </span>
+                                </div>
+                            }
+
+                            <div class="sol-total-bar">
+                                <strong>Gesamtgewicht des Minimalen Spannbaums:</strong>
+                                <span class="sol-total-val mono emerald bold">@MstResult.FinalTotalWeight</span>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="ws-blank-lines-area">
+                            <div class="grid-watermark">Kanten in Auswahlreihenfolge eintragen:</div>
+                            <div class="ruled-lines">
+                                @for (int l = 0; l < 8; l++)
+                                {
+                                    <div class="ruled-line"></div>
+                                }
+                            </div>
+                            <div class="blank-weight-slot">
+                                <span>Gesamtgewicht:</span>
+                                <div class="weight-answer-box"></div>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+            </div>
+
+            <!-- Footer -->
+            <div class="exam-footer">
+                <div class="exam-footer-note">
+                    Hinweis: Ein Spannbaum für einen Graphen mit $n$ Knoten enthält exakt $n - 1$ Kanten und ist kreisfrei (zusammenhängend).
+                </div>
+            </div>
+
+        </div>
+    }
+
+</article>
+
+@code {
+    public enum ViewMode { Simulator, Worksheet }
+
+    [Parameter] public string? View { get; set; }
+    [Parameter] public bool? Solution { get; set; }
+    [Parameter] public bool? Embed { get; set; }
+
+    private ViewMode ActiveView = ViewMode.Simulator;
+    private bool ShowSolution = false;
+    private bool IsEmbed = false;
+
+    private string SelectedAlgorithm = "Kruskal";
+    private string PrimStartNode = "A";
+    private string SelectedPresetKey = "Standard";
+
+    private List<GraphNode> Nodes = new();
+    private List<GraphEdge> Edges = new();
+
+    private MstTraceResult? MstResult;
+    private int CurrentStepIndex = 0;
+
+    protected override void OnInitialized()
+    {
+        ReadQueryParameters();
+        LoadPreset(SelectedPresetKey);
+    }
+
+    protected override void OnParametersSet()
+    {
+        ReadQueryParameters();
+    }
+
+    private void ReadQueryParameters()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query;
+            if (string.IsNullOrEmpty(query)) return;
+
+            var pairs = query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var pair in pairs)
+            {
+                var parts = pair.Split('=', 2);
+                var key = parts[0].ToLowerInvariant();
+                var val = parts.Length > 1 ? Uri.UnescapeDataString(parts[1]) : "";
+
+                if (key == "view")
+                {
+                    ActiveView = val.Equals("worksheet", StringComparison.OrdinalIgnoreCase) ? ViewMode.Worksheet : ViewMode.Simulator;
+                }
+                else if (key == "solution" && bool.TryParse(val, out var solBool))
+                {
+                    ShowSolution = solBool;
+                }
+                else if (key == "embed" && bool.TryParse(val, out var embedBool))
+                {
+                    IsEmbed = embedBool;
+                }
+            }
+        }
+        catch
+        {
+            // fallback
+        }
+    }
+
+    private void SetView(ViewMode mode)
+    {
+        ActiveView = mode;
+        UpdateUrl();
+    }
+
+    private void ToggleSolution()
+    {
+        ShowSolution = !ShowSolution;
+        UpdateUrl();
+    }
+
+    private void UpdateUrl()
+    {
+        var uri = NavigationManager.GetUriWithQueryParameters(new Dictionary<string, object?>
+        {
+            ["view"] = ActiveView == ViewMode.Worksheet ? "worksheet" : null,
+            ["solution"] = ShowSolution ? "true" : null,
+            ["embed"] = IsEmbed ? "true" : null
+        });
+        NavigationManager.NavigateTo(uri, replace: true);
+    }
+
+    private async Task TriggerPrint()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+
+    private void OnPresetChanged()
+    {
+        LoadPreset(SelectedPresetKey);
+    }
+
+    private void LoadPreset(string preset)
+    {
+        SelectedPresetKey = preset;
+        switch (preset)
+        {
+            case "Exam1":
+                // 6 Nodes (A..F) matching standard exam
+                Nodes = new List<GraphNode>
+                {
+                    new("A", 100, 220),
+                    new("B", 240, 100),
+                    new("C", 240, 340),
+                    new("D", 440, 100),
+                    new("E", 440, 340),
+                    new("F", 580, 220)
+                };
+                Edges = new List<GraphEdge>
+                {
+                    new("A", "B", 4),
+                    new("A", "C", 2),
+                    new("B", "C", 1),
+                    new("B", "D", 5),
+                    new("C", "E", 8),
+                    new("C", "D", 8),
+                    new("D", "E", 2),
+                    new("D", "F", 6),
+                    new("E", "F", 3)
+                };
+                break;
+
+            case "BridgeTopology":
+                // 7 Bridges (B1..B7)
+                Nodes = new List<GraphNode>
+                {
+                    new("B1", 80, 220),
+                    new("B2", 220, 100),
+                    new("B3", 220, 340),
+                    new("B4", 360, 220),
+                    new("B5", 500, 100),
+                    new("B6", 500, 340),
+                    new("B7", 610, 220)
+                };
+                Edges = new List<GraphEdge>
+                {
+                    new("B1", "B2", 4),
+                    new("B1", "B3", 8),
+                    new("B2", "B3", 11),
+                    new("B2", "B4", 8),
+                    new("B3", "B4", 7),
+                    new("B4", "B5", 2),
+                    new("B4", "B6", 4),
+                    new("B5", "B6", 14),
+                    new("B5", "B7", 9),
+                    new("B6", "B7", 10)
+                };
+                break;
+
+            case "Standard":
+            default:
+                // 8 Nodes (A..H)
+                Nodes = new List<GraphNode>
+                {
+                    new("A", 80, 220),
+                    new("B", 220, 90),
+                    new("C", 220, 350),
+                    new("D", 360, 90),
+                    new("E", 360, 350),
+                    new("F", 500, 90),
+                    new("G", 500, 350),
+                    new("H", 610, 220)
+                };
+                Edges = new List<GraphEdge>
+                {
+                    new("A", "B", 2),
+                    new("A", "C", 5),
+                    new("B", "C", 2),
+                    new("B", "D", 7),
+                    new("B", "E", 3),
+                    new("C", "E", 4),
+                    new("D", "F", 1),
+                    new("D", "E", 2),
+                    new("E", "G", 6),
+                    new("E", "F", 4),
+                    new("F", "H", 3),
+                    new("G", "H", 5)
+                };
+                break;
+        }
+
+        if (!Nodes.Any(n => n.Id == PrimStartNode))
+        {
+            PrimStartNode = Nodes.First().Id;
+        }
+
+        CurrentStepIndex = 0;
+        Recalculate();
+    }
+
+    private void GenerateRandomGraph()
+    {
+        SelectedPresetKey = "Random";
+        Nodes = new List<GraphNode>
+        {
+            new("A", 80, 220),
+            new("B", 220, 90),
+            new("C", 220, 350),
+            new("D", 360, 90),
+            new("E", 360, 350),
+            new("F", 500, 90),
+            new("G", 500, 350),
+            new("H", 610, 220)
+        };
+
+        var rnd = new Random();
+        Edges = new List<GraphEdge>
+        {
+            new("A", "B", rnd.Next(1, 10)),
+            new("A", "C", rnd.Next(2, 10)),
+            new("B", "C", rnd.Next(1, 8)),
+            new("B", "D", rnd.Next(2, 10)),
+            new("B", "E", rnd.Next(1, 9)),
+            new("C", "E", rnd.Next(2, 9)),
+            new("D", "F", rnd.Next(1, 8)),
+            new("D", "E", rnd.Next(1, 7)),
+            new("E", "G", rnd.Next(2, 10)),
+            new("E", "F", rnd.Next(1, 9)),
+            new("F", "H", rnd.Next(1, 9)),
+            new("G", "H", rnd.Next(1, 10))
+        };
+
+        CurrentStepIndex = 0;
+        Recalculate();
+    }
+
+    // =========================================================================
+    // PLAYER CONTROLS
+    // =========================================================================
+    private void GoToStart() => CurrentStepIndex = 0;
+    private void PreviousStep() => CurrentStepIndex = Math.Max(0, CurrentStepIndex - 1);
+    private void NextStep() => CurrentStepIndex = Math.Min((MstResult?.Steps.Count ?? 1) - 1, CurrentStepIndex + 1);
+    private void GoToEnd() => CurrentStepIndex = Math.Max(0, (MstResult?.Steps.Count ?? 1) - 1);
+    private void OnSliderChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var idx))
+        {
+            CurrentStepIndex = Math.Clamp(idx, 0, (MstResult?.Steps.Count ?? 1) - 1);
+        }
+    }
+
+    // =========================================================================
+    // MST ALGORITHMS
+    // =========================================================================
+    private void Recalculate()
+    {
+        if (SelectedAlgorithm == "Prim")
+        {
+            MstResult = RunPrim(Nodes, Edges, PrimStartNode);
+        }
+        else
+        {
+            MstResult = RunKruskal(Nodes, Edges);
+        }
+
+        if (CurrentStepIndex >= MstResult.Steps.Count)
+        {
+            CurrentStepIndex = Math.Max(0, MstResult.Steps.Count - 1);
+        }
+    }
+
+    private MstTraceResult RunKruskal(List<GraphNode> nodes, List<GraphEdge> edges)
+    {
+        var result = new MstTraceResult();
+        var sortedEdges = edges.OrderBy(e => e.Weight).ToList();
+
+        // Disjoint-Set Union (Union-Find)
+        var parent = new Dictionary<string, string>();
+        foreach (var n in nodes) parent[n.Id] = n.Id;
+
+        string Find(string i)
+        {
+            if (parent[i] == i) return i;
+            return parent[i] = Find(parent[i]);
+        }
+
+        void Union(string root1, string root2)
+        {
+            parent[root1] = root2;
+        }
+
+        // Step 0: Init
+        result.Steps.Add(new MstStep
+        {
+            StepNumber = 0,
+            Title = "Initialisierung (Kanten nach Gewicht aufsteigend sortiert)",
+            Explanation = $"Alle {edges.Count} Kanten wurden aufsteigend nach ihrem Gewicht sortiert. Zu Beginn bildet jeder Knoten eine eigene Zusammenhangskomponente (Wald ohne Kanten).",
+            TreeEdges = new List<GraphEdge>(),
+            RejectedEdges = new List<GraphEdge>(),
+            VisitedNodes = new HashSet<string>(),
+            CurrentTotalWeight = 0
+        });
+
+        var treeEdges = new List<GraphEdge>();
+        var rejectedEdges = new List<GraphEdge>();
+        double totalWeight = 0;
+        int stepIdx = 1;
+
+        foreach (var edge in sortedEdges)
+        {
+            string rootFrom = Find(edge.From);
+            string rootTo = Find(edge.To);
+            bool createsCycle = (rootFrom == rootTo);
+
+            if (!createsCycle)
+            {
+                Union(rootFrom, rootTo);
+                treeEdges.Add(edge);
+                totalWeight += edge.Weight;
+
+                var visited = new HashSet<string>();
+                foreach (var te in treeEdges)
+                {
+                    visited.Add(te.From);
+                    visited.Add(te.To);
+                }
+
+                result.Steps.Add(new MstStep
+                {
+                    StepNumber = stepIdx++,
+                    CurrentEdge = edge,
+                    IsAccepted = true,
+                    IsCycle = false,
+                    Title = $"Kante ({edge.From} – {edge.To}, Gewicht {edge.Weight}) in Spannbaum aufgenommen",
+                    Explanation = $"Kante ({edge.From} – {edge.To}) mit Gewicht {edge.Weight} verbindet zwei getrennte Komponenten (Wurzeln: {rootFrom} und {rootTo}). Sie erzeugt keinen Zyklus und wird in den Minimalen Spannbaum eingefügt.",
+                    TreeEdges = new List<GraphEdge>(treeEdges),
+                    RejectedEdges = new List<GraphEdge>(rejectedEdges),
+                    VisitedNodes = visited,
+                    CurrentTotalWeight = totalWeight
+                });
+            }
+            else
+            {
+                rejectedEdges.Add(edge);
+                var visited = new HashSet<string>();
+                foreach (var te in treeEdges)
+                {
+                    visited.Add(te.From);
+                    visited.Add(te.To);
+                }
+
+                result.Steps.Add(new MstStep
+                {
+                    StepNumber = stepIdx++,
+                    CurrentEdge = edge,
+                    IsAccepted = false,
+                    IsCycle = true,
+                    Title = $"Kante ({edge.From} – {edge.To}, Gewicht {edge.Weight}) erzeugt Zyklus → Verworfen",
+                    Explanation = $"Beide Endpunkte ({edge.From} und {edge.To}) liegen bereits in derselben Zusammenhangskomponente ({rootFrom}). Das Hinzufügen würde einen Kreis erzeugen; die Kante wird übersprungen.",
+                    TreeEdges = new List<GraphEdge>(treeEdges),
+                    RejectedEdges = new List<GraphEdge>(rejectedEdges),
+                    VisitedNodes = visited,
+                    CurrentTotalWeight = totalWeight
+                });
+            }
+
+            if (treeEdges.Count == nodes.Count - 1)
+            {
+                // All nodes connected
+                break;
+            }
+        }
+
+        result.FinalTreeEdges = new List<GraphEdge>(treeEdges);
+        result.FinalRejectedEdges = new List<GraphEdge>(rejectedEdges);
+        result.FinalTotalWeight = totalWeight;
+
+        return result;
+    }
+
+    private MstTraceResult RunPrim(List<GraphNode> nodes, List<GraphEdge> edges, string startNodeId)
+    {
+        var result = new MstTraceResult();
+        var visited = new HashSet<string> { startNodeId };
+        var treeEdges = new List<GraphEdge>();
+        var rejectedEdges = new List<GraphEdge>();
+        double totalWeight = 0;
+
+        // Step 0: Init
+        result.Steps.Add(new MstStep
+        {
+            StepNumber = 0,
+            Title = $"Initialisierung (Prim ab Startknoten {startNodeId})",
+            Explanation = $"Der Prim-Algorithmus startet am Knoten {startNodeId}. In jedem Schritt wird die leichteste ausgehende Kante zu einem noch unbesuchten Knoten gewählt.",
+            TreeEdges = new List<GraphEdge>(),
+            RejectedEdges = new List<GraphEdge>(),
+            VisitedNodes = new HashSet<string>(visited),
+            CurrentTotalWeight = 0
+        });
+
+        int stepIdx = 1;
+        while (visited.Count < nodes.Count)
+        {
+            // Find minimum cut edge connecting visited with unvisited
+            GraphEdge? minEdge = null;
+            double minWeight = double.PositiveInfinity;
+
+            foreach (var edge in edges)
+            {
+                bool uIn = visited.Contains(edge.From);
+                bool vIn = visited.Contains(edge.To);
+
+                if ((uIn && !vIn) || (!uIn && vIn))
+                {
+                    if (edge.Weight < minWeight)
+                    {
+                        minWeight = edge.Weight;
+                        minEdge = edge;
+                    }
+                }
+            }
+
+            if (minEdge == null) break;
+
+            treeEdges.Add(minEdge);
+            totalWeight += minEdge.Weight;
+            visited.Add(minEdge.From);
+            visited.Add(minEdge.To);
+
+            result.Steps.Add(new MstStep
+            {
+                StepNumber = stepIdx++,
+                CurrentEdge = minEdge,
+                IsAccepted = true,
+                IsCycle = false,
+                Title = $"Leichteste Schnittkante ({minEdge.From} – {minEdge.To}, Gewicht {minEdge.Weight}) gewählt",
+                Explanation = $"Unter allen Schnittkanten zwischen besuchten Knoten und unbesuchten Nachbarn besitzt ({minEdge.From} – {minEdge.To}) das minimale Gewicht von {minEdge.Weight}. Sie wird in den Spannbaum aufgenommen.",
+                TreeEdges = new List<GraphEdge>(treeEdges),
+                RejectedEdges = new List<GraphEdge>(rejectedEdges),
+                VisitedNodes = new HashSet<string>(visited),
+                CurrentTotalWeight = totalWeight
+            });
+        }
+
+        result.FinalTreeEdges = new List<GraphEdge>(treeEdges);
+        result.FinalRejectedEdges = new List<GraphEdge>(rejectedEdges);
+        result.FinalTotalWeight = totalWeight;
+
+        return result;
+    }
+
+    private bool IsSameEdge(GraphEdge? e1, GraphEdge? e2)
+    {
+        if (e1 == null || e2 == null) return false;
+        return (e1.From == e2.From && e1.To == e2.To) || (e1.From == e2.To && e1.To == e2.From);
+    }
+
+    private string GetNodeComponentColor(MstStep? step, string nodeId)
+    {
+        if (step == null) return "#0284c7";
+        if (step.VisitedNodes.Contains(nodeId)) return "#059669";
+        return "#0284c7";
+    }
+
+    // =========================================================================
+    // DATA STRUCTURES
+    // =========================================================================
+    public record GraphNode(string Id, int X, int Y);
+    public record GraphEdge(string From, string To, double Weight);
+
+    public class MstTraceResult
+    {
+        public List<MstStep> Steps { get; set; } = new();
+        public List<GraphEdge> FinalTreeEdges { get; set; } = new();
+        public List<GraphEdge> FinalRejectedEdges { get; set; } = new();
+        public double FinalTotalWeight { get; set; }
+    }
+
+    public class MstStep
+    {
+        public int StepNumber { get; set; }
+        public string Title { get; set; } = "";
+        public string Explanation { get; set; } = "";
+        public GraphEdge? CurrentEdge { get; set; }
+        public bool IsAccepted { get; set; }
+        public bool IsCycle { get; set; }
+        public List<GraphEdge> TreeEdges { get; set; } = new();
+        public List<GraphEdge> RejectedEdges { get; set; } = new();
+        public HashSet<string> VisitedNodes { get; set; } = new();
+        public double CurrentTotalWeight { get; set; }
+    }
+}

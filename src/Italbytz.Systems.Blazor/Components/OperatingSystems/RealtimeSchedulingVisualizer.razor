@@ -1,438 +1,681 @@
 @namespace Italbytz.Systems.Blazor.Components.OperatingSystems
+@using Italbytz.OperatingSystems
+@using Italbytz.OperatingSystems.Abstractions
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
 
-<article class="demo-card wide-card">
-    <div class="card-heading">
-        <p class="feature-kicker">Realtime scheduling</p>
-        <h2>Compare RMS and EDF over the package's 32-slot periodic-task horizon</h2>
-    </div>
+<article class="rt-container @(IsEmbed ? "embed-mode" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
 
-    <div class="input-grid three-up">
-        <label>
-            <span>Detailed timeline</span>
-            <select @bind="SelectedRealtimePolicy">
-                <option value="RMS">Rate-monotonic scheduling</option>
-                <option value="EDF">Earliest deadline first</option>
-            </select>
-        </label>
-        <label>
-            <span>Execution times</span>
-            <input type="text" @bind="RealtimeExecutionInput" />
-        </label>
-        <label>
-            <span>Periods</span>
-            <input type="text" @bind="RealtimePeriodsInput" />
-        </label>
-    </div>
-
-    <p class="helper-copy">
-        The demo maps the comma-separated execution times and periods to periodic tasks <strong>T1</strong> ... <strong>Tn</strong>. Both solvers expose a discrete 32-slot schedule.
-    </p>
-
-    @if (TryGetRealtimeDemo(out var realtimeResult, out var realtimeError))
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
     {
-        <div class="table-shell">
-            <table class="trace-table">
-                <thead>
-                    <tr>
-                        <th>Policy</th>
-                        <th>Priority rule</th>
-                        <th>Idle slots</th>
-                        <th>Deadline misses</th>
-                        <th>Horizon summary</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var comparisonRow in realtimeResult!.ComparisonRows)
-                    {
-                        <tr>
-                            <td>@comparisonRow.PolicyLabel</td>
-                            <td>@comparisonRow.PriorityRule</td>
-                            <td>@comparisonRow.IdleSlots</td>
-                            <td>@comparisonRow.DeadlineMisses</td>
-                            <td>@comparisonRow.HorizonSummary</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-
-        <div class="card-grid card-grid-three compact-grid">
-            <div class="metric-card">
-                <span>Strategy</span>
-                <strong>@realtimeResult!.PolicyLabel</strong>
-            </div>
-            <div class="metric-card">
-                <span>Total utilization</span>
-                <strong>@realtimeResult.Utilization.ToString("0.###")</strong>
-            </div>
-            <div class="metric-card">
-                <span>Deadline misses</span>
-                <strong>@realtimeResult.DeadlineMisses</strong>
-            </div>
-        </div>
-
-        <div class="card-grid card-grid-two compact-grid">
-            <div class="metric-card">
-                <span>Feasibility hint</span>
-                <strong>@realtimeResult.FeasibilityHint</strong>
-            </div>
-            <div class="metric-card">
-                <span>Reference bound</span>
-                <strong>@realtimeResult.ReferenceBoundLabel</strong>
-            </div>
-        </div>
-
-        <p class="helper-copy">@realtimeResult.Notes</p>
-
-        <div class="table-shell">
-            <table class="trace-table">
-                <thead>
-                    <tr>
-                        <th>Trace step</th>
-                        <th>Trace detail</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @for (var index = 0; index < realtimeResult.SolverSteps.Length; index++)
-                    {
-                        <tr>
-                            <td>@(index + 1)</td>
-                            <td>@realtimeResult.SolverSteps[index]</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-
-        <div class="table-shell">
-            <table class="trace-table">
-                <thead>
-                    <tr>
-                        <th>Task</th>
-                        <th>Execution time</th>
-                        <th>Period</th>
-                        <th>Utilization</th>
-                        <th>Misses</th>
-                        <th>Policy cue</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var task in realtimeResult.Tasks)
-                    {
-                        <tr>
-                            <td>@task.Name</td>
-                            <td>@task.ExecutionTime</td>
-                            <td>@task.Period</td>
-                            <td>@task.Utilization.ToString("0.###")</td>
-                            <td>@task.DeadlineMisses</td>
-                            <td>@task.PolicyCue</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-
-        <div class="memory-legend">
-            @foreach (var legendItem in realtimeResult.Legend)
-            {
-                <span class="memory-chip @(legendItem.IsFree ? "free" : string.Empty)">@legendItem.Label</span>
-            }
-        </div>
-
-        <div class="timeline-grid">
-            @for (var slotIndex = 0; slotIndex < realtimeResult.Timeline.Length; slotIndex++)
-            {
-                var slot = realtimeResult.Timeline[slotIndex];
-                var misses = realtimeResult.DeadlineMissesBySlot[slotIndex];
-                <span class="timeline-cell @(slot == "idle" ? "free" : string.Empty) @(misses.Length > 0 ? "danger" : string.Empty)">
-                    <strong>@slotIndex</strong>
-                    <small>@slot</small>
-                    @if (misses.Length > 0)
-                    {
-                        <em>@string.Join(", ", misses)</em>
-                    }
-                </span>
-            }
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Betriebssysteme &bull; Prozessverwaltung (Process Management)</p>
+            <h2>Echtzeit-Scheduling (Rate Monotonic &amp; Earliest Deadline First)</h2>
+            <p class="feature-intro">
+                Interaktiver Vergleich von statischer Priorisierung nach Periode (RMS, Rate-Monotonic) 
+                und dynamischer Priorisierung nach absoluter Frist (EDF, Earliest Deadline First) 
+                über einen 32-Zeitslot-Planungshorizont.
+            </p>
         </div>
     }
-    else
+
+    <!-- View Switcher -->
+    @if (!IsEmbed)
     {
-        <p class="validation-copy">@realtimeError</p>
+        <div class="view-switch no-print">
+            <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Simulator)">
+                🚀 Interaktiver Simulator &amp; Gantt-Diagramm
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Worksheet)">
+                🖨️ Klausur-Arbeitsblatt (Druckansicht)
+            </button>
+        </div>
     }
+
+    <!-- ========================================================================= -->
+    <!-- SIMULATOR VIEW                                                            -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Controls Panel -->
+        <div class="controls-panel no-print">
+            <div class="config-grid">
+                <label class="control-label">
+                    <span>Szenario / Parametersatz:</span>
+                    <select class="form-input select" @bind="SelectedPresetKey" @bind:after="OnPresetChanged">
+                        <option value="Exam1">Klausur-Beispiel 1: A=(1,8), B=(3,10), C=(3,6)</option>
+                        <option value="Exam2">Klausur-Beispiel 2: A=(4,15), B=(4,15), C=(4,9)</option>
+                        <option value="Lecture">Vorlesung: A=(1,4), B=(2,6), C=(3,8)</option>
+                    </select>
+                </label>
+
+                <div class="policy-toggle">
+                    <span class="policy-label">Aktive Ansicht:</span>
+                    <div class="toggle-group">
+                        <button class="toggle-btn @(ActivePolicy == "Both" ? "active" : "")" @onclick='() => ActivePolicy = "Both"'>RMS &amp; EDF Vergleich</button>
+                        <button class="toggle-btn @(ActivePolicy == "RMS" ? "active" : "")" @onclick='() => ActivePolicy = "RMS"'>Nur RMS</button>
+                        <button class="toggle-btn @(ActivePolicy == "EDF" ? "active" : "")" @onclick='() => ActivePolicy = "EDF"'>Nur EDF</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Task Parameters Table -->
+            <div class="params-strip">
+                <span class="params-title">Periodische Prozesse:</span>
+                <div class="task-param-chips">
+                    <div class="param-chip chip-a">
+                        <strong>Prozess A:</strong> Rechenzeit $C_A = @TaskA_C$, Periode $T_A = @TaskA_T$
+                    </div>
+                    <div class="param-chip chip-b">
+                        <strong>Prozess B:</strong> Rechenzeit $C_B = @TaskB_C$, Periode $T_B = @TaskB_T$
+                    </div>
+                    <div class="param-chip chip-c">
+                        <strong>Prozess C:</strong> Rechenzeit $C_C = @TaskC_C$, Periode $T_C = @TaskC_T$
+                    </div>
+                </div>
+                <button class="preset-btn random" @onclick="GenerateRandomTaskSet">🎲 Zufallsszenario</button>
+            </div>
+        </div>
+
+        @if (RmsSolution != null && EdfSolution != null)
+        {
+            var activeSteps = ActivePolicy == "EDF" ? EdfSolution.Steps : RmsSolution.Steps;
+            var maxSteps = Math.Min(32, activeSteps.Count);
+            var currentStepText = CurrentSlotIndex < activeSteps.Count ? activeSteps[CurrentSlotIndex] : "";
+
+            <!-- Player Toolbar -->
+            <div class="player-toolbar no-print">
+                <div class="player-controls">
+                    <button class="player-btn" title="Start" disabled="@(CurrentSlotIndex == 0)" @onclick="GoToStart">⏮ Start</button>
+                    <button class="player-btn" title="Zurück" disabled="@(CurrentSlotIndex == 0)" @onclick="PreviousStep">◀ Zurück</button>
+                    <button class="player-btn primary" title="Nächster Schritt" disabled="@(CurrentSlotIndex >= 31)" @onclick="NextStep">▶ Weiter</button>
+                    <button class="player-btn title" title="Ende" disabled="@(CurrentSlotIndex >= 31)" @onclick="GoToEnd">⏭ Ende</button>
+                    <button class="player-btn reset" title="Zurücksetzen" @onclick="GoToStart">🔄 Reset</button>
+                </div>
+
+                <div class="player-progress">
+                    <span class="step-indicator">
+                        <strong>Zeitslot $t = @CurrentSlotIndex$ / 31:</strong>
+                        <span>@(CurrentSlotIndex < activeSteps.Count ? activeSteps[CurrentSlotIndex] : "")</span>
+                    </span>
+                    <input type="range" min="0" max="31" value="@CurrentSlotIndex" @oninput="OnSliderChanged" class="step-slider" />
+                </div>
+            </div>
+
+            <!-- Narrator Card -->
+            <div class="narrator-card">
+                <div class="narrator-header">
+                    <div class="step-badge badge-slot">Zeitslot t = @CurrentSlotIndex</div>
+                    <div class="narrator-title">
+                        RMS: <strong>@(GetTaskName(RmsSolution.Processes[CurrentSlotIndex]))</strong> | 
+                        EDF: <strong>@(GetTaskName(EdfSolution.Processes[CurrentSlotIndex]))</strong>
+                    </div>
+                </div>
+                <p class="narrator-text">
+                    @if (ActivePolicy == "Both")
+                    {
+                        <span><strong>RMS-Entscheidung:</strong> @(CurrentSlotIndex < RmsSolution.Steps.Count ? RmsSolution.Steps[CurrentSlotIndex] : "") &bull; <strong>EDF-Entscheidung:</strong> @(CurrentSlotIndex < EdfSolution.Steps.Count ? EdfSolution.Steps[CurrentSlotIndex] : "")</span>
+                    }
+                    else if (ActivePolicy == "RMS")
+                    {
+                        <span>@(CurrentSlotIndex < RmsSolution.Steps.Count ? RmsSolution.Steps[CurrentSlotIndex] : "")</span>
+                    }
+                    else
+                    {
+                        <span>@(CurrentSlotIndex < EdfSolution.Steps.Count ? EdfSolution.Steps[CurrentSlotIndex] : "")</span>
+                    }
+                </p>
+                <div class="utilization-strip">
+                    <span>Gesamtauslastung: <strong class="mono blue">@TotalUtilization.ToString("P1")</strong></span>
+                    <span>Liu-Layland Schranke ($n=3$): <strong class="mono emerald">77.9%</strong></span>
+                    <span>RMS zulässig: <strong class="@(TotalUtilization <= 0.779 ? "emerald" : "red")">@(TotalUtilization <= 0.779 ? "✓ Garantiert" : "⚠️ Exakte Prüfung erforderlich")</strong></span>
+                    <span>EDF zulässig: <strong class="@(TotalUtilization <= 1.0 ? "emerald" : "red")">@(TotalUtilization <= 1.0 ? "✓ Zulässig ($U \\le 100\\%$)" : "✗ Überlastet")</strong></span>
+                </div>
+            </div>
+
+            <!-- Main Display: Gantt Timelines -->
+            <div class="gantt-display-card">
+                <div class="gantt-header">
+                    <h3>Scheduling-Ablaufdiagramme (Zeithorizont $t = 0 \dots 31$)</h3>
+                    <div class="gantt-legend">
+                        <span class="leg-item"><span class="leg-box leg-a"></span> Prozess A</span>
+                        <span class="leg-item"><span class="leg-box leg-b"></span> Prozess B</span>
+                        <span class="leg-item"><span class="leg-box leg-c"></span> Prozess C</span>
+                        <span class="leg-item"><span class="leg-box leg-idle"></span> Leerlauf (Idle)</span>
+                    </div>
+                </div>
+
+                <!-- Ready Requests Baseline Grid -->
+                <div class="timeline-section">
+                    <div class="timeline-title">Rechenbereitschaft der periodischen Prozesse:</div>
+                    <div class="gantt-grid">
+                        <div class="row-label label-a">Prozess A</div>
+                        <div class="slots-row">
+                            @for (int t = 0; t < 32; t++)
+                            {
+                                bool isReady = (t % TaskA_T < TaskA_C);
+                                <div class="slot-cell @(isReady ? "slot-a" : "slot-empty") @(t == CurrentSlotIndex ? "slot-current" : "")">
+                                    @(isReady ? "A" : "")
+                                </div>
+                            }
+                        </div>
+
+                        <div class="row-label label-b">Prozess B</div>
+                        <div class="slots-row">
+                            @for (int t = 0; t < 32; t++)
+                            {
+                                bool isReady = (t % TaskB_T < TaskB_C);
+                                <div class="slot-cell @(isReady ? "slot-b" : "slot-empty") @(t == CurrentSlotIndex ? "slot-current" : "")">
+                                    @(isReady ? "B" : "")
+                                </div>
+                            }
+                        </div>
+
+                        <div class="row-label label-c">Prozess C</div>
+                        <div class="slots-row">
+                            @for (int t = 0; t < 32; t++)
+                            {
+                                bool isReady = (t % TaskC_T < TaskC_C);
+                                <div class="slot-cell @(isReady ? "slot-c" : "slot-empty") @(t == CurrentSlotIndex ? "slot-current" : "")">
+                                    @(isReady ? "C" : "")
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RMS Schedule Grid -->
+                @if (ActivePolicy == "Both" || ActivePolicy == "RMS")
+                {
+                    <div class="timeline-section section-rms">
+                        <div class="timeline-title">
+                            <span class="policy-badge badge-rms">RMS</span>
+                            <strong>Rate-Monotonic Schedule (Feste Prioritäten: $T_A=@TaskA_T, T_B=@TaskB_T, T_C=@TaskC_T$)</strong>
+                        </div>
+                        <div class="gantt-grid">
+                            <div class="row-label label-rms">RMS CPU</div>
+                            <div class="slots-row">
+                                @for (int t = 0; t < 32; t++)
+                                {
+                                    int proc = RmsSolution.Processes[t];
+                                    bool isPastOrCurrent = (t <= CurrentSlotIndex);
+                                    string slotClass = GetProcSlotClass(proc);
+                                    if (t == CurrentSlotIndex) slotClass += " slot-current";
+                                    if (!isPastOrCurrent) slotClass += " slot-future";
+
+                                    <div class="slot-cell @slotClass" @onclick="() => CurrentSlotIndex = t">
+                                        @(isPastOrCurrent ? GetTaskAbbr(proc) : "")
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                <!-- EDF Schedule Grid -->
+                @if (ActivePolicy == "Both" || ActivePolicy == "EDF")
+                {
+                    <div class="timeline-section section-edf">
+                        <div class="timeline-title">
+                            <span class="policy-badge badge-edf">EDF</span>
+                            <strong>Earliest Deadline First (Dynamische Prioritäten nach absoluter Deadline)</strong>
+                        </div>
+                        <div class="gantt-grid">
+                            <div class="row-label label-edf">EDF CPU</div>
+                            <div class="slots-row">
+                                @for (int t = 0; t < 32; t++)
+                                {
+                                    int proc = EdfSolution.Processes[t];
+                                    bool isPastOrCurrent = (t <= CurrentSlotIndex);
+                                    string slotClass = GetProcSlotClass(proc);
+                                    if (t == CurrentSlotIndex) slotClass += " slot-current";
+                                    if (!isPastOrCurrent) slotClass += " slot-future";
+
+                                    <div class="slot-cell @slotClass" @onclick="() => CurrentSlotIndex = t">
+                                        @(isPastOrCurrent ? GetTaskAbbr(proc) : "")
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                <!-- Timeline Slot Indices -->
+                <div class="time-ticks-row">
+                    <div class="row-label label-ticks">Zeit $t$</div>
+                    <div class="slots-row ticks">
+                        @for (int t = 0; t < 32; t++)
+                        {
+                            <div class="tick-cell @(t == CurrentSlotIndex ? "tick-current" : "")">
+                                @t
+                            </div>
+                        }
+                    </div>
+                </div>
+
+            </div>
+        }
+    }
+
+    <!-- ========================================================================= -->
+    <!-- WORKSHEET VIEW (1:1 EXAM REPLICA)                                         -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Worksheet)
+    {
+        <div class="worksheet-paper">
+
+            <!-- Exam Header -->
+            <div class="exam-header">
+                <div class="exam-title-block">
+                    <span class="exam-sub">Betriebssysteme &bull; Echtzeitsysteme</span>
+                    <h1 class="exam-main-title">Übungs- und Klausuraufgabe: Echtzeit-Scheduling (RMS &amp; EDF)</h1>
+                </div>
+                <div class="exam-meta-box no-print">
+                    <button class="toggle-sol-btn @(ShowSolution ? "active" : "")" @onclick="ToggleSolution">
+                        @(ShowSolution ? "👁️ Musterlösung ausblenden" : "💡 Musterlösung einblenden")
+                    </button>
+                    <button class="print-btn" @onclick="TriggerPrint">
+                        🖨️ Seite drucken / PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Student Info Fields -->
+            <div class="student-info-strip">
+                <div class="info-field">
+                    <span class="info-label">Name, Vorname:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field">
+                    <span class="info-label">Matrikelnummer:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field points-field">
+                    <span class="info-label">Punkte:</span>
+                    <div class="points-box">/ 12 P.</div>
+                </div>
+            </div>
+
+            <!-- Intro Text matching BSSchedulingEchtzeitText -->
+            <div class="task-prompt-box">
+                <p class="task-text">
+                    Periodische Echtzeitprozesse müssen ihre Berechnungen jeweils vor Ablauf ihrer Deadline abschließen.
+                    Bei <strong>Rate-Monotonic Scheduling (RMS)</strong> werden feste Prioritäten nach der kürzesten Periode vergeben.
+                    Bei <strong>Earliest Deadline First (EDF)</strong> erhält der Prozess mit der aktuell am nächsten liegenden absoluten Frist dynamisch den Vorrang.
+                </p>
+            </div>
+
+            <!-- Teilaufgabe 1 -->
+            <div class="task-section">
+                <div class="task-sub-title">
+                    <span>Teilaufgabe 1 (6 Punkte)</span>
+                </div>
+                <p class="task-text">
+                    Prozesse A, B und C melden sich gemäß folgender Abbildung rechenbereit. 
+                    Markieren Sie in den Zeilen <strong>RMS A, B, C</strong> und <strong>EDF A, B, C</strong>, wie die Prozesse auf der CPU geschedulet werden.
+                </p>
+
+                <!-- Task Parameter Strip -->
+                <div class="ws-task-specs">
+                    <span><strong>Prozess A:</strong> $C_A = @TaskA_C$, $T_A = @TaskA_T$</span>
+                    <span><strong>Prozess B:</strong> $C_B = @TaskB_C$, $T_B = @TaskB_T$</span>
+                    <span><strong>Prozess C:</strong> $C_C = @TaskC_C$, $T_C = @TaskC_T$</span>
+                </div>
+
+                <!-- 1:1 Exam Table Grid matching LaTeX hshlexercise template -->
+                <div class="ws-exam-matrix">
+                    <table class="ws-matrix-table">
+                        <thead>
+                            <tr>
+                                <th class="hdr-label">Prozess</th>
+                                @for (int t = 0; t < 32; t++)
+                                {
+                                    <th class="hdr-tick">@t</th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Ready A -->
+                            <tr class="row-ready row-ready-a">
+                                <td class="lbl-cell lbl-a">A (Bereit)</td>
+                                @for (int t = 0; t < 32; t++)
+                                {
+                                    bool isReady = (t % TaskA_T < TaskA_C);
+                                    <td class="cell-ready @(isReady ? "fill-a" : "")"></td>
+                                }
+                            </tr>
+                            <!-- Ready B -->
+                            <tr class="row-ready row-ready-b">
+                                <td class="lbl-cell lbl-b">B (Bereit)</td>
+                                @for (int t = 0; t < 32; t++)
+                                {
+                                    bool isReady = (t % TaskB_T < TaskB_C);
+                                    <td class="cell-ready @(isReady ? "fill-b" : "")"></td>
+                                }
+                            </tr>
+                            <!-- Ready C -->
+                            <tr class="row-ready row-ready-c">
+                                <td class="lbl-cell lbl-c">C (Bereit)</td>
+                                @for (int t = 0; t < 32; t++)
+                                {
+                                    bool isReady = (t % TaskC_T < TaskC_C);
+                                    <td class="cell-ready @(isReady ? "fill-c" : "")"></td>
+                                }
+                            </tr>
+
+                            <!-- Separator -->
+                            <tr class="sep-row"><td colspan="33"></td></tr>
+
+                            <!-- RMS A -->
+                            <tr class="row-sched">
+                                <td class="lbl-cell">RMS A</td>
+                                @for (int t = 0; t < 32; t++)
+                                {
+                                    bool isExec = ShowSolution && RmsSolution != null && RmsSolution.Processes[t] == 0;
+                                    <td class="cell-box @(isExec ? "exec-a" : "")">
+                                        @(isExec ? "✕" : "")
+                                    </td>
+                                }
+                            </tr>
+                            <!-- RMS B -->
+                            <tr class="row-sched">
+                                <td class="lbl-cell">RMS B</td>
+                                @for (int t = 0; t < 32; t++)
+                                {
+                                    bool isExec = ShowSolution && RmsSolution != null && RmsSolution.Processes[t] == 1;
+                                    <td class="cell-box @(isExec ? "exec-b" : "")">
+                                        @(isExec ? "✕" : "")
+                                    </td>
+                                }
+                            </tr>
+                            <!-- RMS C -->
+                            <tr class="row-sched">
+                                <td class="lbl-cell">RMS C</td>
+                                @for (int t = 0; t < 32; t++)
+                                {
+                                    bool isExec = ShowSolution && RmsSolution != null && RmsSolution.Processes[t] == 2;
+                                    <td class="cell-box @(isExec ? "exec-c" : "")">
+                                        @(isExec ? "✕" : "")
+                                    </td>
+                                }
+                            </tr>
+
+                            <!-- Separator -->
+                            <tr class="sep-row"><td colspan="33"></td></tr>
+
+                            <!-- EDF A -->
+                            <tr class="row-sched">
+                                <td class="lbl-cell">EDF A</td>
+                                @for (int t = 0; t < 32; t++)
+                                {
+                                    bool isExec = ShowSolution && EdfSolution != null && EdfSolution.Processes[t] == 0;
+                                    <td class="cell-box @(isExec ? "exec-a" : "")">
+                                        @(isExec ? "✕" : "")
+                                    </td>
+                                }
+                            </tr>
+                            <!-- EDF B -->
+                            <tr class="row-sched">
+                                <td class="lbl-cell">EDF B</td>
+                                @for (int t = 0; t < 32; t++)
+                                {
+                                    bool isExec = ShowSolution && EdfSolution != null && EdfSolution.Processes[t] == 1;
+                                    <td class="cell-box @(isExec ? "exec-b" : "")">
+                                        @(isExec ? "✕" : "")
+                                    </td>
+                                }
+                            </tr>
+                            <!-- EDF C -->
+                            <tr class="row-sched">
+                                <td class="lbl-cell">EDF C</td>
+                                @for (int t = 0; t < 32; t++)
+                                {
+                                    bool isExec = ShowSolution && EdfSolution != null && EdfSolution.Processes[t] == 2;
+                                    <td class="cell-box @(isExec ? "exec-c" : "")">
+                                        @(isExec ? "✕" : "")
+                                    </td>
+                                }
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Teilaufgabe 2 (Begründung / Auslastung) -->
+            <div class="task-section">
+                <div class="task-sub-title">
+                    <span>Teilaufgabe 2 (6 Punkte)</span>
+                </div>
+                <p class="task-text">
+                    Berechnen Sie die Gesamtauslastung $U = \sum_{i=1}^n \frac{C_i}{T_i}$ und beurteilen Sie anhand der theoretischen Schranken, ob RMS und EDF garantiert einhaltebare Ablaufpläne liefern.
+                </p>
+
+                @if (ShowSolution)
+                {
+                    <div class="ws-solution-box">
+                        <p class="sol-text">
+                            <strong>Auslastungsberechnung:</strong>
+                            $$U = \frac{@TaskA_C}{@TaskA_T} + \frac{@TaskB_C}{@TaskB_T} + \frac{@TaskC_C}{@TaskC_T} = @TotalUtilization.ToString("0.###") \quad (@TotalUtilization.ToString("P1"))$$
+                        </p>
+                        <p class="sol-text">
+                            <strong>RMS-Beurteilung (Liu &amp; Layland):</strong> Die hinreichende Schranke für $n=3$ Prozesse beträgt $U_{LL}(3) = 3 \cdot (2^{1/3} - 1) \approx 77{,}9\%$. Da $U @(TotalUtilization <= 0.779 ? "\\le" : ">") 77{,}9\%$, ist der Plan nach RMS @(TotalUtilization <= 0.779 ? "garantiert zulässig" : "über der Schranke (zulässig durch exakten Trace nachgewiesen)").
+                        </p>
+                        <p class="sol-text">
+                            <strong>EDF-Beurteilung:</strong> Für EDF gilt die notwendige und hinreichende Bedingung $U \le 100\%$. Da $U @(TotalUtilization <= 1.0 ? "\\le" : ">") 1{,}0$, ist der Ablaufplan nach EDF @(TotalUtilization <= 1.0 ? "garantiert ohne Deadline-Verletzungen einhaltbar" : "nicht einhaltbar").
+                        </p>
+                    </div>
+                }
+                else
+                {
+                    <div class="ws-textfield-lines">
+                        <div class="text-line"></div>
+                        <div class="text-line"></div>
+                        <div class="text-line"></div>
+                        <div class="text-line"></div>
+                    </div>
+                }
+            </div>
+
+            <!-- Footer -->
+            <div class="exam-footer">
+                <div class="exam-footer-note">
+                    Hinweis: Tragen Sie in jedes Zeitintervall $[t, t+1)$ genau ein Kreuz $\text{X}$ für den ausgeführten Prozess ein.
+                </div>
+            </div>
+
+        </div>
+    }
+
 </article>
 
 @code {
-    [Parameter]
-    public string SelectedRealtimePolicy { get; set; } = "RMS";
+    public enum ViewMode { Simulator, Worksheet }
 
-    [Parameter]
-    public string RealtimeExecutionInput { get; set; } = "1,2,4";
+    [Parameter] public string? View { get; set; }
+    [Parameter] public bool? Solution { get; set; }
+    [Parameter] public bool? Embed { get; set; }
 
-    [Parameter]
-    public string RealtimePeriodsInput { get; set; } = "4,5,10";
+    private ViewMode ActiveView = ViewMode.Simulator;
+    private bool ShowSolution = false;
+    private bool IsEmbed = false;
 
-    private bool TryGetRealtimeDemo(out RealtimeDemoResult? result, out string errorMessage)
+    private string SelectedPresetKey = "Exam1";
+    private string ActivePolicy = "Both";
+
+    private int TaskA_C = 1;
+    private int TaskA_T = 8;
+
+    private int TaskB_C = 3;
+    private int TaskB_T = 10;
+
+    private int TaskC_C = 3;
+    private int TaskC_T = 6;
+
+    private IRealtimeSchedulingSolution? RmsSolution;
+    private IRealtimeSchedulingSolution? EdfSolution;
+    private int CurrentSlotIndex = 0;
+
+    private double TotalUtilization => ((double)TaskA_C / TaskA_T) + ((double)TaskB_C / TaskB_T) + ((double)TaskC_C / TaskC_T);
+
+    protected override void OnInitialized()
+    {
+        ReadQueryParameters();
+        LoadPreset(SelectedPresetKey);
+    }
+
+    protected override void OnParametersSet()
+    {
+        ReadQueryParameters();
+    }
+
+    private void ReadQueryParameters()
     {
         try
         {
-            var executionTimes = ParseIntegerSequence(RealtimeExecutionInput, "execution times");
-            var periods = ParseIntegerSequence(RealtimePeriodsInput, "periods");
-
-            if (executionTimes.Length != periods.Length)
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query;
+            if (!string.IsNullOrEmpty(query))
             {
-                throw new InvalidOperationException("Execution times and periods must have the same number of entries.");
+                if (query.Contains("view=worksheet", StringComparison.OrdinalIgnoreCase))
+                {
+                    ActiveView = ViewMode.Worksheet;
+                }
+                if (query.Contains("solution=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    ShowSolution = true;
+                }
+                if (query.Contains("embed=true", StringComparison.OrdinalIgnoreCase) || query.Contains("embedded=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsEmbed = true;
+                }
             }
-
-            if (executionTimes.Length is < 1 or > 5)
-            {
-                throw new InvalidOperationException("Provide between one and five periodic tasks.");
-            }
-
-            if (executionTimes.Any(value => value < 1 || value > 32) || periods.Any(value => value < 1 || value > 32))
-            {
-                throw new InvalidOperationException("Execution times and periods must stay between 1 and 32 slots.");
-            }
-
-            var taskNames = executionTimes.Select((_, index) => $"T{index + 1}").ToArray();
-            var requests = executionTimes.Zip(periods, (executionTime, period) => (executionTime, period)).ToArray();
-            var parameters = new RealtimeSchedulingParameters
-            {
-                Requests = requests
-            };
-
-            var solver = SelectedRealtimePolicy == "EDF"
-                ? (IRealtimeSchedulingSolver)new EDFSolver()
-                : new RMSSolver();
-
-            var solution = (RealtimeSchedulingSolution)solver.Solve(parameters);
-            var timeline = solution.Processes.Select(slot => MapRealtimeSlot(slot, taskNames)).ToArray();
-            var utilization = requests.Sum(request => (double)request.executionTime / request.period);
-            var rmsBound = ComputeRmsBound(taskNames.Length);
-
-            var rmsAnalysis = AnalyzeRealtimeSchedule(new RMSSolver(), taskNames, requests);
-            var edfAnalysis = AnalyzeRealtimeSchedule(new EDFSolver(), taskNames, requests);
-            var selectedAnalysis = SelectedRealtimePolicy == "EDF" ? edfAnalysis : rmsAnalysis;
-
-            var tasks = taskNames
-                .Select((name, index) => new RealtimeTaskView(
-                    name,
-                    requests[index].executionTime,
-                    requests[index].period,
-                    (double)requests[index].executionTime / requests[index].period,
-                    selectedAnalysis.DeadlineMissCounts[index],
-                    GetRealtimePolicyCue(index, requests, SelectedRealtimePolicy)))
-                .ToArray();
-
-            var legend = new[] { new MemoryLegendItem("idle", true) }
-                .Concat(taskNames.Select(name => new MemoryLegendItem(name, false)))
-                .ToArray();
-
-            var comparisonRows = new[]
-            {
-                CreateRealtimeComparisonRow("Rate-monotonic scheduling", "fixed priorities by shorter period", rmsAnalysis),
-                CreateRealtimeComparisonRow("Earliest deadline first", "dynamic priorities by nearest deadline", edfAnalysis)
-            };
-
-            result = new RealtimeDemoResult(
-                SelectedRealtimePolicy == "EDF" ? "Earliest deadline first" : "Rate-monotonic scheduling",
-                tasks,
-                selectedAnalysis.Timeline,
-                selectedAnalysis.DeadlineMissesBySlot,
-                legend,
-                utilization,
-                SelectedRealtimePolicy == "EDF" ? null : rmsBound,
-                GetRealtimeNotes(utilization, rmsBound, selectedAnalysis.DeadlineMisses),
-                GetRealtimeFeasibilityHint(utilization, rmsBound, selectedAnalysis.DeadlineMisses),
-                comparisonRows,
-                selectedAnalysis.DeadlineMisses,
-                solution.Steps.ToArray());
-            errorMessage = string.Empty;
-            return true;
         }
-        catch (Exception ex)
+        catch { }
+    }
+
+    private void SetView(ViewMode mode)
+    {
+        ActiveView = mode;
+    }
+
+    private void ToggleSolution()
+    {
+        ShowSolution = !ShowSolution;
+    }
+
+    private async Task TriggerPrint()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+
+    private void OnPresetChanged()
+    {
+        LoadPreset(SelectedPresetKey);
+    }
+
+    private void LoadPreset(string key)
+    {
+        SelectedPresetKey = key;
+        switch (key)
         {
-            result = null;
-            errorMessage = ex.Message;
-            return false;
+            case "Exam1":
+                TaskA_C = 1; TaskA_T = 8;
+                TaskB_C = 3; TaskB_T = 10;
+                TaskC_C = 3; TaskC_T = 6;
+                break;
+            case "Exam2":
+                TaskA_C = 4; TaskA_T = 15;
+                TaskB_C = 4; TaskB_T = 15;
+                TaskC_C = 4; TaskC_T = 9;
+                break;
+            case "Lecture":
+                TaskA_C = 1; TaskA_T = 4;
+                TaskB_C = 2; TaskB_T = 6;
+                TaskC_C = 3; TaskC_T = 8;
+                break;
+        }
+        Recalculate();
+    }
+
+    private void Recalculate()
+    {
+        var parameters = new RealtimeSchedulingParameters(new (int, int)[]
+        {
+            (TaskA_C, TaskA_T),
+            (TaskB_C, TaskB_T),
+            (TaskC_C, TaskC_T)
+        });
+
+        var rmsSolver = new RMSSolver();
+        var edfSolver = new EDFSolver();
+
+        RmsSolution = rmsSolver.Solve(parameters);
+        EdfSolution = edfSolver.Solve(parameters);
+
+        if (CurrentSlotIndex >= 32) CurrentSlotIndex = 0;
+    }
+
+    private void GenerateRandomTaskSet()
+    {
+        var rand = new Random();
+        TaskA_C = rand.Next(1, 3);
+        TaskA_T = rand.Next(4, 9);
+
+        TaskB_C = rand.Next(1, 4);
+        TaskB_T = rand.Next(6, 12);
+
+        TaskC_C = rand.Next(1, 4);
+        TaskC_T = rand.Next(6, 14);
+
+        Recalculate();
+        CurrentSlotIndex = 0;
+    }
+
+    private void GoToStart() => CurrentSlotIndex = 0;
+    private void PreviousStep() { if (CurrentSlotIndex > 0) CurrentSlotIndex--; }
+    private void NextStep() { if (CurrentSlotIndex < 31) CurrentSlotIndex++; }
+    private void GoToEnd() => CurrentSlotIndex = 31;
+
+    private void OnSliderChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var val))
+        {
+            CurrentSlotIndex = Math.Clamp(val, 0, 31);
         }
     }
 
-    private string GetRealtimeNotes(double utilization, double rmsBound, int deadlineMisses) =>
-        SelectedRealtimePolicy switch
-        {
-            "EDF" => $"EDFSolver recomputes priorities from the earliest absolute deadline in each slot. With total utilization {utilization:0.###}, the classic theoretical target is 1.0 for fully preemptive periodic tasks. The current 32-slot horizon shows {deadlineMisses} missed execution unit(s).",
-            _ => $"RMSSolver uses fixed priorities derived from shorter periods. The total utilization is {utilization:0.###}; the classical sufficient Liu-and-Layland bound for {SelectedRealtimeTaskCountLabel()} is {rmsBound:0.###}. The current 32-slot horizon shows {deadlineMisses} missed execution unit(s)."
-        };
-
-    private string GetRealtimeFeasibilityHint(double utilization, double rmsBound, int deadlineMisses) =>
-        SelectedRealtimePolicy switch
-        {
-            "EDF" when deadlineMisses == 0 && utilization <= 1.0 => "No misses appear in the 32-slot horizon, and utilization stays at or below the usual EDF reference point.",
-            "EDF" when deadlineMisses == 0 => "No misses appear in the 32-slot horizon, but utilization is already above the usual EDF reference point of 1.0.",
-            "EDF" => "Utilization exceeds 1.0, so deadline misses are expected in a strict EDF interpretation.",
-            _ when deadlineMisses == 0 && utilization <= rmsBound => "No misses appear in the 32-slot horizon, and utilization stays below the classical sufficient RMS bound.",
-            _ when deadlineMisses == 0 => "No misses appear in the 32-slot horizon, even though utilization exceeds the classical sufficient RMS bound.",
-            _ => "Utilization exceeds the classical RMS bound, so the solver output should be read as a schedule trace rather than a guarantee."
-        };
-
-    private string GetRealtimePolicyCue(int index, (int executionTime, int period)[] requests, string policy) =>
-        policy switch
-        {
-            "EDF" => $"relative deadline = period {requests[index].period}",
-            _ => $"fixed priority rank #{requests.Select((request, requestIndex) => (request, requestIndex)).OrderBy(item => item.request.period).ThenBy(item => item.requestIndex).Select((item, rank) => new { item.requestIndex, rank }).First(item => item.requestIndex == index).rank + 1}"
-        };
-
-    private RealtimeComparisonRow CreateRealtimeComparisonRow(string policyLabel, string priorityRule, RealtimeScheduleAnalysis analysis) =>
-        new(
-            policyLabel,
-            priorityRule,
-            analysis.IdleSlots,
-            analysis.DeadlineMisses,
-            analysis.DeadlineMisses == 0
-                ? "no missed execution units in 32 slots"
-                : $"{analysis.DeadlineMisses} missed execution unit(s) in 32 slots");
-
-    private static RealtimeScheduleAnalysis AnalyzeRealtimeSchedule(IRealtimeSchedulingSolver solver, string[] taskNames, (int executionTime, int period)[] requests)
+    private string GetTaskName(int procIdx)
     {
-        var parameters = new RealtimeSchedulingParameters
+        return procIdx switch
         {
-            Requests = requests
+            0 => "Prozess A",
+            1 => "Prozess B",
+            2 => "Prozess C",
+            _ => "Leerlauf (Idle)"
         };
-
-        var solution = (RealtimeSchedulingSolution)solver.Solve(parameters);
-        var timeline = solution.Processes.Select(slot => MapRealtimeSlot(slot, taskNames)).ToArray();
-        var deadlineMissCounts = new int[taskNames.Length];
-        var deadlineMissesBySlot = Enumerable.Range(0, timeline.Length).Select(_ => Array.Empty<string>()).ToArray();
-        var waitingUnits = new List<RealtimeWorkUnit>();
-        var releaseSequence = 0;
-
-        for (var slotIndex = 0; slotIndex < solution.Processes.Length; slotIndex++)
-        {
-            for (var taskIndex = 0; taskIndex < requests.Length; taskIndex++)
-            {
-                var request = requests[taskIndex];
-                if (slotIndex % request.period < request.executionTime)
-                {
-                    var absoluteDeadline = slotIndex - (slotIndex % request.period) + request.period;
-                    waitingUnits.Add(new RealtimeWorkUnit(taskIndex, absoluteDeadline, releaseSequence));
-                    releaseSequence++;
-                }
-            }
-
-            var executedTask = solution.Processes[slotIndex];
-            if (executedTask >= 0)
-            {
-                var executedUnit = waitingUnits
-                    .Where(unit => unit.TaskIndex == executedTask)
-                    .OrderBy(unit => unit.Deadline)
-                    .ThenBy(unit => unit.ReleaseSequence)
-                    .FirstOrDefault();
-
-                if (executedUnit is not null)
-                {
-                    waitingUnits.Remove(executedUnit);
-                }
-            }
-
-            var deadline = slotIndex + 1;
-            var missedUnits = waitingUnits.Where(unit => unit.Deadline == deadline).ToArray();
-            if (missedUnits.Length > 0)
-            {
-                deadlineMissesBySlot[slotIndex] = missedUnits
-                    .Select(unit => taskNames[unit.TaskIndex])
-                    .Distinct()
-                    .OrderBy(name => name)
-                    .ToArray();
-
-                foreach (var group in missedUnits.GroupBy(unit => unit.TaskIndex))
-                {
-                    deadlineMissCounts[group.Key] += group.Count();
-                }
-
-                waitingUnits.RemoveAll(unit => unit.Deadline == deadline);
-            }
-        }
-
-        return new RealtimeScheduleAnalysis(timeline, deadlineMissesBySlot, deadlineMissCounts);
     }
 
-    private string SelectedRealtimeTaskCountLabel() =>
-        ParseIntegerSequence(RealtimeExecutionInput, "execution times").Length switch
-        {
-            1 => "1 task",
-            var count => $"{count} tasks"
-        };
-
-    private static double ComputeRmsBound(int taskCount) =>
-        taskCount switch
-        {
-            <= 0 => 0,
-            _ => taskCount * (Math.Pow(2, 1d / taskCount) - 1)
-        };
-
-    private static string MapRealtimeSlot(int slot, IReadOnlyList<string> taskNames) =>
-        slot switch
-        {
-            -1 => "idle",
-            >= 0 when slot < taskNames.Count => taskNames[slot],
-            _ => "?"
-        };
-
-    private int[] ParseIntegerSequence(string input, string fieldName) =>
-        input
-            .Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(token => int.TryParse(token, out var value)
-                ? value
-                : throw new InvalidOperationException($"Invalid number '{token}' in {fieldName}."))
-            .ToArray();
-
-    public sealed record MemoryLegendItem(string Label, bool IsFree);
-
-    public sealed record RealtimeTaskView(
-        string Name,
-        int ExecutionTime,
-        int Period,
-        double Utilization,
-        int DeadlineMisses,
-        string PolicyCue);
-
-    public sealed record RealtimeComparisonRow(
-        string PolicyLabel,
-        string PriorityRule,
-        int IdleSlots,
-        int DeadlineMisses,
-        string HorizonSummary);
-
-    public sealed record RealtimeWorkUnit(int TaskIndex, int Deadline, int ReleaseSequence);
-
-    public sealed record RealtimeScheduleAnalysis(
-        string[] Timeline,
-        string[][] DeadlineMissesBySlot,
-        int[] DeadlineMissCounts)
+    private string GetTaskAbbr(int procIdx)
     {
-        public int IdleSlots => Timeline.Count(slot => slot == "idle");
-
-        public int DeadlineMisses => DeadlineMissCounts.Sum();
+        return procIdx switch
+        {
+            0 => "A",
+            1 => "B",
+            2 => "C",
+            _ => "-"
+        };
     }
 
-    public sealed record RealtimeDemoResult(
-        string PolicyLabel,
-        RealtimeTaskView[] Tasks,
-        string[] Timeline,
-        string[][] DeadlineMissesBySlot,
-        MemoryLegendItem[] Legend,
-        double Utilization,
-        double? ReferenceBound,
-        string Notes,
-        string FeasibilityHint,
-        RealtimeComparisonRow[] ComparisonRows,
-        int DeadlineMisses,
-        string[] SolverSteps)
+    private string GetProcSlotClass(int procIdx)
     {
-        public int IdleSlots => Timeline.Count(slot => slot == "idle");
-
-        public string ReferenceBoundLabel => ReferenceBound is double value
-            ? value.ToString("0.###")
-            : "EDF reference target: 1.0";
+        return procIdx switch
+        {
+            0 => "slot-a",
+            1 => "slot-b",
+            2 => "slot-c",
+            _ => "slot-idle"
+        };
     }
 }

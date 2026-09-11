@@ -1,0 +1,543 @@
+@namespace Italbytz.Systems.Blazor.Components.OperatingSystems
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<article class="ps-container @(IsEmbed ? "embed-mode" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
+
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
+    {
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Betriebssysteme &bull; Prozessverwaltung</p>
+            <h2>Prozesszustandsmodell &amp; Transitionen (Ready, Running, Blocked)</h2>
+            <p class="feature-intro">
+                Interaktive Simulation der Prozesslebenszyklen und Zustandsübergänge zwischen den klassischen 
+                Zuständen <strong>Bereit (Ready)</strong>, <strong>Rechnend (Running)</strong> und <strong>Blockiert / Wartend (Blocked)</strong> 
+                sowie Analyse von theoretischen und praktischen Transitionen.
+            </p>
+        </div>
+    }
+
+    <!-- View Switcher -->
+    @if (!IsEmbed)
+    {
+        <div class="view-switch no-print">
+            <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Simulator)">
+                🚀 Interaktiver Simulator &amp; Zustandsdiagramm
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Worksheet)">
+                🖨️ Klausur-Arbeitsblatt (Druckansicht)
+            </button>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- SIMULATOR VIEW                                                            -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Controls Panel -->
+        <div class="controls-panel no-print">
+            <div class="toolbar-grid">
+                <div class="btn-group">
+                    <button class="action-btn primary" @onclick="DispatchRunning" disabled="@(!CanDispatch)">
+                        ⚡ Dispatch (Bereit &rarr; Rechnend)
+                    </button>
+                    <button class="action-btn" @onclick="PreemptRunning" disabled="@(RunningProcess == null)">
+                        ⏱️ Time-Slice Ende (Rechnend &rarr; Bereit)
+                    </button>
+                    <button class="action-btn warning" @onclick="BlockRunning" disabled="@(RunningProcess == null)">
+                        ⏳ I/O-Warten (Rechnend &rarr; Blockiert)
+                    </button>
+                    <button class="action-btn success" @onclick="UnblockProcess" disabled="@(BlockedProcesses.Count == 0)">
+                        🔔 I/O fertig (Blockiert &rarr; Bereit)
+                    </button>
+                    <button class="action-btn danger" @onclick="TerminateRunning" disabled="@(RunningProcess == null)">
+                        🏁 Prozess beenden
+                    </button>
+                </div>
+
+                <div class="action-group-right">
+                    <button class="action-btn secondary" @onclick="AddNewProcess">
+                        ➕ Neuer Prozess (Spawn)
+                    </button>
+                    <button class="action-btn" @onclick="ResetSimulation">
+                        🔄 Zurücksetzen
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Narrator Card -->
+        <div class="narrator-card">
+            <div class="narrator-header">
+                <div class="step-badge badge-ps">Ablauf-Status</div>
+                <div class="narrator-title">
+                    @if (RunningProcess != null)
+                    {
+                        <span>Aktiv auf CPU: <strong class="emerald mono">@RunningProcess.Name (PID @RunningProcess.Pid)</strong></span>
+                    }
+                    else
+                    {
+                        <span class="text-muted">CPU ist aktuell IDLE (kein rechnender Prozess)</span>
+                    }
+                </div>
+            </div>
+            <p class="narrator-text">@CurrentLogMessage</p>
+            <div class="ps-metrics-strip">
+                <span>Bereite Prozesse: <strong class="mono blue">@ReadyProcesses.Count</strong></span>
+                <span>Blockierte Prozesse: <strong class="mono orange">@BlockedProcesses.Count</strong></span>
+                <span>Beendete Prozesse: <strong class="mono gray">@TerminatedCount</strong></span>
+            </div>
+        </div>
+
+        <!-- Main Display: State Machine Diagram SVG & Queues -->
+        <div class="main-display-grid">
+
+            <!-- Left: State Machine SVG -->
+            <div class="diagram-card">
+                <div class="diagram-header">
+                    <h3>Zustandsübergangsdiagramm (3-Zustände-Modell)</h3>
+                </div>
+
+                <div class="svg-container">
+                    <svg viewBox="0 0 700 380" class="ps-svg" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#64748b" />
+                            </marker>
+                            <marker id="arrow-active" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#3b82f6" />
+                            </marker>
+                            <marker id="arrow-forbidden" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#ef4444" />
+                            </marker>
+                        </defs>
+
+                        <!-- Transitions Paths -->
+
+                        <!-- 1. Ready -> Running (Dispatch) -->
+                        <path d="M 230 115 L 430 115" stroke="#3b82f6" stroke-width="3" fill="none" marker-end="url(#arrow-active)" />
+                        @((MarkupString)$"<text x=\"330\" y=\"105\" text-anchor=\"middle\" class=\"svg-label bold blue\">① Dispatch (Scheduling)</text>")
+
+                        <!-- 2. Running -> Ready (Timeout / Preemption) -->
+                        <path d="M 430 155 L 230 155" stroke="#64748b" stroke-width="2.5" fill="none" marker-end="url(#arrow)" />
+                        @((MarkupString)$"<text x=\"330\" y=\"175\" text-anchor=\"middle\" class=\"svg-label\">② Timeout / Verdrängung</text>")
+
+                        <!-- 3. Running -> Blocked (I/O Wait) -->
+                        <path d="M 470 190 L 375 285" stroke="#f59e0b" stroke-width="2.5" fill="none" marker-end="url(#arrow)" />
+                        @((MarkupString)$"<text x=\"450\" y=\"250\" text-anchor=\"middle\" class=\"svg-label orange\">③ E/A-Warten / Ereignis</text>")
+
+                        <!-- 4. Blocked -> Ready (I/O Complete) -->
+                        <path d="M 325 285 L 230 190" stroke="#10b981" stroke-width="2.5" fill="none" marker-end="url(#arrow)" />
+                        @((MarkupString)$"<text x=\"250\" y=\"250\" text-anchor=\"middle\" class=\"svg-label emerald\">④ E/A fertig (Ereignis eingetreten)</text>")
+
+                        <!-- 5. Ready -> Blocked (Forbidden / Impossible) -->
+                        <path d="M 170 190 C 170 310, 240 330, 290 320" stroke="#ef4444" stroke-width="2" stroke-dasharray="4,4" fill="none" marker-end="url(#arrow-forbidden)" />
+                        @((MarkupString)$"<text x=\"165\" y=\"285\" text-anchor=\"middle\" class=\"svg-label red bold\">❌ Nicht möglich!</text>")
+
+                        <!-- 6. Blocked -> Running (Theoretical / Direct) -->
+                        <path d="M 410 320 C 460 330, 530 310, 530 190" stroke="#8b5cf6" stroke-width="2" stroke-dasharray="4,4" fill="none" marker-end="url(#arrow)" />
+                        @((MarkupString)$"<text x=\"535\" y=\"285\" text-anchor=\"middle\" class=\"svg-label purple\">⚡ Denkbar (CPU frei)</text>")
+
+                        <!-- STATE NODES -->
+
+                        <!-- READY NODE -->
+                        <g class="state-node @(ReadyProcesses.Count > 0 ? "node-active" : "")">
+                            <circle cx="170" cy="135" r="55" fill="#eff6ff" stroke="#3b82f6" stroke-width="3" />
+                            @((MarkupString)$"<text x=\"170\" y=\"130\" text-anchor=\"middle\" class=\"node-title blue bold\">BEREIT</text>")
+                            @((MarkupString)$"<text x=\"170\" y=\"150\" text-anchor=\"middle\" class=\"node-sub\">(Ready: {ReadyProcesses.Count})</text>")
+                        </g>
+
+                        <!-- RUNNING NODE -->
+                        <g class="state-node @(RunningProcess != null ? "node-running-active" : "")">
+                            <circle cx="500" cy="135" r="55" fill="#ecfdf5" stroke="#10b981" stroke-width="3" />
+                            @((MarkupString)$"<text x=\"500\" y=\"130\" text-anchor=\"middle\" class=\"node-title emerald bold\">RECHNEND</text>")
+                            @((MarkupString)$"<text x=\"500\" y=\"150\" text-anchor=\"middle\" class=\"node-sub\">(Running)</text>")
+                        </g>
+
+                        <!-- BLOCKED NODE -->
+                        <g class="state-node @(BlockedProcesses.Count > 0 ? "node-blocked-active" : "")">
+                            <circle cx="350" cy="310" r="55" fill="#fffbeb" stroke="#f59e0b" stroke-width="3" />
+                            @((MarkupString)$"<text x=\"350\" y=\"305\" text-anchor=\"middle\" class=\"node-title orange bold\">BLOCKIERT</text>")
+                            @((MarkupString)$"<text x=\"350\" y=\"325\" text-anchor=\"middle\" class=\"node-sub\">(Blocked: {BlockedProcesses.Count})</text>")
+                        </g>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Right: Queue Status Cards -->
+            <div class="queues-col">
+
+                <!-- Ready Queue -->
+                <div class="queue-card">
+                    <div class="queue-header">
+                        <span class="queue-dot dot-blue"></span>
+                        <h4>Bereit-Warteschlange (Ready Queue)</h4>
+                        <span class="queue-count mono">@ReadyProcesses.Count</span>
+                    </div>
+                    <div class="process-list">
+                        @if (ReadyProcesses.Count == 0)
+                        {
+                            <div class="empty-queue-msg">Keine wartenden Prozesse in der Bereit-Schlange.</div>
+                        }
+                        else
+                        {
+                            @foreach (var p in ReadyProcesses)
+                            {
+                                <div class="process-pill pill-ready">
+                                    <span class="p-name bold">@p.Name</span>
+                                    <span class="p-pid mono text-muted">PID @p.Pid</span>
+                                    <span class="p-pri">Prio @p.Priority</span>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+
+                <!-- Running Process -->
+                <div class="queue-card">
+                    <div class="queue-header">
+                        <span class="queue-dot dot-emerald"></span>
+                        <h4>Rechnender Prozess (CPU Core)</h4>
+                    </div>
+                    <div class="process-list">
+                        @if (RunningProcess == null)
+                        {
+                            <div class="empty-queue-msg">CPU ist untätig (IDLE).</div>
+                        }
+                        else
+                        {
+                            <div class="process-pill pill-running">
+                                <span class="p-name bold">@RunningProcess.Name</span>
+                                <span class="p-pid mono">PID @RunningProcess.Pid</span>
+                                <span class="p-pri">Aktivität: Ausführung</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Blocked Queue -->
+                <div class="queue-card">
+                    <div class="queue-header">
+                        <span class="queue-dot dot-orange"></span>
+                        <h4>Blockiert-Warteschlange (Blocked Queue)</h4>
+                        <span class="queue-count mono">@BlockedProcesses.Count</span>
+                    </div>
+                    <div class="process-list">
+                        @if (BlockedProcesses.Count == 0)
+                        {
+                            <div class="empty-queue-msg">Keine Prozesse durch E/A oder Ressourcen blockiert.</div>
+                        }
+                        else
+                        {
+                            @foreach (var p in BlockedProcesses)
+                            {
+                                <div class="process-pill pill-blocked">
+                                    <span class="p-name bold">@p.Name</span>
+                                    <span class="p-pid mono text-muted">PID @p.Pid</span>
+                                    <span class="p-pri">Wartet auf: E/A-Gerät</span>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- WORKSHEET VIEW (1:1 EXAM REPLICA)                                         -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Worksheet)
+    {
+        <div class="worksheet-paper">
+
+            <!-- Exam Header -->
+            <div class="exam-header">
+                <div class="exam-title-block">
+                    <span class="exam-sub">Betriebssysteme &bull; Prozessverwaltung</span>
+                    <h1 class="exam-main-title">Übungs- und Klausuraufgabe: Arbeitszustände &amp; Transitionen</h1>
+                </div>
+                <div class="exam-meta-box no-print">
+                    <button class="toggle-sol-btn @(ShowSolution ? "active" : "")" @onclick="ToggleSolution">
+                        @(ShowSolution ? "👁️ Musterlösung ausblenden" : "💡 Musterlösung einblenden")
+                    </button>
+                    <button class="print-btn" @onclick="TriggerPrint">
+                        🖨️ Seite drucken / PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Student Info Fields -->
+            <div class="student-info-strip">
+                <div class="info-field">
+                    <span class="info-label">Name, Vorname:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field">
+                    <span class="info-label">Matrikelnummer:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field points-field">
+                    <span class="info-label">Punkte:</span>
+                    <div class="points-box">/ 6 P.</div>
+                </div>
+            </div>
+
+            <!-- Intro text matching BSProzesseArbeitszustaendeBaun -->
+            <div class="task-prompt-box">
+                <p class="task-text">
+                    In der Vorlesung wurde zwischen den drei Zuständen <strong>bereit (ready)</strong>, 
+                    <strong>blockiert (blocked / wartend)</strong> und <strong>rechnend (running)</strong> unterschieden. 
+                    Im folgenden Bild sind vier von sechs möglichen Transitionen eingezeichnet:
+                </p>
+            </div>
+
+            <!-- Diagram Box -->
+            <div class="ws-diagram-center">
+                <svg viewBox="0 0 600 280" class="ws-svg-exam" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <marker id="ws-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#000000" />
+                        </marker>
+                    </defs>
+
+                    <!-- Transition 1: Ready -> Running -->
+                    <path d="M 190 75 L 390 75" stroke="#000000" stroke-width="2" fill="none" marker-end="url(#ws-arrow)" />
+                    @((MarkupString)$"<text x=\"290\" y=\"65\" text-anchor=\"middle\" class=\"ws-svg-txt\">①</text>")
+
+                    <!-- Transition 2: Running -> Ready -->
+                    <path d="M 390 105 L 190 105" stroke="#000000" stroke-width="2" fill="none" marker-end="url(#ws-arrow)" />
+                    @((MarkupString)$"<text x=\"290\" y=\"125\" text-anchor=\"middle\" class=\"ws-svg-txt\">②</text>")
+
+                    <!-- Transition 3: Running -> Blocked -->
+                    <path d="M 430 135 L 345 205" stroke="#000000" stroke-width="2" fill="none" marker-end="url(#ws-arrow)" />
+                    @((MarkupString)$"<text x=\"405\" y=\"175\" text-anchor=\"middle\" class=\"ws-svg-txt\">③</text>")
+
+                    <!-- Transition 4: Blocked -> Ready -->
+                    <path d="M 295 205 L 210 135" stroke="#000000" stroke-width="2" fill="none" marker-end="url(#ws-arrow)" />
+                    @((MarkupString)$"<text x=\"235\" y=\"175\" text-anchor=\"middle\" class=\"ws-svg-txt\">④</text>")
+
+                    <!-- Nodes -->
+                    <circle cx="150" cy="90" r="42" fill="#ffffff" stroke="#000000" stroke-width="2" />
+                    @((MarkupString)$"<text x=\"150\" y=\"95\" text-anchor=\"middle\" class=\"ws-svg-node\">Bereit</text>")
+
+                    <circle cx="430" cy="90" r="42" fill="#ffffff" stroke="#000000" stroke-width="2" />
+                    @((MarkupString)$"<text x=\"430\" y=\"95\" text-anchor=\"middle\" class=\"ws-svg-node\">Rechnend</text>")
+
+                    <circle cx="320" cy="220" r="42" fill="#ffffff" stroke="#000000" stroke-width="2" />
+                    @((MarkupString)$"<text x=\"320\" y=\"225\" text-anchor=\"middle\" class=\"ws-svg-node\">Blockiert</text>")
+                </svg>
+            </div>
+
+            <!-- Task Question -->
+            <div class="task-section">
+                <p class="task-text">
+                    Geben Sie für die <strong>übrigen beiden Transitionen</strong> (<code class="mono">Bereit &rarr; Blockiert</code> und <code class="mono">Blockiert &rarr; Rechnend</code>) an, ob es Umstände geben kann, wo diese sinnvoll sind, und begründen Sie Ihre Antwort:
+                </p>
+
+                @if (ShowSolution)
+                {
+                    <div class="ws-solution-box">
+                        <div class="sol-item">
+                            <strong class="sol-heading">1. Transition: Bereit &rarr; Blockiert (Ready &rarr; Blocked)</strong>
+                            <p class="sol-para">
+                                <strong>Nicht möglich.</strong> Ein rechenbereiter Prozess befindet sich in der Warteschlange auf die Zuteilung der CPU und führt keinen Code aus. Er kann keine E/A-Operation anfordern oder auf eine Ressource warten, ohne vorher gerechnet zu haben. Ein rechenbereiter Prozess kann daher nicht direkt blockiert werden.
+                            </p>
+                        </div>
+                        <div class="sol-item">
+                            <strong class="sol-heading">2. Transition: Blockiert &rarr; Rechnend (Blocked &rarr; Running)</strong>
+                            <p class="sol-para">
+                                <strong>Theoretisch denkbar, aber in Standard-Betriebssystemen vermieden.</strong> Der Zwischenschritt über <em>Bereit</em> dient dazu, den Prozess regulär in das Scheduling aufzunehmen. Die direkte Transition wäre denkbar, wenn gerade kein anderer Prozess rechenbereit ist und die CPU frei ist, um Latenzen zu minimieren. In realen Systemen erfolgt jedoch stets der Weg über die Bereit-Warteschlange.
+                            </p>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="ws-blank-ruled-area">
+                        @for (int i = 0; i < 7; i++)
+                        {
+                            <div class="ws-ruled-line"></div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <!-- Footer -->
+            <div class="exam-footer">
+                <div class="exam-footer-note">
+                    Hinweis: Berücksichtigen Sie die Rolle des Schedulers bei der Zuteilung der CPU und die Ausführung von E/A-Systemaufrufen.
+                </div>
+            </div>
+
+        </div>
+    }
+
+</article>
+
+@code {
+    public enum ViewMode { Simulator, Worksheet }
+
+    [Parameter] public string? View { get; set; }
+    [Parameter] public bool? SolutionParam { get; set; }
+    [Parameter] public bool? Embed { get; set; }
+
+    private ViewMode ActiveView = ViewMode.Simulator;
+    private bool ShowSolution = false;
+    private bool IsEmbed = false;
+
+    public class ProcessItem
+    {
+        public int Pid { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public int Priority { get; set; } = 1;
+    }
+
+    private List<ProcessItem> ReadyProcesses = new();
+    private ProcessItem? RunningProcess = null;
+    private List<ProcessItem> BlockedProcesses = new();
+    private int TerminatedCount = 0;
+    private int NextPid = 100;
+    private string CurrentLogMessage = "Initialisierung abgeschlossen. 3 Prozesse erzeugt.";
+
+    private bool CanDispatch => RunningProcess == null && ReadyProcesses.Count > 0;
+
+    protected override void OnInitialized()
+    {
+        ReadQueryParameters();
+        ResetSimulation();
+    }
+
+    protected override void OnParametersSet()
+    {
+        ReadQueryParameters();
+    }
+
+    private void ReadQueryParameters()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query;
+            if (!string.IsNullOrEmpty(query))
+            {
+                if (query.Contains("view=worksheet", StringComparison.OrdinalIgnoreCase))
+                {
+                    ActiveView = ViewMode.Worksheet;
+                }
+                if (query.Contains("solution=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    ShowSolution = true;
+                }
+                if (query.Contains("embed=true", StringComparison.OrdinalIgnoreCase) || query.Contains("embedded=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsEmbed = true;
+                }
+            }
+        }
+        catch { }
+    }
+
+    private void SetView(ViewMode mode)
+    {
+        ActiveView = mode;
+    }
+
+    private void ToggleSolution()
+    {
+        ShowSolution = !ShowSolution;
+    }
+
+    private async Task TriggerPrint()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+
+    private void ResetSimulation()
+    {
+        NextPid = 101;
+        TerminatedCount = 0;
+        ReadyProcesses = new List<ProcessItem>
+        {
+            new ProcessItem { Pid = NextPid++, Name = "Browser (Web)", Priority = 2 },
+            new ProcessItem { Pid = NextPid++, Name = "Compiler (gcc)", Priority = 1 },
+            new ProcessItem { Pid = NextPid++, Name = "Audio Service", Priority = 3 }
+        };
+        RunningProcess = null;
+        BlockedProcesses = new List<ProcessItem>();
+        CurrentLogMessage = "Simulation zurückgesetzt. 3 Prozesse in Bereit-Warteschlange.";
+    }
+
+    private void AddNewProcess()
+    {
+        var names = new[] { "TextEditor", "Database", "Terminal", "MusicPlayer", "WebServer" };
+        var rand = new Random();
+        var p = new ProcessItem
+        {
+            Pid = NextPid++,
+            Name = names[rand.Next(names.Length)],
+            Priority = rand.Next(1, 4)
+        };
+        ReadyProcesses.Add(p);
+        CurrentLogMessage = $"Neuer Prozess {p.Name} (PID {p.Pid}) erzeugt und in Bereit-Schlange eingereiht.";
+    }
+
+    private void DispatchRunning()
+    {
+        if (ReadyProcesses.Count > 0 && RunningProcess == null)
+        {
+            RunningProcess = ReadyProcesses[0];
+            ReadyProcesses.RemoveAt(0);
+            CurrentLogMessage = $"Scheduler wählt {RunningProcess.Name} (PID {RunningProcess.Pid}) aus: Transition Bereit \u2192 Rechnend.";
+        }
+    }
+
+    private void PreemptRunning()
+    {
+        if (RunningProcess != null)
+        {
+            var p = RunningProcess;
+            RunningProcess = null;
+            ReadyProcesses.Add(p);
+            CurrentLogMessage = $"Zeitscheibe abgelaufen: {p.Name} (PID {p.Pid}) verdrängt: Transition Rechnend \u2192 Bereit.";
+        }
+    }
+
+    private void BlockRunning()
+    {
+        if (RunningProcess != null)
+        {
+            var p = RunningProcess;
+            RunningProcess = null;
+            BlockedProcesses.Add(p);
+            CurrentLogMessage = $"Prozess {p.Name} (PID {p.Pid}) fordert E/A an: Transition Rechnend \u2192 Blockiert.";
+        }
+    }
+
+    private void UnblockProcess()
+    {
+        if (BlockedProcesses.Count > 0)
+        {
+            var p = BlockedProcesses[0];
+            BlockedProcesses.RemoveAt(0);
+            ReadyProcesses.Add(p);
+            CurrentLogMessage = $"E/A abgeschlossen für {p.Name} (PID {p.Pid}): Transition Blockiert \u2192 Bereit.";
+        }
+    }
+
+    private void TerminateRunning()
+    {
+        if (RunningProcess != null)
+        {
+            var p = RunningProcess;
+            RunningProcess = null;
+            TerminatedCount++;
+            CurrentLogMessage = $"Prozess {p.Name} (PID {p.Pid}) hat die Ausführung beendet (Terminated).";
+        }
+    }
+}

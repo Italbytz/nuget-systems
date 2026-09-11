@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Italbytz.OperatingSystems.Abstractions;
 
 namespace Italbytz.OperatingSystems
@@ -24,6 +24,11 @@ namespace Italbytz.OperatingSystems
             } while (sum > 32 || sum < 25);
 
             Requests = configuration;
+        }
+
+        public RealtimeSchedulingParameters((int, int)[] requests)
+        {
+            Requests = requests;
         }
 
     }

@@ -1,83 +1,788 @@
 @namespace Italbytz.Systems.Blazor.Components.Networking
+@using System.Net
+@using Italbytz.Networking
+@using Italbytz.Networking.Abstractions
+@using Italbytz.Networking.Resources
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
 
-<article class="demo-card wide-card">
-    <div class="card-heading">
-        <p class="feature-kicker">Subnetting</p>
-        <h2>Split an address into network and host parts</h2>
-    </div>
+<article class="subnetting-container @(IsEmbed ? "embed-mode" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
 
-    <div class="input-grid two-up">
-        <label>
-            <span>IPv4 address</span>
-            <input type="text" @bind="IpAddress" />
-        </label>
-        <label>
-            <span>Prefix length</span>
-            <input type="number" min="0" max="32" @bind="PrefixLength" />
-        </label>
-    </div>
-
-    @if (TryGetNetmaskSolution(out var netmaskSolution, out var errorMessage))
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
     {
-        <div class="card-grid card-grid-two compact-grid">
-            <div class="metric-card">
-                <span>Network address</span>
-                <strong>@netmaskSolution!.NetworkAddress</strong>
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Rechnernetze &bull; Vermittlungsschicht (Network Layer)</p>
+            <h2>IPv4-Subnetting &amp; Netzmasken-Analyse (CIDR)</h2>
+            <p class="feature-intro">
+                Schritt-für-Schritt-Ablaufverfolgung der bitweisen Adressaufteilung in Netz- und Hostanteil, 
+                Berechnung von Subnetznummer ($IP \text{ AND } \text{Mask}$), Hostadresse ($IP \text{ AND } \neg\text{Mask}$), 
+                Broadcast-Adresse und nutzbarem Hostbereich.
+            </p>
+        </div>
+    }
+
+    <!-- View Switcher -->
+    @if (!IsEmbed)
+    {
+        <div class="view-switch no-print">
+            <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Simulator)">
+                🚀 Interaktiver Simulator (Step-Trace)
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Worksheet)">
+                🖨️ Klausur-Arbeitsblatt (Druckansicht)
+            </button>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- SIMULATOR VIEW                                                            -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Controls Panel -->
+        <div class="controls-panel no-print">
+            <div class="config-grid">
+                <label class="control-label">
+                    <span>IPv4-Adresse:</span>
+                    <input type="text" class="form-input mono" @bind="IpAddressInput" @bind:after="OnIpAddressChanged" placeholder="z. B. 172.21.240.90" />
+                </label>
+
+                <label class="control-label">
+                    <span>CIDR-Präfixlänge:</span>
+                    <div class="prefix-input-wrap">
+                        <span class="prefix-slash">/</span>
+                        <input type="number" class="form-input" min="1" max="32" @bind="PrefixLength" @bind:after="OnPrefixLengthChanged" />
+                    </div>
+                </label>
+
+                <label class="control-label">
+                    <span>Subnetzmaske (Dotted Decimal):</span>
+                    <input type="text" class="form-input mono" value="@SubnetMaskString" readonly />
+                </label>
             </div>
-            <div class="metric-card">
-                <span>Host address</span>
-                <strong>@netmaskSolution!.HostAddress</strong>
+
+            <!-- Presets Bar -->
+            <div class="preset-bar">
+                <span class="preset-label">Beispiele:</span>
+                <button class="preset-btn" @onclick='() => LoadPreset("172.21.240.90", 27)'>Vorlesung (172.21.240.90/27)</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("192.168.10.45", 26)'>Klausur-Set 1 (192.168.10.45/26)</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("10.20.30.40", 20)'>Klausur-Set 2 (10.20.30.40/20)</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("172.16.50.130", 28)'>Klausur-Set 3 (172.16.50.130/28)</button>
+                <button class="preset-btn random" @onclick="GenerateRandom">🎲 Zufalls-Netz</button>
             </div>
         </div>
 
-        <div class="table-shell">
-            <table class="trace-table">
-                <thead>
-                    <tr>
-                        <th>Trace step</th>
-                        <th>Trace detail</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @for (var index = 0; index < netmaskSolution!.Steps.Count; index++)
+        @if (TryCalculate(out var calc, out var errorMsg))
+        {
+            <!-- Player Toolbar -->
+            <div class="player-toolbar no-print">
+                <div class="player-controls">
+                    <button class="player-btn" title="Start" disabled="@(CurrentStepIndex == 0)" @onclick="GoToStart">⏮ Start</button>
+                    <button class="player-btn" title="Zurück" disabled="@(CurrentStepIndex == 0)" @onclick="PreviousStep">◀ Zurück</button>
+                    <button class="player-btn primary" title="Nächster Schritt" disabled="@(CurrentStepIndex >= StepsCount - 1)" @onclick="NextStep">▶ Weiter</button>
+                    <button class="player-btn" title="Ende" disabled="@(CurrentStepIndex >= StepsCount - 1)" @onclick="GoToEnd">⏭ Ende</button>
+                    <button class="player-btn reset" title="Zurücksetzen" @onclick="GoToStart">🔄 Reset</button>
+                </div>
+
+                <div class="player-progress">
+                    <span class="step-indicator">
+                        <strong>Schritt @(CurrentStepIndex + 1) / @StepsCount:</strong>
+                        <span>@GetStepTitle(CurrentStepIndex)</span>
+                    </span>
+                    <input type="range" min="0" max="@(StepsCount - 1)" value="@CurrentStepIndex" @oninput="OnSliderChanged" class="step-slider" />
+                </div>
+            </div>
+
+            <!-- Narrator Card -->
+            <div class="narrator-card">
+                <div class="narrator-header">
+                    <div class="step-badge badge-step@(CurrentStepIndex + 1)">
+                        <span>Schritt @(CurrentStepIndex + 1): @GetStepName(CurrentStepIndex)</span>
+                    </div>
+                    <div class="narrator-title">@GetStepTitle(CurrentStepIndex)</div>
+                </div>
+                <p class="narrator-text">@GetStepExplanation(calc!, CurrentStepIndex)</p>
+            </div>
+
+            <!-- Metric Cards Grid -->
+            <div class="metrics-grid">
+                <div class="metric-card @(CurrentStepIndex >= 1 ? "highlight-net" : "")">
+                    <span class="metric-label">Subnetznummer (Netzadresse)</span>
+                    <strong class="metric-val mono blue">@calc!.NetworkAddress</strong>
+                    <span class="metric-sub">IP AND Netzmaske</span>
+                </div>
+
+                <div class="metric-card @(CurrentStepIndex >= 2 ? "highlight-host" : "")">
+                    <span class="metric-label">Hostadresse (Hostanteil)</span>
+                    <strong class="metric-val mono amber">@calc!.HostAddress</strong>
+                    <span class="metric-sub">IP AND &not;Netzmaske</span>
+                </div>
+
+                <div class="metric-card @(CurrentStepIndex >= 3 ? "highlight-bcast" : "")">
+                    <span class="metric-label">Broadcast-Adresse</span>
+                    <strong class="metric-val mono emerald">@calc!.BroadcastAddress</strong>
+                    <span class="metric-sub">IP OR &not;Netzmaske</span>
+                </div>
+
+                <div class="metric-card">
+                    <span class="metric-label">Nutzbarer Hostbereich</span>
+                    <strong class="metric-val mono small">@calc!.FirstHost &ndash; @calc!.LastHost</strong>
+                    <span class="metric-sub">@calc!.UsableHosts nutzbare Hosts (von @calc!.TotalAddresses)</span>
+                </div>
+            </div>
+
+            <!-- Bitwise Octet Breakdown Matrix -->
+            <div class="octet-matrix-card">
+                <div class="matrix-header">
+                    <h3>Binäre 32-Bit-Darstellung &amp; Bitweise Verknüpfung</h3>
+                    <div class="matrix-legend">
+                        <span class="legend-item"><span class="legend-dot net-dot"></span> Netzteil (@PrefixLength Bits)</span>
+                        <span class="legend-item"><span class="legend-dot host-dot"></span> Hostteil (@(32 - PrefixLength) Bits)</span>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="bit-table">
+                        <thead>
+                            <tr>
+                                <th class="row-label-col">Komponente</th>
+                                <th>Oktett 1 (Bits 31..24)</th>
+                                <th>Oktett 2 (Bits 23..16)</th>
+                                <th>Oktett 3 (Bits 15..8)</th>
+                                <th>Oktett 4 (Bits 7..0)</th>
+                                <th>Dezimal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- IP Address Row -->
+                            <tr class="ip-row">
+                                <td class="row-label"><strong>IP-Adresse</strong></td>
+                                @for (int oct = 0; oct < 4; oct++)
+                                {
+                                    <td class="octet-cell mono">
+                                        @RenderOctetBits(calc!.IpBytes[oct], oct * 8, PrefixLength)
+                                    </td>
+                                }
+                                <td class="dec-cell mono bold">@calc!.IpAddress</td>
+                            </tr>
+
+                            <!-- Subnet Mask Row -->
+                            @if (CurrentStepIndex >= 0)
+                            {
+                                <tr class="mask-row">
+                                    <td class="row-label">
+                                        <strong>Netzmaske</strong>
+                                        <span class="op-badge">&amp; (AND)</span>
+                                    </td>
+                                    @for (int oct = 0; oct < 4; oct++)
+                                    {
+                                        <td class="octet-cell mono mask-bits">
+                                            @RenderOctetBits(calc!.MaskBytes[oct], oct * 8, PrefixLength, isMask: true)
+                                        </td>
+                                    }
+                                    <td class="dec-cell mono">@calc!.SubnetMask</td>
+                                </tr>
+                            }
+
+                            <!-- Network Address Row (Step 2+) -->
+                            @if (CurrentStepIndex >= 1)
+                            {
+                                <tr class="net-row highlight-row">
+                                    <td class="row-label">
+                                        <strong>Subnetznummer</strong>
+                                        <span class="res-tag net-tag">= Ergebnis</span>
+                                    </td>
+                                    @for (int oct = 0; oct < 4; oct++)
+                                    {
+                                        <td class="octet-cell mono net-bits">
+                                            @RenderOctetBits(calc!.NetBytes[oct], oct * 8, PrefixLength)
+                                        </td>
+                                    }
+                                    <td class="dec-cell mono bold blue">@calc!.NetworkAddress</td>
+                                </tr>
+                            }
+
+                            <!-- Negated Mask Row (Step 3+) -->
+                            @if (CurrentStepIndex >= 2)
+                            {
+                                <tr class="inv-mask-row">
+                                    <td class="row-label">
+                                        <strong>Negierte Maske</strong>
+                                        <span class="op-badge">&not; (Wildcard)</span>
+                                    </td>
+                                    @for (int oct = 0; oct < 4; oct++)
+                                    {
+                                        <td class="octet-cell mono inv-mask-bits">
+                                            @RenderOctetBits(calc!.InvMaskBytes[oct], oct * 8, PrefixLength, isMask: true)
+                                        </td>
+                                    }
+                                    <td class="dec-cell mono">@calc!.InvMaskString</td>
+                                </tr>
+
+                                <tr class="host-row highlight-row">
+                                    <td class="row-label">
+                                        <strong>Hostadresse</strong>
+                                        <span class="res-tag host-tag">= Ergebnis</span>
+                                    </td>
+                                    @for (int oct = 0; oct < 4; oct++)
+                                    {
+                                        <td class="octet-cell mono host-bits">
+                                            @RenderOctetBits(calc!.HostBytes[oct], oct * 8, PrefixLength)
+                                        </td>
+                                    }
+                                    <td class="dec-cell mono bold amber">@calc!.HostAddress</td>
+                                </tr>
+                            }
+
+                            <!-- Broadcast Row (Step 4) -->
+                            @if (CurrentStepIndex >= 3)
+                            {
+                                <tr class="bcast-row highlight-row">
+                                    <td class="row-label">
+                                        <strong>Broadcast</strong>
+                                        <span class="res-tag bcast-tag">= Alle Hostbits 1</span>
+                                    </td>
+                                    @for (int oct = 0; oct < 4; oct++)
+                                    {
+                                        <td class="octet-cell mono bcast-bits">
+                                            @RenderOctetBits(calc!.BcastBytes[oct], oct * 8, PrefixLength)
+                                        </td>
+                                    }
+                                    <td class="dec-cell mono bold emerald">@calc!.BroadcastAddress</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="error-box">
+                ⚠️ @errorMsg
+            </div>
+        }
+    }
+
+    <!-- ========================================================================= -->
+    <!-- WORKSHEET VIEW (1:1 EXAM REPLICA)                                         -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Worksheet)
+    {
+        <div class="worksheet-paper">
+
+            <!-- Exam Header -->
+            <div class="exam-header">
+                <div class="exam-title-block">
+                    <span class="exam-sub">Rechnernetze &bull; Vermittlungsschicht (Network Layer)</span>
+                    <h1 class="exam-main-title">Übungs- und Klausuraufgabe: IPv4-Subnetting &amp; Netzmasken</h1>
+                </div>
+                <div class="exam-meta-box no-print">
+                    <button class="toggle-sol-btn @(ShowSolution ? "active" : "")" @onclick="ToggleSolution">
+                        @(ShowSolution ? "👁️ Musterlösung ausblenden" : "💡 Musterlösung einblenden")
+                    </button>
+                    <button class="print-btn" @onclick="TriggerPrint">
+                        🖨️ Seite drucken / PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Student Info Fields -->
+            <div class="student-info-strip">
+                <div class="info-field">
+                    <span class="info-label">Name, Vorname:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field">
+                    <span class="info-label">Matrikelnummer:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field points-field">
+                    <span class="info-label">Punkte:</span>
+                    <div class="points-box">/ 6 P.</div>
+                </div>
+            </div>
+
+            <!-- Task Description -->
+            <div class="task-prompt-box">
+                <div class="task-number">Aufgabe (Subnetzberechnung)</div>
+                <p class="task-text">
+                    Bestimmen Sie für die folgenden IPv4-Adressen mit CIDR-Präfixlänge jeweils die 
+                    zugehörige <strong>Subnetznummer (Netzadresse)</strong> sowie die <strong>Hostadresse (Hostanteil)</strong>.
+                    Führen Sie die binäre Aufteilung durch und geben Sie das Endergebnis in der Dotted-Decimal-Notation an.
+                </p>
+            </div>
+
+            <!-- 2 Subtasks matching NetmaskTask.tex -->
+            @{
+                var task1 = WorksheetTask1;
+                var task2 = WorksheetTask2;
+            }
+
+            <div class="subtasks-container">
+                
+                <!-- Subtask 1 -->
+                <div class="subtask-card">
+                    <div class="subtask-header">
+                        <span class="subtask-title">Teilaufgabe a) Berechnen Sie Subnetznummer und Hostadresse von <strong class="exam-code">@task1.IpAddress/@task1.PrefixLength</strong></span>
+                        <span class="subtask-pts">(3 Punkte)</span>
+                    </div>
+
+                    @if (ShowSolution)
                     {
-                        <tr>
-                            <td>@(index + 1)</td>
-                            <td>@netmaskSolution.Steps[index]</td>
-                        </tr>
+                        <div class="solution-box">
+                            <div class="sol-grid">
+                                <div class="sol-row">
+                                    <span class="sol-label">Netzmaske:</span>
+                                    <code class="sol-val mono">@task1.SubnetMask (@task1.PrefixLength x 1, @(32 - task1.PrefixLength) x 0)</code>
+                                </div>
+                                <div class="sol-row">
+                                    <span class="sol-label">Subnetznummer ($IP \text{ AND } \text{Mask}$):</span>
+                                    <code class="sol-val mono bold blue">@task1.NetworkAddress</code>
+                                </div>
+                                <div class="sol-row">
+                                    <span class="sol-label">Hostadresse ($IP \text{ AND } \neg\text{Mask}$):</span>
+                                    <code class="sol-val mono bold amber">@task1.HostAddress</code>
+                                </div>
+                                <div class="sol-row">
+                                    <span class="sol-label">Broadcast-Adresse:</span>
+                                    <code class="sol-val mono emerald">@task1.BroadcastAddress</code>
+                                </div>
+                            </div>
+                        </div>
                     }
-                </tbody>
-            </table>
+                    else
+                    {
+                        <div class="blank-writing-area">
+                            <div class="grid-watermark">Rechnung (binäre Aufteilung / AND-Verknüpfung):</div>
+                            <div class="ruled-lines">
+                                <div class="ruled-line"></div>
+                                <div class="ruled-line"></div>
+                                <div class="ruled-line"></div>
+                                <div class="ruled-line"></div>
+                            </div>
+                            <div class="exam-answer-slots">
+                                <div class="answer-slot">
+                                    <span>Subnetznummer:</span>
+                                    <div class="answer-box"></div>
+                                </div>
+                                <div class="answer-slot">
+                                    <span>Hostadresse:</span>
+                                    <div class="answer-box"></div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <!-- Subtask 2 -->
+                <div class="subtask-card">
+                    <div class="subtask-header">
+                        <span class="subtask-title">Teilaufgabe b) Berechnen Sie Subnetznummer und Hostadresse von <strong class="exam-code">@task2.IpAddress/@task2.PrefixLength</strong></span>
+                        <span class="subtask-pts">(3 Punkte)</span>
+                    </div>
+
+                    @if (ShowSolution)
+                    {
+                        <div class="solution-box">
+                            <div class="sol-grid">
+                                <div class="sol-row">
+                                    <span class="sol-label">Netzmaske:</span>
+                                    <code class="sol-val mono">@task2.SubnetMask (@task2.PrefixLength x 1, @(32 - task2.PrefixLength) x 0)</code>
+                                </div>
+                                <div class="sol-row">
+                                    <span class="sol-label">Subnetznummer ($IP \text{ AND } \text{Mask}$):</span>
+                                    <code class="sol-val mono bold blue">@task2.NetworkAddress</code>
+                                </div>
+                                <div class="sol-row">
+                                    <span class="sol-label">Hostadresse ($IP \text{ AND } \neg\text{Mask}$):</span>
+                                    <code class="sol-val mono bold amber">@task2.HostAddress</code>
+                                </div>
+                                <div class="sol-row">
+                                    <span class="sol-label">Broadcast-Adresse:</span>
+                                    <code class="sol-val mono emerald">@task2.BroadcastAddress</code>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="blank-writing-area">
+                            <div class="grid-watermark">Rechnung (binäre Aufteilung / AND-Verknüpfung):</div>
+                            <div class="ruled-lines">
+                                <div class="ruled-line"></div>
+                                <div class="ruled-line"></div>
+                                <div class="ruled-line"></div>
+                                <div class="ruled-line"></div>
+                            </div>
+                            <div class="exam-answer-slots">
+                                <div class="answer-slot">
+                                    <span>Subnetznummer:</span>
+                                    <div class="answer-box"></div>
+                                </div>
+                                <div class="answer-slot">
+                                    <span>Hostadresse:</span>
+                                    <div class="answer-box"></div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+            </div>
+
+            <!-- Footer -->
+            <div class="exam-footer">
+                <div class="exam-footer-note">
+                    Hinweis: Zur Bestimmung der Subnetznummer werden IP-Adresse und Subnetzmaske bitweise UND-verknüpft. Die Hostadresse ergibt sich aus der UND-Verknüpfung von IP-Adresse und invertierter Subnetzmaske.
+                </div>
+            </div>
+
         </div>
     }
-    else
-    {
-        <p class="validation-copy">@errorMessage</p>
-    }
+
 </article>
 
 @code {
-    private readonly NetmaskSolver netmaskSolver = new();
+    public enum ViewMode { Simulator, Worksheet }
 
-    [Parameter]
-    public string IpAddress { get; set; } = "192.168.10.42";
+    [Parameter] public string IpAddress { get; set; } = "172.21.240.90";
+    [Parameter] public int PrefixLength { get; set; } = 27;
+    [Parameter] public string? View { get; set; }
+    [Parameter] public bool? Solution { get; set; }
+    [Parameter] public bool? Embed { get; set; }
 
-    [Parameter]
-    public int PrefixLength { get; set; } = 24;
+    private ViewMode ActiveView = ViewMode.Simulator;
+    private bool ShowSolution = false;
+    private bool IsEmbed = false;
 
-    private bool TryGetNetmaskSolution(out NetmaskSolution? solution, out string errorMessage)
+    private string IpAddressInput = "172.21.240.90";
+    private int CurrentStepIndex = 0;
+    private const int StepsCount = 4;
+
+    private string SubnetMaskString => CalculateMaskString(PrefixLength);
+
+    private SubnetCalculationResult WorksheetTask1 = new();
+    private SubnetCalculationResult WorksheetTask2 = new();
+
+    protected override void OnInitialized()
+    {
+        ReadQueryParameters();
+        IpAddressInput = IpAddress;
+        InitializeWorksheetTasks();
+    }
+
+    protected override void OnParametersSet()
+    {
+        ReadQueryParameters();
+    }
+
+    private void ReadQueryParameters()
     {
         try
         {
-            solution = (NetmaskSolution)netmaskSolver.Solve(new NetmaskParameters(IpAddress.Trim(), Math.Clamp(PrefixLength, 0, 32)));
-            errorMessage = string.Empty;
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query;
+            if (string.IsNullOrEmpty(query)) return;
+
+            var pairs = query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var pair in pairs)
+            {
+                var parts = pair.Split('=', 2);
+                var key = parts[0].ToLowerInvariant();
+                var val = parts.Length > 1 ? Uri.UnescapeDataString(parts[1]) : "";
+
+                if (key == "view")
+                {
+                    ActiveView = val.Equals("worksheet", StringComparison.OrdinalIgnoreCase) ? ViewMode.Worksheet : ViewMode.Simulator;
+                }
+                else if (key == "solution" && bool.TryParse(val, out var solBool))
+                {
+                    ShowSolution = solBool;
+                }
+                else if (key == "embed" && bool.TryParse(val, out var embedBool))
+                {
+                    IsEmbed = embedBool;
+                }
+                else if (key == "ip" && !string.IsNullOrEmpty(val))
+                {
+                    IpAddressInput = val;
+                    IpAddress = val;
+                }
+                else if (key == "prefix" && int.TryParse(val, out var p))
+                {
+                    PrefixLength = Math.Clamp(p, 1, 32);
+                }
+            }
+        }
+        catch
+        {
+            // fallback
+        }
+    }
+
+    private void SetView(ViewMode mode)
+    {
+        ActiveView = mode;
+        UpdateUrl();
+    }
+
+    private void ToggleSolution()
+    {
+        ShowSolution = !ShowSolution;
+        UpdateUrl();
+    }
+
+    private void UpdateUrl()
+    {
+        var uri = NavigationManager.GetUriWithQueryParameters(new Dictionary<string, object?>
+        {
+            ["view"] = ActiveView == ViewMode.Worksheet ? "worksheet" : null,
+            ["solution"] = ShowSolution ? "true" : null,
+            ["ip"] = IpAddressInput != "172.21.240.90" ? IpAddressInput : null,
+            ["prefix"] = PrefixLength != 27 ? PrefixLength : null,
+            ["embed"] = IsEmbed ? "true" : null
+        });
+        NavigationManager.NavigateTo(uri, replace: true);
+    }
+
+    private async Task TriggerPrint()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+
+    private void OnIpAddressChanged()
+    {
+        IpAddress = IpAddressInput.Trim();
+        InitializeWorksheetTasks();
+    }
+
+    private void OnPrefixLengthChanged()
+    {
+        PrefixLength = Math.Clamp(PrefixLength, 1, 32);
+        InitializeWorksheetTasks();
+    }
+
+    private void LoadPreset(string ip, int prefix)
+    {
+        IpAddressInput = ip;
+        IpAddress = ip;
+        PrefixLength = prefix;
+        CurrentStepIndex = 0;
+        InitializeWorksheetTasks();
+    }
+
+    private void GenerateRandom()
+    {
+        var rnd = new Random();
+        int oct1 = rnd.Next(1, 224);
+        if (oct1 == 127) oct1 = 128; // avoid loopback
+        int oct2 = rnd.Next(0, 256);
+        int oct3 = rnd.Next(0, 256);
+        int oct4 = rnd.Next(1, 254);
+        int prefix = rnd.Next(16, 30);
+
+        IpAddressInput = $"{oct1}.{oct2}.{oct3}.{oct4}";
+        IpAddress = IpAddressInput;
+        PrefixLength = prefix;
+        CurrentStepIndex = 0;
+        InitializeWorksheetTasks();
+    }
+
+    private void InitializeWorksheetTasks()
+    {
+        if (TryCalculateDirect(IpAddressInput, PrefixLength, out var t1))
+        {
+            WorksheetTask1 = t1;
+        }
+
+        // Secondary task for worksheet
+        if (TryCalculateDirect("192.168.10.45", 26, out var t2))
+        {
+            WorksheetTask2 = t2;
+        }
+    }
+
+    // =========================================================================
+    // STEPPER
+    // =========================================================================
+    private void GoToStart() => CurrentStepIndex = 0;
+    private void PreviousStep() => CurrentStepIndex = Math.Max(0, CurrentStepIndex - 1);
+    private void NextStep() => CurrentStepIndex = Math.Min(StepsCount - 1, CurrentStepIndex + 1);
+    private void GoToEnd() => CurrentStepIndex = StepsCount - 1;
+    private void OnSliderChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var idx))
+        {
+            CurrentStepIndex = Math.Clamp(idx, 0, StepsCount - 1);
+        }
+    }
+
+    private string GetStepName(int step) => step switch
+    {
+        0 => "Netzmaske",
+        1 => "Subnetznummer",
+        2 => "Hostadresse",
+        3 => "Broadcast & Bereich",
+        _ => ""
+    };
+
+    private string GetStepTitle(int step) => step switch
+    {
+        0 => $"Netzmaske aus Präfix /{PrefixLength} ermitteln",
+        1 => "Subnetznummer (Netzadresse) via bitweisem AND berechnen",
+        2 => "Hostadresse (Hostanteil) via negierter Maske berechnen",
+        3 => "Broadcast-Adresse & nutzbaren Hostbereich ermitteln",
+        _ => ""
+    };
+
+    private string GetStepExplanation(SubnetCalculationResult calc, int step) => step switch
+    {
+        0 => $"Die Präfixlänge /{calc.PrefixLength} bedeutet, dass die ersten {calc.PrefixLength} Bits auf 1 gesetzt sind und die verbleibenden {32 - calc.PrefixLength} Bits auf 0. Dies ergibt die Subnetzmaske {calc.SubnetMask}.",
+        1 => $"Die Subnetznummer entsteht durch bitweise UND-Verknüpfung (AND) der IP-Adresse ({calc.IpAddress}) mit der Netzmaske ({calc.SubnetMask}). Im kritischen Oktett {calc.CriticalOctetIndex + 1} lautet die Verknüpfung: {calc.IpBytes[calc.CriticalOctetIndex]:B8} AND {calc.MaskBytes[calc.CriticalOctetIndex]:B8} = {calc.NetBytes[calc.CriticalOctetIndex]:B8} ({calc.NetBytes[calc.CriticalOctetIndex]}).",
+        2 => $"Die Hostadresse (Hostanteil) isoliert die Rechneradresse innerhalb des Subnetzes durch AND-Verknüpfung mit der negierten Maske ({calc.InvMaskString}). Ergebnis: {calc.HostAddress}.",
+        3 => $"Die Broadcast-Adresse ({calc.BroadcastAddress}) entsteht, wenn alle {32 - calc.PrefixLength} Hostbits auf 1 gesetzt werden. Der nutzbare Adressbereich für Hosts erstreckt sich von {calc.FirstHost} bis {calc.LastHost} ({calc.UsableHosts} Adressen).",
+        _ => ""
+    };
+
+    // =========================================================================
+    // CALCULATION LOGIC
+    // =========================================================================
+    private bool TryCalculate(out SubnetCalculationResult? result, out string errorMessage)
+    {
+        return TryCalculateDirect(IpAddressInput, PrefixLength, out result, out errorMessage);
+    }
+
+    private bool TryCalculateDirect(string ipStr, int prefix, out SubnetCalculationResult result)
+    {
+        return TryCalculateDirect(ipStr, prefix, out result!, out _);
+    }
+
+    private bool TryCalculateDirect(string ipStr, int prefix, out SubnetCalculationResult? result, out string errorMessage)
+    {
+        result = null;
+        errorMessage = "";
+
+        if (!IPAddress.TryParse(ipStr, out var ip) || ip.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
+        {
+            errorMessage = "Bitte geben Sie eine gültige IPv4-Adresse ein (z. B. 192.168.1.1).";
+            return false;
+        }
+
+        try
+        {
+            var mask = SubnetMask.CreateByNetBitLength(prefix);
+            var net = ip.GetNetworkAddress(mask);
+            var host = ip.GetHostAddress(mask);
+            var bcast = ip.GetBroadcastAddress(mask);
+
+            var ipBytes = ip.GetAddressBytes();
+            var maskBytes = mask.GetAddressBytes();
+            var netBytes = net.GetAddressBytes();
+            var hostBytes = host.GetAddressBytes();
+            var bcastBytes = bcast.GetAddressBytes();
+
+            var invMaskBytes = new byte[4];
+            for (int i = 0; i < 4; i++) invMaskBytes[i] = (byte)~maskBytes[i];
+            var invMaskString = $"{invMaskBytes[0]}.{invMaskBytes[1]}.{invMaskBytes[2]}.{invMaskBytes[3]}";
+
+            // First & last usable host
+            long totalAddresses = 1L << (32 - prefix);
+            long usableHosts = Math.Max(0, totalAddresses - 2);
+
+            var firstHostBytes = (byte[])netBytes.Clone();
+            if (prefix < 31 && firstHostBytes.Length == 4) firstHostBytes[3] += 1;
+
+            var lastHostBytes = (byte[])bcastBytes.Clone();
+            if (prefix < 31 && lastHostBytes.Length == 4) lastHostBytes[3] -= 1;
+
+            result = new SubnetCalculationResult
+            {
+                IpAddress = ip.ToString(),
+                PrefixLength = prefix,
+                SubnetMask = mask.ToString(),
+                NetworkAddress = net.ToString(),
+                HostAddress = host.ToString(),
+                BroadcastAddress = bcast.ToString(),
+                InvMaskString = invMaskString,
+                FirstHost = new IPAddress(firstHostBytes).ToString(),
+                LastHost = new IPAddress(lastHostBytes).ToString(),
+                TotalAddresses = totalAddresses,
+                UsableHosts = usableHosts,
+                IpBytes = ipBytes,
+                MaskBytes = maskBytes,
+                NetBytes = netBytes,
+                HostBytes = hostBytes,
+                BcastBytes = bcastBytes,
+                InvMaskBytes = invMaskBytes,
+                CriticalOctetIndex = prefix / 8 < 4 ? prefix / 8 : 3
+            };
             return true;
         }
         catch (Exception ex)
         {
-            solution = null;
             errorMessage = ex.Message;
             return false;
         }
+    }
+
+    private string CalculateMaskString(int prefix)
+    {
+        try
+        {
+            return SubnetMask.CreateByNetBitLength(prefix).ToString();
+        }
+        catch
+        {
+            return "255.255.255.0";
+        }
+    }
+
+    // =========================================================================
+    // BIT RENDERING HELPER
+    // =========================================================================
+    private RenderFragment RenderOctetBits(byte octetVal, int bitOffset, int prefixLen, bool isMask = false) => builder =>
+    {
+        string bits = Convert.ToString(octetVal, 2).PadLeft(8, '0');
+        for (int i = 0; i < 8; i++)
+        {
+            int globalBitIdx = bitOffset + i;
+            bool isNetPart = globalBitIdx < prefixLen;
+            bool isBoundary = globalBitIdx == prefixLen - 1;
+
+            string cls = "b-digit";
+            if (isNetPart) cls += " net-bit";
+            else cls += " host-bit";
+            if (isBoundary) cls += " subnet-boundary";
+
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "class", cls);
+            builder.AddContent(2, bits[i]);
+            builder.CloseElement();
+        }
+    };
+
+    public class SubnetCalculationResult
+    {
+        public string IpAddress { get; set; } = "";
+        public int PrefixLength { get; set; }
+        public string SubnetMask { get; set; } = "";
+        public string NetworkAddress { get; set; } = "";
+        public string HostAddress { get; set; } = "";
+        public string BroadcastAddress { get; set; } = "";
+        public string InvMaskString { get; set; } = "";
+        public string FirstHost { get; set; } = "";
+        public string LastHost { get; set; } = "";
+        public long TotalAddresses { get; set; }
+        public long UsableHosts { get; set; }
+        public byte[] IpBytes { get; set; } = Array.Empty<byte>();
+        public byte[] MaskBytes { get; set; } = Array.Empty<byte>();
+        public byte[] NetBytes { get; set; } = Array.Empty<byte>();
+        public byte[] HostBytes { get; set; } = Array.Empty<byte>();
+        public byte[] BcastBytes { get; set; } = Array.Empty<byte>();
+        public byte[] InvMaskBytes { get; set; } = Array.Empty<byte>();
+        public int CriticalOctetIndex { get; set; }
     }
 }

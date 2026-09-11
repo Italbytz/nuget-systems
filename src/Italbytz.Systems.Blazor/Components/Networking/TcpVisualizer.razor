@@ -1,0 +1,1461 @@
+@namespace Italbytz.Systems.Blazor.Components.Networking
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<article class="tcp-container @(IsEmbed ? "embed-mode" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
+
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
+    {
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Rechnernetze &bull; Transportschicht (Transport Layer)</p>
+            <h2>TCP-Protokollablauf, Sequenz- &amp; Bestätigungsnummern (Seq/Ack)</h2>
+            <p class="feature-intro">
+                Interaktive Schritt-für-Schritt-Ablaufverfolgung von TCP-Segmentübertragungen (Dreiwege-Handshake, 
+                bidirektionaler Datenaustausch mit Seq/Ack-Fortschaltung, Sliding Window Flusskontrolle und Verbindungsabbau).
+            </p>
+        </div>
+    }
+
+    <!-- View Switcher -->
+    @if (!IsEmbed)
+    {
+        <div class="view-switch no-print">
+            <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Simulator)">
+                🚀 Interaktiver Simulator &amp; Sequenzdiagramm
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Worksheet)">
+                🖨️ Klausur-Arbeitsblatt (Druckansicht)
+            </button>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- SIMULATOR VIEW                                                            -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Controls Panel -->
+        <div class="controls-panel no-print">
+            <div class="config-grid">
+                <label class="control-label">
+                    <span>Szenario:</span>
+                    <select class="form-input select" @bind="SelectedPresetKey" @bind:after="OnPresetChanged">
+                        <option value="ExamStandard">Klausuraufgabe: Datenübertragung (6 Segmente, Seq/Ack-Berechnung)</option>
+                        <option value="HandshakeDataTeardown">Vollständiger Lebenszyklus: Handshake + Daten + Teardown</option>
+                        <option value="SlidingWindow">Flusskontrolle &amp; Sliding Window (Pufferbegrenzung)</option>
+                        <option value="PacketLoss">Paketverlust &amp; Fast Retransmit (Duplicate ACKs)</option>
+                    </select>
+                </label>
+
+                <div class="isn-inputs">
+                    <label class="control-label">
+                        <span>Alice Initial Seq (ISN):</span>
+                        <input type="number" class="form-input number" @bind="AliceStartSeq" @bind:after="Recalculate" min="1" max="99999" />
+                    </label>
+                    <label class="control-label">
+                        <span>Bob Initial Seq (ISN):</span>
+                        <input type="number" class="form-input number" @bind="BobStartSeq" @bind:after="Recalculate" min="1" max="99999" />
+                    </label>
+                </div>
+            </div>
+
+            <!-- Presets Bar -->
+            <div class="preset-bar">
+                <span class="preset-label">Beispiele:</span>
+                <button class="preset-btn" @onclick='() => LoadPreset("ExamStandard")'>Klausur-Standard</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("HandshakeDataTeardown")'>3-Wege-Handshake &amp; FIN</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("SlidingWindow")'>Sliding Window</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("PacketLoss")'>Paketverlust (DupACK)</button>
+                <button class="preset-btn random" @onclick="GenerateRandomScenario">🎲 Zufallsaufgabe</button>
+            </div>
+        </div>
+
+        @if (CurrentScenario != null)
+        {
+            var maxSteps = CurrentScenario.Steps.Count;
+            var currentStep = CurrentStepIndex < maxSteps ? CurrentScenario.Steps[CurrentStepIndex] : CurrentScenario.Steps.LastOrDefault();
+
+            <!-- Player Toolbar -->
+            <div class="player-toolbar no-print">
+                <div class="player-controls">
+                    <button class="player-btn" title="Start" disabled="@(CurrentStepIndex == 0)" @onclick="GoToStart">⏮ Start</button>
+                    <button class="player-btn" title="Zurück" disabled="@(CurrentStepIndex == 0)" @onclick="PreviousStep">◀ Zurück</button>
+                    <button class="player-btn primary" title="Nächster Schritt" disabled="@(CurrentStepIndex >= maxSteps - 1)" @onclick="NextStep">▶ Weiter</button>
+                    <button class="player-btn title" title="Ende" disabled="@(CurrentStepIndex >= maxSteps - 1)" @onclick="GoToEnd">⏭ Ende</button>
+                    <button class="player-btn reset" title="Zurücksetzen" @onclick="GoToStart">🔄 Reset</button>
+                </div>
+
+                <div class="player-progress">
+                    <span class="step-indicator">
+                        <strong>Schritt @(CurrentStepIndex) / @(maxSteps - 1):</strong>
+                        <span>@(currentStep?.Title ?? "")</span>
+                    </span>
+                    <input type="range" min="0" max="@(maxSteps - 1)" value="@CurrentStepIndex" @oninput="OnSliderChanged" class="step-slider" />
+                </div>
+            </div>
+
+            <!-- Narrator Card -->
+            @if (currentStep != null)
+            {
+                <div class="narrator-card">
+                    <div class="narrator-header">
+                        <div class="step-badge @(currentStep.IsRetransmit ? "badge-retrans" : (currentStep.Segment == null ? "badge-init" : "badge-segment"))">
+                            @if (currentStep.Segment == null)
+                            {
+                                <span>🏁 Startzustand</span>
+                            }
+                            else if (currentStep.IsRetransmit)
+                            {
+                                <span>⚠️ Fast Retransmit</span>
+                            }
+                            else
+                            {
+                                <span>Segment #@currentStep.Segment.Index (@currentStep.Segment.Sender &rarr; @currentStep.Segment.Receiver)</span>
+                            }
+                        </div>
+                        <div class="narrator-title">@currentStep.Title</div>
+                    </div>
+                    <p class="narrator-text">@currentStep.Explanation</p>
+                    
+                    @if (currentStep.Segment != null)
+                    {
+                        <div class="tcp-formula-strip">
+                            <div class="formula-item">
+                                <span class="formula-label">Formel für Seq:</span>
+                                <span class="formula-val mono">@currentStep.SeqFormula</span>
+                            </div>
+                            <div class="formula-item">
+                                <span class="formula-label">Formel für Ack:</span>
+                                <span class="formula-val mono">@currentStep.AckFormula</span>
+                            </div>
+                            <div class="formula-item">
+                                <span class="formula-label">Nächster Erwartungswert:</span>
+                                <span class="formula-val mono emerald">@currentStep.NextExpected</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+
+            <!-- Main Display: Sequence Ladder Diagram + State Table -->
+            <div class="main-display-grid">
+
+                <!-- Left: Interactive SVG Ladder Diagram -->
+                <div class="ladder-card">
+                    <div class="ladder-header">
+                        <h3>Zeitablauf-Diagramm (Ladder Diagram)</h3>
+                        <div class="endpoint-badges">
+                            <span class="ep-badge ep-alice">Host A: Alice</span>
+                            <span class="ep-badge ep-bob">Host B: Bob</span>
+                        </div>
+                    </div>
+
+                    <div class="svg-container">
+                        @{
+                            var totalSegs = CurrentScenario.Segments.Count;
+                            var svgHeight = Math.Max(480, 80 + totalSegs * 65);
+                        }
+                        <svg class="ladder-svg" viewBox="0 0 680 @svgHeight">
+                            <!-- Definitions: Arrowheads -->
+                            <defs>
+                                <marker id="arrow-right" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                                    <path d="M 0 1 L 10 5 L 0 9 z" fill="#0284c7" />
+                                </marker>
+                                <marker id="arrow-left" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                                    <path d="M 10 1 L 0 5 L 10 9 z" fill="#059669" />
+                                </marker>
+                                <marker id="arrow-retrans" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                                    <path d="M 0 1 L 10 5 L 0 9 z" fill="#dc2626" />
+                                </marker>
+                            </defs>
+
+                            <!-- Vertical Lifelines -->
+                            <!-- Alice -->
+                            <line x1="140" y1="40" x2="140" y2="@(svgHeight - 20)" class="lifeline" />
+                            <!-- Bob -->
+                            <line x1="540" y1="40" x2="540" y2="@(svgHeight - 20)" class="lifeline" />
+
+                            <!-- Header Nodes -->
+                            <g class="endpoint-node">
+                                <rect x="80" y="10" width="120" height="30" rx="6" class="ep-box ep-box-alice" />
+                                @((MarkupString)"<text x=\"140\" y=\"30\" text-anchor=\"middle\" class=\"ep-text\">Alice (Client)</text>")
+                            </g>
+                            <g class="endpoint-node">
+                                <rect x="480" y="10" width="120" height="30" rx="6" class="ep-box ep-box-bob" />
+                                @((MarkupString)"<text x=\"540\" y=\"30\" text-anchor=\"middle\" class=\"ep-text\">Bob (Server)</text>")
+                            </g>
+
+                            <!-- Transmission Arrows & Segment Cards -->
+                            @for (int i = 0; i < CurrentScenario.Segments.Count; i++)
+                            {
+                                var seg = CurrentScenario.Segments[i];
+                                var segStepIdx = i + 1;
+                                bool isPastOrCurrent = (segStepIdx <= CurrentStepIndex);
+                                bool isCurrent = (segStepIdx == CurrentStepIndex);
+
+                                var yStart = 65 + i * 65;
+                                var yEnd = yStart + 35;
+
+                                bool isAliceToBob = seg.Sender == "Alice";
+                                var x1 = isAliceToBob ? 140 : 540;
+                                var x2 = isAliceToBob ? 540 : 140;
+                                var marker = seg.IsRetransmit ? "url(#arrow-retrans)" : (isAliceToBob ? "url(#arrow-right)" : "url(#arrow-left)");
+
+                                string lineClass = "trans-arrow";
+                                if (isCurrent) lineClass += " trans-current";
+                                if (isPastOrCurrent) lineClass += " trans-active";
+                                else lineClass += " trans-future";
+                                if (seg.IsRetransmit) lineClass += " trans-retrans";
+
+                                <!-- Arrow Line -->
+                                <line x1="@x1" y1="@yStart" x2="@x2" y2="@yEnd" class="@lineClass" marker-end="@marker" />
+
+                                <!-- Step Number Badge -->
+                                var badgeX = isAliceToBob ? 110 : 570;
+                                <g class="step-num-group @(isCurrent ? "current-badge" : "")">
+                                    <circle cx="@badgeX" cy="@yStart" r="13" class="num-circle @(isPastOrCurrent ? "num-active" : "")" />
+                                    @((MarkupString)$"<text x=\"{badgeX}\" y=\"{yStart + 4}\" text-anchor=\"middle\" class=\"num-text\">{seg.Index}</text>")
+                                </g>
+
+                                <!-- Message Pill on Arrow -->
+                                var pillX = 340;
+                                var pillY = (yStart + yEnd) / 2;
+
+                                <g class="message-pill-group @(isCurrent ? "pill-current" : "")" @onclick="() => SelectSegment(segStepIdx)">
+                                    <rect x="200" y="@(pillY - 14)" width="280" height="28" rx="6" class="pill-bg @(isPastOrCurrent ? (isAliceToBob ? "pill-alice" : "pill-bob") : "pill-future")" />
+                                    
+                                    <!-- Flags Badges -->
+                                    @((MarkupString)$"<text x=\"210\" y=\"{pillY + 4}\" class=\"pill-flags\">{seg.FlagString}</text>")
+                                    
+                                    <!-- Seq & Ack -->
+                                    @((MarkupString)$"<text x=\"290\" y=\"{pillY + 4}\" class=\"pill-mono\">Seq={seg.SeqNumber}</text>")
+                                    @((MarkupString)$"<text x=\"375\" y=\"{pillY + 4}\" class=\"pill-mono\">Ack={seg.AckNumber}</text>")
+                                    
+                                    <!-- Payload Len -->
+                                    @if (seg.PayloadBytes > 0)
+                                    {
+                                        @((MarkupString)$"<text x=\"445\" y=\"{pillY + 4}\" class=\"pill-len\">{seg.PayloadBytes} B</text>")
+                                    }
+                                    else
+                                    {
+                                        @((MarkupString)$"<text x=\"445\" y=\"{pillY + 4}\" class=\"pill-ackonly\">ACK-only</text>")
+                                    }
+                                </g>
+                            }
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Right: State & Segment Table -->
+                <div class="state-panel">
+                    
+                    <!-- Protocol State Table -->
+                    <div class="state-card">
+                        <div class="state-card-header">
+                            <h4>Segmentübersicht &amp; Prüfergebnisse</h4>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="tcp-table">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Sender &rarr; Empf.</th>
+                                        <th>Flags</th>
+                                        <th>Nutzdaten</th>
+                                        <th>Seq</th>
+                                        <th>Ack</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @for (int i = 0; i < CurrentScenario.Segments.Count; i++)
+                                    {
+                                        var seg = CurrentScenario.Segments[i];
+                                        var stepIdx = i + 1;
+                                        bool isPastOrCurrent = (stepIdx <= CurrentStepIndex);
+                                        bool isCur = (stepIdx == CurrentStepIndex);
+
+                                        <tr class="@(isCur ? "active-row" : "") @(isPastOrCurrent ? "revealed" : "future")"
+                                            @onclick="() => SelectSegment(stepIdx)">
+                                            <td><strong>@seg.Index</strong></td>
+                                            <td>
+                                                <span class="ep-tag @(seg.Sender == "Alice" ? "tag-alice" : "tag-bob")">
+                                                    @seg.Sender &rarr; @seg.Receiver
+                                                </span>
+                                            </td>
+                                            <td><span class="flag-chip">@seg.FlagString</span></td>
+                                            <td class="mono">@(seg.PayloadBytes > 0 ? $"{seg.PayloadBytes} Byte" : "0 Byte")</td>
+                                            <td class="mono blue bold">@seg.SeqNumber</td>
+                                            <td class="mono emerald bold">@seg.AckNumber</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- State Variables Card -->
+                    <div class="variables-card">
+                        <div class="vars-header">Aktuelle Verbindungszustände</div>
+                        <div class="vars-grid">
+                            <div class="var-box">
+                                <span class="var-label">Alice Next Seq:</span>
+                                <span class="var-val mono blue">@(currentStep?.AliceNextSeq ?? AliceStartSeq)</span>
+                            </div>
+                            <div class="var-box">
+                                <span class="var-label">Alice Expected Ack:</span>
+                                <span class="var-val mono emerald">@(currentStep?.AliceExpectedAck ?? BobStartSeq)</span>
+                            </div>
+                            <div class="var-box">
+                                <span class="var-label">Bob Next Seq:</span>
+                                <span class="var-val mono blue">@(currentStep?.BobNextSeq ?? BobStartSeq)</span>
+                            </div>
+                            <div class="var-box">
+                                <span class="var-label">Bob Expected Ack:</span>
+                                <span class="var-val mono emerald">@(currentStep?.BobExpectedAck ?? AliceStartSeq)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Flow Control / Window Info -->
+                    <div class="window-info-card">
+                        <div class="win-title">💡 TCP-Grundregel zur Nummernfortschaltung</div>
+                        <ul class="rule-list">
+                            <li><strong>Nächstes SEQ beim Sender:</strong> $\text{Seq}_{\text{neu}} = \text{Seq}_{\text{alt}} + \text{Nutzdaten-Bytes}$ (bzw. $+1$ bei SYN/FIN).</li>
+                            <li><strong>Bestätigung ACK beim Empfänger:</strong> $\text{Ack} = \text{Empfangenes Seq} + \text{Nutzdaten-Bytes}$ (kumulative Bestätigung).</li>
+                            <li><strong>Reine Bestätigungen (0 Byte Nutzdaten):</strong> Verbrauchen keine Sequenznummernfolge für nachfolgende Daten.</li>
+                        </ul>
+                    </div>
+
+                </div>
+
+            </div>
+        }
+    }
+
+    <!-- ========================================================================= -->
+    <!-- WORKSHEET VIEW (1:1 EXAM REPLICA)                                         -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Worksheet)
+    {
+        <div class="worksheet-paper">
+
+            <!-- Exam Header -->
+            <div class="exam-header">
+                <div class="exam-title-block">
+                    <span class="exam-sub">Rechnernetze &bull; Transportschicht</span>
+                    <h1 class="exam-main-title">Übungs- und Klausuraufgabe: Übertragung in TCP (Seq- &amp; Ack-Nummern)</h1>
+                </div>
+                <div class="exam-meta-box no-print">
+                    <button class="toggle-sol-btn @(ShowSolution ? "active" : "")" @onclick="ToggleSolution">
+                        @(ShowSolution ? "👁️ Musterlösung ausblenden" : "💡 Musterlösung einblenden")
+                    </button>
+                    <button class="print-btn" @onclick="TriggerPrint">
+                        🖨️ Seite drucken / PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Student Info Fields -->
+            <div class="student-info-strip">
+                <div class="info-field">
+                    <span class="info-label">Name, Vorname:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field">
+                    <span class="info-label">Matrikelnummer:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field points-field">
+                    <span class="info-label">Punkte:</span>
+                    <div class="points-box">/ 5 P.</div>
+                </div>
+            </div>
+
+            <!-- Intro Text matching CNTransportschichtTCPUebertragungText -->
+            <div class="task-prompt-box">
+                <p class="task-text">
+                    Die Nummern <strong>Seq</strong> und <strong>Ack</strong> dienen Client und Server dazu, sich abzustimmen, 
+                    in welcher Reihenfolge die Segmente stehen und ob Pakete verlustfrei angekommen sind.
+                </p>
+            </div>
+
+            <!-- Teilaufgabe 1 -->
+            <div class="task-section">
+                <div class="task-sub-title">
+                    <span>Teilaufgabe 1 (3 Punkte)</span>
+                </div>
+                <p class="task-text">
+                    Geben Sie für das folgende Ablaufdiagramm an, wie sich die Werte von <strong>Seq</strong> und <strong>Ack</strong> für alle durchnummerierten Segmente (1 bis @(CurrentScenario?.Segments.Count ?? 6)) verhalten.
+                </p>
+
+                <div class="ws-content-grid">
+                    
+                    <!-- Left: Solution / Answer Box -->
+                    <div class="ws-answer-col">
+                        <div class="ws-box-heading">Ihre Lösung:</div>
+                        
+                        @if (ShowSolution && CurrentScenario != null)
+                        {
+                            <div class="ws-solution-box">
+                                @for (int i = 0; i < CurrentScenario.Segments.Count; i++)
+                                {
+                                    var seg = CurrentScenario.Segments[i];
+                                    <div class="sol-line mono">
+                                        <strong>@(seg.Index):</strong> Seq = <span class="sol-val bold">@seg.SeqNumber</span>, Ack = <span class="sol-val bold">@seg.AckNumber</span>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="ws-blank-lines">
+                                @for (int i = 1; i <= (CurrentScenario?.Segments.Count ?? 6); i++)
+                                {
+                                    <div class="blank-line-item">
+                                        <span class="mono bold">@(i):</span>
+                                        <span class="mono">Seq = </span>
+                                        <div class="blank-box sm"></div>
+                                        <span class="mono">, Ack = </span>
+                                        <div class="blank-box sm"></div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Right: Sequence Chart Diagram -->
+                    <div class="ws-diagram-col">
+                        <div class="ws-box-heading">Ablaufdiagramm:</div>
+                        @if (CurrentScenario != null)
+                        {
+                            var totalSegs = CurrentScenario.Segments.Count;
+                            var wsSvgHeight = 60 + totalSegs * 55;
+                            
+                            <svg class="ws-ladder-svg" viewBox="0 0 460 @wsSvgHeight">
+                                <!-- Lifelines -->
+                                <line x1="80" y1="35" x2="80" y2="@(wsSvgHeight - 15)" stroke="#000000" stroke-width="1.5" stroke-dasharray="4,4" />
+                                <line x1="380" y1="35" x2="380" y2="@(wsSvgHeight - 15)" stroke="#000000" stroke-width="1.5" stroke-dasharray="4,4" />
+
+                                <!-- Endpoints -->
+                                <rect x="30" y="10" width="100" height="24" fill="#ffffff" stroke="#000000" stroke-width="1.5" rx="3" />
+                                @((MarkupString)"<text x=\"80\" y=\"26\" text-anchor=\"middle\" font-family=\"sans-serif\" font-size=\"12\" font-weight=\"bold\">Alice</text>")
+
+                                <rect x="330" y="10" width="100" height="24" fill="#ffffff" stroke="#000000" stroke-width="1.5" rx="3" />
+                                @((MarkupString)"<text x=\"380\" y=\"26\" text-anchor=\"middle\" font-family=\"sans-serif\" font-size=\"12\" font-weight=\"bold\">Bob</text>")
+
+                                @for (int i = 0; i < CurrentScenario.Segments.Count; i++)
+                                {
+                                    var seg = CurrentScenario.Segments[i];
+                                    var y1 = 55 + i * 55;
+                                    var y2 = y1 + 30;
+                                    bool isA2B = seg.Sender == "Alice";
+                                    var x1 = isA2B ? 80 : 380;
+                                    var x2 = isA2B ? 380 : 80;
+
+                                    <line x1="@x1" y1="@y1" x2="@x2" y2="@y2" stroke="#000000" stroke-width="1.5" />
+                                    
+                                    <!-- Arrow Head -->
+                                    @if (isA2B)
+                                    {
+                                        <polygon points="@(x2),@(y2) @(x2-8),@(y2-4) @(x2-8),@(y2+4)" fill="#000000" />
+                                    }
+                                    else
+                                    {
+                                        <polygon points="@(x2),@(y2) @(x2+8),@(y2-4) @(x2+8),@(y2+4)" fill="#000000" />
+                                    }
+
+                                    <!-- Index Badge -->
+                                    var idxX = isA2B ? 60 : 400;
+                                    @((MarkupString)$"<text x=\"{idxX}\" y=\"{y1 + 4}\" text-anchor=\"middle\" font-family=\"sans-serif\" font-size=\"11\" font-weight=\"bold\">{seg.Index}</text>")
+
+                                    <!-- Label on Line -->
+                                    var midX = 230;
+                                    var midY = (y1 + y2) / 2;
+
+                                    string segLabel = $"Nutzdaten {seg.PayloadBytes} Byte";
+                                    if (i == 0)
+                                    {
+                                        segLabel += $", Seq={seg.SeqNumber}, Ack={seg.AckNumber}";
+                                    }
+                                    else if (ShowSolution)
+                                    {
+                                        segLabel += $", Seq={seg.SeqNumber}, Ack={seg.AckNumber}";
+                                    }
+                                    else
+                                    {
+                                        segLabel += ", Seq=?, Ack=?";
+                                    }
+
+                                    <rect x="110" y="@(midY - 10)" width="240" height="20" fill="#ffffff" stroke="#cbd5e1" stroke-width="0.5" rx="3" />
+                                    @((MarkupString)$"<text x=\"{midX}\" y=\"{midY + 4}\" text-anchor=\"middle\" font-family=\"sans-serif\" font-size=\"10\">{segLabel}</text>")
+                                }
+                            </svg>
+                        }
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Teilaufgabe 2 -->
+            <div class="task-section">
+                <div class="task-sub-title">
+                    <span>Teilaufgabe 2 (2 Punkte)</span>
+                </div>
+                <p class="task-text">
+                    Wie lassen sich fehlende oder in falscher Reihenfolge angekommene Pakete mithilfe von Seq- und Ack-Nummern erkennen?
+                </p>
+
+                @if (ShowSolution)
+                {
+                    <div class="ws-solution-box">
+                        <p class="sol-text">
+                            <strong>Erkennung fehlender Pakete:</strong> Trifft beim Empfänger ein Segment mit einer höheren Sequenznummer ($Seq$) ein als die aktuell erwartete Bestätigungsnummer ($Ack$), ist mindestens ein vorausgehendes Segment verloren gegangen. Der Empfänger bestätigt weiterhin nur die lückenlos empfangene Bytereihenfolge (Duplicate ACKs).
+                        </p>
+                        <p class="sol-text">
+                            <strong>Erkennung falscher Reihenfolge:</strong> Über die fortlaufenden Sequenznummern kann der Empfänger eintreffende Segmente genau in den Datenstrom einsortieren und zwischenspeichern, bis die Lücke geschlossen ist.
+                        </p>
+                    </div>
+                }
+                else
+                {
+                    <div class="ws-textfield-lines">
+                        <div class="text-line"></div>
+                        <div class="text-line"></div>
+                        <div class="text-line"></div>
+                    </div>
+                }
+            </div>
+
+            <!-- Footer -->
+            <div class="exam-footer">
+                <div class="exam-footer-note">
+                    Hinweis: Im TCP-Header werden Byte-Offsets gezählt. Reine ACKs (0 Byte Nutzdaten) erhöhen die Sequenznummer beim Senden nachfolgender Pakete nicht.
+                </div>
+            </div>
+
+        </div>
+    }
+
+</article>
+
+@code {
+    public enum ViewMode { Simulator, Worksheet }
+
+    [Parameter] public string? View { get; set; }
+    [Parameter] public bool? Solution { get; set; }
+    [Parameter] public bool? Embed { get; set; }
+
+    private ViewMode ActiveView = ViewMode.Simulator;
+    private bool ShowSolution = false;
+    private bool IsEmbed = false;
+
+    private string SelectedPresetKey = "ExamStandard";
+    private int AliceStartSeq = 101;
+    private int BobStartSeq = 501;
+
+    private TcpScenario? CurrentScenario;
+    private int CurrentStepIndex = 0;
+
+    protected override void OnInitialized()
+    {
+        ReadQueryParameters();
+        LoadPreset(SelectedPresetKey);
+    }
+
+    protected override void OnParametersSet()
+    {
+        ReadQueryParameters();
+    }
+
+    private void ReadQueryParameters()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query;
+            if (!string.IsNullOrEmpty(query))
+            {
+                if (query.Contains("view=worksheet", StringComparison.OrdinalIgnoreCase))
+                {
+                    ActiveView = ViewMode.Worksheet;
+                }
+                if (query.Contains("solution=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    ShowSolution = true;
+                }
+                if (query.Contains("embed=true", StringComparison.OrdinalIgnoreCase) || query.Contains("embedded=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsEmbed = true;
+                }
+            }
+        }
+        catch { }
+    }
+
+    private void SetView(ViewMode mode)
+    {
+        ActiveView = mode;
+    }
+
+    private void ToggleSolution()
+    {
+        ShowSolution = !ShowSolution;
+    }
+
+    private async Task TriggerPrint()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+
+    private void OnPresetChanged()
+    {
+        LoadPreset(SelectedPresetKey);
+    }
+
+    private void LoadPreset(string key)
+    {
+        SelectedPresetKey = key;
+        switch (key)
+        {
+            case "ExamStandard":
+                AliceStartSeq = 101;
+                BobStartSeq = 501;
+                CurrentScenario = BuildExamStandardScenario(AliceStartSeq, BobStartSeq);
+                break;
+            case "HandshakeDataTeardown":
+                AliceStartSeq = 1000;
+                BobStartSeq = 8000;
+                CurrentScenario = BuildFullLifecycleScenario(AliceStartSeq, BobStartSeq);
+                break;
+            case "SlidingWindow":
+                AliceStartSeq = 2000;
+                BobStartSeq = 6000;
+                CurrentScenario = BuildSlidingWindowScenario(AliceStartSeq, BobStartSeq);
+                break;
+            case "PacketLoss":
+                AliceStartSeq = 100;
+                BobStartSeq = 500;
+                CurrentScenario = BuildPacketLossScenario(AliceStartSeq, BobStartSeq);
+                break;
+        }
+        CurrentStepIndex = 0;
+    }
+
+    private void Recalculate()
+    {
+        LoadPreset(SelectedPresetKey);
+    }
+
+    private void GenerateRandomScenario()
+    {
+        var rand = new Random();
+        AliceStartSeq = rand.Next(1, 20) * 100 + 1;
+        BobStartSeq = rand.Next(25, 50) * 100 + 1;
+        CurrentScenario = BuildRandomExamScenario(AliceStartSeq, BobStartSeq, rand);
+        CurrentStepIndex = 0;
+    }
+
+    private void SelectSegment(int stepIdx)
+    {
+        if (CurrentScenario != null && stepIdx >= 0 && stepIdx < CurrentScenario.Steps.Count)
+        {
+            CurrentStepIndex = stepIdx;
+        }
+    }
+
+    private void GoToStart() => CurrentStepIndex = 0;
+    private void PreviousStep() { if (CurrentStepIndex > 0) CurrentStepIndex--; }
+    private void NextStep() { if (CurrentScenario != null && CurrentStepIndex < CurrentScenario.Steps.Count - 1) CurrentStepIndex++; }
+    private void GoToEnd() { if (CurrentScenario != null) CurrentStepIndex = CurrentScenario.Steps.Count - 1; }
+
+    private void OnSliderChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var val))
+        {
+            CurrentStepIndex = val;
+        }
+    }
+
+    // =========================================================================
+    // SCENARIO BUILDERS
+    // =========================================================================
+
+    private TcpScenario BuildExamStandardScenario(int aliceISN, int bobISN)
+    {
+        var scenario = new TcpScenario { Title = "Klausuraufgabe: Datenübertragung (6 Segmente)" };
+        var aliceSeq = aliceISN;
+        var bobSeq = bobISN;
+
+        // Step 0: Initial State
+        scenario.Steps.Add(new TcpStep
+        {
+            Title = "Initialisierung der Verbindung",
+            Explanation = $"Verbindung ist aufgebaut (ESTABLISHED). Alice beginnt bei Seq={aliceSeq}, Bob bei Seq={bobSeq}.",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = aliceSeq
+        });
+
+        // Seg 1: Alice -> Bob, 1000 Bytes
+        var s1 = new TcpSegment { Index = 1, Sender = "Alice", Receiver = "Bob", PayloadBytes = 1000, SeqNumber = aliceSeq, AckNumber = bobSeq, Flags = TcpFlags.ACK };
+        scenario.Segments.Add(s1);
+        aliceSeq += 1000;
+        scenario.Steps.Add(new TcpStep
+        {
+            Segment = s1,
+            Title = "Segment 1: Alice sendet 1000 Byte Daten",
+            Explanation = $"Alice sendet 1000 Byte ab Byte-Position {s1.SeqNumber} bis {s1.SeqNumber + 999}. Bestätigt Bobs bisherige Position {s1.AckNumber}.",
+            SeqFormula = $"Alice ISN = {s1.SeqNumber}",
+            AckFormula = $"Bob ISN = {s1.AckNumber}",
+            NextExpected = $"Bob erwartet ab Byte {aliceSeq}",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = aliceSeq
+        });
+
+        // Seg 2: Bob -> Alice, 0 Bytes (ACK)
+        var s2 = new TcpSegment { Index = 2, Sender = "Bob", Receiver = "Alice", PayloadBytes = 0, SeqNumber = bobSeq, AckNumber = aliceSeq, Flags = TcpFlags.ACK };
+        scenario.Segments.Add(s2);
+        scenario.Steps.Add(new TcpStep
+        {
+            Segment = s2,
+            Title = "Segment 2: Bob bestätigt Empfang der 1000 Byte",
+            Explanation = $"Bob bestätigt den lückenlosen Empfang der 1000 Byte, indem er Ack={aliceSeq} zurücksendet.",
+            SeqFormula = $"Bob Current Seq = {s2.SeqNumber}",
+            AckFormula = $"Empfangenes Alice Seq ({s1.SeqNumber}) + 1000 Byte = {s2.AckNumber}",
+            NextExpected = $"Alice weiß: Bob hat alles bis Byte {aliceSeq - 1} erhalten",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = aliceSeq
+        });
+
+        // Seg 3: Bob -> Alice, 1500 Bytes
+        var s3 = new TcpSegment { Index = 3, Sender = "Bob", Receiver = "Alice", PayloadBytes = 1500, SeqNumber = bobSeq, AckNumber = aliceSeq, Flags = TcpFlags.ACK | TcpFlags.PSH };
+        scenario.Segments.Add(s3);
+        bobSeq += 1500;
+        scenario.Steps.Add(new TcpStep
+        {
+            Segment = s3,
+            Title = "Segment 3: Bob sendet 1500 Byte Antwort",
+            Explanation = $"Bob sendet 1500 Byte Antwortdaten ab Position {s3.SeqNumber} bis {s3.SeqNumber + 1499}.",
+            SeqFormula = $"Bob Current Seq = {s3.SeqNumber}",
+            AckFormula = $"Alice Current Seq = {s3.AckNumber}",
+            NextExpected = $"Alice erwartet ab Byte {bobSeq}",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = aliceSeq
+        });
+
+        // Seg 4: Alice -> Bob, 0 Bytes (ACK)
+        var s4 = new TcpSegment { Index = 4, Sender = "Alice", Receiver = "Bob", PayloadBytes = 0, SeqNumber = aliceSeq, AckNumber = bobSeq, Flags = TcpFlags.ACK };
+        scenario.Segments.Add(s4);
+        scenario.Steps.Add(new TcpStep
+        {
+            Segment = s4,
+            Title = "Segment 4: Alice bestätigt Bobs 1500 Byte",
+            Explanation = $"Alice quittiert Bobs Daten mit Ack={bobSeq}.",
+            SeqFormula = $"Alice Current Seq = {s4.SeqNumber}",
+            AckFormula = $"Empfangenes Bob Seq ({s3.SeqNumber}) + 1500 Byte = {s4.AckNumber}",
+            NextExpected = $"Bob weiß: Alice hat alles bis Byte {bobSeq - 1} erhalten",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = aliceSeq
+        });
+
+        // Seg 5: Alice -> Bob, 500 Bytes
+        var s5 = new TcpSegment { Index = 5, Sender = "Alice", Receiver = "Bob", PayloadBytes = 500, SeqNumber = aliceSeq, AckNumber = bobSeq, Flags = TcpFlags.ACK };
+        scenario.Segments.Add(s5);
+        aliceSeq += 500;
+        scenario.Steps.Add(new TcpStep
+        {
+            Segment = s5,
+            Title = "Segment 5: Alice sendet weitere 500 Byte",
+            Explanation = $"Alice sendet 500 Byte ab Position {s5.SeqNumber}.",
+            SeqFormula = $"Alice Current Seq = {s5.SeqNumber}",
+            AckFormula = $"Bob Current Seq = {s5.AckNumber}",
+            NextExpected = $"Bob erwartet ab Byte {aliceSeq}",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = aliceSeq
+        });
+
+        // Seg 6: Bob -> Alice, 0 Bytes (ACK)
+        var s6 = new TcpSegment { Index = 6, Sender = "Bob", Receiver = "Alice", PayloadBytes = 0, SeqNumber = bobSeq, AckNumber = aliceSeq, Flags = TcpFlags.ACK };
+        scenario.Segments.Add(s6);
+        scenario.Steps.Add(new TcpStep
+        {
+            Segment = s6,
+            Title = "Segment 6: Bob bestätigt Alice' 500 Byte",
+            Explanation = $"Bob quittiert den Empfang der 500 Byte mit Ack={aliceSeq}.",
+            SeqFormula = $"Bob Current Seq = {s6.SeqNumber}",
+            AckFormula = $"Empfangenes Alice Seq ({s5.SeqNumber}) + 500 Byte = {s6.AckNumber}",
+            NextExpected = $"Alle 6 Segmente erfolgreich synchronisiert!",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = aliceSeq
+        });
+
+        return scenario;
+    }
+
+    private TcpScenario BuildRandomExamScenario(int aliceISN, int bobISN, Random rand)
+    {
+        var scenario = new TcpScenario { Title = "Zufällige Klausuraufgabe: Datenübertragung" };
+        var aliceSeq = aliceISN;
+        var bobSeq = bobISN;
+
+        scenario.Steps.Add(new TcpStep
+        {
+            Title = "Startzustand",
+            Explanation = $"Initialisierung: Alice ISN={aliceSeq}, Bob ISN={bobSeq}.",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = aliceSeq
+        });
+
+        int segCount = 6;
+        for (int i = 0; i < 3; i++)
+        {
+            var dataBytes = rand.Next(1, 5) * 500;
+            bool aliceSends = rand.Next(2) == 0;
+
+            if (aliceSends)
+            {
+                // Data Alice -> Bob
+                int idx1 = i * 2 + 1;
+                var segData = new TcpSegment { Index = idx1, Sender = "Alice", Receiver = "Bob", PayloadBytes = dataBytes, SeqNumber = aliceSeq, AckNumber = bobSeq, Flags = TcpFlags.ACK | TcpFlags.PSH };
+                scenario.Segments.Add(segData);
+                aliceSeq += dataBytes;
+                scenario.Steps.Add(new TcpStep
+                {
+                    Segment = segData,
+                    Title = $"Segment {idx1}: Alice sendet {dataBytes} Byte",
+                    Explanation = $"Alice sendet {dataBytes} Byte Daten (Seq={segData.SeqNumber}, Ack={segData.AckNumber}).",
+                    SeqFormula = $"Seq = {segData.SeqNumber}",
+                    AckFormula = $"Ack = {segData.AckNumber}",
+                    NextExpected = $"Erwartet Ack = {aliceSeq}",
+                    AliceNextSeq = aliceSeq,
+                    AliceExpectedAck = bobSeq,
+                    BobNextSeq = bobSeq,
+                    BobExpectedAck = aliceSeq
+                });
+
+                // ACK Bob -> Alice
+                int idx2 = i * 2 + 2;
+                var segAck = new TcpSegment { Index = idx2, Sender = "Bob", Receiver = "Alice", PayloadBytes = 0, SeqNumber = bobSeq, AckNumber = aliceSeq, Flags = TcpFlags.ACK };
+                scenario.Segments.Add(segAck);
+                scenario.Steps.Add(new TcpStep
+                {
+                    Segment = segAck,
+                    Title = $"Segment {idx2}: Bob bestätigt {dataBytes} Byte",
+                    Explanation = $"Bob quittiert die Daten mit Ack={aliceSeq}.",
+                    SeqFormula = $"Seq = {segAck.SeqNumber}",
+                    AckFormula = $"Ack = Empfangenes Seq + {dataBytes} = {segAck.AckNumber}",
+                    NextExpected = $"Bestätigt bis {aliceSeq}",
+                    AliceNextSeq = aliceSeq,
+                    AliceExpectedAck = bobSeq,
+                    BobNextSeq = bobSeq,
+                    BobExpectedAck = aliceSeq
+                });
+            }
+            else
+            {
+                // Data Bob -> Alice
+                int idx1 = i * 2 + 1;
+                var segData = new TcpSegment { Index = idx1, Sender = "Bob", Receiver = "Alice", PayloadBytes = dataBytes, SeqNumber = bobSeq, AckNumber = aliceSeq, Flags = TcpFlags.ACK | TcpFlags.PSH };
+                scenario.Segments.Add(segData);
+                bobSeq += dataBytes;
+                scenario.Steps.Add(new TcpStep
+                {
+                    Segment = segData,
+                    Title = $"Segment {idx1}: Bob sendet {dataBytes} Byte",
+                    Explanation = $"Bob sendet {dataBytes} Byte Daten (Seq={segData.SeqNumber}, Ack={segData.AckNumber}).",
+                    SeqFormula = $"Seq = {segData.SeqNumber}",
+                    AckFormula = $"Ack = {segData.AckNumber}",
+                    NextExpected = $"Erwartet Ack = {bobSeq}",
+                    AliceNextSeq = aliceSeq,
+                    AliceExpectedAck = bobSeq,
+                    BobNextSeq = bobSeq,
+                    BobExpectedAck = aliceSeq
+                });
+
+                // ACK Alice -> Bob
+                int idx2 = i * 2 + 2;
+                var segAck = new TcpSegment { Index = idx2, Sender = "Alice", Receiver = "Bob", PayloadBytes = 0, SeqNumber = aliceSeq, AckNumber = bobSeq, Flags = TcpFlags.ACK };
+                scenario.Segments.Add(segAck);
+                scenario.Steps.Add(new TcpStep
+                {
+                    Segment = segAck,
+                    Title = $"Segment {idx2}: Alice bestätigt {dataBytes} Byte",
+                    Explanation = $"Alice quittiert die Daten mit Ack={bobSeq}.",
+                    SeqFormula = $"Seq = {segAck.SeqNumber}",
+                    AckFormula = $"Ack = Empfangenes Seq + {dataBytes} = {segAck.AckNumber}",
+                    NextExpected = $"Bestätigt bis {bobSeq}",
+                    AliceNextSeq = aliceSeq,
+                    AliceExpectedAck = bobSeq,
+                    BobNextSeq = bobSeq,
+                    BobExpectedAck = aliceSeq
+                });
+            }
+        }
+
+        return scenario;
+    }
+
+    private TcpScenario BuildFullLifecycleScenario(int aliceISN, int bobISN)
+    {
+        var scenario = new TcpScenario { Title = "Dreiwege-Handshake, Datenübertragung & Verbindungsabbau" };
+        var aliceSeq = aliceISN;
+        var bobSeq = bobISN;
+
+        scenario.Steps.Add(new TcpStep
+        {
+            Title = "Startzustand (CLOSED / LISTEN)",
+            Explanation = $"Alice möchte eine TCP-Verbindung zu Bob aufbauen. Alice wählt ISN={aliceSeq}, Bob wählt ISN={bobSeq}.",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = 0,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = 0
+        });
+
+        // 1. SYN (Alice -> Bob)
+        var s1 = new TcpSegment { Index = 1, Sender = "Alice", Receiver = "Bob", PayloadBytes = 0, SeqNumber = aliceSeq, AckNumber = 0, Flags = TcpFlags.SYN };
+        scenario.Segments.Add(s1);
+        aliceSeq += 1; // SYN consumes 1 sequence number
+        scenario.Steps.Add(new TcpStep
+        {
+            Segment = s1,
+            Title = "1. Handshake: SYN (Alice &rarr; Bob)",
+            Explanation = $"Alice sendet SYN mit eigener Anfangssequenznummer ISN={s1.SeqNumber}. (Zustand: SYN_SENT). SYN belegt 1 Phantom-Byte!",
+            SeqFormula = $"Alice ISN = {s1.SeqNumber}",
+            AckFormula = "Ack = 0 (noch keine Gegenstelle)",
+            NextExpected = $"Bob erwartet nach SYN: Seq + 1 = {aliceSeq}",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = 0,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = aliceSeq
+        });
+
+        // 2. SYN-ACK (Bob -> Alice)
+        var s2 = new TcpSegment { Index = 2, Sender = "Bob", Receiver = "Alice", PayloadBytes = 0, SeqNumber = bobSeq, AckNumber = aliceSeq, Flags = TcpFlags.SYN | TcpFlags.ACK };
+        scenario.Segments.Add(s2);
+        bobSeq += 1; // SYN consumes 1 sequence number
+        scenario.Steps.Add(new TcpStep
+        {
+            Segment = s2,
+            Title = "2. Handshake: SYN-ACK (Bob &rarr; Alice)",
+            Explanation = $"Bob bestätigt Alice' SYN mit Ack={s2.AckNumber} (Alice ISN + 1) und sendet eigene ISN={s2.SeqNumber}. (Zustand: SYN_RCVD).",
+            SeqFormula = $"Bob ISN = {s2.SeqNumber}",
+            AckFormula = $"Alice ISN ({s1.SeqNumber}) + 1 = {s2.AckNumber}",
+            NextExpected = $"Alice erwartet nach Bobs SYN: Seq + 1 = {bobSeq}",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = aliceSeq
+        });
+
+        // 3. ACK (Alice -> Bob)
+        var s3 = new TcpSegment { Index = 3, Sender = "Alice", Receiver = "Bob", PayloadBytes = 0, SeqNumber = aliceSeq, AckNumber = bobSeq, Flags = TcpFlags.ACK };
+        scenario.Segments.Add(s3);
+        scenario.Steps.Add(new TcpStep
+        {
+            Segment = s3,
+            Title = "3. Handshake: ACK (Alice &rarr; Bob)",
+            Explanation = $"Alice bestätigt Bobs SYN mit Ack={s3.AckNumber} (Bob ISN + 1). Verbindung ist nun auf beiden Seiten ESTABLISHED!",
+            SeqFormula = $"Alice Seq = {s3.SeqNumber}",
+            AckFormula = $"Bob ISN ({s2.SeqNumber}) + 1 = {s3.AckNumber}",
+            NextExpected = "Verbindung ESTABLISHED",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = aliceSeq
+        });
+
+        // 4. Data Alice -> Bob (800 B)
+        var s4 = new TcpSegment { Index = 4, Sender = "Alice", Receiver = "Bob", PayloadBytes = 800, SeqNumber = aliceSeq, AckNumber = bobSeq, Flags = TcpFlags.ACK | TcpFlags.PSH };
+        scenario.Segments.Add(s4);
+        aliceSeq += 800;
+        scenario.Steps.Add(new TcpStep
+        {
+            Segment = s4,
+            Title = "4. Datenübertragung: 800 Byte (Alice &rarr; Bob)",
+            Explanation = $"Alice sendet 800 Byte Nutzdaten ab Byte {s4.SeqNumber}.",
+            SeqFormula = $"Seq = {s4.SeqNumber}",
+            AckFormula = $"Ack = {s4.AckNumber}",
+            NextExpected = $"Bob erwartet ab Byte {aliceSeq}",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = aliceSeq
+        });
+
+        // 5. ACK Bob -> Alice
+        var s5 = new TcpSegment { Index = 5, Sender = "Bob", Receiver = "Alice", PayloadBytes = 0, SeqNumber = bobSeq, AckNumber = aliceSeq, Flags = TcpFlags.ACK };
+        scenario.Segments.Add(s5);
+        scenario.Steps.Add(new TcpStep
+        {
+            Segment = s5,
+            Title = "5. Bestätigung: ACK (Bob &rarr; Alice)",
+            Explanation = $"Bob quittiert 800 Byte mit Ack={s5.AckNumber}.",
+            SeqFormula = $"Seq = {s5.SeqNumber}",
+            AckFormula = $"Ack = {s5.AckNumber}",
+            NextExpected = "Daten erfolgreich übermittelt",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = aliceSeq
+        });
+
+        // 6. FIN (Alice -> Bob)
+        var s6 = new TcpSegment { Index = 6, Sender = "Alice", Receiver = "Bob", PayloadBytes = 0, SeqNumber = aliceSeq, AckNumber = bobSeq, Flags = TcpFlags.FIN | TcpFlags.ACK };
+        scenario.Segments.Add(s6);
+        aliceSeq += 1; // FIN consumes 1 sequence number
+        scenario.Steps.Add(new TcpStep
+        {
+            Segment = s6,
+            Title = "6. Verbindungsabbau: FIN (Alice &rarr; Bob)",
+            Explanation = $"Alice leitet den Verbindungsabbau ein. FIN verbraucht 1 Phantombit in der Sequenznummernfolge! (Alice: FIN_WAIT_1).",
+            SeqFormula = $"Seq = {s6.SeqNumber}",
+            AckFormula = $"Ack = {s6.AckNumber}",
+            NextExpected = $"Bob erwartet nach FIN: Seq + 1 = {aliceSeq}",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = aliceSeq
+        });
+
+        // 7. ACK (Bob -> Alice)
+        var s7 = new TcpSegment { Index = 7, Sender = "Bob", Receiver = "Alice", PayloadBytes = 0, SeqNumber = bobSeq, AckNumber = aliceSeq, Flags = TcpFlags.ACK };
+        scenario.Segments.Add(s7);
+        scenario.Steps.Add(new TcpStep
+        {
+            Segment = s7,
+            Title = "7. Bestätigung: ACK (Bob &rarr; Alice)",
+            Explanation = $"Bob bestätigt Alice' FIN mit Ack={s7.AckNumber}. (Alice: FIN_WAIT_2, Bob: CLOSE_WAIT).",
+            SeqFormula = $"Seq = {s7.SeqNumber}",
+            AckFormula = $"Ack = Alice Seq ({s6.SeqNumber}) + 1 = {s7.AckNumber}",
+            NextExpected = "Alice wartet auf Bobs FIN",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = aliceSeq
+        });
+
+        // 8. FIN (Bob -> Alice)
+        var s8 = new TcpSegment { Index = 8, Sender = "Bob", Receiver = "Alice", PayloadBytes = 0, SeqNumber = bobSeq, AckNumber = aliceSeq, Flags = TcpFlags.FIN | TcpFlags.ACK };
+        scenario.Segments.Add(s8);
+        bobSeq += 1; // FIN consumes 1 sequence number
+        scenario.Steps.Add(new TcpStep
+        {
+            Segment = s8,
+            Title = "8. Verbindungsabbau: FIN (Bob &rarr; Alice)",
+            Explanation = $"Bob sendet seinerseits FIN zum Schließen der Rückrichtung. (Bob: LAST_ACK).",
+            SeqFormula = $"Seq = {s8.SeqNumber}",
+            AckFormula = $"Ack = {s8.AckNumber}",
+            NextExpected = $"Alice erwartet nach Bobs FIN: Seq + 1 = {bobSeq}",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = aliceSeq
+        });
+
+        // 9. Final ACK (Alice -> Bob)
+        var s9 = new TcpSegment { Index = 9, Sender = "Alice", Receiver = "Bob", PayloadBytes = 0, SeqNumber = aliceSeq, AckNumber = bobSeq, Flags = TcpFlags.ACK };
+        scenario.Segments.Add(s9);
+        scenario.Steps.Add(new TcpStep
+        {
+            Segment = s9,
+            Title = "9. Letzte Bestätigung: ACK (Alice &rarr; Bob)",
+            Explanation = $"Alice bestätigt Bobs FIN. Bob wechselt in CLOSED, Alice verbleibt für 2*MSL in TIME_WAIT. Verbindung sauber beendet!",
+            SeqFormula = $"Seq = {s9.SeqNumber}",
+            AckFormula = $"Ack = Bob Seq ({s8.SeqNumber}) + 1 = {s9.AckNumber}",
+            NextExpected = "Verbindung vollständig geschlossen (CLOSED / TIME_WAIT)",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = aliceSeq
+        });
+
+        return scenario;
+    }
+
+    private TcpScenario BuildSlidingWindowScenario(int aliceISN, int bobISN)
+    {
+        var scenario = new TcpScenario { Title = "Sliding Window Flusskontrolle & Pufferüberlauf" };
+        var aliceSeq = aliceISN;
+        var bobSeq = bobISN;
+
+        scenario.Steps.Add(new TcpStep
+        {
+            Title = "Initialer Zustand",
+            Explanation = $"Bob signalisiert ein initiales Empfangsfenster von Win=3000 Byte (Platz im Empfangspuffer).",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = aliceSeq
+        });
+
+        // Seg 1: Alice -> Bob 1000 Byte
+        var s1 = new TcpSegment { Index = 1, Sender = "Alice", Receiver = "Bob", PayloadBytes = 1000, SeqNumber = aliceSeq, AckNumber = bobSeq, Flags = TcpFlags.ACK };
+        scenario.Segments.Add(s1);
+        aliceSeq += 1000;
+        scenario.Steps.Add(new TcpStep
+        {
+            Segment = s1,
+            Title = "Segment 1: Alice sendet 1000 Byte",
+            Explanation = $"Alice sendet 1000 Byte. Das Sendefenster verringert sich um 1000 Byte.",
+            SeqFormula = $"Seq = {s1.SeqNumber}",
+            AckFormula = $"Ack = {s1.AckNumber}",
+            NextExpected = $"Bobs Puffer: 1000 Byte belegt, 2000 Byte frei",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = aliceSeq
+        });
+
+        // Seg 2: Alice -> Bob 1000 Byte
+        var s2 = new TcpSegment { Index = 2, Sender = "Alice", Receiver = "Bob", PayloadBytes = 1000, SeqNumber = aliceSeq, AckNumber = bobSeq, Flags = TcpFlags.ACK };
+        scenario.Segments.Add(s2);
+        aliceSeq += 1000;
+        scenario.Steps.Add(new TcpStep
+        {
+            Segment = s2,
+            Title = "Segment 2: Alice sendet weitere 1000 Byte (Pipelining)",
+            Explanation = $"Alice schickt direkt die nächsten 1000 Byte ohne auf ACK 1 zu warten.",
+            SeqFormula = $"Seq = {s2.SeqNumber}",
+            AckFormula = $"Ack = {s2.AckNumber}",
+            NextExpected = $"Bobs Puffer: 2000 Byte belegt, 1000 Byte frei",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = aliceSeq
+        });
+
+        // Seg 3: Bob -> Alice ACK + Win=1000
+        var s3 = new TcpSegment { Index = 3, Sender = "Bob", Receiver = "Alice", PayloadBytes = 0, SeqNumber = bobSeq, AckNumber = aliceSeq, Flags = TcpFlags.ACK, WindowSize = 1000 };
+        scenario.Segments.Add(s3);
+        scenario.Steps.Add(new TcpStep
+        {
+            Segment = s3,
+            Title = "Segment 3: Bob bestätigt 2000 Byte (Win=1000)",
+            Explanation = $"Bob bestätigt alle 2000 Byte (Ack={s3.AckNumber}), meldet aber nur noch Win=1000 Byte freies Fenster, da die Anwendung noch nicht gelesen hat.",
+            SeqFormula = $"Seq = {s3.SeqNumber}",
+            AckFormula = $"Ack = {s3.AckNumber}",
+            NextExpected = $"Alice darf maximal noch 1000 Byte senden!",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = aliceSeq
+        });
+
+        // Seg 4: Alice -> Bob 1000 Byte
+        var s4 = new TcpSegment { Index = 4, Sender = "Alice", Receiver = "Bob", PayloadBytes = 1000, SeqNumber = aliceSeq, AckNumber = bobSeq, Flags = TcpFlags.ACK };
+        scenario.Segments.Add(s4);
+        aliceSeq += 1000;
+        scenario.Steps.Add(new TcpStep
+        {
+            Segment = s4,
+            Title = "Segment 4: Alice schöpft Fenster aus (1000 Byte)",
+            Explanation = $"Alice sendet 1000 Byte. Damit ist das zulässige Sendefenster auf 0 gesunken.",
+            SeqFormula = $"Seq = {s4.SeqNumber}",
+            AckFormula = $"Ack = {s4.AckNumber}",
+            NextExpected = $"Alice muss nun pausieren!",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = aliceSeq
+        });
+
+        // Seg 5: Bob -> Alice ACK + Win=0 (Zero Window)
+        var s5 = new TcpSegment { Index = 5, Sender = "Bob", Receiver = "Alice", PayloadBytes = 0, SeqNumber = bobSeq, AckNumber = aliceSeq, Flags = TcpFlags.ACK, WindowSize = 0 };
+        scenario.Segments.Add(s5);
+        scenario.Steps.Add(new TcpStep
+        {
+            Segment = s5,
+            Title = "Segment 5: Bob meldet Zero Window (Win=0)",
+            Explanation = $"Bob bestätigt Empfang bis {s5.AckNumber}, meldet aber Win=0 (Empfangspuffer komplett voll). Alice stoppt Senden und startet Persist-Timer.",
+            SeqFormula = $"Seq = {s5.SeqNumber}",
+            AckFormula = $"Ack = {s5.AckNumber}",
+            NextExpected = "Flusskontrolle verhindert Pufferüberlauf",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = aliceSeq
+        });
+
+        // Seg 6: Bob -> Alice Window Update (Win=3000)
+        var s6 = new TcpSegment { Index = 6, Sender = "Bob", Receiver = "Alice", PayloadBytes = 0, SeqNumber = bobSeq, AckNumber = aliceSeq, Flags = TcpFlags.ACK, WindowSize = 3000 };
+        scenario.Segments.Add(s6);
+        scenario.Steps.Add(new TcpStep
+        {
+            Segment = s6,
+            Title = "Segment 6: Window Update (Win=3000)",
+            Explanation = $"Die Server-Anwendung hat Daten gelesen. Bob schickt ein Window Update (Win=3000). Alice kann wieder Daten senden!",
+            SeqFormula = $"Seq = {s6.SeqNumber}",
+            AckFormula = $"Ack = {s6.AckNumber}",
+            NextExpected = "Fenster wieder geöffnet",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = aliceSeq
+        });
+
+        return scenario;
+    }
+
+    private TcpScenario BuildPacketLossScenario(int aliceISN, int bobISN)
+    {
+        var scenario = new TcpScenario { Title = "Paketverlust, Duplicate ACKs & Fast Retransmit" };
+        var aliceSeq = aliceISN;
+        var bobSeq = bobISN;
+
+        scenario.Steps.Add(new TcpStep
+        {
+            Title = "Startzustand",
+            Explanation = "Alice sendet eine Serie von Segmenten (Pipelining). Segment 2 geht im Netzwerk verloren.",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = aliceSeq
+        });
+
+        // Seg 1: Alice -> Bob 500 B (Erfolgreich)
+        var s1 = new TcpSegment { Index = 1, Sender = "Alice", Receiver = "Bob", PayloadBytes = 500, SeqNumber = aliceSeq, AckNumber = bobSeq, Flags = TcpFlags.ACK };
+        scenario.Segments.Add(s1);
+        aliceSeq += 500;
+        scenario.Steps.Add(new TcpStep
+        {
+            Segment = s1,
+            Title = "Segment 1: Alice sendet 500 Byte (Erfolgreich)",
+            Explanation = $"Bob empfängt Seq {s1.SeqNumber} bis {s1.SeqNumber + 499}.",
+            SeqFormula = $"Seq = {s1.SeqNumber}",
+            AckFormula = $"Ack = {s1.AckNumber}",
+            NextExpected = $"Bob erwartet {aliceSeq}",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = aliceSeq
+        });
+
+        // Seg 2: Alice -> Bob 500 B (VERLOREN / DROPPED)
+        var lostSeq = aliceSeq;
+        aliceSeq += 500; // Alice advances her sequence counter
+
+        // Seg 3: Alice -> Bob 500 B (Out of Order)
+        var s3 = new TcpSegment { Index = 2, Sender = "Alice", Receiver = "Bob", PayloadBytes = 500, SeqNumber = aliceSeq, AckNumber = bobSeq, Flags = TcpFlags.ACK };
+        scenario.Segments.Add(s3);
+        aliceSeq += 500;
+        scenario.Steps.Add(new TcpStep
+        {
+            Segment = s3,
+            Title = "Segment 2: Alice sendet Folgepaket (Seg 2 ging verloren)",
+            Explanation = $"Bob empfängt Seq {s3.SeqNumber}, ihm fehlt aber Byte {lostSeq}! Bob kann diese Daten nur zwischenspeichern.",
+            SeqFormula = $"Seq = {s3.SeqNumber}",
+            AckFormula = $"Ack = {s3.AckNumber}",
+            NextExpected = $"Lücke bei Byte {lostSeq}!",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = lostSeq
+        });
+
+        // Seg 4: Bob -> Alice DupACK 1
+        var s4 = new TcpSegment { Index = 3, Sender = "Bob", Receiver = "Alice", PayloadBytes = 0, SeqNumber = bobSeq, AckNumber = lostSeq, Flags = TcpFlags.ACK };
+        scenario.Segments.Add(s4);
+        scenario.Steps.Add(new TcpStep
+        {
+            Segment = s4,
+            Title = "Segment 3: Bob sendet DupACK #1",
+            Explanation = $"Bob bestätigt erneut nur Ack={lostSeq}, um die Lücke zu signalisieren.",
+            SeqFormula = $"Seq = {s4.SeqNumber}",
+            AckFormula = $"Ack = {lostSeq} (DupACK #1)",
+            NextExpected = $"Signalisiert Lücke ab {lostSeq}",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = lostSeq
+        });
+
+        // Seg 5: Alice -> Bob 500 B
+        var s5 = new TcpSegment { Index = 4, Sender = "Alice", Receiver = "Bob", PayloadBytes = 500, SeqNumber = aliceSeq, AckNumber = bobSeq, Flags = TcpFlags.ACK };
+        scenario.Segments.Add(s5);
+        aliceSeq += 500;
+        scenario.Steps.Add(new TcpStep
+        {
+            Segment = s5,
+            Title = "Segment 4: Alice sendet weiteres Paket",
+            Explanation = $"Alice schickt weiteres Segment Seq={s5.SeqNumber}.",
+            SeqFormula = $"Seq = {s5.SeqNumber}",
+            AckFormula = $"Ack = {s5.AckNumber}",
+            NextExpected = $"Lücke bleibt ungeschlossen",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = lostSeq
+        });
+
+        // Seg 6: Bob -> Alice DupACK 2
+        var s6 = new TcpSegment { Index = 5, Sender = "Bob", Receiver = "Alice", PayloadBytes = 0, SeqNumber = bobSeq, AckNumber = lostSeq, Flags = TcpFlags.ACK };
+        scenario.Segments.Add(s6);
+        scenario.Steps.Add(new TcpStep
+        {
+            Segment = s6,
+            Title = "Segment 5: Bob sendet DupACK #2",
+            Explanation = $"Bob wiederholt Ack={lostSeq}.",
+            SeqFormula = $"Seq = {s6.SeqNumber}",
+            AckFormula = $"Ack = {lostSeq} (DupACK #2)",
+            NextExpected = "2 von 3 DupACKs erhalten",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = lostSeq
+        });
+
+        // Seg 7: Alice -> Bob 500 B
+        var s7 = new TcpSegment { Index = 6, Sender = "Alice", Receiver = "Bob", PayloadBytes = 500, SeqNumber = aliceSeq, AckNumber = bobSeq, Flags = TcpFlags.ACK };
+        scenario.Segments.Add(s7);
+        aliceSeq += 500;
+        scenario.Steps.Add(new TcpStep
+        {
+            Segment = s7,
+            Title = "Segment 6: Alice sendet nächstes Paket",
+            Explanation = $"Alice schickt Segment Seq={s7.SeqNumber}.",
+            SeqFormula = $"Seq = {s7.SeqNumber}",
+            AckFormula = $"Ack = {s7.AckNumber}",
+            NextExpected = "DupACK #3 wird ausgelöst",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = lostSeq
+        });
+
+        // Seg 8: Bob -> Alice DupACK 3 (Triggers Fast Retransmit!)
+        var s8 = new TcpSegment { Index = 7, Sender = "Bob", Receiver = "Alice", PayloadBytes = 0, SeqNumber = bobSeq, AckNumber = lostSeq, Flags = TcpFlags.ACK };
+        scenario.Segments.Add(s8);
+        scenario.Steps.Add(new TcpStep
+        {
+            Segment = s8,
+            Title = "Segment 7: Bob sendet DupACK #3 (Fast Retransmit Trigger!)",
+            Explanation = $"3 identische Bestätigungen (3 Duplicate ACKs) lösen bei Alice sofort die Schnellwiederholung (Fast Retransmit) aus, ohne auf den Retransmission-Timeout (RTO) zu warten!",
+            SeqFormula = $"Seq = {s8.SeqNumber}",
+            AckFormula = $"Ack = {lostSeq} (DupACK #3)",
+            NextExpected = "Fast Retransmit startet sofort!",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = lostSeq
+        });
+
+        // Seg 9: Alice -> Bob FAST RETRANSMIT (lostSeq)
+        var s9 = new TcpSegment { Index = 8, Sender = "Alice", Receiver = "Bob", PayloadBytes = 500, SeqNumber = lostSeq, AckNumber = bobSeq, Flags = TcpFlags.ACK, IsRetransmit = true };
+        scenario.Segments.Add(s9);
+        scenario.Steps.Add(new TcpStep
+        {
+            Segment = s9,
+            IsRetransmit = true,
+            Title = "Segment 8: Fast Retransmit von Paket 2",
+            Explanation = $"Alice wiederholt gezielt das verlorene Segment ab Seq={lostSeq}.",
+            SeqFormula = $"Retransmit Seq = {lostSeq}",
+            AckFormula = $"Ack = {bobSeq}",
+            NextExpected = $"Schließt die Lücke bei Bob!",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = lostSeq
+        });
+
+        // Seg 10: Bob -> Alice Cumulative ACK
+        var s10 = new TcpSegment { Index = 9, Sender = "Bob", Receiver = "Alice", PayloadBytes = 0, SeqNumber = bobSeq, AckNumber = aliceSeq, Flags = TcpFlags.ACK };
+        scenario.Segments.Add(s10);
+        scenario.Steps.Add(new TcpStep
+        {
+            Segment = s10,
+            Title = "Segment 9: Kumulatives ACK bis zum Ende",
+            Explanation = $"Da Bob alle Folgepakete im Puffer behalten hatte, springt die Bestätigungsnummer nun kumulativ sofort auf Ack={aliceSeq}!",
+            SeqFormula = $"Seq = {bobSeq}",
+            AckFormula = $"Ack = {aliceSeq} (Kumulativ alle Bytes bestätigt)",
+            NextExpected = "Alle Pakete verlustfrei wiederhergestellt",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = bobSeq,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = aliceSeq
+        });
+
+        return scenario;
+    }
+
+    // =========================================================================
+    // INNER CLASSES
+    // =========================================================================
+
+    [Flags]
+    public enum TcpFlags
+    {
+        None = 0,
+        SYN = 1,
+        ACK = 2,
+        FIN = 4,
+        PSH = 8,
+        RST = 16
+    }
+
+    public class TcpSegment
+    {
+        public int Index { get; set; }
+        public string Sender { get; set; } = "Alice";
+        public string Receiver { get; set; } = "Bob";
+        public int PayloadBytes { get; set; }
+        public int SeqNumber { get; set; }
+        public int AckNumber { get; set; }
+        public TcpFlags Flags { get; set; } = TcpFlags.ACK;
+        public int WindowSize { get; set; } = 4000;
+        public bool IsRetransmit { get; set; }
+
+        public string FlagString
+        {
+            get
+            {
+                var flags = new List<string>();
+                if (Flags.HasFlag(TcpFlags.SYN)) flags.Add("SYN");
+                if (Flags.HasFlag(TcpFlags.ACK)) flags.Add("ACK");
+                if (Flags.HasFlag(TcpFlags.FIN)) flags.Add("FIN");
+                if (Flags.HasFlag(TcpFlags.PSH)) flags.Add("PSH");
+                if (Flags.HasFlag(TcpFlags.RST)) flags.Add("RST");
+                return flags.Count > 0 ? string.Join("+", flags) : "NONE";
+            }
+        }
+    }
+
+    public class TcpStep
+    {
+        public TcpSegment? Segment { get; set; }
+        public string Title { get; set; } = "";
+        public string Explanation { get; set; } = "";
+        public string SeqFormula { get; set; } = "";
+        public string AckFormula { get; set; } = "";
+        public string NextExpected { get; set; } = "";
+        public bool IsRetransmit { get; set; }
+
+        public int AliceNextSeq { get; set; }
+        public int AliceExpectedAck { get; set; }
+        public int BobNextSeq { get; set; }
+        public int BobExpectedAck { get; set; }
+    }
+
+    public class TcpScenario
+    {
+        public string Title { get; set; } = "";
+        public List<TcpSegment> Segments { get; set; } = new();
+        public List<TcpStep> Steps { get; set; } = new();
+    }
+}

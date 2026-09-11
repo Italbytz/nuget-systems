@@ -1,69 +1,789 @@
 @namespace Italbytz.Systems.Blazor.Components.Networking
+@using Italbytz.Networking
+@using Italbytz.Networking.Abstractions
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
 
-<article class="demo-card">
-    <div class="card-heading">
-        <p class="feature-kicker">Line encoding</p>
-        <h2>Compare three signal representations</h2>
-    </div>
+<article class="bitencoding-container @(IsEmbed ? "embed-mode" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
 
-    <label>
-        <span>Bit pattern</span>
-        <input type="text" inputmode="numeric" maxlength="16" @bind="BitPattern" />
-    </label>
-
-    @{ var bitencoding = BitencodingSolution; }
-    <div class="result-stack">
-        <div class="metric-row">
-            <span>NRZ</span>
-            <strong>@string.Join(" ", bitencoding.NRZ)</strong>
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
+    {
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Rechnernetze &bull; Bitübertragungsschicht (Physical Layer)</p>
+            <h2>Leitungscodierung &amp; Signalverläufe (Line Encodings)</h2>
+            <p class="feature-intro">
+                Interaktive Signalwellenformen (Oszilloskop-Ansicht) und Schritt-für-Schritt-Ablaufverfolgung der Codierungsverfahren 
+                <strong>NRZ</strong>, <strong>NRZ-I</strong>, <strong>MLT-3</strong>, <strong>Manchester</strong> und <strong>Diff-Manchester</strong> 
+                inklusive Taktflanken und Zustandstransitionen.
+            </p>
         </div>
-        <div class="metric-row">
-            <span>NRZI</span>
-            <strong>@string.Join(" ", bitencoding.NRZI)</strong>
-        </div>
-        <div class="metric-row">
-            <span>MLT-3</span>
-            <strong>@string.Join(" ", bitencoding.MLT3)</strong>
-        </div>
-        <p class="helper-copy">Only binary digits are used. Other characters are ignored.</p>
-    </div>
+    }
 
-    <div class="table-shell">
-        <table class="trace-table">
-            <thead>
-                <tr>
-                    <th>Trace step</th>
-                    <th>Trace detail</th>
-                </tr>
-            </thead>
-            <tbody>
-                @for (var index = 0; index < bitencoding.Steps.Count; index++)
-                {
-                    <tr>
-                        <td>@(index + 1)</td>
-                        <td>@bitencoding.Steps[index]</td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
+    <!-- View Switcher -->
+    @if (!IsEmbed)
+    {
+        <div class="view-switch no-print">
+            <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Simulator)">
+                🚀 Interaktiver Simulator &amp; Signalplotter
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Worksheet)">
+                🖨️ Klausur-Arbeitsblatt (Druckansicht)
+            </button>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- SIMULATOR VIEW                                                            -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Controls Panel -->
+        <div class="controls-panel no-print">
+            <div class="config-grid">
+                <label class="control-label">
+                    <span>Bitmuster (Binärfolge):</span>
+                    <div class="input-with-action">
+                        <input type="text" class="form-input mono" @bind="BitPatternInput" @bind:after="OnBitPatternChanged" placeholder="z. B. 10110010" maxlength="16" />
+                        <span class="input-badge">@ParsedBits.Length Bits</span>
+                    </div>
+                </label>
+
+                <label class="control-label">
+                    <span>Anfangspegel (NRZ-I &amp; MLT-3):</span>
+                    <select class="form-input select" @bind="InitialLevel" @bind:after="Recalculate">
+                        <option value="-">Niedrig (-) / 0</option>
+                        <option value="+">Hoch (+) / 0</option>
+                    </select>
+                </label>
+            </div>
+
+            <!-- Presets Bar -->
+            <div class="preset-bar">
+                <span class="preset-label">Beispiele:</span>
+                <button class="preset-btn" @onclick='() => LoadPreset("10110010")'>Vorlesung (10110010)</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("0100111001")'>Klausur-Set 1 (0100111001)</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("1101000110")'>Klausur-Set 2 (1101000110)</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("11110000")'>Wechselfolge (11110000)</button>
+                <button class="preset-btn random" @onclick="GenerateRandom">🎲 Zufallsfolge</button>
+            </div>
+        </div>
+
+        @if (ParsedBits.Length > 0)
+        {
+            var maxSteps = ParsedBits.Length;
+
+            <!-- Player Toolbar -->
+            <div class="player-toolbar no-print">
+                <div class="player-controls">
+                    <button class="player-btn" title="Start" disabled="@(CurrentStepIndex == 0)" @onclick="GoToStart">⏮ Start</button>
+                    <button class="player-btn" title="Zurück" disabled="@(CurrentStepIndex == 0)" @onclick="PreviousStep">◀ Zurück</button>
+                    <button class="player-btn primary" title="Nächster Schritt" disabled="@(CurrentStepIndex >= maxSteps - 1)" @onclick="NextStep">▶ Weiter</button>
+                    <button class="player-btn" title="Ende" disabled="@(CurrentStepIndex >= maxSteps - 1)" @onclick="GoToEnd">⏭ Ende</button>
+                    <button class="player-btn reset" title="Zurücksetzen" @onclick="GoToStart">🔄 Reset</button>
+                </div>
+
+                <div class="player-progress">
+                    <span class="step-indicator">
+                        <strong>Bit @(CurrentStepIndex + 1) / @maxSteps:</strong>
+                        <span>Aktuelles Bit = <code class="bit-highlight">@ParsedBits[CurrentStepIndex]</code></span>
+                    </span>
+                    <input type="range" min="0" max="@(maxSteps - 1)" value="@CurrentStepIndex" @oninput="OnSliderChanged" class="step-slider" />
+                </div>
+            </div>
+
+            <!-- Narrator Card -->
+            <div class="narrator-card">
+                <div class="narrator-header">
+                    <div class="step-badge">
+                        <span>Bit-Index @CurrentStepIndex: Bit @ParsedBits[CurrentStepIndex]</span>
+                    </div>
+                    <div class="narrator-title">Signalentscheidungen für Bit @ParsedBits[CurrentStepIndex] (Intervall $T_{@CurrentStepIndex}$)</div>
+                </div>
+
+                <div class="narrator-grid">
+                    <div class="narrator-item">
+                        <strong class="code-title nrz-title">NRZ:</strong>
+                        <span class="code-desc">@GetNrzNarrative(CurrentStepIndex)</span>
+                    </div>
+                    <div class="narrator-item">
+                        <strong class="code-title nrzi-title">NRZ-I:</strong>
+                        <span class="code-desc">@GetNrziNarrative(CurrentStepIndex)</span>
+                    </div>
+                    <div class="narrator-item">
+                        <strong class="code-title mlt3-title">MLT-3:</strong>
+                        <span class="code-desc">@GetMlt3Narrative(CurrentStepIndex)</span>
+                    </div>
+                    <div class="narrator-item">
+                        <strong class="code-title man-title">Manchester:</strong>
+                        <span class="code-desc">@GetManchesterNarrative(CurrentStepIndex)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Waveform Oscilloscope Card (SVG) -->
+            <div class="waveform-card">
+                <div class="waveform-header">
+                    <h3>Signalverläufe (Logikanalysator / Oszilloskop)</h3>
+                    <div class="time-legend">
+                        <span>Zeitachse &rarr;</span>
+                    </div>
+                </div>
+
+                <div class="waveform-container">
+                    <svg class="waveform-svg" viewBox="0 0 @SvgWidth @SvgHeight" preserveAspectRatio="none">
+                        <!-- Background Grid Lines -->
+                        @for (int i = 0; i <= ParsedBits.Length; i++)
+                        {
+                            var x = SvgMarginLeft + i * SvgBitWidth;
+                            <line x1="@x" y1="0" x2="@x" y2="@SvgHeight" class="grid-line" />
+                            @if (i < ParsedBits.Length)
+                            {
+                                var textX = x + SvgBitWidth / 2;
+                                var isCurrent = (i == CurrentStepIndex);
+                                <rect x="@x" y="0" width="@SvgBitWidth" height="@SvgHeight" class="slot-bg @(isCurrent ? "current-slot" : "")" />
+                                @((MarkupString)$"<text x=\"{textX}\" y=\"22\" class=\"bit-header-text {(isCurrent ? "current-bit-text" : "")}\" text-anchor=\"middle\">{ParsedBits[i]}</text>")
+                            }
+                        }
+
+                        <!-- Channel 1: Clock -->
+                        @RenderWaveformTrack("Takt (Clock)", 45, GetClockPath(), "#94a3b8")
+
+                        <!-- Channel 2: NRZ -->
+                        @RenderWaveformTrack("NRZ", 95, GetNrzPath(), "#0284c7")
+
+                        <!-- Channel 3: NRZ-I -->
+                        @RenderWaveformTrack("NRZ-I", 145, GetNrziPath(), "#d97706")
+
+                        <!-- Channel 4: MLT-3 -->
+                        @RenderWaveformTrack("MLT-3", 205, GetMlt3Path(), "#059669", isTriState: true)
+
+                        <!-- Channel 5: Manchester -->
+                        @RenderWaveformTrack("Manchester", 265, GetManchesterPath(), "#8b5cf6")
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Matrix Table -->
+            <div class="matrix-card">
+                <div class="matrix-header">
+                    <h3>Pegeltabelle der Leitungscodierungen</h3>
+                </div>
+                <div class="table-responsive">
+                    <table class="encoding-table">
+                        <thead>
+                            <tr class="header-row">
+                                <th class="label-col">Verfahren</th>
+                                @for (int i = 0; i < ParsedBits.Length; i++)
+                                {
+                                    <th class="bit-col @(i == CurrentStepIndex ? "active-col" : "")">
+                                        <div class="bit-idx">Bit @i</div>
+                                        <div class="bit-val">@ParsedBits[i]</div>
+                                    </th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- NRZ -->
+                            <tr>
+                                <td class="row-title"><strong>NRZ</strong></td>
+                                @for (int i = 0; i < ParsedBits.Length; i++)
+                                {
+                                    <td class="symbol-cell @(i == CurrentStepIndex ? "active-col" : "") @(i <= CurrentStepIndex ? "revealed" : "future")">
+                                        <span class="sym-badge sym-@NrzSymbols[i]">@NrzSymbols[i]</span>
+                                    </td>
+                                }
+                            </tr>
+
+                            <!-- NRZ-I -->
+                            <tr>
+                                <td class="row-title"><strong>NRZ-I</strong></td>
+                                @for (int i = 0; i < ParsedBits.Length; i++)
+                                {
+                                    <td class="symbol-cell @(i == CurrentStepIndex ? "active-col" : "") @(i <= CurrentStepIndex ? "revealed" : "future")">
+                                        <span class="sym-badge sym-@NrziSymbols[i]">@NrziSymbols[i]</span>
+                                    </td>
+                                }
+                            </tr>
+
+                            <!-- MLT-3 -->
+                            <tr>
+                                <td class="row-title"><strong>MLT-3</strong></td>
+                                @for (int i = 0; i < ParsedBits.Length; i++)
+                                {
+                                    <td class="symbol-cell @(i == CurrentStepIndex ? "active-col" : "") @(i <= CurrentStepIndex ? "revealed" : "future")">
+                                        <span class="sym-badge sym-@Mlt3Symbols[i]">@Mlt3Symbols[i]</span>
+                                    </td>
+                                }
+                            </tr>
+
+                            <!-- Manchester -->
+                            <tr>
+                                <td class="row-title"><strong>Manchester</strong></td>
+                                @for (int i = 0; i < ParsedBits.Length; i++)
+                                {
+                                    <td class="symbol-cell @(i == CurrentStepIndex ? "active-col" : "") @(i <= CurrentStepIndex ? "revealed" : "future")">
+                                        <span class="sym-badge sym-edge">@(ParsedBits[i] == 0 ? "HL" : "LH")</span>
+                                    </td>
+                                }
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    }
+
+    <!-- ========================================================================= -->
+    <!-- WORKSHEET VIEW (1:1 EXAM REPLICA)                                         -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Worksheet)
+    {
+        <div class="worksheet-paper">
+
+            <!-- Exam Header -->
+            <div class="exam-header">
+                <div class="exam-title-block">
+                    <span class="exam-sub">Rechnernetze &bull; Bitübertragungsschicht</span>
+                    <h1 class="exam-main-title">Übungs- und Klausuraufgabe: Leitungscodierung (Line Encoding)</h1>
+                </div>
+                <div class="exam-meta-box no-print">
+                    <button class="toggle-sol-btn @(ShowSolution ? "active" : "")" @onclick="ToggleSolution">
+                        @(ShowSolution ? "👁️ Musterlösung ausblenden" : "💡 Musterlösung einblenden")
+                    </button>
+                    <button class="print-btn" @onclick="TriggerPrint">
+                        🖨️ Seite drucken / PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Student Info Fields -->
+            <div class="student-info-strip">
+                <div class="info-field">
+                    <span class="info-label">Name, Vorname:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field">
+                    <span class="info-label">Matrikelnummer:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field points-field">
+                    <span class="info-label">Punkte:</span>
+                    <div class="points-box">/ 6 P.</div>
+                </div>
+            </div>
+
+            <!-- Task Description -->
+            <div class="task-prompt-box">
+                <div class="task-number">Aufgabe (Leitungscodierung)</div>
+                <p class="task-text">
+                    Tragen Sie für die gegebene Bitfolge die resultierenden Signalpegel 
+                    (<code class="exam-code">+</code>, <code class="exam-code">-</code> bzw. <code class="exam-code">0</code>) 
+                    für die Codierungsverfahren <strong>NRZ</strong>, <strong>NRZ-I</strong> und <strong>MLT-3</strong> in die Tabelle ein.
+                    Gehen Sie bei NRZ-I und MLT-3 davon aus, dass der Signalpegel vor der Übertragung des ersten Bits auf dem Ruhezustand lag.
+                </p>
+            </div>
+
+            <!-- Exam Table -->
+            <div class="exam-table-card">
+                <table class="worksheet-table">
+                    <thead>
+                        <tr class="ws-header-row">
+                            <th class="ws-title-cell">Bitfolge</th>
+                            @for (int i = 0; i < WorksheetBits.Length; i++)
+                            {
+                                <th class="ws-bit-cell">@WorksheetBits[i]</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- NRZ -->
+                        <tr>
+                            <td class="ws-label-cell">NRZ</td>
+                            @for (int i = 0; i < WorksheetBits.Length; i++)
+                            {
+                                <td class="ws-data-cell @(ShowSolution ? "sol-revealed" : "")">
+                                    @(ShowSolution ? WorksheetNrz[i] : "")
+                                </td>
+                            }
+                        </tr>
+
+                        <!-- NRZ-I -->
+                        <tr>
+                            <td class="ws-label-cell">NRZ-I</td>
+                            @for (int i = 0; i < WorksheetBits.Length; i++)
+                            {
+                                <td class="ws-data-cell @(ShowSolution ? "sol-revealed" : "")">
+                                    @(ShowSolution ? WorksheetNrzi[i] : "")
+                                </td>
+                            }
+                        </tr>
+
+                        <!-- MLT-3 -->
+                        <tr>
+                            <td class="ws-label-cell">MLT-3</td>
+                            @for (int i = 0; i < WorksheetBits.Length; i++)
+                            {
+                                <td class="ws-data-cell @(ShowSolution ? "sol-revealed" : "")">
+                                    @(ShowSolution ? WorksheetMlt3[i] : "")
+                                </td>
+                            }
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Theory / Follow-up Questions matching CNBituebertragungsschichtBitcodierungenWissenVarianteA -->
+            <div class="theory-question-box">
+                <div class="question-header">
+                    <strong>Ergänzungsfragen zur Signalanalyse:</strong>
+                </div>
+                <div class="question-list">
+                    <div class="q-item">
+                        <span class="q-num">1.</span>
+                        <div class="q-body">
+                            <p class="q-text">Welches Problem (z. B. Baseline Wandering, Taktrückgewinnung) tritt bei einer langen Folge von Nullen bei NRZ im Vergleich zu Manchester-Codierung auf?</p>
+                            @if (ShowSolution)
+                            {
+                                <div class="sol-answer">
+                                    <strong>Musterlösung:</strong> Bei langen Folgen von Nullen (oder Einsen) bleibt der Signalpegel konstant. Dadurch fehlen Taktflanken zur Taktrückgewinnung (Clock Recovery), und es kann zu Gleichspannungsdrift (Baseline Wandering) kommen. Manchester garantiert in jedem Bitintervall eine Flanke in der Bitmitte.
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="blank-lines">
+                                    <div class="blank-line"></div>
+                                    <div class="blank-line"></div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="q-item">
+                        <span class="q-num">2.</span>
+                        <div class="q-body">
+                            <p class="q-text">Warum benötigt die Manchester-Codierung die doppelte Bandbreite (Baudrate) im Vergleich zu NRZ bei gleicher Datenrate?</p>
+                            @if (ShowSolution)
+                            {
+                                <div class="sol-answer">
+                                    <strong>Musterlösung:</strong> Manchester führt in der Mitte jedes Bits einen erzwungenen Pegelwechsel durch (2 Symbole pro Bit $\to 2$ Baud pro Bit/s). Die maximale Signalfrequenz ist somit doppelt so hoch wie bei NRZ.
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="blank-lines">
+                                    <div class="blank-line"></div>
+                                    <div class="blank-line"></div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="exam-footer">
+                <div class="exam-footer-note">
+                    Hinweis: Pegeldefinitionen: <code class="exam-code">+</code> = positiver Pegel (High), <code class="exam-code">-</code> = negativer Pegel (Low), <code class="exam-code">0</code> = Nullpegel.
+                </div>
+            </div>
+
+        </div>
+    }
+
 </article>
 
 @code {
-    private readonly BitencodingSolver bitencodingSolver = new();
+    public enum ViewMode { Simulator, Worksheet }
 
-    [Parameter]
-    public string BitPattern { get; set; } = "10110";
+    [Parameter] public string BitPattern { get; set; } = "10110010";
+    [Parameter] public string? View { get; set; }
+    [Parameter] public bool? Solution { get; set; }
+    [Parameter] public bool? Embed { get; set; }
 
-    private BitencodingSolution BitencodingSolution =>
-        (BitencodingSolution)bitencodingSolver.Solve(new BitencodingParameters(NormalizedBits));
+    private ViewMode ActiveView = ViewMode.Simulator;
+    private bool ShowSolution = false;
+    private bool IsEmbed = false;
 
-    private int[] NormalizedBits
+    private string BitPatternInput = "10110010";
+    private string InitialLevel = "-";
+    private int[] ParsedBits = new int[] { 1, 0, 1, 1, 0, 0, 1, 0 };
+
+    private string[] NrzSymbols = Array.Empty<string>();
+    private string[] NrziSymbols = Array.Empty<string>();
+    private string[] Mlt3Symbols = Array.Empty<string>();
+
+    private int CurrentStepIndex = 0;
+
+    // SVG Dimensions
+    private const int SvgMarginLeft = 140;
+    private const int SvgBitWidth = 60;
+    private const int SvgHeight = 310;
+    private int SvgWidth => SvgMarginLeft + Math.Max(8, ParsedBits.Length) * SvgBitWidth + 40;
+
+    // Worksheet 10-bit task
+    private int[] WorksheetBits = new int[] { 0, 1, 0, 0, 1, 1, 1, 0, 0, 1 };
+    private string[] WorksheetNrz = Array.Empty<string>();
+    private string[] WorksheetNrzi = Array.Empty<string>();
+    private string[] WorksheetMlt3 = Array.Empty<string>();
+
+    protected override void OnInitialized()
     {
-        get
+        ReadQueryParameters();
+        BitPatternInput = BitPattern;
+        Recalculate();
+        InitializeWorksheet();
+    }
+
+    protected override void OnParametersSet()
+    {
+        ReadQueryParameters();
+    }
+
+    private void ReadQueryParameters()
+    {
+        try
         {
-            var digits = BitPattern.Where(ch => ch == '0' || ch == '1').Select(ch => ch - '0').ToArray();
-            return digits.Length == 0 ? new[] { 0 } : digits;
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query;
+            if (string.IsNullOrEmpty(query)) return;
+
+            var pairs = query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var pair in pairs)
+            {
+                var parts = pair.Split('=', 2);
+                var key = parts[0].ToLowerInvariant();
+                var val = parts.Length > 1 ? Uri.UnescapeDataString(parts[1]) : "";
+
+                if (key == "view")
+                {
+                    ActiveView = val.Equals("worksheet", StringComparison.OrdinalIgnoreCase) ? ViewMode.Worksheet : ViewMode.Simulator;
+                }
+                else if (key == "solution" && bool.TryParse(val, out var solBool))
+                {
+                    ShowSolution = solBool;
+                }
+                else if (key == "embed" && bool.TryParse(val, out var embedBool))
+                {
+                    IsEmbed = embedBool;
+                }
+                else if ((key == "bits" || key == "pattern") && !string.IsNullOrEmpty(val))
+                {
+                    BitPatternInput = val;
+                    BitPattern = val;
+                    Recalculate();
+                }
+            }
+        }
+        catch
+        {
+            // fallback
         }
     }
+
+    private void SetView(ViewMode mode)
+    {
+        ActiveView = mode;
+        UpdateUrl();
+    }
+
+    private void ToggleSolution()
+    {
+        ShowSolution = !ShowSolution;
+        UpdateUrl();
+    }
+
+    private void UpdateUrl()
+    {
+        var uri = NavigationManager.GetUriWithQueryParameters(new Dictionary<string, object?>
+        {
+            ["view"] = ActiveView == ViewMode.Worksheet ? "worksheet" : null,
+            ["solution"] = ShowSolution ? "true" : null,
+            ["pattern"] = BitPatternInput != "10110010" ? BitPatternInput : null,
+            ["embed"] = IsEmbed ? "true" : null
+        });
+        NavigationManager.NavigateTo(uri, replace: true);
+    }
+
+    private async Task TriggerPrint()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+
+    private void OnBitPatternChanged()
+    {
+        var sanitized = new string(BitPatternInput.Where(c => c == '0' || c == '1').ToArray());
+        if (string.IsNullOrEmpty(sanitized)) sanitized = "0";
+        if (sanitized.Length > 16) sanitized = sanitized.Substring(0, 16);
+        BitPatternInput = sanitized;
+        BitPattern = sanitized;
+        Recalculate();
+    }
+
+    private void LoadPreset(string pattern)
+    {
+        BitPatternInput = pattern;
+        BitPattern = pattern;
+        CurrentStepIndex = 0;
+        Recalculate();
+    }
+
+    private void GenerateRandom()
+    {
+        var rnd = new Random();
+        int len = rnd.Next(8, 12);
+        var bits = new char[len];
+        for (int i = 0; i < len; i++) bits[i] = rnd.Next(0, 2) == 1 ? '1' : '0';
+        BitPatternInput = new string(bits);
+        BitPattern = BitPatternInput;
+        CurrentStepIndex = 0;
+        Recalculate();
+    }
+
+    private void Recalculate()
+    {
+        var digits = BitPatternInput.Where(c => c == '0' || c == '1').Select(c => c - '0').ToArray();
+        ParsedBits = digits.Length == 0 ? new[] { 0 } : digits;
+
+        // 1. Calculate NRZ
+        NrzSymbols = ParsedBits.Select(b => b == 1 ? "+" : "-").ToArray();
+
+        // 2. Calculate NRZ-I
+        var nrziList = new List<string>();
+        string currentNrzi = InitialLevel;
+        foreach (var bit in ParsedBits)
+        {
+            if (bit == 1)
+            {
+                currentNrzi = (currentNrzi == "-") ? "+" : "-";
+            }
+            nrziList.Add(currentNrzi);
+        }
+        NrziSymbols = nrziList.ToArray();
+
+        // 3. Calculate MLT-3
+        var mlt3List = new List<string>();
+        string currentMlt3 = "0";
+        bool mlt3Direction = (InitialLevel != "+"); // true = towards +, false = towards -
+        foreach (var bit in ParsedBits)
+        {
+            if (bit == 0)
+            {
+                mlt3List.Add(currentMlt3);
+            }
+            else
+            {
+                switch (currentMlt3)
+                {
+                    case "0":
+                        currentMlt3 = mlt3Direction ? "+" : "-";
+                        break;
+                    case "+":
+                        currentMlt3 = "0";
+                        mlt3Direction = false;
+                        break;
+                    case "-":
+                        currentMlt3 = "0";
+                        mlt3Direction = true;
+                        break;
+                }
+                mlt3List.Add(currentMlt3);
+            }
+        }
+        Mlt3Symbols = mlt3List.ToArray();
+
+        if (CurrentStepIndex >= ParsedBits.Length)
+        {
+            CurrentStepIndex = Math.Max(0, ParsedBits.Length - 1);
+        }
+    }
+
+    private void InitializeWorksheet()
+    {
+        WorksheetNrz = WorksheetBits.Select(b => b == 1 ? "+" : "-").ToArray();
+
+        var solver = new BitencodingSolver();
+        var sol = solver.Solve(new BitencodingParameters(WorksheetBits));
+        WorksheetNrzi = sol.NRZI;
+        WorksheetMlt3 = sol.MLT3;
+    }
+
+    // =========================================================================
+    // PLAYER CONTROLS
+    // =========================================================================
+    private void GoToStart() => CurrentStepIndex = 0;
+    private void PreviousStep() => CurrentStepIndex = Math.Max(0, CurrentStepIndex - 1);
+    private void NextStep() => CurrentStepIndex = Math.Min(ParsedBits.Length - 1, CurrentStepIndex + 1);
+    private void GoToEnd() => CurrentStepIndex = ParsedBits.Length - 1;
+    private void OnSliderChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var idx))
+        {
+            CurrentStepIndex = Math.Clamp(idx, 0, ParsedBits.Length - 1);
+        }
+    }
+
+    // =========================================================================
+    // NARRATOR HELPERS
+    // =========================================================================
+    private string GetNrzNarrative(int idx)
+    {
+        int bit = ParsedBits[idx];
+        return bit == 1 ? "Bit ist 1 → Pegel ist HIGH (+)" : "Bit ist 0 → Pegel ist LOW (-)";
+    }
+
+    private string GetNrziNarrative(int idx)
+    {
+        int bit = ParsedBits[idx];
+        string sym = NrziSymbols[idx];
+        string prevSym = idx > 0 ? NrziSymbols[idx - 1] : InitialLevel;
+        return bit == 1 
+            ? $"Bit ist 1 → Pegelwechsel von {prevSym} nach {sym}." 
+            : $"Bit ist 0 → Kein Pegelwechsel, bleibt {sym}.";
+    }
+
+    private string GetMlt3Narrative(int idx)
+    {
+        int bit = ParsedBits[idx];
+        string sym = Mlt3Symbols[idx];
+        string prevSym = idx > 0 ? Mlt3Symbols[idx - 1] : "0";
+        return bit == 1 
+            ? $"Bit ist 1 → Pegelübergang im Zyklus (+ → 0 → - → 0) von {prevSym} nach {sym}." 
+            : $"Bit ist 0 → Zustand bleibt unverändert ({sym}).";
+    }
+
+    private string GetManchesterNarrative(int idx)
+    {
+        int bit = ParsedBits[idx];
+        return bit == 1 
+            ? "Bit ist 1 → Pegelwechsel von LOW nach HIGH in der Bitmitte (↑ steigende Flanke)." 
+            : "Bit ist 0 → Pegelwechsel von HIGH nach LOW in der Bitmitte (↓ fallende Flanke).";
+    }
+
+    // =========================================================================
+    // SVG PATH GENERATORS
+    // =========================================================================
+    private string GetClockPath()
+    {
+        var sb = new System.Text.StringBuilder();
+        for (int i = 0; i < ParsedBits.Length; i++)
+        {
+            int x1 = SvgMarginLeft + i * SvgBitWidth;
+            int xMid = x1 + SvgBitWidth / 2;
+            int x2 = x1 + SvgBitWidth;
+
+            if (i == 0) sb.Append($"M {x1} 10 ");
+            else sb.Append($"L {x1} 10 ");
+
+            sb.Append($"L {xMid} 10 L {xMid} -10 L {x2} -10 ");
+        }
+        return sb.ToString();
+    }
+
+    private string GetNrzPath()
+    {
+        var sb = new System.Text.StringBuilder();
+        for (int i = 0; i < ParsedBits.Length; i++)
+        {
+            int x1 = SvgMarginLeft + i * SvgBitWidth;
+            int x2 = x1 + SvgBitWidth;
+            int y = NrzSymbols[i] == "+" ? -12 : 12;
+
+            if (i == 0) sb.Append($"M {x1} {y} ");
+            else sb.Append($"L {x1} {y} ");
+
+            sb.Append($"L {x2} {y} ");
+        }
+        return sb.ToString();
+    }
+
+    private string GetNrziPath()
+    {
+        var sb = new System.Text.StringBuilder();
+        for (int i = 0; i < ParsedBits.Length; i++)
+        {
+            int x1 = SvgMarginLeft + i * SvgBitWidth;
+            int x2 = x1 + SvgBitWidth;
+            int y = NrziSymbols[i] == "+" ? -12 : 12;
+
+            if (i == 0) sb.Append($"M {x1} {y} ");
+            else sb.Append($"L {x1} {y} ");
+
+            sb.Append($"L {x2} {y} ");
+        }
+        return sb.ToString();
+    }
+
+    private string GetMlt3Path()
+    {
+        var sb = new System.Text.StringBuilder();
+        for (int i = 0; i < ParsedBits.Length; i++)
+        {
+            int x1 = SvgMarginLeft + i * SvgBitWidth;
+            int x2 = x1 + SvgBitWidth;
+            int y = Mlt3Symbols[i] == "+" ? -14 : (Mlt3Symbols[i] == "-" ? 14 : 0);
+
+            if (i == 0) sb.Append($"M {x1} {y} ");
+            else sb.Append($"L {x1} {y} ");
+
+            sb.Append($"L {x2} {y} ");
+        }
+        return sb.ToString();
+    }
+
+    private string GetManchesterPath()
+    {
+        var sb = new System.Text.StringBuilder();
+        for (int i = 0; i < ParsedBits.Length; i++)
+        {
+            int x1 = SvgMarginLeft + i * SvgBitWidth;
+            int xMid = x1 + SvgBitWidth / 2;
+            int x2 = x1 + SvgBitWidth;
+            int yStart = ParsedBits[i] == 1 ? 12 : -12;
+            int yEnd = ParsedBits[i] == 1 ? -12 : 12;
+
+            if (i == 0) sb.Append($"M {x1} {yStart} ");
+            else sb.Append($"L {x1} {yStart} ");
+
+            sb.Append($"L {xMid} {yStart} L {xMid} {yEnd} L {x2} {yEnd} ");
+        }
+        return sb.ToString();
+    }
+
+    private RenderFragment RenderWaveformTrack(string label, int baselineY, string pathD, string color, bool isTriState = false) => builder =>
+    {
+        // Track Baseline & Zero lines
+        builder.OpenElement(0, "g");
+        builder.AddAttribute(1, "transform", $"translate(0, {baselineY})");
+
+        // Label
+        builder.OpenElement(2, "text");
+        builder.AddAttribute(3, "x", "15");
+        builder.AddAttribute(4, "y", "4");
+        builder.AddAttribute(5, "class", "track-label");
+        builder.AddAttribute(6, "fill", color);
+        builder.AddContent(7, label);
+        builder.CloseElement();
+
+        // Baseline (Zero level)
+        builder.OpenElement(8, "line");
+        builder.AddAttribute(9, "x1", SvgMarginLeft.ToString());
+        builder.AddAttribute(10, "y1", "0");
+        builder.AddAttribute(11, "x2", (SvgMarginLeft + ParsedBits.Length * SvgBitWidth).ToString());
+        builder.AddAttribute(12, "y2", "0");
+        builder.AddAttribute(13, "class", "baseline");
+        builder.CloseElement();
+
+        // Waveform Path
+        builder.OpenElement(14, "path");
+        builder.AddAttribute(15, "d", pathD);
+        builder.AddAttribute(16, "fill", "none");
+        builder.AddAttribute(17, "stroke", color);
+        builder.AddAttribute(18, "stroke-width", "2.5");
+        builder.AddAttribute(19, "stroke-linejoin", "round");
+        builder.CloseElement();
+
+        builder.CloseElement(); // g
+    };
 }

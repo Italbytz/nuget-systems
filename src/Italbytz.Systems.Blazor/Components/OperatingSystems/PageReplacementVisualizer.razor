@@ -1,100 +1,667 @@
 @namespace Italbytz.Systems.Blazor.Components.OperatingSystems
+@using Italbytz.OperatingSystems.PageReplacement
+@using Italbytz.OperatingSystems.Abstractions
+@using Italbytz.OperatingSystems.Resources.PageReplacement
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
 
-<article class="demo-card wide-card">
-    <div class="card-heading">
-        <p class="feature-kicker">Trace explorer</p>
-        <h2>Run the same reference string across multiple page-replacement strategies</h2>
-    </div>
-
-    <div class="input-grid three-up">
-        <label>
-            <span>Policy</span>
-            <select @bind="SelectedPagePolicy">
-                <option value="FIFO">FIFO</option>
-                <option value="LRU">LRU</option>
-                <option value="Clock">Clock</option>
-                <option value="Optimal">Optimal</option>
-            </select>
-        </label>
-        <label>
-            <span>Frames</span>
-            <input type="number" min="1" max="8" @bind="FrameCount" />
-        </label>
-        <label>
-            <span>Reference string</span>
-            <input type="text" @bind="ReferenceInput" />
-        </label>
-    </div>
-
-    @if (TryGetPageReplacementSimulation(out var simulation, out var pageReplacementError))
+<article class="page-replacement-container @(IsEmbed ? "embed-mode" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
+    
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
     {
-        <div class="card-grid card-grid-three compact-grid">
-            <div class="metric-card">
-                <span>Policy</span>
-                <strong>@SelectedPagePolicy</strong>
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Betriebssysteme &bull; Virtuelle Speicherverwaltung</p>
+            <h2>Seitenersetzungsstrategien (Page Replacement Simulator)</h2>
+            <p class="feature-intro">
+                Visualisierung und Schritt-für-Schritt-Ablaufverfolgung der Kachelbelegung und Zusatzinformationen für 
+                <strong>FIFO</strong>, <strong>LRU</strong>, <strong>Clock (Second Chance)</strong> und <strong>Optimal (MIN)</strong>.
+            </p>
+        </div>
+    }
+
+    <!-- View Switcher -->
+    @if (!IsEmbed)
+    {
+        <div class="view-switch no-print">
+            <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Simulator)">
+                🚀 Interaktiver Simulator (Step-by-Step)
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Worksheet)">
+                🖨️ Klausur-Arbeitsblatt (Druckansicht)
+            </button>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- SIMULATOR VIEW                                                            -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Configuration Controls -->
+        <div class="controls-panel no-print">
+            <div class="config-grid">
+                <label class="control-label">
+                    <span>Strategie:</span>
+                    <select class="form-select" @bind="SelectedPagePolicy" @bind:after="OnConfigurationChanged">
+                        <option value="Clock">Clock (Second Chance)</option>
+                        <option value="LRU">LRU (Least Recently Used)</option>
+                        <option value="FIFO">FIFO (First-In First-Out)</option>
+                        <option value="Optimal">Optimal (Bélády / MIN)</option>
+                    </select>
+                </label>
+
+                <label class="control-label">
+                    <span>Kachelanzahl ($k$):</span>
+                    <input type="number" min="1" max="8" class="form-input" @bind="FrameCount" @bind:after="OnConfigurationChanged" />
+                </label>
+
+                <label class="control-label span-two">
+                    <span>Referenzfolge:</span>
+                    <input type="text" class="form-input" @bind="ReferenceInput" @bind:after="OnConfigurationChanged" placeholder="z. B. 4, 1, 1, 6, 1, 2, 1, 3, 6, 1, 5, 5, 1" />
+                </label>
             </div>
-            <div class="metric-card">
-                <span>Frames</span>
-                <strong>@Math.Clamp(FrameCount, 1, 8)</strong>
-            </div>
-            <div class="metric-card">
-                <span>Final counter</span>
-                <strong>@simulation!.Steps.Last().Count</strong>
+
+            <!-- Presets & Randomizer -->
+            <div class="preset-bar">
+                <span class="preset-label">Beispiele:</span>
+                <button class="preset-btn" @onclick="() => LoadPreset(PresetExam1)">Klausur 1 (4, 1, 1, 6...)</button>
+                <button class="preset-btn" @onclick="() => LoadPreset(PresetExam2)">Klausur 2 (2, 6, 1, 2...)</button>
+                <button class="preset-btn" @onclick="() => LoadPreset(PresetBelady)">Bélády-Anomalie</button>
+                <button class="preset-btn random" @onclick="GenerateRandomSequence">🎲 Zufall</button>
             </div>
         </div>
 
-        <div class="table-shell">
-            <table class="trace-table">
-                <thead>
-                    <tr>
-                        <th>Step</th>
-                        <th>Element</th>
-                        <th>Frames</th>
-                        <th>Info</th>
-                        <th>Counter</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @{ var stepIndex = 1; }
-                    @foreach (var step in simulation!.Steps)
-                    {
-                        <tr>
-                            <td>@stepIndex</td>
-                            <td>@step.Element</td>
-                            <td>@string.Join(" | ", step.Frames)</td>
-                            <td>@step.AdditionalInfo</td>
-                            <td>@step.Count</td>
-                        </tr>
-                        stepIndex++;
-                    }
-                </tbody>
-            </table>
-        </div>
+        @if (TryGetSimulation(out var simSolution, out var parseError))
+        {
+            var steps = simSolution!.Steps;
+            var currentStepObj = CurrentStepIndex < steps.Count ? steps[CurrentStepIndex] : steps.Last();
+            var prevStepObj = CurrentStepIndex > 0 ? steps[CurrentStepIndex - 1] : null;
+            var isHit = CurrentStepIndex > 0 && prevStepObj != null && currentStepObj.Count == prevStepObj.Count;
+            var isFault = CurrentStepIndex > 0 && prevStepObj != null && currentStepObj.Count > prevStepObj.Count;
+            var totalRequests = steps.Count - 1;
+            var finalFaults = steps.Last().Count;
+            var finalHits = totalRequests - finalFaults;
+            var faultRate = totalRequests > 0 ? (double)finalFaults / totalRequests * 100.0 : 0.0;
+
+            <!-- Player Toolbar -->
+            <div class="player-toolbar no-print">
+                <div class="player-controls">
+                    <button class="player-btn" title="Start" disabled="@(CurrentStepIndex == 0)" @onclick="GoToStart">⏮ Start</button>
+                    <button class="player-btn" title="Zurück" disabled="@(CurrentStepIndex == 0)" @onclick="PreviousStep">◀ Zurück</button>
+                    <button class="player-btn primary" title="Nächster Schritt" disabled="@(CurrentStepIndex >= totalRequests)" @onclick="NextStep">▶ Weiter</button>
+                    <button class="player-btn" title="Ende" disabled="@(CurrentStepIndex >= totalRequests)" @onclick="GoToEnd">⏭ Ende</button>
+                    <button class="player-btn reset" title="Zurücksetzen" @onclick="GoToStart">🔄 Reset</button>
+                </div>
+
+                <div class="player-progress">
+                    <span class="step-indicator">
+                        @if (CurrentStepIndex == 0)
+                        {
+                            <strong>Schritt 0 / @totalRequests:</strong> <span>Initialer Speicherzustand (leer)</span>
+                        }
+                        else
+                        {
+                            <strong>Schritt @CurrentStepIndex / @totalRequests:</strong> <span>Zugriff auf Seite @currentStepObj.Element</span>
+                        }
+                    </span>
+                    <input type="range" min="0" max="@totalRequests" value="@CurrentStepIndex" @oninput="OnSliderChanged" class="step-slider" />
+                </div>
+            </div>
+
+            <!-- Narrator Card -->
+            <div class="narrator-card">
+                <div class="narrator-header">
+                    <div class="step-badge @(CurrentStepIndex == 0 ? "badge-init" : isHit ? "badge-hit" : "badge-fault")">
+                        @if (CurrentStepIndex == 0)
+                        {
+                            <span>🏁 Initialisierung</span>
+                        }
+                        else if (isHit)
+                        {
+                            <span>🟢 Treffer (Page Hit)</span>
+                        }
+                        else
+                        {
+                            <span>🔴 Seitenfehler (Page Fault #@currentStepObj.Count)</span>
+                        }
+                    </div>
+                    <div class="narrator-title">
+                        @if (CurrentStepIndex == 0)
+                        {
+                            <span>Hauptspeicher mit @FrameCount Kacheln ist initial leer.</span>
+                        }
+                        else
+                        {
+                            <span>Zugriff auf Seite <code>@currentStepObj.Element</code></span>
+                        }
+                    </div>
+                </div>
+
+                <div class="narrator-body">
+                    <p class="narrator-text">@GetStepExplanation(CurrentStepIndex, currentStepObj, prevStepObj)</p>
+                </div>
+            </div>
+
+            <!-- Metrics Overview Bar -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <span class="metric-label">Strategie</span>
+                    <strong class="metric-val text-brand">@SelectedPagePolicy</strong>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Kacheln ($k$)</span>
+                    <strong class="metric-val">@FrameCount</strong>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Seitenfehler ($M$)</span>
+                    <strong class="metric-val text-danger">@finalFaults / @totalRequests</strong>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Treffer ($H$)</span>
+                    <strong class="metric-val text-success">@finalHits</strong>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Fehlerrate</span>
+                    <strong class="metric-val">@faultRate.ToString("F1")%</strong>
+                </div>
+            </div>
+
+            <!-- 2D Horizontal Timeline Matrix Table -->
+            <div class="matrix-card">
+                <div class="matrix-header">
+                    <h4 class="matrix-title">Ablaufmatrix (Horizontaler Zeitverlauf)</h4>
+                    <span class="matrix-hint">Spalte @CurrentStepIndex ist aktuell aktiv</span>
+                </div>
+
+                <div class="matrix-scroll-wrapper">
+                    <table class="pr-matrix-table">
+                        <thead>
+                            <tr class="header-row">
+                                <th class="row-label-th">Ref</th>
+                                @for (int col = 1; col <= totalRequests; col++)
+                                {
+                                    var requestStep = steps[col];
+                                    var isCurrentCol = col == CurrentStepIndex;
+                                    var isFuture = col > CurrentStepIndex;
+                                    <th class="ref-col-th @(isCurrentCol ? "active-col" : "") @(isFuture ? "future-col" : "")">
+                                        @requestStep.Element
+                                    </th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Frame Rows -->
+                            @for (int f = 0; f < FrameCount; f++)
+                            {
+                                var frameIndex = f;
+                                <tr>
+                                    <td class="row-label-td">Kachel @(frameIndex + 1)</td>
+                                    @for (int col = 1; col <= totalRequests; col++)
+                                    {
+                                        var step = steps[col];
+                                        var prevStep = steps[col - 1];
+                                        var isCurrentCol = col == CurrentStepIndex;
+                                        var isFuture = col > CurrentStepIndex;
+                                        var frameVal = step.Frames[frameIndex];
+                                        var prevVal = prevStep.Frames[frameIndex];
+                                        var cellText = frameVal == int.MaxValue ? "–" : frameVal.ToString();
+                                        var isReplaced = frameVal != prevVal && frameVal != int.MaxValue;
+                                        var isHitFrame = isCurrentCol && isHit && frameVal == step.Element;
+
+                                        <td class="matrix-cell @(isCurrentCol ? "active-col" : "") @(isFuture ? "future-col" : "") @(isReplaced && col <= CurrentStepIndex ? "cell-replaced" : "") @(isHitFrame ? "cell-hit" : "")">
+                                            @cellText
+                                        </td>
+                                    }
+                                </tr>
+                            }
+
+                            <!-- Auxiliary Information Rows -->
+                            @if (SelectedPagePolicy == "Clock")
+                            {
+                                @for (int f = 0; f < FrameCount; f++)
+                                {
+                                    var frameIndex = f;
+                                    <tr class="aux-row">
+                                        <td class="row-label-td aux-label">Referenzbit @(frameIndex + 1)</td>
+                                        @for (int col = 1; col <= totalRequests; col++)
+                                        {
+                                            var step = steps[col];
+                                            var isCurrentCol = col == CurrentStepIndex;
+                                            var isFuture = col > CurrentStepIndex;
+                                            var bitVal = step.FrameInformation[frameIndex];
+                                            <td class="matrix-cell aux-cell @(isCurrentCol ? "active-col" : "") @(isFuture ? "future-col" : "")">
+                                                @bitVal
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                                <tr class="aux-row pointer-row">
+                                    <td class="row-label-td aux-label">Zeiger</td>
+                                    @for (int col = 1; col <= totalRequests; col++)
+                                    {
+                                        var step = steps[col];
+                                        var isCurrentCol = col == CurrentStepIndex;
+                                        var isFuture = col > CurrentStepIndex;
+                                        <td class="matrix-cell aux-cell pointer-cell @(isCurrentCol ? "active-col" : "") @(isFuture ? "future-col" : "")">
+                                            K@(step.AdditionalInfo)
+                                        </td>
+                                    }
+                                </tr>
+                            }
+                            else if (SelectedPagePolicy == "LRU")
+                            {
+                                @for (int f = 0; f < FrameCount; f++)
+                                {
+                                    var frameIndex = f;
+                                    <tr class="aux-row">
+                                        <td class="row-label-td aux-label">Abstand @(frameIndex + 1)</td>
+                                        @for (int col = 1; col <= totalRequests; col++)
+                                        {
+                                            var step = steps[col];
+                                            var isCurrentCol = col == CurrentStepIndex;
+                                            var isFuture = col > CurrentStepIndex;
+                                            var distVal = step.FrameInformation[frameIndex];
+                                            var distText = distVal == int.MaxValue ? "–" : distVal.ToString();
+                                            <td class="matrix-cell aux-cell @(isCurrentCol ? "active-col" : "") @(isFuture ? "future-col" : "")">
+                                                @distText
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            }
+                            else if (SelectedPagePolicy == "Optimal")
+                            {
+                                @for (int f = 0; f < FrameCount; f++)
+                                {
+                                    var frameIndex = f;
+                                    <tr class="aux-row">
+                                        <td class="row-label-td aux-label">Zukunftsabstand @(frameIndex + 1)</td>
+                                        @for (int col = 1; col <= totalRequests; col++)
+                                        {
+                                            var step = steps[col];
+                                            var isCurrentCol = col == CurrentStepIndex;
+                                            var isFuture = col > CurrentStepIndex;
+                                            var distVal = step.FrameInformation[frameIndex];
+                                            var distText = distVal == int.MaxValue ? "∞" : distVal.ToString();
+                                            <td class="matrix-cell aux-cell @(isCurrentCol ? "active-col" : "") @(isFuture ? "future-col" : "")">
+                                                @distText
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            }
+
+                            <!-- Page Fault Row -->
+                            <tr class="fault-row">
+                                <td class="row-label-td fault-label">Seitenfehler</td>
+                                @for (int col = 1; col <= totalRequests; col++)
+                                {
+                                    var step = steps[col];
+                                    var prevStep = steps[col - 1];
+                                    var isCurrentCol = col == CurrentStepIndex;
+                                    var isFuture = col > CurrentStepIndex;
+                                    var isFaultCol = step.Count > prevStep.Count;
+                                    <td class="matrix-cell fault-cell @(isCurrentCol ? "active-col" : "") @(isFuture ? "future-col" : "")">
+                                        @(isFaultCol ? "★" : "–")
+                                    </td>
+                                }
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="validation-box">
+                <p class="validation-copy">⚠️ @parseError</p>
+            </div>
+        }
     }
     else
     {
-        <p class="validation-copy">@pageReplacementError</p>
+        <!-- ========================================================================= -->
+        <!-- WORKSHEET VIEW (1:1 EXAM PRINTABLE WORKSPACE)                            -->
+        <!-- ========================================================================= -->
+        <div class="worksheet-view">
+            <div class="worksheet-toolbar no-print">
+                <button class="ws-btn solution-toggle @(ShowSolution ? "active" : "")" @onclick="ToggleSolution">
+                    @(ShowSolution ? "👁️ Musterlösung ausblenden" : "💡 Musterlösung anzeigen")
+                </button>
+                <button class="ws-btn print-btn" @onclick="PrintWorksheet">
+                    🖨️ Arbeitsblatt drucken
+                </button>
+            </div>
+
+            <div class="worksheet-paper">
+                <div class="ws-header">
+                    <div class="ws-title-group">
+                        <span class="ws-kicker">Übungsaufgabe zur Speicherverwaltung</span>
+                        <h3 class="ws-title">Seitenersetzungsverfahren (@SelectedPagePolicy)</h3>
+                    </div>
+                    <div class="ws-meta-box">
+                        <div><strong>Kacheln:</strong> @FrameCount</div>
+                        <div><strong>Strategie:</strong> @SelectedPagePolicy</div>
+                    </div>
+                </div>
+
+                <div class="ws-instructions">
+                    <p>
+                        Füllen Sie die nachfolgende Tabelle für die Strategie <strong>@SelectedPagePolicy</strong> aus. 
+                        Tragen Sie für jeden Zugriff die Kachelbelegung sowie die entsprechenden Zusatzinformationen 
+                        (@(SelectedPagePolicy == "Clock" ? "Referenzbit und Zeiger" : SelectedPagePolicy == "Optimal" ? "Zukunftsabstand" : "Abstand")) ein.
+                        Markieren Sie in der letzten Zeile jeden auftretenden Seitenfehler mit einem Stern (★).
+                    </p>
+                </div>
+
+                @if (TryGetSimulation(out var wsSolution, out var wsError))
+                {
+                    var steps = wsSolution!.Steps;
+                    var totalRequests = steps.Count - 1;
+                    var finalFaults = steps.Last().Count;
+
+                    <div class="ws-table-wrapper">
+                        <table class="ws-table">
+                            <thead>
+                                <tr class="ws-thead-row">
+                                    <th class="ws-corner-th">Ref</th>
+                                    @for (int col = 1; col <= totalRequests; col++)
+                                    {
+                                        <th class="ws-ref-th">@steps[col].Element</th>
+                                    }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Frame Rows -->
+                                @for (int f = 0; f < FrameCount; f++)
+                                {
+                                    var frameIndex = f;
+                                    <tr>
+                                        <td class="ws-row-hdr">Kachel @(frameIndex + 1)</td>
+                                        @for (int col = 1; col <= totalRequests; col++)
+                                        {
+                                            var step = steps[col];
+                                            var frameVal = step.Frames[frameIndex];
+                                            var cellText = frameVal == int.MaxValue ? "inf" : frameVal.ToString();
+                                            <td class="ws-cell @(ShowSolution ? "ws-solved" : "")">
+                                                @(ShowSolution ? cellText : "")
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+
+                                <!-- Info Rows -->
+                                @if (SelectedPagePolicy == "Clock")
+                                {
+                                    @for (int f = 0; f < FrameCount; f++)
+                                    {
+                                        var frameIndex = f;
+                                        <tr>
+                                            <td class="ws-row-hdr">Referenzbit @(frameIndex + 1)</td>
+                                            @for (int col = 1; col <= totalRequests; col++)
+                                            {
+                                                var step = steps[col];
+                                                <td class="ws-cell @(ShowSolution ? "ws-solved" : "")">
+                                                    @(ShowSolution ? step.FrameInformation[frameIndex].ToString() : "")
+                                                </td>
+                                            }
+                                        </tr>
+                                    }
+                                    <tr>
+                                        <td class="ws-row-hdr">Zeiger</td>
+                                        @for (int col = 1; col <= totalRequests; col++)
+                                        {
+                                            var step = steps[col];
+                                            <td class="ws-cell @(ShowSolution ? "ws-solved" : "")">
+                                                @(ShowSolution ? step.AdditionalInfo : "")
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                                else if (SelectedPagePolicy == "LRU")
+                                {
+                                    @for (int f = 0; f < FrameCount; f++)
+                                    {
+                                        var frameIndex = f;
+                                        <tr>
+                                            <td class="ws-row-hdr">Abstand @(frameIndex + 1)</td>
+                                            @for (int col = 1; col <= totalRequests; col++)
+                                            {
+                                                var step = steps[col];
+                                                var dist = step.FrameInformation[frameIndex];
+                                                var distText = dist == int.MaxValue ? "inf" : dist.ToString();
+                                                <td class="ws-cell @(ShowSolution ? "ws-solved" : "")">
+                                                    @(ShowSolution ? distText : "")
+                                                </td>
+                                            }
+                                        </tr>
+                                    }
+                                }
+                                else if (SelectedPagePolicy == "Optimal")
+                                {
+                                    @for (int f = 0; f < FrameCount; f++)
+                                    {
+                                        var frameIndex = f;
+                                        <tr>
+                                            <td class="ws-row-hdr">Zukunftsabstand @(frameIndex + 1)</td>
+                                            @for (int col = 1; col <= totalRequests; col++)
+                                            {
+                                                var step = steps[col];
+                                                var dist = step.FrameInformation[frameIndex];
+                                                var distText = dist == int.MaxValue ? "inf" : dist.ToString();
+                                                <td class="ws-cell @(ShowSolution ? "ws-solved" : "")">
+                                                    @(ShowSolution ? distText : "")
+                                                </td>
+                                            }
+                                        </tr>
+                                    }
+                                }
+
+                                <!-- Fault Row -->
+                                <tr class="ws-fault-row">
+                                    <td class="ws-row-hdr">Seitenfehler</td>
+                                    @for (int col = 1; col <= totalRequests; col++)
+                                    {
+                                        var step = steps[col];
+                                        var prevStep = steps[col - 1];
+                                        var isFault = step.Count > prevStep.Count;
+                                        <td class="ws-cell ws-fault-cell @(ShowSolution ? "ws-solved" : "")">
+                                            @(ShowSolution ? (isFault ? "★" : "") : "")
+                                        </td>
+                                    }
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    @if (ShowSolution)
+                    {
+                        <div class="ws-solution-box">
+                            <h4>Ergebnis &amp; Zusammenfassung</h4>
+                            <p>
+                                Bei einer Speichergröße von <strong>@FrameCount Kacheln</strong> und der Strategie 
+                                <strong>@SelectedPagePolicy</strong> treten bei <strong>@totalRequests</strong> Zugriffen insgesamt 
+                                <strong>@finalFaults Seitenfehler</strong> auf (Fehlerrate: <strong>@(((double)finalFaults / totalRequests * 100.0).ToString("F1"))%</strong>).
+                            </p>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
     }
+
 </article>
 
 @code {
-    [Parameter]
-    public string SelectedPagePolicy { get; set; } = "FIFO";
+    public enum ViewMode
+    {
+        Simulator,
+        Worksheet
+    }
 
     [Parameter]
-    public int FrameCount { get; set; } = 3;
+    public string SelectedPagePolicy { get; set; } = "Clock";
 
     [Parameter]
-    public string ReferenceInput { get; set; } = "1,2,3,2,4,1,5,2,4";
+    public int FrameCount { get; set; } = 4;
 
-    private bool TryGetPageReplacementSimulation(out PageReplacementSolution? solution, out string errorMessage)
+    [Parameter]
+    public string ReferenceInput { get; set; } = "4, 1, 1, 6, 1, 2, 1, 3, 6, 1, 5, 5, 1";
+
+    [Parameter]
+    public bool IsEmbed { get; set; } = false;
+
+    private ViewMode ActiveView { get; set; } = ViewMode.Simulator;
+    private bool ShowSolution { get; set; } = false;
+    private int CurrentStepIndex { get; set; } = 0;
+
+    // Presets
+    private const string PresetExam1 = "4, 1, 1, 6, 1, 2, 1, 3, 6, 1, 5, 5, 1";
+    private const string PresetExam2 = "2, 6, 1, 2, 2, 5, 1, 6, 4, 5, 3, 2, 4";
+    private const string PresetBelady = "1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5";
+
+    protected override void OnInitialized()
+    {
+        ReadQueryParameters();
+    }
+
+    private void ReadQueryParameters()
     {
         try
         {
-            var references = ParseIntegerSequence(ReferenceInput, "reference string");
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query;
+            if (string.IsNullOrEmpty(query)) return;
+
+            var pairs = query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var pair in pairs)
+            {
+                var parts = pair.Split('=', 2);
+                var key = parts[0].ToLowerInvariant();
+                var val = parts.Length > 1 ? Uri.UnescapeDataString(parts[1]) : "";
+
+                if (key == "embed" && bool.TryParse(val, out var embedBool))
+                {
+                    IsEmbed = embedBool;
+                }
+                else if (key == "view")
+                {
+                    ActiveView = val.Equals("worksheet", StringComparison.OrdinalIgnoreCase) 
+                        ? ViewMode.Worksheet 
+                        : ViewMode.Simulator;
+                }
+                else if (key == "solution" && bool.TryParse(val, out var solBool))
+                {
+                    ShowSolution = solBool;
+                }
+                else if (key == "policy" && !string.IsNullOrWhiteSpace(val))
+                {
+                    SelectedPagePolicy = val;
+                }
+                else if (key == "frames" && int.TryParse(val, out var framesInt))
+                {
+                    FrameCount = Math.Clamp(framesInt, 1, 8);
+                }
+                else if (key == "requests" && !string.IsNullOrWhiteSpace(val))
+                {
+                    ReferenceInput = val;
+                }
+            }
+        }
+        catch { }
+    }
+
+    private void SetView(ViewMode mode)
+    {
+        ActiveView = mode;
+    }
+
+    private void ToggleSolution()
+    {
+        ShowSolution = !ShowSolution;
+    }
+
+    private async Task PrintWorksheet()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+
+    private void OnConfigurationChanged()
+    {
+        FrameCount = Math.Clamp(FrameCount, 1, 8);
+        CurrentStepIndex = 0;
+    }
+
+    private void LoadPreset(string preset)
+    {
+        ReferenceInput = preset;
+        CurrentStepIndex = 0;
+    }
+
+    private void GenerateRandomSequence()
+    {
+        var rnd = new Random();
+        var length = rnd.Next(10, 15);
+        var items = new int[length];
+        for (int i = 0; i < length; i++)
+        {
+            items[i] = rnd.Next(1, 7);
+        }
+        ReferenceInput = string.Join(", ", items);
+        CurrentStepIndex = 0;
+    }
+
+    private void GoToStart()
+    {
+        CurrentStepIndex = 0;
+    }
+
+    private void PreviousStep()
+    {
+        if (CurrentStepIndex > 0)
+        {
+            CurrentStepIndex--;
+        }
+    }
+
+    private void NextStep()
+    {
+        if (TryGetSimulation(out var sim, out _))
+        {
+            var maxSteps = sim!.Steps.Count - 1;
+            if (CurrentStepIndex < maxSteps)
+            {
+                CurrentStepIndex++;
+            }
+        }
+    }
+
+    private void GoToEnd()
+    {
+        if (TryGetSimulation(out var sim, out _))
+        {
+            CurrentStepIndex = sim!.Steps.Count - 1;
+        }
+    }
+
+    private void OnSliderChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var step))
+        {
+            CurrentStepIndex = step;
+        }
+    }
+
+    private bool TryGetSimulation(out PageReplacementSolution? solution, out string errorMessage)
+    {
+        try
+        {
+            var references = ParseIntegerSequence(ReferenceInput);
             if (references.Length == 0)
             {
-                throw new InvalidOperationException("Provide at least one page reference.");
+                throw new InvalidOperationException("Bitte geben Sie mindestens eine Seitennummer an.");
             }
 
             var parameters = new PageReplacementParameters(references)
@@ -102,9 +669,9 @@
                 MemorySize = Math.Clamp(FrameCount, 1, 8)
             };
 
-            var solver = SelectedPagePolicy switch
+            IPageReplacementSolver solver = SelectedPagePolicy switch
             {
-                "LRU" => (IPageReplacementSolver)new LRUSolver(),
+                "LRU" => new LRUSolver(),
                 "Clock" => new ClockSolver(),
                 "Optimal" => new OptimalSolver(),
                 _ => new FIFOSolver()
@@ -122,11 +689,73 @@
         }
     }
 
-    private int[] ParseIntegerSequence(string input, string fieldName) =>
-        input
-            .Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(token => int.TryParse(token, out var value)
-                ? value
-                : throw new InvalidOperationException($"Invalid number '{token}' in {fieldName}."))
+    private int[] ParseIntegerSequence(string input)
+    {
+        return input
+            .Split(new[] { ',', ';', ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(token => int.TryParse(token, out var val) ? val : throw new InvalidOperationException($"Ungültige Zahl '{token}' in der Referenzfolge."))
             .ToArray();
+    }
+
+    private string GetStepExplanation(int stepIndex, IPageReplacementStep current, IPageReplacementStep? prev)
+    {
+        if (stepIndex == 0 || prev == null)
+        {
+            return "Alle Kacheln sind noch unberührt und frei (Wert '–'). Noch kein Seitenzugriff erfolgt.";
+        }
+
+        var req = current.Element;
+        var isHit = current.Count == prev.Count;
+
+        if (isHit)
+        {
+            var frameIndex = Array.IndexOf(current.Frames, req);
+            var frameNum = frameIndex >= 0 ? (frameIndex + 1).ToString() : "?";
+
+            return SelectedPagePolicy switch
+            {
+                "Clock" => $"Treffer (Hit): Seite {req} befindet sich bereits in Kachel {frameNum}. Das Referenzbit von Kachel {frameNum} wird auf 1 gesetzt. Der Zeiger bleibt bei Kachel {current.AdditionalInfo}.",
+                "LRU" => $"Treffer (Hit): Seite {req} befindet sich bereits in Kachel {frameNum}. Der zeitliche Zugriffsabstand von Kachel {frameNum} wird auf 0 zurückgesetzt.",
+                "Optimal" => $"Treffer (Hit): Seite {req} befindet sich bereits in Kachel {frameNum}. Der Zukunftsabstand bis zur nächsten Referenz wird aktualisiert.",
+                _ => $"Treffer (Hit): Seite {req} befindet sich bereits in Kachel {frameNum}. Die Kachelbelegung bleibt unverändert."
+            };
+        }
+        else
+        {
+            // Find which frame changed
+            int changedFrame = -1;
+            bool wasEmpty = false;
+            for (int f = 0; f < current.Frames.Length; f++)
+            {
+                if (current.Frames[f] != prev.Frames[f])
+                {
+                    changedFrame = f;
+                    wasEmpty = prev.Frames[f] == int.MaxValue;
+                    break;
+                }
+            }
+
+            var frameNum = changedFrame >= 0 ? (changedFrame + 1).ToString() : "?";
+
+            if (wasEmpty)
+            {
+                return SelectedPagePolicy switch
+                {
+                    "Clock" => $"Seitenfehler: Seite {req} ist nicht im Speicher. Freie Kachel {frameNum} belegt. Referenzbit = 0, Zeiger rückt auf Kachel {current.AdditionalInfo} vor.",
+                    _ => $"Seitenfehler: Seite {req} ist nicht im Speicher. Freie Kachel {frameNum} verfügbar und wird mit Seite {req} belegt."
+                };
+            }
+            else
+            {
+                var oldPage = changedFrame >= 0 ? prev.Frames[changedFrame].ToString() : "?";
+                return SelectedPagePolicy switch
+                {
+                    "Clock" => $"Seitenfehler: Alle Kacheln belegt. Der Zeiger prüfte Kacheln ab Zeigerposition: gesetzte Referenzbits (1) wurden auf 0 zurückgesetzt, bis Kachel {frameNum} mit Bit 0 gefunden wurde. Seite {oldPage} wird durch {req} ersetzt. Zeiger rückt auf Kachel {current.AdditionalInfo} vor.",
+                    "LRU" => $"Seitenfehler: Speicher voll. Kachel {frameNum} (Seite {oldPage}) hat den maximalen Zugriffsabstand (am längsten nicht verwendet) und wird durch Seite {req} ersetzt.",
+                    "Optimal" => $"Seitenfehler: Speicher voll. Kachel {frameNum} (Seite {oldPage}) wird am spätesten oder gar nicht mehr referenziert (maximaler Zukunftsabstand) und wird durch Seite {req} ersetzt.",
+                    _ => $"Seitenfehler: Speicher voll. Gemäß FIFO wird die älteste Kachel {frameNum} (Seite {oldPage}) durch Seite {req} ersetzt."
+                };
+            }
+        }
+    }
 }

@@ -1,166 +1,525 @@
 @namespace Italbytz.Systems.Blazor.Components.ComputingSystems
+@using Italbytz.ComputingSystems
+@using Italbytz.ComputingSystems.Abstractions
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
 
-<article class="demo-card wide-card">
-    <div class="card-heading">
-        <p class="feature-kicker">Boolean minimization</p>
-        <h2>Inspect Quine-McCluskey output and Karnaugh groups</h2>
-    </div>
+<article class="qmc-container @(IsEmbed ? "embed-mode" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
 
-    <div class="input-grid two-up">
-        <label>
-            <span>Variable count</span>
-            <input type="number" min="1" max="4" @bind="QmcVariableCount" />
-        </label>
-        <label>
-            <span>Truth values</span>
-            <input type="text" @bind="QmcTruthValuesInput" />
-        </label>
-    </div>
-
-    <p class="helper-copy">Use comma-separated values with <strong>0</strong>, <strong>1</strong>, and optional <strong>2</strong> for don't cares.</p>
-
-    @if (TryGetQuineMcCluskeySolution(out var qmcSolution, out var qmcError) && TryGetKarnaughMapSolution(out var karnaughSolution, out _))
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
     {
-        <div class="card-grid card-grid-three compact-grid">
-            <div class="metric-card">
-                <span>Minimal DNF</span>
-                <strong>@qmcSolution!.MinimalDnf</strong>
-            </div>
-            <div class="metric-card">
-                <span>Prime implicants</span>
-                <strong>@string.Join(", ", qmcSolution.PrimeImplicants)</strong>
-            </div>
-            <div class="metric-card">
-                <span>Essential prime implicants</span>
-                <strong>@string.Join(", ", qmcSolution.EssentialPrimeImplicants)</strong>
-            </div>
-        </div>
-
-        <div class="table-shell">
-            <table class="trace-table">
-                <thead>
-                    <tr>
-                        <th>KV cell</th>
-                        <th>Gray code</th>
-                        <th>Minterm</th>
-                        <th>Value</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var cell in karnaughSolution!.Cells.OrderBy(cell => cell.RowIndex).ThenBy(cell => cell.ColumnIndex))
-                    {
-                        <tr>
-                            <td>r@cell.RowIndex c@cell.ColumnIndex</td>
-                            <td>@cell.RowCode | @cell.ColumnCode</td>
-                            <td>@cell.MintermIndex</td>
-                            <td>@cell.Value</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-
-        <div class="table-shell">
-            <table class="trace-table">
-                <thead>
-                    <tr>
-                        <th>Group</th>
-                        <th>Essential</th>
-                        <th>Covered minterms</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var group in karnaughSolution.Groups)
-                    {
-                        <tr>
-                            <td>@group.Term</td>
-                            <td>@(group.IsEssential ? "yes" : "no")</td>
-                            <td>@string.Join(", ", group.CoveredMintermIndices)</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-
-        <div class="table-shell">
-            <table class="trace-table">
-                <thead>
-                    <tr>
-                        <th>Trace step</th>
-                        <th>Trace detail</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @for (var index = 0; index < qmcSolution.Steps.Count; index++)
-                    {
-                        <tr>
-                            <td>@(index + 1)</td>
-                            <td>@qmcSolution.Steps[index]</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Grundlagen der Informatik &bull; Boolesche Minimierung</p>
+            <h2>Quine-McCluskey-Verfahren &amp; Primimplikantentabelle</h2>
+            <p class="feature-intro">
+                Systematisches Tabellenverfahren zur Bestimmung aller Primimplikanten (0., 1., 2. und 3. Ordnung) 
+                durch paarweise Nachbarschafts-Verschmelzung sowie Überdeckungsanalyse (Essenzielle Primimplikanten) 
+                zur disjunktiven Minimalform (DMF).
+            </p>
         </div>
     }
-    else
+
+    <!-- View Switcher -->
+    @if (!IsEmbed)
     {
-        <p class="validation-copy">@qmcError</p>
+        <div class="view-switch no-print">
+            <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Simulator)">
+                🚀 Interaktiver Simulator &amp; Ordnungstabellen
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Worksheet)">
+                🖨️ Klausur-Arbeitsblatt (Druckansicht)
+            </button>
+        </div>
     }
+
+    <!-- ========================================================================= -->
+    <!-- SIMULATOR VIEW                                                            -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Controls Panel -->
+        <div class="controls-panel no-print">
+            <div class="config-grid">
+                <label class="control-label">
+                    <span>Anzahl Variablen:</span>
+                    <select class="form-input select" @bind="VariableCount" @bind:after="OnVariableCountChanged">
+                        <option value="3">3 Variablen ($x_2, x_1, x_0$ &rarr; 8 Minterme)</option>
+                        <option value="4">4 Variablen ($x_3, x_2, x_1, x_0$ &rarr; 16 Minterme)</option>
+                    </select>
+                </label>
+
+                <label class="control-label wide-label">
+                    <span>Wertevektor der Ausgabespalte ($f(m_0 \dots m_{2^n-1})$):</span>
+                    <input type="text" class="form-input mono" @bind="TruthValuesInput" @bind:after="Recalculate" />
+                </label>
+            </div>
+
+            <!-- Presets Bar -->
+            <div class="preset-bar">
+                <span class="preset-label">Beispiele:</span>
+                <button class="preset-btn" @onclick='() => LoadPreset("Exam1")'>Klausuraufgabe 1 (0,0,1,1,0,0,1,1,1,1,0,0,1,1,1,0)</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("Exam2")'>Klausuraufgabe 2 (1,1,0,0,1,1,0,0,1,1,1,0,1,1,0,0)</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("Majority3")'>3-Var Mehrheit</button>
+                <button class="preset-btn random" @onclick="GenerateRandomFunction">🎲 Zufallsfunktion</button>
+            </div>
+        </div>
+
+        @if (QmcSolution != null)
+        {
+            <!-- Narrator Card -->
+            <div class="narrator-card">
+                <div class="narrator-header">
+                    <div class="step-badge badge-qmc">QMC-Ergebnis</div>
+                    <div class="narrator-title">
+                        Minimale DNF: <strong class="emerald mono">@QmcSolution.MinimalDnf</strong>
+                    </div>
+                </div>
+                <p class="narrator-text">
+                    Aus @QmcSolution.PrimeImplicants.Length Primimplikanten wurden 
+                    <strong>@QmcSolution.EssentialPrimeImplicants.Length essenzielle Primimplikanten</strong> identifiziert, 
+                    die alle Eins-Minterme minimal überdecken.
+                </p>
+                <div class="qmc-metrics-strip">
+                    <span>Primimplikanten: <strong class="mono blue">@string.Join(", ", QmcSolution.PrimeImplicants)</strong></span>
+                    <span>Essenziell: <strong class="mono emerald">@string.Join(", ", QmcSolution.EssentialPrimeImplicants)</strong></span>
+                    <span>QMC-Schritte: <strong class="mono">@QmcSolution.Steps.Count</strong></span>
+                </div>
+            </div>
+
+            <!-- Main Display: Order Tables & Coverage Chart -->
+            <div class="main-display-grid">
+
+                <!-- Left: Multi-Order Reduction Tables -->
+                <div class="orders-card">
+                    <div class="orders-header">
+                        <h3>Schritt 1 &amp; 2: Paarweise Nachbarschafts-Verschmelzung</h3>
+                    </div>
+
+                    <div class="orders-grid">
+                        
+                        <!-- 0. Ordnung (Einsmenge) -->
+                        <div class="order-table-box">
+                            <div class="order-title">0. Ordnung (Einsmenge)</div>
+                            <table class="qmc-mini-table">
+                                <thead>
+                                    <tr>
+                                        <th>$i$</th>
+                                        <th>Binär</th>
+                                        <th>✓</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @for (int i = 0; i < TruthValues.Length; i++)
+                                    {
+                                        if (TruthValues[i] == 1)
+                                        {
+                                            var bin = Convert.ToString(i, 2).PadLeft(VariableCount, '0');
+                                            <tr>
+                                                <td class="mono bold">@i</td>
+                                                <td class="mono">@bin</td>
+                                                <td class="chk">✓</td>
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Primimplikanten Übersicht -->
+                        <div class="order-table-box">
+                            <div class="order-title">Gefundene Primimplikanten</div>
+                            <table class="qmc-mini-table">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Term</th>
+                                        <th>Essenziell</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @for (int i = 0; i < QmcSolution.PrimeImplicants.Length; i++)
+                                    {
+                                        var pi = QmcSolution.PrimeImplicants[i];
+                                        bool isEss = QmcSolution.EssentialPrimeImplicants.Contains(pi);
+                                        <tr>
+                                            <td>@(i + 1)</td>
+                                            <td class="mono bold blue">@pi</td>
+                                            <td>
+                                                @if (isEss)
+                                                {
+                                                    <span class="status-tag tag-ess">★ Ja</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="status-tag tag-opt">Optional</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Right: Step Traces & Summary -->
+                <div class="traces-panel">
+                    <div class="sub-card">
+                        <div class="sub-card-header">
+                            <h4>QMC-Ablaufprotokoll (Trace Steps)</h4>
+                        </div>
+                        <div class="trace-list">
+                            @for (int i = 0; i < QmcSolution.Steps.Count; i++)
+                            {
+                                <div class="trace-item">
+                                    <span class="trace-num">@(i + 1).</span>
+                                    <span class="trace-text">@QmcSolution.Steps[i]</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="formula-card">
+                        <div class="formula-title">Ergebnis der Minimierung:</div>
+                        <div class="formula-display mono bold emerald">
+                            $y = @QmcSolution.MinimalDnf$
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        }
+    }
+
+    <!-- ========================================================================= -->
+    <!-- WORKSHEET VIEW (1:1 EXAM REPLICA)                                         -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Worksheet)
+    {
+        <div class="worksheet-paper">
+
+            <!-- Exam Header -->
+            <div class="exam-header">
+                <div class="exam-title-block">
+                    <span class="exam-sub">Grundlagen der Informatik &bull; Schaltnetze</span>
+                    <h1 class="exam-main-title">Übungs- und Klausuraufgabe: Minimierung mit Quine-McCluskey</h1>
+                </div>
+                <div class="exam-meta-box no-print">
+                    <button class="toggle-sol-btn @(ShowSolution ? "active" : "")" @onclick="ToggleSolution">
+                        @(ShowSolution ? "👁️ Musterlösung ausblenden" : "💡 Musterlösung einblenden")
+                    </button>
+                    <button class="print-btn" @onclick="TriggerPrint">
+                        🖨️ Seite drucken / PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Student Info Fields -->
+            <div class="student-info-strip">
+                <div class="info-field">
+                    <span class="info-label">Name, Vorname:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field">
+                    <span class="info-label">Matrikelnummer:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field points-field">
+                    <span class="info-label">Punkte:</span>
+                    <div class="points-box">/ 8 P.</div>
+                </div>
+            </div>
+
+            <!-- Intro Text matching TIQuineMcCluskey_01 -->
+            <div class="task-prompt-box">
+                <p class="task-text">
+                    Mit dem <strong>Quine-McCluskey-Verfahren</strong> können in drei Schritten minimale Polynome für Boolesche Funktionen gefunden werden.
+                    Gegeben sei folgende Ausgabespalte einer Wahrheitstafel:
+                    $$\mathbf{f} = (@string.Join(", ", TruthValues))$$
+                </p>
+            </div>
+
+            <!-- Teilaufgabe 1: 0. Ordnung -->
+            <div class="task-section">
+                <div class="task-sub-title">
+                    <span>Teilaufgabe 1 (2 Punkte)</span>
+                </div>
+                <p class="task-text">
+                    Bilden Sie zunächst eine Wahrheitstafel nur mit den Zeilen der <strong>Einsmenge</strong> ($0$. Ordnung):
+                </p>
+
+                <div class="ws-table-container">
+                    <table class="ws-matrix-table">
+                        <thead>
+                            <tr>
+                                <th>$i$</th>
+                                @if (VariableCount == 4)
+                                {
+                                    <th>$x_3$</th>
+                                }
+                                <th>$x_2$</th>
+                                <th>$x_1$</th>
+                                <th>$x_0$</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (ShowSolution)
+                            {
+                                @for (int i = 0; i < TruthValues.Length; i++)
+                                {
+                                    if (TruthValues[i] == 1)
+                                    {
+                                        var bin = Convert.ToString(i, 2).PadLeft(VariableCount, '0');
+                                        <tr>
+                                            <td class="mono bold">@i</td>
+                                            @for (int b = 0; b < VariableCount; b++)
+                                            {
+                                                <td class="mono">@bin[b]</td>
+                                            }
+                                        </tr>
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                @for (int r = 0; r < 8; r++)
+                                {
+                                    <tr>
+                                        <td class="ws-blank-slot"></td>
+                                        @for (int b = 0; b < VariableCount; b++)
+                                        {
+                                            <td class="ws-blank-slot"></td>
+                                        }
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Teilaufgabe 2: Paarweise Vereinfachung -->
+            <div class="task-section">
+                <div class="task-sub-title">
+                    <span>Teilaufgabe 2 (4 Punkte)</span>
+                </div>
+                <p class="task-text">
+                    Suchen Sie paarweise nach Vereinfachungen (1. und 2. Ordnung) und markieren Sie vereinfachte Zeilen mit einem Haken $\checkmark$:
+                </p>
+
+                @if (ShowSolution && QmcSolution != null)
+                {
+                    <div class="ws-solution-box">
+                        <div class="sol-title">Gefundene Primimplikanten:</div>
+                        <ul class="sol-list">
+                            @foreach (var pi in QmcSolution.PrimeImplicants)
+                            {
+                                bool isEss = QmcSolution.EssentialPrimeImplicants.Contains(pi);
+                                <li>
+                                    <code class="mono bold">@pi</code> @(isEss ? "(Essentieller Primimplikant)" : "")
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                }
+                else
+                {
+                    <div class="ws-order-blank-grid">
+                        <div class="ws-blank-table-box">
+                            <div class="ws-box-heading">1. Ordnung</div>
+                            <div class="ws-ruled-lines">
+                                @for (int l = 0; l < 6; l++) { <div class="ruled-line"></div> }
+                            </div>
+                        </div>
+                        <div class="ws-blank-table-box">
+                            <div class="ws-box-heading">2. Ordnung</div>
+                            <div class="ws-ruled-lines">
+                                @for (int l = 0; l < 4; l++) { <div class="ruled-line"></div> }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <!-- Teilaufgabe 3: Minimalpolynom -->
+            <div class="task-section">
+                <div class="task-sub-title">
+                    <span>Teilaufgabe 3 (2 Punkte)</span>
+                </div>
+                <p class="task-text">
+                    Geben Sie das resultierende <strong>Minimalpolynom (disjunktive Minimalform $y$)</strong> an:
+                </p>
+
+                @if (ShowSolution && QmcSolution != null)
+                {
+                    <div class="ws-solution-box">
+                        <div class="sol-formula-line mono bold">
+                            $$y = @QmcSolution.MinimalDnf$$
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="ws-formula-blank">
+                        <span class="mono bold">y = </span>
+                        <div class="blank-line-long"></div>
+                    </div>
+                }
+            </div>
+
+            <!-- Footer -->
+            <div class="exam-footer">
+                <div class="exam-footer-note">
+                    Hinweis: Zwei Terme können zusammengefasst werden, wenn sie sich in genau einer Variablen (Literal) unterscheiden.
+                </div>
+            </div>
+
+        </div>
+    }
+
 </article>
 
 @code {
-    private readonly QuineMcCluskeySolver quineMcCluskeySolver = new();
-    private readonly KarnaughMapSolver karnaughMapSolver = new();
+    public enum ViewMode { Simulator, Worksheet }
 
-    [Parameter]
-    public int QmcVariableCount { get; set; } = 2;
+    [Parameter] public string? View { get; set; }
+    [Parameter] public bool? SolutionParam { get; set; }
+    [Parameter] public bool? Embed { get; set; }
 
-    [Parameter]
-    public string QmcTruthValuesInput { get; set; } = "0,1,1,1";
+    private ViewMode ActiveView = ViewMode.Simulator;
+    private bool ShowSolution = false;
+    private bool IsEmbed = false;
 
-    private bool TryGetQuineMcCluskeySolution(out QuineMcCluskeySolution? solution, out string errorMessage)
+    private int VariableCount = 4;
+    private string TruthValuesInput = "0,0,1,1,0,0,1,1,1,1,0,0,1,1,1,0";
+    private int[] TruthValues = new int[] { 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0 };
+
+    private IQuineMcCluskeySolution? QmcSolution;
+
+    protected override void OnInitialized()
+    {
+        ReadQueryParameters();
+        Recalculate();
+    }
+
+    protected override void OnParametersSet()
+    {
+        ReadQueryParameters();
+    }
+
+    private void ReadQueryParameters()
     {
         try
         {
-            var variableCount = Math.Clamp(QmcVariableCount, 1, 4);
-            var truthValues = ParseTruthValues(QmcTruthValuesInput);
-
-            solution = (QuineMcCluskeySolution)quineMcCluskeySolver.Solve(new QuineMcCluskeyParameters(variableCount, truthValues));
-            errorMessage = string.Empty;
-            return true;
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query;
+            if (!string.IsNullOrEmpty(query))
+            {
+                if (query.Contains("view=worksheet", StringComparison.OrdinalIgnoreCase))
+                {
+                    ActiveView = ViewMode.Worksheet;
+                }
+                if (query.Contains("solution=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    ShowSolution = true;
+                }
+                if (query.Contains("embed=true", StringComparison.OrdinalIgnoreCase) || query.Contains("embedded=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsEmbed = true;
+                }
+            }
         }
-        catch (Exception ex)
-        {
-            solution = null;
-            errorMessage = ex.Message;
-            return false;
-        }
+        catch { }
     }
 
-    private bool TryGetKarnaughMapSolution(out KarnaughMapSolution? solution, out string errorMessage)
+    private void SetView(ViewMode mode)
+    {
+        ActiveView = mode;
+    }
+
+    private void ToggleSolution()
+    {
+        ShowSolution = !ShowSolution;
+    }
+
+    private async Task TriggerPrint()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+
+    private void OnVariableCountChanged()
+    {
+        int requiredLength = 1 << VariableCount;
+        if (VariableCount == 4)
+        {
+            TruthValues = new int[] { 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0 };
+        }
+        else
+        {
+            TruthValues = new int[] { 1, 1, 1, 0, 0, 1, 0, 0 };
+        }
+        TruthValuesInput = string.Join(",", TruthValues);
+        Recalculate();
+    }
+
+    private void LoadPreset(string preset)
+    {
+        switch (preset)
+        {
+            case "Exam1":
+                VariableCount = 4;
+                TruthValues = new int[] { 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0 };
+                break;
+            case "Exam2":
+                VariableCount = 4;
+                TruthValues = new int[] { 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 0 };
+                break;
+            case "Majority3":
+                VariableCount = 3;
+                TruthValues = new int[] { 0, 0, 0, 1, 0, 1, 1, 1 };
+                break;
+        }
+        TruthValuesInput = string.Join(",", TruthValues);
+        Recalculate();
+    }
+
+    private void GenerateRandomFunction()
+    {
+        var rand = new Random();
+        int len = 1 << VariableCount;
+        TruthValues = new int[len];
+        for (int i = 0; i < len; i++)
+        {
+            TruthValues[i] = rand.Next(2);
+        }
+        TruthValuesInput = string.Join(",", TruthValues);
+        Recalculate();
+    }
+
+    private void Recalculate()
     {
         try
         {
-            var variableCount = Math.Clamp(QmcVariableCount, 1, 4);
-            var truthValues = ParseTruthValues(QmcTruthValuesInput);
+            var parsed = TruthValuesInput
+                .Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(t => int.TryParse(t, out var val) ? val : 0)
+                .ToArray();
 
-            solution = (KarnaughMapSolution)karnaughMapSolver.Solve(new KarnaughMapParameters(variableCount, truthValues));
-            errorMessage = string.Empty;
-            return true;
+            int requiredLength = 1 << VariableCount;
+            if (parsed.Length != requiredLength)
+            {
+                var adjusted = new int[requiredLength];
+                Array.Copy(parsed, adjusted, Math.Min(parsed.Length, requiredLength));
+                parsed = adjusted;
+            }
+
+            TruthValues = parsed;
+            var solver = new QuineMcCluskeySolver();
+            QmcSolution = solver.Solve(new QuineMcCluskeyParameters(VariableCount, TruthValues));
         }
-        catch (Exception ex)
-        {
-            solution = null;
-            errorMessage = ex.Message;
-            return false;
-        }
+        catch { }
     }
-
-    private static int[] ParseTruthValues(string input) =>
-        input
-            .Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(token => int.TryParse(token, out var value)
-                ? value
-                : throw new InvalidOperationException($"Invalid truth-table value '{token}'."))
-            .ToArray();
 }

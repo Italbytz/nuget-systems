@@ -1,0 +1,962 @@
+@namespace Italbytz.Systems.Blazor.Components.Networking
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<article class="dijkstra-container @(IsEmbed ? "embed-mode" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
+
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
+    {
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Rechnernetze &bull; Vermittlungsschicht (Routing)</p>
+            <h2>Dijkstra-Algorithmus (Kürzeste Wege &amp; Routing-Tabellen)</h2>
+            <p class="feature-intro">
+                Schritt-für-Schritt-Ablaufverfolgung des Dijkstra-Kürzeste-Wege-Algorithmus auf gewichteten Netzwerkgraphen. 
+                Visualisierung der Knotenzustände (Permanent/Tentativ), Kantenrelaxation, Distanzschätzungen ($D$), 
+                Vorgängerknoten ($V$) und der resultierenden Routing-Tabelle.
+            </p>
+        </div>
+    }
+
+    <!-- View Switcher -->
+    @if (!IsEmbed)
+    {
+        <div class="view-switch no-print">
+            <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Simulator)">
+                🚀 Interaktiver Simulator &amp; Graph-Trace
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Worksheet)">
+                🖨️ Klausur-Arbeitsblatt (Druckansicht)
+            </button>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- SIMULATOR VIEW                                                            -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Controls Panel -->
+        <div class="controls-panel no-print">
+            <div class="config-grid">
+                <label class="control-label">
+                    <span>Startknoten (Quelle):</span>
+                    <select class="form-input select" @bind="StartNode" @bind:after="OnStartNodeChanged">
+                        @foreach (var n in Nodes)
+                        {
+                            <option value="@n.Id">Knoten @n.Id</option>
+                        }
+                    </select>
+                </label>
+
+                <label class="control-label">
+                    <span>Topologie / Graph:</span>
+                    <select class="form-input select" @bind="SelectedPresetKey" @bind:after="OnPresetChanged">
+                        <option value="Standard">Vorlesungs-Graph (8 Knoten, 12 Kanten)</option>
+                        <option value="Exam1">Klausur-Netz A (8 Knoten, 11 Kanten)</option>
+                        <option value="Compact">Kompaktes Netz (6 Knoten, 9 Kanten)</option>
+                    </select>
+                </label>
+            </div>
+
+            <!-- Presets Bar -->
+            <div class="preset-bar">
+                <span class="preset-label">Beispiele:</span>
+                <button class="preset-btn" @onclick='() => LoadPreset("Standard")'>Vorlesung (8 Knoten)</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("Exam1")'>Klausur-Graph 1</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("Compact")'>6-Knoten-Netz</button>
+                <button class="preset-btn random" @onclick="GenerateRandomGraph">🎲 Zufallsgraph</button>
+            </div>
+        </div>
+
+        @if (DijkstraResult != null)
+        {
+            var maxSteps = DijkstraResult.Steps.Count;
+            var currentStep = CurrentStepIndex < maxSteps ? DijkstraResult.Steps[CurrentStepIndex] : DijkstraResult.Steps.LastOrDefault();
+
+            <!-- Player Toolbar -->
+            <div class="player-toolbar no-print">
+                <div class="player-controls">
+                    <button class="player-btn" title="Start" disabled="@(CurrentStepIndex == 0)" @onclick="GoToStart">⏮ Start</button>
+                    <button class="player-btn" title="Zurück" disabled="@(CurrentStepIndex == 0)" @onclick="PreviousStep">◀ Zurück</button>
+                    <button class="player-btn primary" title="Nächster Schritt" disabled="@(CurrentStepIndex >= maxSteps - 1)" @onclick="NextStep">▶ Weiter</button>
+                    <button class="player-btn" title="Ende" disabled="@(CurrentStepIndex >= maxSteps - 1)" @onclick="GoToEnd">⏭ Ende</button>
+                    <button class="player-btn reset" title="Zurücksetzen" @onclick="GoToStart">🔄 Reset</button>
+                </div>
+
+                <div class="player-progress">
+                    <span class="step-indicator">
+                        <strong>Schritt @(CurrentStepIndex) / @(maxSteps - 1):</strong>
+                        <span>@(currentStep?.Title ?? "")</span>
+                    </span>
+                    <input type="range" min="0" max="@(maxSteps - 1)" value="@CurrentStepIndex" @oninput="OnSliderChanged" class="step-slider" />
+                </div>
+            </div>
+
+            <!-- Narrator Card -->
+            @if (currentStep != null)
+            {
+                <div class="narrator-card">
+                    <div class="narrator-header">
+                        <div class="step-badge @(CurrentStepIndex == 0 ? "badge-init" : "badge-step")">
+                            @if (CurrentStepIndex == 0)
+                            {
+                                <span>🏁 Initialisierung</span>
+                            }
+                            else
+                            {
+                                <span>🔍 Schritt @CurrentStepIndex: Knoten @currentStep.SettledNodeId fixiert</span>
+                            }
+                        </div>
+                        <div class="narrator-title">@currentStep.Title</div>
+                    </div>
+                    <p class="narrator-text">@currentStep.Explanation</p>
+
+                    @if (currentStep.Relaxations.Count > 0)
+                    {
+                        <div class="relax-list">
+                            @foreach (var r in currentStep.Relaxations)
+                            {
+                                <div class="relax-item @(r.Updated ? "updated" : "no-change")">
+                                    <span class="relax-edge">Kante (@r.From &rarr; @r.To, Kosten @r.Weight):</span>
+                                    @if (r.Updated)
+                                    {
+                                        <span class="relax-val">
+                                            Distanz verkürzt: <strong>@r.OldDist &rarr; @r.NewDist</strong> (Vorgänger = @r.From) ✓
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="relax-val">
+                                            Keine Verbesserung (@r.CalcDist &ge; @r.OldDist) &minus;
+                                        </span>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+
+            <!-- Interactive Graph Canvas & Routing Table (2-Column Grid) -->
+            <div class="main-display-grid">
+                
+                <!-- Left: SVG Graph Canvas -->
+                <div class="graph-card">
+                    <div class="graph-header">
+                        <h3>Netzwerk-Topologie (Graph)</h3>
+                        <div class="graph-legend">
+                            <span class="leg-item"><span class="leg-dot settled"></span> Permanent (Fest)</span>
+                            <span class="leg-item"><span class="leg-dot tentative"></span> Tentativ</span>
+                            <span class="leg-item"><span class="leg-dot active"></span> Aktueller Knoten</span>
+                        </div>
+                    </div>
+
+                    <div class="svg-container">
+                        <svg class="graph-svg" viewBox="0 0 680 440">
+                            <!-- Edges -->
+                            @foreach (var edge in Edges)
+                            {
+                                var n1 = Nodes.First(n => n.Id == edge.From);
+                                var n2 = Nodes.First(n => n.Id == edge.To);
+                                bool isInShortestPathTree = IsEdgeInTree(currentStep, edge.From, edge.To);
+                                bool isBeingRelaxed = currentStep?.Relaxations.Any(r => (r.From == edge.From && r.To == edge.To) || (r.From == edge.To && r.To == edge.From)) ?? false;
+
+                                string edgeCls = "graph-edge";
+                                if (isInShortestPathTree) edgeCls += " tree-edge";
+                                if (isBeingRelaxed) edgeCls += " relaxing-edge";
+
+                                <line x1="@n1.X" y1="@n1.Y" x2="@n2.X" y2="@n2.Y" class="@edgeCls" />
+
+                                <!-- Weight Badge -->
+                                var midX = (n1.X + n2.X) / 2;
+                                var midY = (n1.Y + n2.Y) / 2;
+                                <g transform="translate(@midX, @midY)">
+                                    <circle r="12" class="weight-bg" />
+                                    @((MarkupString)$"<text y=\"4\" text-anchor=\"middle\" class=\"weight-text\">{edge.Weight}</text>")
+                                </g>
+                            }
+
+                            <!-- Nodes -->
+                            @foreach (var node in Nodes)
+                            {
+                                bool isStart = (node.Id == StartNode);
+                                bool isSettled = currentStep?.SettledNodes.Contains(node.Id) ?? false;
+                                bool isCurrent = (currentStep?.SettledNodeId == node.Id);
+
+                                string nodeCls = "graph-node";
+                                if (isCurrent) nodeCls += " current-node";
+                                else if (isSettled) nodeCls += " settled-node";
+                                else nodeCls += " tentative-node";
+                                if (isStart) nodeCls += " start-node";
+
+                                var distVal = currentStep != null && currentStep.Distances.ContainsKey(node.Id) 
+                                    ? (currentStep.Distances[node.Id] == double.PositiveInfinity ? "∞" : currentStep.Distances[node.Id].ToString()) 
+                                    : "∞";
+                                var predVal = currentStep != null && currentStep.Predecessors.ContainsKey(node.Id) && !string.IsNullOrEmpty(currentStep.Predecessors[node.Id])
+                                    ? $"({currentStep.Predecessors[node.Id]})"
+                                    : "";
+
+                                <g class="node-group" @onclick="() => SelectNodeAsStart(node.Id)" title="Knoten @node.Id (Klicken zum Starten)">
+                                    <circle cx="@node.X" cy="@node.Y" r="22" class="@nodeCls" />
+                                    @((MarkupString)$"<text x=\"{node.X}\" y=\"{node.Y + 6}\" text-anchor=\"middle\" class=\"node-label\">{node.Id}</text>")
+                                    
+                                    <!-- Distance Tag above node -->
+                                    <g transform="translate(@node.X, @(node.Y - 28))">
+                                        <rect x="-24" y="-12" width="48" height="18" rx="4" class="dist-badge-bg @(isSettled ? "bg-settled" : "")" />
+                                        @((MarkupString)$"<text y=\"1\" text-anchor=\"middle\" class=\"dist-badge-text\">D={distVal} {predVal}</text>")
+                                    </g>
+                                </g>
+                            }
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Right: Dijkstra Iteration Table & Routing Table -->
+                <div class="tables-panel">
+                    
+                    <!-- Dijkstra Step Matrix -->
+                    <div class="sub-table-card">
+                        <div class="sub-table-header">
+                            <h4>Dijkstra-Arbeitstabelle (Distanz $D$ &amp; Vorgänger $V$)</h4>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="dijkstra-matrix-table">
+                                <thead>
+                                    <tr>
+                                        <th class="node-col">Knoten</th>
+                                        @for (int s = 0; s < DijkstraResult.Steps.Count; s++)
+                                        {
+                                            var stepObj = DijkstraResult.Steps[s];
+                                            <th class="@(s == CurrentStepIndex ? "active-step-col" : "")">
+                                                <div class="step-head-idx">Schritt @s</div>
+                                                <div class="step-head-node">
+                                                    @(s == 0 ? "Init" : stepObj.SettledNodeId)
+                                                </div>
+                                            </th>
+                                        }
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var node in Nodes)
+                                    {
+                                        <tr>
+                                            <td class="node-id-cell"><strong>@node.Id</strong></td>
+                                            @for (int s = 0; s < DijkstraResult.Steps.Count; s++)
+                                            {
+                                                var stepObj = DijkstraResult.Steps[s];
+                                                var d = stepObj.Distances[node.Id];
+                                                var p = stepObj.Predecessors[node.Id];
+                                                var dStr = double.IsPositiveInfinity(d) ? "∞" : d.ToString();
+                                                var cellStr = string.IsNullOrEmpty(p) ? dStr : $"{dStr} ({p})";
+                                                bool wasSettledHere = (stepObj.SettledNodeId == node.Id);
+                                                bool isRevealed = (s <= CurrentStepIndex);
+
+                                                <td class="val-cell @(s == CurrentStepIndex ? "active-step-col" : "") @(wasSettledHere ? "settled-cell" : "") @(isRevealed ? "revealed" : "future")">
+                                                    @(isRevealed ? cellStr : "-")
+                                                </td>
+                                            }
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Final Forwarding Table -->
+                    <div class="sub-table-card">
+                        <div class="sub-table-header">
+                            <h4>Routing-Tabelle von Startknoten @StartNode</h4>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="routing-table">
+                                <thead>
+                                    <tr>
+                                        <th>Ziel</th>
+                                        <th>Kosten (Metrik)</th>
+                                        <th>Next-Hop</th>
+                                        <th>Kürzester Pfad</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var entry in DijkstraResult.RoutingTable)
+                                    {
+                                        <tr>
+                                            <td class="mono bold">@entry.Destination</td>
+                                            <td class="mono blue">@entry.Cost</td>
+                                            <td class="mono amber">@entry.NextHop</td>
+                                            <td class="mono emerald bold">@entry.PathString</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        }
+    }
+
+    <!-- ========================================================================= -->
+    <!-- WORKSHEET VIEW (1:1 EXAM REPLICA)                                         -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Worksheet)
+    {
+        <div class="worksheet-paper">
+
+            <!-- Exam Header -->
+            <div class="exam-header">
+                <div class="exam-title-block">
+                    <span class="exam-sub">Rechnernetze &bull; Vermittlungsschicht (Routing)</span>
+                    <h1 class="exam-main-title">Übungs- und Klausuraufgabe: Kürzeste Wege (Dijkstra-Algorithmus)</h1>
+                </div>
+                <div class="exam-meta-box no-print">
+                    <button class="toggle-sol-btn @(ShowSolution ? "active" : "")" @onclick="ToggleSolution">
+                        @(ShowSolution ? "👁️ Musterlösung ausblenden" : "💡 Musterlösung einblenden")
+                    </button>
+                    <button class="print-btn" @onclick="TriggerPrint">
+                        🖨️ Seite drucken / PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Student Info Fields -->
+            <div class="student-info-strip">
+                <div class="info-field">
+                    <span class="info-label">Name, Vorname:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field">
+                    <span class="info-label">Matrikelnummer:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field points-field">
+                    <span class="info-label">Punkte:</span>
+                    <div class="points-box">/ 8 P.</div>
+                </div>
+            </div>
+
+            <!-- Task Description -->
+            <div class="task-prompt-box">
+                <div class="task-number">Aufgabe (Kürzeste Wege &amp; Routing)</div>
+                <p class="task-text">
+                    Bestimmen Sie für den unten abgebildeten gewichteten Graphen alle kürzesten Wege ausgehend vom 
+                    <strong>Startknoten @StartNode</strong> mit dem <strong>Dijkstra-Algorithmus</strong>.
+                    Dokumentieren Sie die Distanzschätzungen $D$ und Vorgänger $V$ in jedem Schritt der Arbeitstabelle und geben Sie die fertige Routing-Tabelle an.
+                </p>
+            </div>
+
+            <!-- 2-Column Worksheet Layout: Left Graph, Right Table -->
+            <div class="worksheet-grid">
+                
+                <!-- Left: Static Graph Image / SVG -->
+                <div class="ws-graph-box">
+                    <div class="ws-box-title">Gegebener Netzwerkgraph</div>
+                    <svg class="ws-svg" viewBox="0 0 680 440">
+                        @foreach (var edge in Edges)
+                        {
+                            var n1 = Nodes.First(n => n.Id == edge.From);
+                            var n2 = Nodes.First(n => n.Id == edge.To);
+                            <line x1="@n1.X" y1="@n1.Y" x2="@n2.X" y2="@n2.Y" stroke="#000000" stroke-width="2" />
+                            var midX = (n1.X + n2.X) / 2;
+                            var midY = (n1.Y + n2.Y) / 2;
+                            <g transform="translate(@midX, @midY)">
+                                <circle r="11" fill="#ffffff" stroke="#000000" stroke-width="1.5" />
+                                @((MarkupString)$"<text y=\"4\" text-anchor=\"middle\" font-family=\"sans-serif\" font-size=\"11\" font-weight=\"bold\">{edge.Weight}</text>")
+                            </g>
+                        }
+                        @foreach (var node in Nodes)
+                        {
+                            <g>
+                                <circle cx="@node.X" cy="@node.Y" r="20" fill="@(node.Id == StartNode ? "#e0f2fe" : "#ffffff")" stroke="#000000" stroke-width="2" />
+                                @((MarkupString)$"<text x=\"{node.X}\" y=\"{node.Y + 6}\" text-anchor=\"middle\" font-family=\"sans-serif\" font-size=\"14\" font-weight=\"bold\">{node.Id}</text>")
+                            </g>
+                        }
+                    </svg>
+                </div>
+
+                <!-- Right: Dijkstra Table -->
+                <div class="ws-table-box">
+                    <div class="ws-box-title">Arbeitstabelle (D: Distanz, V: Vorgänger)</div>
+                    <table class="ws-matrix">
+                        <thead>
+                            <tr>
+                                <th class="ws-col-k">Knoten</th>
+                                @for (int s = 0; s < (DijkstraResult?.Steps.Count ?? 8); s++)
+                                {
+                                    <th colspan="2" class="ws-col-step">Schritt @s</th>
+                                }
+                            </tr>
+                            <tr class="ws-subhead">
+                                <th></th>
+                                @for (int s = 0; s < (DijkstraResult?.Steps.Count ?? 8); s++)
+                                {
+                                    <th class="ws-sub-dv">D</th>
+                                    <th class="ws-sub-dv">V</th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var node in Nodes)
+                            {
+                                <tr>
+                                    <td class="ws-node-td"><strong>@node.Id</strong></td>
+                                    @for (int s = 0; s < (DijkstraResult?.Steps.Count ?? 8); s++)
+                                    {
+                                        if (ShowSolution && DijkstraResult != null && s < DijkstraResult.Steps.Count)
+                                        {
+                                            var stepObj = DijkstraResult.Steps[s];
+                                            var d = stepObj.Distances[node.Id];
+                                            var p = stepObj.Predecessors[node.Id];
+                                            var dStr = double.IsPositiveInfinity(d) ? "∞" : d.ToString();
+                                            <td class="ws-cell-sol">@dStr</td>
+                                            <td class="ws-cell-sol">@(string.IsNullOrEmpty(p) ? "-" : p)</td>
+                                        }
+                                        else
+                                        {
+                                            <td class="ws-cell-blank"></td>
+                                            <td class="ws-cell-blank"></td>
+                                        }
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+
+            <!-- Routing Table Results Area -->
+            <div class="ws-routing-box">
+                <div class="ws-box-title">Ermittelte Routing-Tabelle für Startknoten @StartNode:</div>
+                @if (ShowSolution && DijkstraResult != null)
+                {
+                    <div class="ws-sol-routing-grid">
+                        @foreach (var entry in DijkstraResult.RoutingTable)
+                        {
+                            <div class="ws-sol-route-card">
+                                <span class="route-dest">Ziel: <strong>@entry.Destination</strong></span>
+                                <span class="route-cost">Kosten: @entry.Cost</span>
+                                <span class="route-hop">Next-Hop: @entry.NextHop</span>
+                                <span class="route-path">Pfad: @entry.PathString</span>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="ws-blank-routing-table">
+                        <table class="ws-routing-tbl">
+                            <thead>
+                                <tr>
+                                    <th>Zielknoten</th>
+                                    @foreach (var n in Nodes.Where(n => n.Id != StartNode))
+                                    {
+                                        <th>@n.Id</th>
+                                    }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>Gesamtkosten:</strong></td>
+                                    @foreach (var n in Nodes.Where(n => n.Id != StartNode))
+                                    {
+                                        <td></td>
+                                    }
+                                </tr>
+                                <tr>
+                                    <td><strong>Next-Hop:</strong></td>
+                                    @foreach (var n in Nodes.Where(n => n.Id != StartNode))
+                                    {
+                                        <td></td>
+                                    }
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+
+            <!-- Footer -->
+            <div class="exam-footer">
+                <div class="exam-footer-note">
+                    Hinweis: Im Dijkstra-Algorithmus wird in jedem Schritt der unbesuchte Knoten mit der kleinsten Distanzschätzung $D$ als permanent markiert und dessen ausgehende Kanten relaxiert.
+                </div>
+            </div>
+
+        </div>
+    }
+
+</article>
+
+@code {
+    public enum ViewMode { Simulator, Worksheet }
+
+    [Parameter] public string StartNode { get; set; } = "A";
+    [Parameter] public string? View { get; set; }
+    [Parameter] public bool? Solution { get; set; }
+    [Parameter] public bool? Embed { get; set; }
+
+    private ViewMode ActiveView = ViewMode.Simulator;
+    private bool ShowSolution = false;
+    private bool IsEmbed = false;
+
+    private string SelectedPresetKey = "Standard";
+
+    private List<GraphNode> Nodes = new();
+    private List<GraphEdge> Edges = new();
+
+    private DijkstraTraceResult? DijkstraResult;
+    private int CurrentStepIndex = 0;
+
+    protected override void OnInitialized()
+    {
+        ReadQueryParameters();
+        LoadPreset(SelectedPresetKey);
+    }
+
+    protected override void OnParametersSet()
+    {
+        ReadQueryParameters();
+    }
+
+    private void ReadQueryParameters()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query;
+            if (string.IsNullOrEmpty(query)) return;
+
+            var pairs = query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var pair in pairs)
+            {
+                var parts = pair.Split('=', 2);
+                var key = parts[0].ToLowerInvariant();
+                var val = parts.Length > 1 ? Uri.UnescapeDataString(parts[1]) : "";
+
+                if (key == "view")
+                {
+                    ActiveView = val.Equals("worksheet", StringComparison.OrdinalIgnoreCase) ? ViewMode.Worksheet : ViewMode.Simulator;
+                }
+                else if (key == "solution" && bool.TryParse(val, out var solBool))
+                {
+                    ShowSolution = solBool;
+                }
+                else if (key == "embed" && bool.TryParse(val, out var embedBool))
+                {
+                    IsEmbed = embedBool;
+                }
+                else if (key == "start" && !string.IsNullOrEmpty(val))
+                {
+                    StartNode = val.ToUpperInvariant();
+                }
+            }
+        }
+        catch
+        {
+            // fallback
+        }
+    }
+
+    private void SetView(ViewMode mode)
+    {
+        ActiveView = mode;
+        UpdateUrl();
+    }
+
+    private void ToggleSolution()
+    {
+        ShowSolution = !ShowSolution;
+        UpdateUrl();
+    }
+
+    private void UpdateUrl()
+    {
+        var uri = NavigationManager.GetUriWithQueryParameters(new Dictionary<string, object?>
+        {
+            ["view"] = ActiveView == ViewMode.Worksheet ? "worksheet" : null,
+            ["solution"] = ShowSolution ? "true" : null,
+            ["start"] = StartNode != "A" ? StartNode : null,
+            ["embed"] = IsEmbed ? "true" : null
+        });
+        NavigationManager.NavigateTo(uri, replace: true);
+    }
+
+    private async Task TriggerPrint()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+
+    private void OnStartNodeChanged()
+    {
+        Recalculate();
+    }
+
+    private void SelectNodeAsStart(string nodeId)
+    {
+        StartNode = nodeId;
+        Recalculate();
+    }
+
+    private void OnPresetChanged()
+    {
+        LoadPreset(SelectedPresetKey);
+    }
+
+    private void LoadPreset(string preset)
+    {
+        SelectedPresetKey = preset;
+        switch (preset)
+        {
+            case "Compact":
+                // 6 Nodes (A..F)
+                Nodes = new List<GraphNode>
+                {
+                    new("A", 100, 220),
+                    new("B", 240, 100),
+                    new("C", 240, 340),
+                    new("D", 440, 100),
+                    new("E", 440, 340),
+                    new("F", 580, 220)
+                };
+                Edges = new List<GraphEdge>
+                {
+                    new("A", "B", 4),
+                    new("A", "C", 2),
+                    new("B", "C", 1),
+                    new("B", "D", 5),
+                    new("C", "E", 8),
+                    new("C", "D", 8),
+                    new("D", "E", 2),
+                    new("D", "F", 6),
+                    new("E", "F", 3)
+                };
+                break;
+
+            case "Exam1":
+                // 8 Nodes (A..H)
+                Nodes = new List<GraphNode>
+                {
+                    new("A", 80, 220),
+                    new("B", 200, 100),
+                    new("C", 200, 340),
+                    new("D", 340, 80),
+                    new("E", 340, 360),
+                    new("F", 480, 100),
+                    new("G", 480, 340),
+                    new("H", 600, 220)
+                };
+                Edges = new List<GraphEdge>
+                {
+                    new("A", "B", 3),
+                    new("A", "C", 5),
+                    new("B", "D", 4),
+                    new("B", "C", 2),
+                    new("C", "E", 6),
+                    new("D", "F", 2),
+                    new("D", "E", 1),
+                    new("E", "G", 3),
+                    new("F", "G", 4),
+                    new("F", "H", 5),
+                    new("G", "H", 2)
+                };
+                break;
+
+            case "Standard":
+            default:
+                // 8 Nodes (A..H)
+                Nodes = new List<GraphNode>
+                {
+                    new("A", 80, 220),
+                    new("B", 220, 90),
+                    new("C", 220, 350),
+                    new("D", 360, 90),
+                    new("E", 360, 350),
+                    new("F", 500, 90),
+                    new("G", 500, 350),
+                    new("H", 610, 220)
+                };
+                Edges = new List<GraphEdge>
+                {
+                    new("A", "B", 2),
+                    new("A", "C", 5),
+                    new("B", "C", 2),
+                    new("B", "D", 7),
+                    new("B", "E", 3),
+                    new("C", "E", 4),
+                    new("D", "F", 1),
+                    new("D", "E", 2),
+                    new("E", "G", 6),
+                    new("E", "F", 4),
+                    new("F", "H", 3),
+                    new("G", "H", 5)
+                };
+                break;
+        }
+
+        if (!Nodes.Any(n => n.Id == StartNode))
+        {
+            StartNode = Nodes.First().Id;
+        }
+
+        CurrentStepIndex = 0;
+        Recalculate();
+    }
+
+    private void GenerateRandomGraph()
+    {
+        SelectedPresetKey = "Random";
+        Nodes = new List<GraphNode>
+        {
+            new("A", 80, 220),
+            new("B", 220, 90),
+            new("C", 220, 350),
+            new("D", 360, 90),
+            new("E", 360, 350),
+            new("F", 500, 90),
+            new("G", 500, 350),
+            new("H", 610, 220)
+        };
+
+        var rnd = new Random();
+        Edges = new List<GraphEdge>
+        {
+            new("A", "B", rnd.Next(1, 8)),
+            new("A", "C", rnd.Next(2, 9)),
+            new("B", "C", rnd.Next(1, 6)),
+            new("B", "D", rnd.Next(2, 9)),
+            new("B", "E", rnd.Next(1, 8)),
+            new("C", "E", rnd.Next(2, 8)),
+            new("D", "F", rnd.Next(1, 7)),
+            new("D", "E", rnd.Next(1, 6)),
+            new("E", "G", rnd.Next(2, 9)),
+            new("E", "F", rnd.Next(1, 8)),
+            new("F", "H", rnd.Next(1, 8)),
+            new("G", "H", rnd.Next(1, 9))
+        };
+
+        CurrentStepIndex = 0;
+        Recalculate();
+    }
+
+    // =========================================================================
+    // PLAYER CONTROLS
+    // =========================================================================
+    private void GoToStart() => CurrentStepIndex = 0;
+    private void PreviousStep() => CurrentStepIndex = Math.Max(0, CurrentStepIndex - 1);
+    private void NextStep() => CurrentStepIndex = Math.Min((DijkstraResult?.Steps.Count ?? 1) - 1, CurrentStepIndex + 1);
+    private void GoToEnd() => CurrentStepIndex = Math.Max(0, (DijkstraResult?.Steps.Count ?? 1) - 1);
+    private void OnSliderChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var idx))
+        {
+            CurrentStepIndex = Math.Clamp(idx, 0, (DijkstraResult?.Steps.Count ?? 1) - 1);
+        }
+    }
+
+    // =========================================================================
+    // DIJKSTRA ALGORITHM ENGINE
+    // =========================================================================
+    private void Recalculate()
+    {
+        DijkstraResult = RunDijkstra(Nodes, Edges, StartNode);
+        if (CurrentStepIndex >= DijkstraResult.Steps.Count)
+        {
+            CurrentStepIndex = Math.Max(0, DijkstraResult.Steps.Count - 1);
+        }
+    }
+
+    private DijkstraTraceResult RunDijkstra(List<GraphNode> nodes, List<GraphEdge> edges, string startNodeId)
+    {
+        var result = new DijkstraTraceResult();
+        var allNodeIds = nodes.Select(n => n.Id).ToList();
+
+        // Distance & Predecessor maps
+        var dist = new Dictionary<string, double>();
+        var pred = new Dictionary<string, string>();
+        var settled = new HashSet<string>();
+
+        foreach (var id in allNodeIds)
+        {
+            dist[id] = double.PositiveInfinity;
+            pred[id] = "";
+        }
+        dist[startNodeId] = 0;
+
+        // Step 0: Initialization
+        result.Steps.Add(new DijkstraStep
+        {
+            StepNumber = 0,
+            Title = $"Initialisierung: Startknoten {startNodeId} hat Distanz 0",
+            Explanation = $"Der Startknoten {startNodeId} wird mit D[{startNodeId}] = 0 initialisiert. Alle anderen Knoten erhalten die Distanz ∞ (unendlich) und keinen Vorgänger.",
+            SettledNodeId = startNodeId,
+            SettledNodes = new HashSet<string>(),
+            Distances = new Dictionary<string, double>(dist),
+            Predecessors = new Dictionary<string, string>(pred)
+        });
+
+        int stepNum = 1;
+        while (settled.Count < allNodeIds.Count)
+        {
+            // Find unsettled node with minimum distance
+            string? minNode = null;
+            double minDist = double.PositiveInfinity;
+
+            foreach (var id in allNodeIds)
+            {
+                if (!settled.Contains(id) && dist[id] < minDist)
+                {
+                    minDist = dist[id];
+                    minNode = id;
+                }
+            }
+
+            if (minNode == null || double.IsPositiveInfinity(minDist))
+            {
+                // Remaining nodes are unreachable
+                break;
+            }
+
+            settled.Add(minNode);
+
+            var step = new DijkstraStep
+            {
+                StepNumber = stepNum,
+                SettledNodeId = minNode,
+                SettledNodes = new HashSet<string>(settled),
+                Title = $"Knoten {minNode} fixieren (D={minDist}) & Kanten relaxieren",
+                Explanation = $"Knoten {minNode} besitzt unter allen unbesuchten Knoten die kleinste Distanz ({minDist}) und wird nun permanent fixiert. Seine ausgehenden Kanten werden überprüft."
+            };
+
+            // Relax outgoing edges from minNode
+            var neighborEdges = edges.Where(e => e.From == minNode || e.To == minNode).ToList();
+            foreach (var edge in neighborEdges)
+            {
+                string neighbor = edge.From == minNode ? edge.To : edge.From;
+                if (!settled.Contains(neighbor))
+                {
+                    double oldDist = dist[neighbor];
+                    double calcDist = dist[minNode] + edge.Weight;
+                    bool updated = false;
+
+                    if (calcDist < oldDist)
+                    {
+                        dist[neighbor] = calcDist;
+                        pred[neighbor] = minNode;
+                        updated = true;
+                    }
+
+                    step.Relaxations.Add(new EdgeRelaxationDetail
+                    {
+                        From = minNode,
+                        To = neighbor,
+                        Weight = edge.Weight,
+                        OldDist = double.IsPositiveInfinity(oldDist) ? "∞" : oldDist.ToString(),
+                        CalcDist = calcDist.ToString(),
+                        NewDist = dist[neighbor].ToString(),
+                        Updated = updated
+                    });
+                }
+            }
+
+            step.Distances = new Dictionary<string, double>(dist);
+            step.Predecessors = new Dictionary<string, string>(pred);
+            result.Steps.Add(step);
+            stepNum++;
+        }
+
+        // Generate Routing Table from startNodeId
+        foreach (var target in allNodeIds.Where(id => id != startNodeId))
+        {
+            var cost = dist[target];
+            if (double.IsPositiveInfinity(cost))
+            {
+                result.RoutingTable.Add(new RoutingTableEntry
+                {
+                    Destination = target,
+                    Cost = "∞",
+                    NextHop = "-",
+                    PathString = "Nicht erreichbar"
+                });
+            }
+            else
+            {
+                // Trace back path
+                var pathNodes = new List<string> { target };
+                var curr = target;
+                while (curr != startNodeId && !string.IsNullOrEmpty(pred[curr]))
+                {
+                    curr = pred[curr];
+                    pathNodes.Insert(0, curr);
+                }
+
+                string nextHop = pathNodes.Count > 1 ? pathNodes[1] : target;
+                result.RoutingTable.Add(new RoutingTableEntry
+                {
+                    Destination = target,
+                    Cost = cost.ToString(),
+                    NextHop = nextHop,
+                    PathString = string.Join(" → ", pathNodes)
+                });
+            }
+        }
+
+        return result;
+    }
+
+    private bool IsEdgeInTree(DijkstraStep? step, string u, string v)
+    {
+        if (step == null) return false;
+        // If v is predecessor of u, or u is predecessor of v AND both are settled (or u/v is in tree)
+        if (step.Predecessors.TryGetValue(u, out var pU) && pU == v && step.SettledNodes.Contains(u)) return true;
+        if (step.Predecessors.TryGetValue(v, out var pV) && pV == u && step.SettledNodes.Contains(v)) return true;
+        return false;
+    }
+
+    // =========================================================================
+    // DATA STRUCTURES
+    // =========================================================================
+    public record GraphNode(string Id, int X, int Y);
+    public record GraphEdge(string From, string To, double Weight);
+
+    public class DijkstraTraceResult
+    {
+        public List<DijkstraStep> Steps { get; set; } = new();
+        public List<RoutingTableEntry> RoutingTable { get; set; } = new();
+    }
+
+    public class DijkstraStep
+    {
+        public int StepNumber { get; set; }
+        public string Title { get; set; } = "";
+        public string Explanation { get; set; } = "";
+        public string SettledNodeId { get; set; } = "";
+        public HashSet<string> SettledNodes { get; set; } = new();
+        public Dictionary<string, double> Distances { get; set; } = new();
+        public Dictionary<string, string> Predecessors { get; set; } = new();
+        public List<EdgeRelaxationDetail> Relaxations { get; set; } = new();
+    }
+
+    public class EdgeRelaxationDetail
+    {
+        public string From { get; set; } = "";
+        public string To { get; set; } = "";
+        public double Weight { get; set; }
+        public string OldDist { get; set; } = "";
+        public string CalcDist { get; set; } = "";
+        public string NewDist { get; set; } = "";
+        public bool Updated { get; set; }
+    }
+
+    public class RoutingTableEntry
+    {
+        public string Destination { get; set; } = "";
+        public string Cost { get; set; } = "";
+        public string NextHop { get; set; } = "";
+        public string PathString { get; set; } = "";
+    }
+}

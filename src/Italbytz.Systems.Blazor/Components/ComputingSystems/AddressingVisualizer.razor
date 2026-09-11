@@ -1,0 +1,548 @@
+@namespace Italbytz.Systems.Blazor.Components.ComputingSystems
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<article class="addr-container @(IsEmbed ? "embed-mode" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
+
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
+    {
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Grundlagen der Informatik &bull; Rechnerarchitektur</p>
+            <h2>Adressierungsarten &amp; Befehlsausführung (MIPS / Register &amp; Speicher)</h2>
+            <p class="feature-intro">
+                Analyse von Adressierungsarten (Register-, Unmittelbar-, Basis-Register/Offset-Adressierung) 
+                sowie Verfolgung von Speicherzugriffen (<code class="mono bold">lw</code>, <code class="mono bold">sw</code>, <code class="mono bold">addi</code>) 
+                auf Prozessorregister und Hauptspeicher.
+            </p>
+        </div>
+    }
+
+    <!-- View Switcher -->
+    @if (!IsEmbed)
+    {
+        <div class="view-switch no-print">
+            <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Simulator)">
+                🚀 Interaktiver Simulator &amp; Pipeline-Trace
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Worksheet)">
+                🖨️ Klausur-Arbeitsblatt (Druckansicht)
+            </button>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- SIMULATOR VIEW                                                            -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Controls Panel -->
+        <div class="controls-panel no-print">
+            <div class="toolbar-grid">
+                <div class="btn-group">
+                    <button class="action-btn primary" @onclick="ExecuteNextStep" disabled="@(CurrentStepIndex >= Instructions.Count)">
+                        ⏯️ Nächsten Befehl ausführen (@(CurrentStepIndex + 1)/@Instructions.Count)
+                    </button>
+                    <button class="action-btn" @onclick="ResetSimulation">
+                        🔄 Zurücksetzen
+                    </button>
+                </div>
+
+                <div class="preset-group">
+                    <span class="preset-label">Klausurbeispiele:</span>
+                    <button class="preset-btn @(SelectedPreset == "Exam1" ? "active" : "")" @onclick='() => LoadPreset("Exam1")'>Klausur 1 (TI_01)</button>
+                    <button class="preset-btn @(SelectedPreset == "Exam2" ? "active" : "")" @onclick='() => LoadPreset("Exam2")'>Klausur 2 (TI_02)</button>
+                    <button class="preset-btn @(SelectedPreset == "Array" ? "active" : "")" @onclick='() => LoadPreset("Array")'>Array-Traversierung</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Narrator Card -->
+        @if (CurrentStepIndex > 0 && CurrentStepIndex <= StepLogs.Count)
+        {
+            var log = StepLogs[CurrentStepIndex - 1];
+            <div class="narrator-card">
+                <div class="narrator-header">
+                    <div class="step-badge badge-addr">Befehl #@CurrentStepIndex</div>
+                    <div class="narrator-title">
+                        Ausgeführt: <code class="mono bold purple">@Instructions[CurrentStepIndex - 1].RawText</code>
+                    </div>
+                </div>
+                <div class="narrator-text">
+                    @log.Explanation
+                </div>
+                <div class="addr-metrics-strip">
+                    <span>Geändertes Register: <strong class="mono blue">@log.ModifiedRegister</strong></span>
+                    <span>Neuer Wert: <strong class="mono emerald">0x@log.NewValue.ToString("X8")</strong></span>
+                    <span>Berechnete Adresse: <strong class="mono">@(log.EffectiveAddress >= 0 ? $"0x{log.EffectiveAddress:X4}" : "–")</strong></span>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="narrator-card ready">
+                <div class="narrator-header">
+                    <div class="step-badge">Bereit</div>
+                    <div class="narrator-title">Initialzustand der Register und des Speichers geladen</div>
+                </div>
+                <p class="narrator-text">
+                    Klicken Sie auf <strong>„Nächsten Befehl ausführen“</strong>, um die MIPS-Befehle schrittweise zu interpretieren und die Adressierungsberechnungen zu visualisieren.
+                </p>
+            </div>
+        }
+
+        <!-- Main Display Grid -->
+        <div class="main-display-grid">
+
+            <!-- Left: Registers & Instructions -->
+            <div class="left-col">
+                
+                <!-- Registers Box -->
+                <div class="state-card">
+                    <div class="state-card-header">
+                        <h3>CPU-Register ($R_0 \dots R_4$)</h3>
+                    </div>
+                    <div class="reg-grid">
+                        @for (int r = 0; r < Registers.Length; r++)
+                        {
+                            int regIdx = r;
+                            bool isModified = CurrentStepIndex > 0 && StepLogs[CurrentStepIndex - 1].ModifiedRegister == $"r{regIdx}";
+                            <div class="reg-slot @(isModified ? "reg-highlight" : "")">
+                                <span class="reg-label mono bold">R@regIdx:</span>
+                                <span class="reg-val mono">0x@Registers[regIdx].ToString("X4")</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Instructions Program Card -->
+                <div class="state-card">
+                    <div class="state-card-header">
+                        <h3>Befehlsfolge (Programm)</h3>
+                    </div>
+                    <div class="instr-list">
+                        @for (int i = 0; i < Instructions.Count; i++)
+                        {
+                            int instrIdx = i;
+                            var instr = Instructions[instrIdx];
+                            bool isCurrent = instrIdx == CurrentStepIndex;
+                            bool isDone = instrIdx < CurrentStepIndex;
+
+                            <div class="instr-row @(isCurrent ? "instr-active" : "") @(isDone ? "instr-done" : "")"
+                                 @onclick="() => JumpToStep(instrIdx + 1)">
+                                <span class="instr-num mono">@(instrIdx + 1).</span>
+                                <span class="instr-code mono bold">@instr.RawText</span>
+                                @if (isDone)
+                                {
+                                    <span class="instr-status tag-done">✓ @instr.TargetRegister &larr; 0x@instr.ResultValue.ToString("X8")</span>
+                                }
+                                else if (isCurrent)
+                                {
+                                    <span class="instr-status tag-current">Nächster</span>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right: Memory Space -->
+            <div class="right-col">
+                <div class="state-card">
+                    <div class="state-card-header">
+                        <h3>Hauptspeicher (RAM-Inhalt)</h3>
+                    </div>
+                    <div class="mem-table-container">
+                        <table class="mem-table">
+                            <thead>
+                                <tr>
+                                    <th>Adresse</th>
+                                    <th>Inhalt (32-Bit Wort)</th>
+                                    <th>Zugriff</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var entry in Memory)
+                                {
+                                    bool isAccessed = CurrentStepIndex > 0 && StepLogs[CurrentStepIndex - 1].EffectiveAddress == entry.Key;
+                                    <tr class="@(isAccessed ? "mem-accessed" : "")">
+                                        <td class="mono bold blue">0x@entry.Key.ToString("X4")</td>
+                                        <td class="mono font-bold">0x@entry.Value.ToString("X8")</td>
+                                        <td class="mem-tag">
+                                            @if (isAccessed)
+                                            {
+                                                <span class="access-pill">🎯 READ</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- WORKSHEET VIEW (1:1 EXAM REPLICA)                                         -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Worksheet)
+    {
+        <div class="worksheet-paper">
+
+            <!-- Exam Header -->
+            <div class="exam-header">
+                <div class="exam-title-block">
+                    <span class="exam-sub">Grundlagen der Informatik &bull; Rechnerarchitektur</span>
+                    <h1 class="exam-main-title">Übungs- und Klausuraufgabe: Adressierungsarten</h1>
+                </div>
+                <div class="exam-meta-box no-print">
+                    <button class="toggle-sol-btn @(ShowSolution ? "active" : "")" @onclick="ToggleSolution">
+                        @(ShowSolution ? "👁️ Musterlösung ausblenden" : "💡 Musterlösung einblenden")
+                    </button>
+                    <button class="print-btn" @onclick="TriggerPrint">
+                        🖨️ Seite drucken / PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Student Info Fields -->
+            <div class="student-info-strip">
+                <div class="info-field">
+                    <span class="info-label">Name, Vorname:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field">
+                    <span class="info-label">Matrikelnummer:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field points-field">
+                    <span class="info-label">Punkte:</span>
+                    <div class="points-box">/ 8 P.</div>
+                </div>
+            </div>
+
+            <!-- Prompt -->
+            <div class="task-prompt-box">
+                <p class="task-text">
+                    Gegeben sei folgender <strong>Register- und Speicherinhalt</strong>:
+                </p>
+            </div>
+
+            <!-- Two-Up State Tables matching TIAddressierung_01 -->
+            <div class="ws-two-up-grid">
+                
+                <!-- Registers Table -->
+                <div class="ws-table-box">
+                    <div class="ws-box-hdr">Register</div>
+                    <table class="ws-state-table">
+                        <thead>
+                            <tr>
+                                <th>Register</th>
+                                <th>Inhalt</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td class="mono">R1</td><td class="mono">0x0008</td></tr>
+                            <tr><td class="mono">R2</td><td class="mono">0x0000</td></tr>
+                            <tr><td class="mono">R3</td><td class="mono">0x0018</td></tr>
+                            <tr><td class="mono">R4</td><td class="mono">0x0010</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Memory Table -->
+                <div class="ws-table-box">
+                    <div class="ws-box-hdr">Hauptspeicher</div>
+                    <table class="ws-state-table">
+                        <thead>
+                            <tr>
+                                <th>Adresse</th>
+                                <th>Inhalt</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td class="mono">0x0000</td><td class="mono">0x00000123</td></tr>
+                            <tr><td class="mono">0x0008</td><td class="mono">0x00000789</td></tr>
+                            <tr><td class="mono">0x0010</td><td class="mono">0x00000456</td></tr>
+                            <tr><td class="mono">0x0018</td><td class="mono">0x00000321</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+
+            <!-- Task Sub Question -->
+            <div class="task-section">
+                <p class="task-text">
+                    Geben Sie für die folgenden Befehle jeweils an, welches Register geändert wird und was der neue Inhalt ist (in sequenzieller Ausführung):
+                </p>
+
+                <div class="ws-table-container">
+                    <table class="ws-matrix-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 35%;">Befehl</th>
+                                <th style="width: 30%;">Geändertes Register</th>
+                                <th style="width: 35%;">Neuer Inhalt</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (int i = 0; i < Instructions.Count; i++)
+                            {
+                                var instr = Instructions[i];
+                                <tr>
+                                    <td class="mono bold text-left">@instr.RawText</td>
+                                    <td class="mono @(ShowSolution ? "ws-val-field" : "ws-blank-slot")">
+                                        @(ShowSolution ? instr.TargetRegister : "")
+                                    </td>
+                                    <td class="mono @(ShowSolution ? "ws-val-field" : "ws-blank-slot")">
+                                        @(ShowSolution ? $"0x{instr.ResultValue:X8}" : "")
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="exam-footer">
+                <div class="exam-footer-note">
+                    Hinweis: <code class="mono">lw rt, offset(rs)</code> lädt das 32-Bit-Wort an der Adresse $(R[rs] + offset)$ in das Register $R[rt]$; <code class="mono">addi rt, rs, imm</code> addiert den vorzeichenbehafteten Wert $imm$ zum Register $R[rs]$.
+                </div>
+            </div>
+
+        </div>
+    }
+
+</article>
+
+@code {
+    public enum ViewMode { Simulator, Worksheet }
+
+    [Parameter] public string? View { get; set; }
+    [Parameter] public bool? SolutionParam { get; set; }
+    [Parameter] public bool? Embed { get; set; }
+
+    private ViewMode ActiveView = ViewMode.Simulator;
+    private bool ShowSolution = false;
+    private bool IsEmbed = false;
+
+    private string SelectedPreset = "Exam1";
+    private int CurrentStepIndex = 0;
+
+    private uint[] Registers = new uint[8];
+    private Dictionary<uint, uint> Memory = new();
+    private List<InstructionModel> Instructions = new();
+    private List<StepLogModel> StepLogs = new();
+
+    public class InstructionModel
+    {
+        public string RawText { get; set; } = string.Empty;
+        public string Opcode { get; set; } = string.Empty;
+        public string TargetRegister { get; set; } = string.Empty;
+        public uint ResultValue { get; set; }
+        public int EffectiveAddress { get; set; } = -1;
+    }
+
+    public class StepLogModel
+    {
+        public string ModifiedRegister { get; set; } = string.Empty;
+        public uint NewValue { get; set; }
+        public int EffectiveAddress { get; set; } = -1;
+        public string Explanation { get; set; } = string.Empty;
+    }
+
+    protected override void OnInitialized()
+    {
+        ReadQueryParameters();
+        LoadPreset(SelectedPreset);
+    }
+
+    protected override void OnParametersSet()
+    {
+        ReadQueryParameters();
+    }
+
+    private void ReadQueryParameters()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query;
+            if (!string.IsNullOrEmpty(query))
+            {
+                if (query.Contains("view=worksheet", StringComparison.OrdinalIgnoreCase))
+                {
+                    ActiveView = ViewMode.Worksheet;
+                }
+                if (query.Contains("solution=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    ShowSolution = true;
+                }
+                if (query.Contains("embed=true", StringComparison.OrdinalIgnoreCase) || query.Contains("embedded=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsEmbed = true;
+                }
+            }
+        }
+        catch { }
+    }
+
+    private void SetView(ViewMode mode)
+    {
+        ActiveView = mode;
+    }
+
+    private void ToggleSolution()
+    {
+        ShowSolution = !ShowSolution;
+    }
+
+    private async Task TriggerPrint()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+
+    private void LoadPreset(string preset)
+    {
+        SelectedPreset = preset;
+        ResetSimulation();
+    }
+
+    private void ResetSimulation()
+    {
+        CurrentStepIndex = 0;
+        Registers = new uint[8];
+        Memory = new Dictionary<uint, uint>();
+        Instructions = new List<InstructionModel>();
+        StepLogs = new List<StepLogModel>();
+
+        // Init base registers
+        Registers[0] = 0x0000;
+        Registers[1] = 0x0008;
+        Registers[2] = 0x0000;
+        Registers[3] = 0x0018;
+        Registers[4] = 0x0010;
+
+        // Init memory
+        Memory[0x0000] = 0x00000123;
+        Memory[0x0008] = 0x00000789;
+        Memory[0x0010] = 0x00000456;
+        Memory[0x0018] = 0x00000321;
+
+        if (SelectedPreset == "Exam1")
+        {
+            Instructions.Add(new InstructionModel { RawText = "lw r2, 0(r0)", Opcode = "lw", TargetRegister = "r2" });
+            Instructions.Add(new InstructionModel { RawText = "addi r1, r0, 0x0008", Opcode = "addi", TargetRegister = "r1" });
+            Instructions.Add(new InstructionModel { RawText = "lw r3, 0(r1)", Opcode = "lw", TargetRegister = "r3" });
+            Instructions.Add(new InstructionModel { RawText = "lw r4, 8(r1)", Opcode = "lw", TargetRegister = "r4" });
+        }
+        else if (SelectedPreset == "Exam2")
+        {
+            Instructions.Add(new InstructionModel { RawText = "lw r2, 8(r0)", Opcode = "lw", TargetRegister = "r2" });
+            Instructions.Add(new InstructionModel { RawText = "addi r1, r0, 0x0008", Opcode = "addi", TargetRegister = "r1" });
+            Instructions.Add(new InstructionModel { RawText = "lw r3, 0(r3)", Opcode = "lw", TargetRegister = "r3" });
+            Instructions.Add(new InstructionModel { RawText = "lw r4, 16(r1)", Opcode = "lw", TargetRegister = "r4" });
+            Instructions.Add(new InstructionModel { RawText = "lw r3, 0(r1)", Opcode = "lw", TargetRegister = "r3" });
+        }
+        else
+        {
+            Instructions.Add(new InstructionModel { RawText = "addi r1, r0, 0x0000", Opcode = "addi", TargetRegister = "r1" });
+            Instructions.Add(new InstructionModel { RawText = "lw r2, 0(r1)", Opcode = "lw", TargetRegister = "r2" });
+            Instructions.Add(new InstructionModel { RawText = "addi r1, r1, 0x0008", Opcode = "addi", TargetRegister = "r1" });
+            Instructions.Add(new InstructionModel { RawText = "lw r3, 0(r1)", Opcode = "lw", TargetRegister = "r3" });
+        }
+
+        ComputeFullSimulation();
+    }
+
+    private void ComputeFullSimulation()
+    {
+        var tempRegs = (uint[])Registers.Clone();
+        StepLogs.Clear();
+
+        foreach (var instr in Instructions)
+        {
+            if (instr.RawText.StartsWith("lw"))
+            {
+                // parse lw rt, offset(rs)
+                var parts = instr.RawText.Substring(3).Split(',');
+                var rtName = parts[0].Trim();
+                int rtIdx = int.Parse(rtName.Replace("r", ""));
+
+                var memPart = parts[1].Trim();
+                int openParen = memPart.IndexOf('(');
+                int closeParen = memPart.IndexOf(')');
+                int offset = int.Parse(memPart.Substring(0, openParen));
+                int rsIdx = int.Parse(memPart.Substring(openParen + 1, closeParen - openParen - 1).Replace("r", ""));
+
+                uint baseAddr = tempRegs[rsIdx];
+                uint effAddr = (uint)(baseAddr + offset);
+                uint val = Memory.ContainsKey(effAddr) ? Memory[effAddr] : 0;
+
+                tempRegs[rtIdx] = val;
+                instr.ResultValue = val;
+                instr.EffectiveAddress = (int)effAddr;
+
+                StepLogs.Add(new StepLogModel
+                {
+                    ModifiedRegister = rtName,
+                    NewValue = val,
+                    EffectiveAddress = (int)effAddr,
+                    Explanation = $"Basisadresse aus {rsIdx.ToString().ToUpper()} (0x{baseAddr:X4}) + Offset {offset} = Effektive Adresse 0x{effAddr:X4}. Wert 0x{val:X8} aus Speicher in Register {rtName} geladen."
+                });
+            }
+            else if (instr.RawText.StartsWith("addi"))
+            {
+                // addi rt, rs, imm
+                var parts = instr.RawText.Substring(5).Split(',');
+                var rtName = parts[0].Trim();
+                int rtIdx = int.Parse(rtName.Replace("r", ""));
+                int rsIdx = int.Parse(parts[1].Trim().Replace("r", ""));
+                string immStr = parts[2].Trim();
+                uint imm = immStr.StartsWith("0x", StringComparison.OrdinalIgnoreCase) 
+                    ? Convert.ToUInt32(immStr.Substring(2), 16) 
+                    : uint.Parse(immStr);
+
+                uint val = tempRegs[rsIdx] + imm;
+                tempRegs[rtIdx] = val;
+                instr.ResultValue = val;
+                instr.EffectiveAddress = -1;
+
+                StepLogs.Add(new StepLogModel
+                {
+                    ModifiedRegister = rtName,
+                    NewValue = val,
+                    EffectiveAddress = -1,
+                    Explanation = $"Inhalt aus r{rsIdx} (0x{tempRegs[rsIdx]:X4}) + Unmittelbarwert 0x{imm:X4} = 0x{val:X8} in Register {rtName} geschrieben."
+                });
+            }
+        }
+    }
+
+    private void ExecuteNextStep()
+    {
+        if (CurrentStepIndex < Instructions.Count)
+        {
+            var log = StepLogs[CurrentStepIndex];
+            int regIdx = int.Parse(log.ModifiedRegister.Replace("r", ""));
+            Registers[regIdx] = log.NewValue;
+            CurrentStepIndex++;
+        }
+    }
+
+    private void JumpToStep(int step)
+    {
+        ResetSimulation();
+        while (CurrentStepIndex < step && CurrentStepIndex < Instructions.Count)
+        {
+            ExecuteNextStep();
+        }
+    }
+}

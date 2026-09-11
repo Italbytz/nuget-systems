@@ -1,213 +1,706 @@
 @namespace Italbytz.Systems.Blazor.Components.OperatingSystems
+@using Italbytz.OperatingSystems
+@using Italbytz.OperatingSystems.Abstractions
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
 
-<article class="demo-card wide-card">
-    <div class="card-heading">
-        <p class="feature-kicker">CPU scheduling</p>
-        <h2>Compare the package's scheduling heuristics on the same process set</h2>
-    </div>
-
-    <div class="input-grid three-up">
-        <label>
-            <span>Strategy</span>
-            <select @bind="SelectedSchedulingPolicy">
-                <option value="FCFS">FCFS</option>
-                <option value="SJF">Shortest job first</option>
-                <option value="Priority">Priority scheduling</option>
-                <option value="RoundRobin">Round Robin</option>
-            </select>
-        </label>
-        <label>
-            <span>Burst times</span>
-            <input type="text" @bind="SchedulingValuesInput" />
-        </label>
-        <label>
-            <span>Priorities</span>
-            <input type="text" @bind="SchedulingPrioritiesInput" />
-        </label>
-    </div>
-
-    <p class="helper-copy">
-        Use five priorities from the set <strong>sehr hoch</strong>, <strong>hoch</strong>, <strong>mittel</strong>, <strong>niedrig</strong>, <strong>sehr niedrig</strong>.
-    </p>
-
-    @if (TryGetSchedulingDemo(out var schedulingResult, out var schedulingError))
+<article class="scheduling-container @(IsEmbed ? "embed-mode" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
+    
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
     {
-        <div class="card-grid card-grid-three compact-grid">
-            <div class="metric-card">
-                <span>Strategy</span>
-                <strong>@SelectedSchedulingPolicy</strong>
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Betriebssysteme &bull; Prozess- &amp; Thread-Verwaltung</p>
+            <h2>CPU-Scheduling-Strategien (Gantt-Chart &amp; Verweilzeit-Simulator)</h2>
+            <p class="feature-intro">
+                Schritt-für-Schritt-Ablaufverfolgung, visuelles Gantt-Diagramm und Berechnung der mittleren Verweilzeit 
+                (T̄<sub>tr</sub>) für <strong>SJF</strong>, <strong>Prioritätsscheduling</strong>, <strong>FCFS</strong> und <strong>Round Robin</strong>.
+            </p>
+        </div>
+    }
+
+    <!-- View Switcher -->
+    @if (!IsEmbed)
+    {
+        <div class="view-switch no-print">
+            <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Simulator)">
+                🚀 Interaktiver Simulator (Gantt-Trace)
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Worksheet)">
+                🖨️ Klausur-Arbeitsblatt (Druckansicht)
+            </button>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- SIMULATOR VIEW                                                            -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Controls Panel -->
+        <div class="controls-panel no-print">
+            <div class="config-grid">
+                <label class="control-label">
+                    <span>Strategie:</span>
+                    <select class="form-select" @bind="SelectedSchedulingPolicy" @bind:after="OnConfigurationChanged">
+                        <option value="SJF">Shortest Job First (SJF)</option>
+                        <option value="Priority">Prioritätsscheduling</option>
+                        <option value="FCFS">First-Come First-Served (FCFS)</option>
+                        <option value="RoundRobin">Round Robin (Prozessor-Sharing)</option>
+                        <option value="CompareAll">📊 Alle 4 Strategien vergleichen</option>
+                    </select>
+                </label>
+
+                <label class="control-label">
+                    <span>Bedienzeiten (t<sub>burst</sub>):</span>
+                    <input type="text" class="form-input" @bind="SchedulingValuesInput" @bind:after="OnConfigurationChanged" placeholder="z. B. 6, 2, 8, 3, 5" />
+                </label>
+
+                <label class="control-label span-two">
+                    <span>Prioritäten:</span>
+                    <input type="text" class="form-input" @bind="SchedulingPrioritiesInput" @bind:after="OnConfigurationChanged" placeholder="sehr hoch, hoch, mittel, niedrig, sehr niedrig" />
+                </label>
             </div>
-            <div class="metric-card">
-                <span>Reported time score</span>
-                <strong>@schedulingResult!.Score.ToString("0.##")</strong>
-            </div>
-            <div class="metric-card">
-                <span>Execution order</span>
-                <strong>@string.Join(" -> ", schedulingResult.ExecutionOrder)</strong>
+
+            <!-- Presets Bar -->
+            <div class="preset-bar">
+                <span class="preset-label">Beispiele:</span>
+                <button class="preset-btn" @onclick="() => LoadPreset(Preset1Values, Preset1Priorities)">Klausur-Set 1 (6, 2, 8, 3, 5)</button>
+                <button class="preset-btn" @onclick="() => LoadPreset(Preset2Values, Preset2Priorities)">Klausur-Set 2 (4, 9, 2, 7, 3)</button>
+                <button class="preset-btn" @onclick="() => LoadPreset(Preset3Values, Preset3Priorities)">Aufsteigend (2, 4, 6, 8, 10)</button>
+                <button class="preset-btn random" @onclick="GenerateRandomSet">🎲 Zufallsprozesse</button>
             </div>
         </div>
 
-        <p class="helper-copy">@schedulingResult.Notes</p>
+        @if (TryGetParsedScheduling(out var procList, out var parseError))
+        {
+            var sjfScore = new ShortestJobFirstSolver().Solve(new SchedulingParameters(procList.Select(p => p.Duration).ToArray(), procList.Select(p => p.Priority).ToArray())).Time;
+            var prioScore = new PrioritySchedulingSolver().Solve(new SchedulingParameters(procList.Select(p => p.Duration).ToArray(), procList.Select(p => p.Priority).ToArray())).Time;
+            var fcfsScore = new FCFSSolver().Solve(new SchedulingParameters(procList.Select(p => p.Duration).ToArray(), procList.Select(p => p.Priority).ToArray())).Time;
+            var rrScore = new RoundRobinSolver().Solve(new SchedulingParameters(procList.Select(p => p.Duration).ToArray(), procList.Select(p => p.Priority).ToArray())).Time;
 
-        <div class="table-shell">
-            <table class="trace-table">
-                <thead>
-                    <tr>
-                        <th>Trace step</th>
-                        <th>Trace detail</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @for (var index = 0; index < schedulingResult.SolverSteps.Length; index++)
-                    {
-                        <tr>
-                            <td>@(index + 1)</td>
-                            <td>@schedulingResult.SolverSteps[index]</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
+            var activeSchedule = GetScheduleForPolicy(SelectedSchedulingPolicy, procList);
+            var totalExecutionTime = procList.Sum(p => p.Duration);
+            var maxSteps = activeSchedule.Count;
 
-        <div class="table-shell">
-            <table class="trace-table">
-                <thead>
-                    <tr>
-                        <th>Process</th>
-                        <th>Burst</th>
-                        <th>Priority</th>
-                        <th>Scheduling rank</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var process in schedulingResult.Processes)
-                    {
-                        <tr>
-                            <td>@process.Name</td>
-                            <td>@process.Duration</td>
-                            <td>@process.Priority</td>
-                            <td>@process.SortExplanation</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
+            <!-- Player Toolbar -->
+            <div class="player-toolbar no-print">
+                <div class="player-controls">
+                    <button class="player-btn" title="Start" disabled="@(CurrentStepIndex == 0)" @onclick="GoToStart">⏮ Start</button>
+                    <button class="player-btn" title="Zurück" disabled="@(CurrentStepIndex == 0)" @onclick="PreviousStep">◀ Zurück</button>
+                    <button class="player-btn primary" title="Nächster Schritt" disabled="@(CurrentStepIndex >= maxSteps)" @onclick="NextStep">▶ Weiter</button>
+                    <button class="player-btn" title="Ende" disabled="@(CurrentStepIndex >= maxSteps)" @onclick="GoToEnd">⏭ Ende</button>
+                    <button class="player-btn reset" title="Zurücksetzen" @onclick="GoToStart">🔄 Reset</button>
+                </div>
+
+                <div class="player-progress">
+                    <span class="step-indicator">
+                        @if (CurrentStepIndex == 0)
+                        {
+                            <strong>Schritt 0 / @maxSteps:</strong> <span>Alle @procList.Count Prozesse bereit</span>
+                        }
+                        else
+                        {
+                            var activeItem = activeSchedule[CurrentStepIndex - 1];
+                            <strong>Schritt @CurrentStepIndex / @maxSteps:</strong> <span>@activeItem.ProcessName ausgeführt (Dauer: @activeItem.Duration)</span>
+                        }
+                    </span>
+                    <input type="range" min="0" max="@maxSteps" value="@CurrentStepIndex" @oninput="OnSliderChanged" class="step-slider" />
+                </div>
+            </div>
+
+            <!-- Narrator Card -->
+            <div class="narrator-card">
+                <div class="narrator-header">
+                    <div class="step-badge @(CurrentStepIndex == 0 ? "badge-init" : "badge-active")">
+                        @if (CurrentStepIndex == 0)
+                        {
+                            <span>🏁 Initialisierung</span>
+                        }
+                        else
+                        {
+                            var item = activeSchedule[CurrentStepIndex - 1];
+                            <span>▶ Schritt @CurrentStepIndex: @item.ProcessName</span>
+                        }
+                    </div>
+                    <div class="narrator-title">
+                        @if (CurrentStepIndex == 0)
+                        {
+                            <span>Bereit-Warteschlange enthält @procList.Count Prozesse: @string.Join(", ", procList.Select(p => $"{p.Name} (t={p.Duration}, {p.Priority})"))</span>
+                        }
+                        else
+                        {
+                            var item = activeSchedule[CurrentStepIndex - 1];
+                            <span>Ausführung von <strong>@item.ProcessName</strong> [Zeit: @item.StartTime → @item.EndTime]</span>
+                        }
+                    </div>
+                </div>
+
+                <div class="narrator-body">
+                    <p class="narrator-text">
+                        @GetSchedulingNarratorText(CurrentStepIndex, activeSchedule, procList.Count, SelectedSchedulingPolicy)
+                    </p>
+                </div>
+            </div>
+
+            <!-- Gantt Chart Container -->
+            <div class="gantt-card">
+                <div class="gantt-header">
+                    <h4 class="gantt-title">Gantt-Diagramm (CPU-Ausführungsreihenfolge)</h4>
+                    <span class="gantt-total-time">Gesamtlaufzeit: <strong>@totalExecutionTime Zeiteinheiten</strong></span>
+                </div>
+
+                <!-- Gantt Bar Visualization -->
+                <div class="gantt-timeline-wrapper">
+                    <div class="gantt-bar-container">
+                        @for (int i = 0; i < activeSchedule.Count; i++)
+                        {
+                            var item = activeSchedule[i];
+                            var stepNum = i + 1;
+                            var isExecuted = stepNum <= CurrentStepIndex;
+                            var isCurrentlyActive = stepNum == CurrentStepIndex;
+                            var widthPercent = totalExecutionTime > 0 ? (double)item.Duration / totalExecutionTime * 100.0 : 0.0;
+                            var colorClass = GetProcessColorClass(item.ProcessIndex);
+
+                            <div class="gantt-block @colorClass @(isExecuted ? "executed" : "pending") @(isCurrentlyActive ? "active-gantt-block" : "")"
+                                 style="width: @widthPercent.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)%;">
+                                <span class="gantt-pname">@item.ProcessName</span>
+                                <span class="gantt-duration">t=@item.Duration</span>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Time Ticks -->
+                    <div class="gantt-ticks">
+                        <span class="gantt-tick tick-start">0</span>
+                        @for (int i = 0; i < activeSchedule.Count; i++)
+                        {
+                            var item = activeSchedule[i];
+                            var leftPercent = totalExecutionTime > 0 ? (double)item.EndTime / totalExecutionTime * 100.0 : 0.0;
+                            <span class="gantt-tick" style="left: @leftPercent.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)%;">
+                                @item.EndTime
+                            </span>
+                        }
+                    </div>
+                </div>
+
+                <!-- Process Details Table -->
+                <div class="process-table-wrapper">
+                    <table class="scheduling-data-table">
+                        <thead>
+                            <tr>
+                                <th>Rang</th>
+                                <th>Prozess</th>
+                                <th>Bedienzeit (t<sub>i</sub>)</th>
+                                <th>Priorität</th>
+                                <th>Startzeit</th>
+                                <th>Endzeit (C<sub>i</sub>)</th>
+                                <th>Verweilzeit-Beitrag (ΔT̄)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (int i = 0; i < activeSchedule.Count; i++)
+                            {
+                                var item = activeSchedule[i];
+                                var stepNum = i + 1;
+                                var isExecuted = stepNum <= CurrentStepIndex;
+                                var isCurrentlyActive = stepNum == CurrentStepIndex;
+                                var remaining = procList.Count - i;
+                                var contribution = (double)remaining * item.Duration / procList.Count;
+
+                                <tr class="@(isCurrentlyActive ? "row-active" : "") @(!isExecuted ? "row-pending" : "")">
+                                    <td><strong>#@stepNum</strong></td>
+                                    <td>
+                                        <span class="proc-badge @GetProcessColorClass(item.ProcessIndex)">@item.ProcessName</span>
+                                    </td>
+                                    <td>@item.Duration</td>
+                                    <td>@item.Priority</td>
+                                    <td>@item.StartTime</td>
+                                    <td><strong>@item.EndTime</strong></td>
+                                    <td>
+                                        <code>@remaining / @procList.Count &times; @item.Duration = @contribution.ToString("F2")</code>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Comparative Heuristics Overview Bar -->
+            <div class="comparison-card">
+                <h4 class="comparison-title">Vergleich aller 4 Scheduling-Verfahren</h4>
+                <div class="metrics-grid four-up">
+                    <div class="metric-card @(SelectedSchedulingPolicy == "SJF" ? "highlight-strategy" : "")">
+                        <span class="metric-label">Shortest Job First</span>
+                        <strong class="metric-val text-success">@sjfScore.ToString("F2")</strong>
+                        <span class="metric-sub">⭐ Optimal (T̄<sub>min</sub>)</span>
+                    </div>
+
+                    <div class="metric-card @(SelectedSchedulingPolicy == "Priority" ? "highlight-strategy" : "")">
+                        <span class="metric-label">Prioritätsscheduling</span>
+                        <strong class="metric-val text-brand">@prioScore.ToString("F2")</strong>
+                        <span class="metric-sub">Prioritätsordnung</span>
+                    </div>
+
+                    <div class="metric-card @(SelectedSchedulingPolicy == "FCFS" ? "highlight-strategy" : "")">
+                        <span class="metric-label">First-Come First-Served</span>
+                        <strong class="metric-val">@fcfsScore.ToString("F2")</strong>
+                        <span class="metric-sub">Eingangsreihenfolge</span>
+                    </div>
+
+                    <div class="metric-card @(SelectedSchedulingPolicy == "RoundRobin" ? "highlight-strategy" : "")">
+                        <span class="metric-label">Round Robin (q → 0)</span>
+                        <strong class="metric-val text-amber">@rrScore.ToString("F2")</strong>
+                        <span class="metric-sub">Prozessor-Sharing</span>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="validation-box">
+                <p class="validation-copy">⚠️ @parseError</p>
+            </div>
+        }
     }
     else
     {
-        <p class="validation-copy">@schedulingError</p>
+        <!-- ========================================================================= -->
+        <!-- WORKSHEET VIEW (1:1 EXAM PRINTABLE WORKSPACE)                            -->
+        <!-- ========================================================================= -->
+        <div class="worksheet-view">
+            <div class="worksheet-toolbar no-print">
+                <button class="ws-btn solution-toggle @(ShowSolution ? "active" : "")" @onclick="ToggleSolution">
+                    @(ShowSolution ? "👁️ Musterlösung ausblenden" : "💡 Musterlösung anzeigen")
+                </button>
+                <button class="ws-btn print-btn" @onclick="PrintWorksheet">
+                    🖨️ Arbeitsblatt drucken
+                </button>
+            </div>
+
+            <div class="worksheet-paper">
+                <div class="ws-header">
+                    <div class="ws-title-group">
+                        <span class="ws-kicker">Übungsaufgabe zur Prozessverwaltung</span>
+                        <h3 class="ws-title">CPU-Scheduling von Prozessen</h3>
+                    </div>
+                    <div class="ws-meta-box">
+                        <div><strong>Vorlesung:</strong> Betriebssysteme</div>
+                        <div><strong>Thema:</strong> Mittlere Verweilzeit T̄<sub>tr</sub></div>
+                    </div>
+                </div>
+
+                <div class="ws-instructions">
+                    <p>
+                        Gegeben sind folgende Prozesse, die zum Zeitpunkt t = 0 im System eintreffen. 
+                        Berechnen Sie für die Teilaufgaben jeweils die <strong>mittlere Verweilzeit</strong> (T̄<sub>tr</sub>) der Prozesse:
+                    </p>
+                </div>
+
+                @if (TryGetParsedScheduling(out var wsProcList, out var wsError))
+                {
+                    var sjfScore = new ShortestJobFirstSolver().Solve(new SchedulingParameters(wsProcList.Select(p => p.Duration).ToArray(), wsProcList.Select(p => p.Priority).ToArray())).Time;
+                    var prioScore = new PrioritySchedulingSolver().Solve(new SchedulingParameters(wsProcList.Select(p => p.Duration).ToArray(), wsProcList.Select(p => p.Priority).ToArray())).Time;
+                    var fcfsScore = new FCFSSolver().Solve(new SchedulingParameters(wsProcList.Select(p => p.Duration).ToArray(), wsProcList.Select(p => p.Priority).ToArray())).Time;
+                    var rrScore = new RoundRobinSolver().Solve(new SchedulingParameters(wsProcList.Select(p => p.Duration).ToArray(), wsProcList.Select(p => p.Priority).ToArray())).Time;
+
+                    <!-- Process Definition Table -->
+                    <div class="ws-table-wrapper">
+                        <table class="ws-table">
+                            <thead>
+                                <tr class="ws-thead-row">
+                                    <th class="ws-corner-th">Eigenschaft</th>
+                                    @for (int p = 0; p < wsProcList.Count; p++)
+                                    {
+                                        <th>P@(p + 1)</th>
+                                    }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="ws-row-hdr">Erwartete Zeit (t<sub>burst</sub>)</td>
+                                    @foreach (var proc in wsProcList)
+                                    {
+                                        <td>@proc.Duration</td>
+                                    }
+                                </tr>
+                                <tr>
+                                    <td class="ws-row-hdr">Priorität</td>
+                                    @foreach (var proc in wsProcList)
+                                    {
+                                        <td>@proc.Priority</td>
+                                    }
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Subtask a: Shortest Job First -->
+                    <div class="ws-subtask-box">
+                        <div class="ws-subtask-title">a) Shortest Job First (SJF)</div>
+                        <p class="ws-subtask-desc">Reihenfolge nach aufsteigender Bedienzeit:</p>
+                        <div class="ws-response-box @(ShowSolution ? "solved" : "")">
+                            @if (ShowSolution)
+                            {
+                                var sjfOrder = wsProcList.OrderBy(p => p.Duration).ToList();
+                                <div class="ws-sol-calc">
+                                    <p><strong>Ausführungsreihenfolge:</strong> @string.Join(" → ", sjfOrder.Select(p => $"{p.Name} (t={p.Duration})"))</p>
+                                    <p><strong>Berechnung:</strong> T̄<sub>SJF</sub> = 1/@wsProcList.Count &times; (@string.Join(" + ", sjfOrder.Select((p, idx) => $"{wsProcList.Count - idx} · {p.Duration}")))</p>
+                                    <p><strong>Ergebnis:</strong> T̄<sub>SJF</sub> = <strong>@sjfScore.ToString("F2") Zeiteinheiten</strong></p>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Subtask b: Priority Scheduling -->
+                    <div class="ws-subtask-box">
+                        <div class="ws-subtask-title">b) Prioritätsscheduling (ohne Verdrängung)</div>
+                        <p class="ws-subtask-desc">Reihenfolge nach Prioritätsstufen (sehr hoch &gt; hoch &gt; mittel &gt; niedrig &gt; sehr niedrig):</p>
+                        <div class="ws-response-box @(ShowSolution ? "solved" : "")">
+                            @if (ShowSolution)
+                            {
+                                var prioOrder = GetScheduleForPolicy("Priority", wsProcList);
+                                <div class="ws-sol-calc">
+                                    <p><strong>Ausführungsreihenfolge:</strong> @string.Join(" → ", prioOrder.Select(p => $"{p.ProcessName} (p={p.Priority}, t={p.Duration})"))</p>
+                                    <p><strong>Berechnung:</strong> T̄<sub>Prio</sub> = 1/@wsProcList.Count &times; (@string.Join(" + ", prioOrder.Select((p, idx) => $"{wsProcList.Count - idx} · {p.Duration}")))</p>
+                                    <p><strong>Ergebnis:</strong> T̄<sub>Prio</sub> = <strong>@prioScore.ToString("F2") Zeiteinheiten</strong></p>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Subtask c: First-Come First-Served -->
+                    <div class="ws-subtask-box">
+                        <div class="ws-subtask-title">c) First-Come First-Served (FCFS)</div>
+                        <p class="ws-subtask-desc">Reihenfolge nach Ankunfts- / Eingangsreihenfolge:</p>
+                        <div class="ws-response-box @(ShowSolution ? "solved" : "")">
+                            @if (ShowSolution)
+                            {
+                                <div class="ws-sol-calc">
+                                    <p><strong>Ausführungsreihenfolge:</strong> @string.Join(" → ", wsProcList.Select(p => $"{p.Name} (t={p.Duration})"))</p>
+                                    <p><strong>Berechnung:</strong> T̄<sub>FCFS</sub> = 1/@wsProcList.Count &times; (@string.Join(" + ", wsProcList.Select((p, idx) => $"{wsProcList.Count - idx} · {p.Duration}")))</p>
+                                    <p><strong>Ergebnis:</strong> T̄<sub>FCFS</sub> = <strong>@fcfsScore.ToString("F2") Zeiteinheiten</strong></p>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Subtask d: Round Robin -->
+                    <div class="ws-subtask-box">
+                        <div class="ws-subtask-title">d) Round Robin (Prozessor-Sharing für Zeitschlitz q → 0)</div>
+                        <p class="ws-subtask-desc">Gleichmäßige Zuteilung der CPU auf alle aktiven Prozesse:</p>
+                        <div class="ws-response-box @(ShowSolution ? "solved" : "")">
+                            @if (ShowSolution)
+                            {
+                                var sortedDurations = wsProcList.Select(p => p.Duration).OrderBy(d => d).ToArray();
+                                <div class="ws-sol-calc">
+                                    <p><strong>Phasen (nach sortierten Dauern):</strong> @string.Join(" ≤ ", sortedDurations)</p>
+                                    <p><strong>Berechnung:</strong> T̄<sub>RR</sub> = &sum;<sub>i=1..n</sub> (n - i + 1)&sup2; / n &times; &Delta;t<sub>i</sub></p>
+                                    <p><strong>Ergebnis:</strong> T̄<sub>RR</sub> = <strong>@rrScore.ToString("F2") Zeiteinheiten</strong></p>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
     }
+
 </article>
 
 @code {
-    private static readonly string[] PriorityScale = ["sehr hoch", "hoch", "mittel", "niedrig", "sehr niedrig"];
+    public enum ViewMode
+    {
+        Simulator,
+        Worksheet
+    }
+
+    public sealed record ProcessItem(string Name, int Duration, string Priority, int OriginalIndex);
+    public sealed record ScheduleBlock(string ProcessName, int ProcessIndex, int Duration, string Priority, int StartTime, int EndTime);
 
     [Parameter]
-    public string SelectedSchedulingPolicy { get; set; } = "FCFS";
+    public string SelectedSchedulingPolicy { get; set; } = "SJF";
 
     [Parameter]
-    public string SchedulingValuesInput { get; set; } = "6,2,8,3,5";
+    public string SchedulingValuesInput { get; set; } = "6, 2, 8, 3, 5";
 
     [Parameter]
-    public string SchedulingPrioritiesInput { get; set; } = "mittel,sehr hoch,niedrig,hoch,sehr niedrig";
+    public string SchedulingPrioritiesInput { get; set; } = "mittel, sehr hoch, niedrig, hoch, sehr niedrig";
 
-    private bool TryGetSchedulingDemo(out SchedulingDemoResult? result, out string errorMessage)
+    [Parameter]
+    public bool IsEmbed { get; set; } = false;
+
+    private ViewMode ActiveView { get; set; } = ViewMode.Simulator;
+    private bool ShowSolution { get; set; } = false;
+    private int CurrentStepIndex { get; set; } = 0;
+
+    // Presets
+    private const string Preset1Values = "6, 2, 8, 3, 5";
+    private const string Preset1Priorities = "mittel, sehr hoch, niedrig, hoch, sehr niedrig";
+
+    private const string Preset2Values = "4, 9, 2, 7, 3";
+    private const string Preset2Priorities = "hoch, niedrig, sehr hoch, sehr niedrig, mittel";
+
+    private const string Preset3Values = "2, 4, 6, 8, 10";
+    private const string Preset3Priorities = "mittel, hoch, sehr hoch, niedrig, sehr niedrig";
+
+    protected override void OnInitialized()
+    {
+        ReadQueryParameters();
+    }
+
+    private void ReadQueryParameters()
     {
         try
         {
-            var durations = ParseIntegerSequence(SchedulingValuesInput, "burst times");
-            var priorities = ParsePrioritySequence(SchedulingPrioritiesInput);
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query;
+            if (string.IsNullOrEmpty(query)) return;
 
-            if (durations.Length != priorities.Length)
+            var pairs = query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var pair in pairs)
             {
-                throw new InvalidOperationException("Burst times and priorities must have the same number of entries.");
-            }
+                var parts = pair.Split('=', 2);
+                var key = parts[0].ToLowerInvariant();
+                var val = parts.Length > 1 ? Uri.UnescapeDataString(parts[1]) : "";
 
-            var processes = durations
-                .Select((duration, index) => new SchedulingProcessView($"P{index + 1}", duration, priorities[index]))
+                if (key == "embed" && bool.TryParse(val, out var embedBool))
+                {
+                    IsEmbed = embedBool;
+                }
+                else if (key == "view")
+                {
+                    ActiveView = val.Equals("worksheet", StringComparison.OrdinalIgnoreCase) 
+                        ? ViewMode.Worksheet 
+                        : ViewMode.Simulator;
+                }
+                else if (key == "solution" && bool.TryParse(val, out var solBool))
+                {
+                    ShowSolution = solBool;
+                }
+                else if (key == "policy" && !string.IsNullOrWhiteSpace(val))
+                {
+                    SelectedSchedulingPolicy = val;
+                }
+                else if (key == "values" && !string.IsNullOrWhiteSpace(val))
+                {
+                    SchedulingValuesInput = val;
+                }
+                else if (key == "priorities" && !string.IsNullOrWhiteSpace(val))
+                {
+                    SchedulingPrioritiesInput = val;
+                }
+            }
+        }
+        catch { }
+    }
+
+    private void SetView(ViewMode mode)
+    {
+        ActiveView = mode;
+    }
+
+    private void ToggleSolution()
+    {
+        ShowSolution = !ShowSolution;
+    }
+
+    private async Task PrintWorksheet()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+
+    private void OnConfigurationChanged()
+    {
+        CurrentStepIndex = 0;
+    }
+
+    private void LoadPreset(string values, string priorities)
+    {
+        SchedulingValuesInput = values;
+        SchedulingPrioritiesInput = priorities;
+        CurrentStepIndex = 0;
+    }
+
+    private void GenerateRandomSet()
+    {
+        var rnd = new Random();
+        var count = 5;
+        var durations = new int[count];
+        for (int i = 0; i < count; i++)
+        {
+            durations[i] = rnd.Next(1, 11);
+        }
+
+        var pList = new[] { "sehr hoch", "hoch", "mittel", "niedrig", "sehr niedrig" };
+        var shuffledPrio = pList.OrderBy(_ => rnd.Next()).ToArray();
+
+        SchedulingValuesInput = string.Join(", ", durations);
+        SchedulingPrioritiesInput = string.Join(", ", shuffledPrio);
+        CurrentStepIndex = 0;
+    }
+
+    private void GoToStart()
+    {
+        CurrentStepIndex = 0;
+    }
+
+    private void PreviousStep()
+    {
+        if (CurrentStepIndex > 0) CurrentStepIndex--;
+    }
+
+    private void NextStep()
+    {
+        if (TryGetParsedScheduling(out var procList, out _))
+        {
+            var schedule = GetScheduleForPolicy(SelectedSchedulingPolicy, procList);
+            if (CurrentStepIndex < schedule.Count)
+            {
+                CurrentStepIndex++;
+            }
+        }
+    }
+
+    private void GoToEnd()
+    {
+        if (TryGetParsedScheduling(out var procList, out _))
+        {
+            var schedule = GetScheduleForPolicy(SelectedSchedulingPolicy, procList);
+            CurrentStepIndex = schedule.Count;
+        }
+    }
+
+    private void OnSliderChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var step))
+        {
+            CurrentStepIndex = step;
+        }
+    }
+
+    private bool TryGetParsedScheduling(out List<ProcessItem> processes, out string errorMessage)
+    {
+        try
+        {
+            var durations = SchedulingValuesInput
+                .Split(new[] { ',', ';', ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(t => int.TryParse(t, out var val) ? val : throw new InvalidOperationException($"Ungültige Zahl '{t}' in den Bedienzeiten."))
                 .ToArray();
 
-            var parameters = new SchedulingParameters(durations, priorities);
-            var solver = CreateSchedulingSolver();
-            var solution = (SchedulingSolution)solver.Solve(parameters);
-            var orderedProcesses = OrderProcesses(processes);
+            var priorities = SchedulingPrioritiesInput
+                .Split(new[] { ',', ';', '\t' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(p => p.Trim())
+                .ToArray();
 
-            result = new SchedulingDemoResult(
-                solution.Time,
-                orderedProcesses,
-                orderedProcesses.Select(process => process.Name).ToArray(),
-                GetSchedulingNotes(),
-                solution.Steps.ToArray());
+            if (durations.Length == 0)
+            {
+                throw new InvalidOperationException("Bitte geben Sie mindestens eine Prozessdauer an.");
+            }
+
+            if (priorities.Length != durations.Length)
+            {
+                // Fallback / pad priorities
+                var defaultPrios = new[] { "sehr hoch", "hoch", "mittel", "niedrig", "sehr niedrig" };
+                priorities = Enumerable.Range(0, durations.Length)
+                    .Select(i => i < priorities.Length ? priorities[i] : (i < defaultPrios.Length ? defaultPrios[i] : "mittel"))
+                    .ToArray();
+            }
+
+            processes = durations
+                .Select((d, idx) => new ProcessItem($"P{idx + 1}", d, priorities[idx], idx))
+                .ToList();
+
             errorMessage = string.Empty;
             return true;
         }
         catch (Exception ex)
         {
-            result = null;
+            processes = new List<ProcessItem>();
             errorMessage = ex.Message;
             return false;
         }
     }
 
-    private ISchedulingSolver CreateSchedulingSolver() =>
-        SelectedSchedulingPolicy switch
-        {
-            "SJF" => new ShortestJobFirstSolver(),
-            "Priority" => new PrioritySchedulingSolver(),
-            "RoundRobin" => new RoundRobinSolver(),
-            _ => new FCFSSolver()
-        };
-
-    private SchedulingProcessView[] OrderProcesses(IEnumerable<SchedulingProcessView> processes) =>
-        SelectedSchedulingPolicy switch
-        {
-            "SJF" => processes.OrderBy(process => process.Duration).ThenBy(process => process.Name).Select((process, index) => process with { SortExplanation = $"#{index + 1} shortest burst" }).ToArray(),
-            "Priority" => processes.OrderBy(process => PriorityRank(process.Priority)).ThenBy(process => process.Name).Select((process, index) => process with { SortExplanation = $"#{index + 1} in priority ladder" }).ToArray(),
-            "RoundRobin" => processes.OrderBy(process => process.Duration).ThenBy(process => process.Name).Select((process, index) => process with { SortExplanation = $"phase order #{index + 1}" }).ToArray(),
-            _ => processes.Select((process, index) => process with { SortExplanation = $"input order #{index + 1}" }).ToArray()
-        };
-
-    private string GetSchedulingNotes() =>
-        SelectedSchedulingPolicy switch
-        {
-            "SJF" => "ShortestJobFirstSolver orders processes by ascending burst time and reports the package's aggregate time score for that sequence.",
-            "Priority" => "PrioritySchedulingSolver uses the German priority ladder built into the package: sehr hoch, hoch, mittel, niedrig, sehr niedrig.",
-            "RoundRobin" => "RoundRobinSolver currently reports an aggregated shared-time score over ascending burst lengths rather than rendering a literal quantum-by-quantum timeline.",
-            _ => "FCFSSolver keeps the submitted order and reports the package's aggregate time score for that queue."
-        };
-
-    private static int PriorityRank(string priority) => Array.IndexOf(PriorityScale, priority);
-
-    private int[] ParseIntegerSequence(string input, string fieldName) =>
-        input
-            .Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(token => int.TryParse(token, out var value)
-                ? value
-                : throw new InvalidOperationException($"Invalid number '{token}' in {fieldName}."))
-            .ToArray();
-
-    private string[] ParsePrioritySequence(string input)
+    private List<ScheduleBlock> GetScheduleForPolicy(string policy, List<ProcessItem> processes)
     {
-        var priorities = input
-            .Split(new[] { ',', ';', '|' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(priority => priority.ToLowerInvariant())
-            .ToArray();
+        var result = new List<ScheduleBlock>();
+        var currentTime = 0;
 
-        var invalidPriority = priorities.FirstOrDefault(priority => !PriorityScale.Contains(priority));
-        if (invalidPriority is not null)
+        List<ProcessItem> ordered = policy switch
         {
-            throw new InvalidOperationException($"Unknown priority '{invalidPriority}'.");
+            "SJF" => processes.OrderBy(p => p.Duration).ToList(),
+            "Priority" => OrderByPriority(processes),
+            "RoundRobin" => processes.OrderBy(p => p.Duration).ToList(), // RR phase view by completion
+            _ => processes.ToList() // FCFS
+        };
+
+        for (int i = 0; i < ordered.Count; i++)
+        {
+            var p = ordered[i];
+            var start = currentTime;
+            var end = currentTime + p.Duration;
+            result.Add(new ScheduleBlock(p.Name, p.OriginalIndex, p.Duration, p.Priority, start, end));
+            currentTime = end;
         }
 
-        return priorities;
+        return result;
     }
 
-    public sealed record SchedulingProcessView(string Name, int Duration, string Priority, string SortExplanation = "");
+    private List<ProcessItem> OrderByPriority(List<ProcessItem> processes)
+    {
+        var priorityLadder = new[] { "sehr hoch", "hoch", "mittel", "niedrig", "sehr niedrig" };
+        var ordered = new List<ProcessItem>();
 
-    public sealed record SchedulingDemoResult(
-        double Score,
-        SchedulingProcessView[] Processes,
-        string[] ExecutionOrder,
-        string Notes,
-        string[] SolverSteps);
+        foreach (var pLevel in priorityLadder)
+        {
+            var match = processes.FirstOrDefault(p => string.Equals(p.Priority, pLevel, StringComparison.OrdinalIgnoreCase));
+            if (match != null && !ordered.Contains(match))
+            {
+                ordered.Add(match);
+            }
+        }
+
+        // Add any remaining
+        foreach (var p in processes)
+        {
+            if (!ordered.Contains(p)) ordered.Add(p);
+        }
+
+        return ordered;
+    }
+
+    private string GetProcessColorClass(int procIndex)
+    {
+        var colors = new[] { "p-blue", "p-green", "p-amber", "p-purple", "p-rose", "p-cyan", "p-emerald", "p-indigo" };
+        return colors[procIndex % colors.Length];
+    }
+
+    private string GetSchedulingNarratorText(int stepIndex, List<ScheduleBlock> schedule, int totalProcesses, string policy)
+    {
+        if (stepIndex == 0)
+        {
+            return policy switch
+            {
+                "SJF" => $"Alle {totalProcesses} Prozesse stehen zur Zeit t=0 in der Bereit-Warteschlange. Shortest Job First wählt als Nächstes den Prozess mit der kürzesten Bedienzeit.",
+                "Priority" => $"Alle {totalProcesses} Prozesse stehen zur Zeit t=0 in der Bereit-Warteschlange. Prioritätsscheduling wählt stets den Prozess mit der höchsten Prioritätsstufe.",
+                "RoundRobin" => $"Alle {totalProcesses} Prozesse teilen sich die CPU gleichmäßig im Zeitschlitz-Verfahren (Prozessor-Sharing). Prozesse mit kürzerer Laufzeit terminieren früher.",
+                _ => $"Alle {totalProcesses} Prozesse stehen zur Zeit t=0 in der Bereit-Warteschlange. FCFS arbeitet die Prozesse streng in der Eingangsreihenfolge ab."
+            };
+        }
+
+        var item = schedule[stepIndex - 1];
+        var remaining = totalProcesses - (stepIndex - 1);
+        var contribution = (double)remaining * item.Duration / totalProcesses;
+
+        return policy switch
+        {
+            "SJF" => $"Schritt {stepIndex}: {item.ProcessName} besitzt mit t={item.Duration} die kürzeste verbleibende Bedienzeit. Seine Abarbeitung von t={item.StartTime} bis t={item.EndTime} hält noch {remaining} Prozesse im System auf. Verweilzeit-Beitrag: {remaining}/{totalProcesses} \u00d7 {item.Duration} = {contribution:F2}.",
+            "Priority" => $"Schritt {stepIndex}: {item.ProcessName} hat die höchste Priorität ('{item.Priority}') unter den noch wartenden Prozessen. Ausführung von t={item.StartTime} bis t={item.EndTime}. Verweilzeit-Beitrag: {remaining}/{totalProcesses} \u00d7 {item.Duration} = {contribution:F2}.",
+            "RoundRobin" => $"Schritt {stepIndex}: Phase bis zur Fertigstellung von {item.ProcessName} bei t={item.EndTime}. {remaining} Prozesse teilten sich bisher gleichmäßig die Rechenzeit. Verweilzeit-Beitrag: {contribution:F2}.",
+            _ => $"Schritt {stepIndex}: {item.ProcessName} steht an Position {stepIndex} der Eingangswarteschlange (FCFS). Ausführung von t={item.StartTime} bis t={item.EndTime}. Verweilzeit-Beitrag: {remaining}/{totalProcesses} \u00d7 {item.Duration} = {contribution:F2}."
+        };
+    }
 }

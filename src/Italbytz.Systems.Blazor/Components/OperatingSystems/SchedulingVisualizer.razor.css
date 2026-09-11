@@ -1,0 +1,777 @@
+/* Scheduling Visualizer Styles */
+
+.scheduling-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    font-family: inherit;
+    color: var(--text-color, #1e293b);
+}
+
+/* Card Heading */
+.card-heading {
+    border-bottom: 1px solid var(--border-color, #e2e8f0);
+    padding-bottom: 1rem;
+}
+
+.feature-kicker {
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--primary-color, #0284c7);
+    margin: 0 0 0.25rem 0;
+}
+
+.card-heading h2 {
+    font-size: 1.6rem;
+    font-weight: 800;
+    margin: 0 0 0.5rem 0;
+    color: var(--heading-color, #0f172a);
+}
+
+.feature-intro {
+    font-size: 0.95rem;
+    color: var(--muted-color, #64748b);
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* View Switcher */
+.view-switch {
+    display: flex;
+    gap: 0.5rem;
+    background: var(--bg-surface-subtle, #f1f5f9);
+    padding: 0.35rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-color, #e2e8f0);
+    width: fit-content;
+}
+
+.view-btn {
+    background: transparent;
+    border: none;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border-radius: 0.375rem;
+    color: var(--muted-color, #64748b);
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+}
+
+.view-btn:hover {
+    color: var(--text-color, #0f172a);
+}
+
+.view-btn.active {
+    background: #ffffff;
+    color: var(--primary-color, #0284c7);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Controls Panel */
+.controls-panel {
+    background: var(--bg-surface, #ffffff);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.config-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.config-grid .span-two {
+    grid-column: span 2;
+}
+
+@media (max-width: 768px) {
+    .config-grid .span-two {
+        grid-column: span 1;
+    }
+}
+
+.control-label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--muted-color, #475569);
+}
+
+.form-select, .form-input {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.95rem;
+    border: 1px solid var(--border-color, #cbd5e1);
+    border-radius: 0.375rem;
+    background: var(--bg-input, #ffffff);
+    color: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.form-select:focus, .form-input:focus {
+    border-color: var(--primary-color, #0284c7);
+    box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15);
+}
+
+/* Presets Bar */
+.preset-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    padding-top: 0.75rem;
+    border-top: 1px dashed var(--border-color, #e2e8f0);
+}
+
+.preset-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--muted-color, #64748b);
+}
+
+.preset-btn {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border: 1px solid var(--border-color, #cbd5e1);
+    background: var(--bg-surface-subtle, #f8fafc);
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.preset-btn:hover {
+    background: var(--border-color, #e2e8f0);
+    color: var(--text-color, #0f172a);
+}
+
+.preset-btn.random {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+    color: #166534;
+}
+
+.preset-btn.random:hover {
+    background: #dcfce7;
+}
+
+/* Player Toolbar */
+.player-toolbar {
+    background: var(--bg-surface, #ffffff);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 0.75rem;
+    padding: 1rem 1.25rem;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.player-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.player-btn {
+    padding: 0.5rem 0.85rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border: 1px solid var(--border-color, #cbd5e1);
+    background: var(--bg-surface-subtle, #f8fafc);
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.player-btn:hover:not(:disabled) {
+    background: var(--border-color, #e2e8f0);
+}
+
+.player-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.player-btn.primary {
+    background: var(--primary-color, #0284c7);
+    border-color: var(--primary-color, #0284c7);
+    color: #ffffff;
+}
+
+.player-btn.primary:hover:not(:disabled) {
+    background: #0369a1;
+}
+
+.player-btn.reset {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #b91c1c;
+}
+
+.player-btn.reset:hover {
+    background: #fee2e2;
+}
+
+.player-progress {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex: 1;
+    min-width: 250px;
+}
+
+.step-indicator {
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+.step-slider {
+    flex: 1;
+    accent-color: var(--primary-color, #0284c7);
+    cursor: pointer;
+}
+
+/* Narrator Card */
+.narrator-card {
+    background: var(--bg-surface, #ffffff);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 0.75rem;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.narrator-header {
+    background: var(--bg-surface-subtle, #f8fafc);
+    padding: 0.75rem 1.25rem;
+    border-bottom: 1px solid var(--border-color, #e2e8f0);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.step-badge {
+    padding: 0.25rem 0.6rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.badge-init {
+    background: #e0e7ff;
+    color: #3730a3;
+}
+
+.badge-active {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.narrator-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--heading-color, #0f172a);
+}
+
+.narrator-body {
+    padding: 1rem 1.25rem;
+}
+
+.narrator-text {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin: 0;
+    color: var(--text-color, #334155);
+}
+
+/* Gantt Card */
+.gantt-card {
+    background: var(--bg-surface, #ffffff);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.gantt-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.gantt-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--heading-color, #0f172a);
+}
+
+.gantt-total-time {
+    font-size: 0.9rem;
+    color: var(--muted-color, #64748b);
+}
+
+/* Gantt Timeline & Blocks */
+.gantt-timeline-wrapper {
+    position: relative;
+    padding-bottom: 2rem;
+}
+
+.gantt-bar-container {
+    display: flex;
+    width: 100%;
+    height: 54px;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    border: 2px solid var(--border-color, #cbd5e1);
+    background: #f8fafc;
+}
+
+.gantt-block {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-width: 32px;
+    position: relative;
+    transition: all 0.25s ease-in-out;
+    border-right: 1px solid rgba(255, 255, 255, 0.3);
+    user-select: none;
+}
+
+.gantt-block:last-child {
+    border-right: none;
+}
+
+.gantt-pname {
+    font-size: 0.85rem;
+    font-weight: 800;
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.gantt-duration {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.gantt-block.pending {
+    opacity: 0.35;
+    filter: grayscale(40%);
+}
+
+.gantt-block.executed {
+    opacity: 1;
+}
+
+.gantt-block.active-gantt-block {
+    box-shadow: inset 0 0 0 3px #ffffff, 0 0 12px rgba(2, 132, 199, 0.6);
+    transform: scaleY(1.04);
+    z-index: 2;
+}
+
+/* Process Colors */
+.p-blue { background: #2563eb; }
+.p-green { background: #059669; }
+.p-amber { background: #d97706; }
+.p-purple { background: #7c3aed; }
+.p-rose { background: #e11d48; }
+.p-cyan { background: #0891b2; }
+.p-gray { background: #475569; }
+
+/* Gantt Ticks */
+.gantt-ticks {
+    position: relative;
+    width: 100%;
+    height: 20px;
+    margin-top: 0.35rem;
+}
+
+.gantt-tick {
+    position: absolute;
+    transform: translateX(-50%);
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--muted-color, #64748b);
+}
+
+.gantt-tick.tick-start {
+    left: 0 !important;
+    transform: translateX(0);
+}
+
+/* Process Table */
+.process-table-wrapper {
+    overflow-x: auto;
+}
+
+.scheduling-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    text-align: left;
+}
+
+.scheduling-data-table th {
+    background: var(--bg-surface-subtle, #f8fafc);
+    color: var(--muted-color, #475569);
+    padding: 0.65rem 0.85rem;
+    font-weight: 700;
+    border-bottom: 2px solid var(--border-color, #e2e8f0);
+}
+
+.scheduling-data-table td {
+    padding: 0.65rem 0.85rem;
+    border-bottom: 1px solid var(--border-color, #f1f5f9);
+    color: var(--text-color, #334155);
+}
+
+.proc-badge {
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    border-radius: 0.25rem;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 0.8rem;
+}
+
+.scheduling-data-table tr.row-active {
+    background: #eff6ff;
+    font-weight: 600;
+}
+
+.scheduling-data-table tr.row-pending {
+    opacity: 0.5;
+}
+
+/* Comparison Card */
+.comparison-card {
+    background: var(--bg-surface, #ffffff);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.comparison-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin: 0 0 1rem 0;
+    color: var(--heading-color, #0f172a);
+}
+
+.metrics-grid.four-up {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1rem;
+}
+
+.metric-card {
+    background: var(--bg-surface-subtle, #f8fafc);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 0.5rem;
+    padding: 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    transition: all 0.15s;
+}
+
+.metric-card.highlight-strategy {
+    background: #f0f9ff;
+    border-color: #7dd3fc;
+    box-shadow: 0 2px 4px rgba(2, 132, 199, 0.1);
+}
+
+.metric-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--muted-color, #64748b);
+}
+
+.metric-val {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--heading-color, #0f172a);
+}
+
+.metric-sub {
+    font-size: 0.75rem;
+    color: var(--muted-color, #94a3b8);
+}
+
+.text-success { color: #16a34a !important; }
+.text-brand { color: #0284c7 !important; }
+.text-amber { color: #d97706 !important; }
+
+/* Validation Box */
+.validation-box {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    color: #991b1b;
+}
+
+.validation-copy {
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+/* ========================================================================= */
+/* WORKSHEET STYLES                                                          */
+/* ========================================================================= */
+.worksheet-view {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.worksheet-toolbar {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.ws-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    border: 1px solid var(--border-color, #cbd5e1);
+    background: #ffffff;
+    transition: all 0.15s;
+}
+
+.ws-btn.solution-toggle.active {
+    background: #fef3c7;
+    border-color: #fcd34d;
+    color: #92400e;
+}
+
+.ws-btn.print-btn {
+    background: var(--primary-color, #0284c7);
+    border-color: var(--primary-color, #0284c7);
+    color: #ffffff;
+}
+
+.worksheet-paper {
+    background: #ffffff;
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 0.5rem;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.ws-header {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 2px solid #0f172a;
+    padding-bottom: 1rem;
+}
+
+.ws-kicker {
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #64748b;
+}
+
+.ws-title {
+    font-size: 1.4rem;
+    font-weight: 800;
+    margin: 0.25rem 0 0 0;
+    color: #0f172a;
+}
+
+.ws-meta-box {
+    text-align: right;
+    font-size: 0.85rem;
+    color: #475569;
+}
+
+.ws-instructions {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: #334155;
+}
+
+.ws-table-wrapper {
+    overflow-x: auto;
+}
+
+.ws-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.ws-thead-row th {
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    padding: 0.5rem;
+    font-weight: 700;
+}
+
+.ws-corner-th, .ws-row-hdr {
+    text-align: left;
+    background: #f1f5f9 !important;
+    font-weight: 700;
+    padding-left: 0.75rem !important;
+}
+
+.ws-table td {
+    border: 1px solid #cbd5e1;
+    padding: 0.5rem;
+}
+
+.ws-subtask-box {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    page-break-inside: avoid;
+}
+
+.ws-subtask-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.ws-subtask-desc {
+    font-size: 0.9rem;
+    color: #475569;
+    margin: 0;
+}
+
+.ws-response-box {
+    min-height: 70px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 0.375rem;
+    padding: 0.75rem;
+    background: #fafafa;
+}
+
+.ws-response-box.solved {
+    border: 1px solid #93c5fd;
+    background: #f0f9ff;
+}
+
+.ws-sol-calc {
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: #0c4a6e;
+}
+
+.ws-sol-calc p {
+    margin: 0.25rem 0;
+}
+
+/* ========================================================================= */
+/* EMBED MODE (FOR SLIDES)                                                   */
+/* ========================================================================= */
+.scheduling-container.embed-mode {
+    gap: 0.75rem;
+}
+
+.scheduling-container.embed-mode .gantt-card,
+.scheduling-container.embed-mode .narrator-card,
+.scheduling-container.embed-mode .player-toolbar,
+.scheduling-container.embed-mode .comparison-card {
+    box-shadow: none;
+}
+
+/* ========================================================================= */
+/* PRINT MEDIA                                                               */
+/* ========================================================================= */
+@media print {
+    .no-print {
+        display: none !important;
+    }
+
+    body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    .worksheet-paper {
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        gap: 0.85rem !important;
+    }
+
+    .ws-header {
+        padding-bottom: 0.5rem !important;
+    }
+
+    .ws-title {
+        font-size: 1.25rem !important;
+    }
+
+    .ws-instructions {
+        margin: 0 !important;
+        font-size: 0.85rem !important;
+    }
+
+    .ws-table {
+        font-size: 0.82rem !important;
+    }
+
+    .ws-table td, .ws-thead-row th {
+        padding: 0.25rem 0.4rem !important;
+    }
+
+    .ws-subtask-box {
+        gap: 0.25rem !important;
+    }
+
+    .ws-subtask-title {
+        font-size: 0.9rem !important;
+    }
+
+    .ws-subtask-desc {
+        font-size: 0.8rem !important;
+    }
+
+    .ws-response-box {
+        min-height: 48px !important;
+        padding: 0.4rem 0.6rem !important;
+        border: 1px solid #000000 !important;
+        background: transparent !important;
+    }
+
+    .ws-response-box.solved {
+        background: #f8fafc !important;
+    }
+
+    .ws-sol-calc {
+        font-size: 0.82rem !important;
+    }
+
+    .ws-sol-calc p {
+        margin: 0.15rem 0 !important;
+    }
+}

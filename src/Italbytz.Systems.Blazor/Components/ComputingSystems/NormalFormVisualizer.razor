@@ -1,96 +1,558 @@
 @namespace Italbytz.Systems.Blazor.Components.ComputingSystems
+@using Italbytz.ComputingSystems
+@using Italbytz.ComputingSystems.Abstractions
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
 
-<article class="demo-card wide-card">
-    <div class="card-heading">
-        <p class="feature-kicker">Boolean normal forms</p>
-        <h2>Generate canonical DNF and CNF from a truth table</h2>
-    </div>
+<article class="nf-container @(IsEmbed ? "embed-mode" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
 
-    <div class="input-grid two-up">
-        <label>
-            <span>Variable count</span>
-            <input type="number" min="1" max="4" @bind="NormalFormVariableCount" />
-        </label>
-        <label>
-            <span>Truth values</span>
-            <input type="text" @bind="NormalFormTruthValuesInput" />
-        </label>
-    </div>
-
-    <p class="helper-copy">Provide one comma-separated 0/1 value per truth-table row in lexicographic order, for example <strong>0,1,1,0</strong> for a two-variable XOR.</p>
-
-    @if (TryGetNormalFormSolution(out var normalFormSolution, out var normalFormError))
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
     {
-        <div class="card-grid card-grid-two compact-grid">
-            <div class="metric-card">
-                <span>DNF</span>
-                <strong>@normalFormSolution!.Dnf</strong>
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Grundlagen der Informatik &bull; Boolesche Algebra</p>
+            <h2>Wahrheitstafeln &amp; Kanonische Normalformen (KDNF &amp; KKNF)</h2>
+            <p class="feature-intro">
+                Systematische Aufstellung von Wahrheitstafeln für $n$ Variablen sowie Konstruktion der 
+                <strong>Kanonischen Disjunktiven Normalform (KDNF)</strong> über die Einsmenge (Minterme) und der 
+                <strong>Kanonischen Konjunktiven Normalform (KKNF)</strong> über die Nullmenge (Maxterme).
+            </p>
+        </div>
+    }
+
+    <!-- View Switcher -->
+    @if (!IsEmbed)
+    {
+        <div class="view-switch no-print">
+            <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Simulator)">
+                🚀 Interaktiver Simulator &amp; Wahrheitstafel
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Worksheet)">
+                🖨️ Klausur-Arbeitsblatt (Druckansicht)
+            </button>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- SIMULATOR VIEW                                                            -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Controls Panel -->
+        <div class="controls-panel no-print">
+            <div class="config-grid">
+                <label class="control-label">
+                    <span>Anzahl Variablen:</span>
+                    <select class="form-input select" @bind="VariableCount" @bind:after="OnVariableCountChanged">
+                        <option value="2">2 Variablen ($x_1, x_0$ &rarr; 4 Zeilen)</option>
+                        <option value="3">3 Variablen ($x_2, x_1, x_0$ &rarr; 8 Zeilen)</option>
+                        <option value="4">4 Variablen ($x_3, x_2, x_1, x_0$ &rarr; 16 Zeilen)</option>
+                    </select>
+                </label>
+
+                <label class="control-label wide-label">
+                    <span>Ausgabespalte $y = f(x_{n-1} \dots x_0)$ (kommagetrennt):</span>
+                    <input type="text" class="form-input mono" @bind="TruthValuesInput" @bind:after="Recalculate" />
+                </label>
             </div>
-            <div class="metric-card">
-                <span>CNF</span>
-                <strong>@normalFormSolution.Cnf</strong>
+
+            <!-- Presets Bar -->
+            <div class="preset-bar">
+                <span class="preset-label">Beispiele:</span>
+                <button class="preset-btn" @onclick='() => LoadPreset("XOR")'>XOR ($x_1 \oplus x_0$)</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("Majority3")'>Mehrheitsgatter 3-Bit</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("Exam1")'>Klausuraufgabe 3-Bit</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("Decoder4")'>4-Bit Parität</button>
+                <button class="preset-btn random" @onclick="GenerateRandomFunction">🎲 Zufallsfunktion</button>
             </div>
         </div>
 
-        <div class="table-shell">
-            <table class="trace-table">
-                <thead>
-                    <tr>
-                        <th>Trace step</th>
-                        <th>Trace detail</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @for (var index = 0; index < normalFormSolution.Steps.Count; index++)
-                    {
-                        <tr>
-                            <td>@(index + 1)</td>
-                            <td>@normalFormSolution.Steps[index]</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
+        @if (Solution != null)
+        {
+            <!-- Narrator Card -->
+            <div class="narrator-card">
+                <div class="narrator-header">
+                    <div class="step-badge badge-nf">Normalformen-Analyse</div>
+                    <div class="narrator-title">
+                        Einsmenge: <strong class="emerald mono">L_ein = {@string.Join(", ", GetOneIndices())}</strong> &bull; 
+                        Nullmenge: <strong class="red mono">L_null = {@string.Join(", ", GetZeroIndices())}</strong>
+                    </div>
+                </div>
+                <div class="nf-metrics-strip">
+                    <div class="metric-item">
+                        <span class="metric-label">KDNF (Minterme $\bigvee m_i$):</span>
+                        <div class="metric-val mono bold emerald">@FormatDnfMath(Solution.Dnf)</div>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">KKNF (Maxterme $\bigwedge M_i$):</span>
+                        <div class="metric-val mono bold red">@FormatCnfMath(Solution.Cnf)</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Display Grid -->
+            <div class="main-display-grid">
+
+                <!-- Left: Interactive Truth Table -->
+                <div class="table-card">
+                    <div class="table-card-header">
+                        <h3>Wahrheitstafel (Interaktiv: Klick auf $y$ toggelt 0/1)</h3>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="interactive-truth-table">
+                            <thead>
+                                <tr>
+                                    <th>Zeile $i$</th>
+                                    @for (int v = VariableCount - 1; v >= 0; v--)
+                                    {
+                                        <th>$x_@v$</th>
+                                    }
+                                    <th class="th-out">Ausgang $y$</th>
+                                    <th>Minterm $m_i$</th>
+                                    <th>Maxterm $M_i$</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int r = 0; r < TruthValues.Length; r++)
+                                {
+                                    int rowIdx = r;
+                                    var bits = GetBits(rowIdx, VariableCount);
+                                    bool isOne = TruthValues[rowIdx] == 1;
+
+                                    <tr class="@(isOne ? "row-one" : "row-zero")">
+                                        <td class="mono bold text-muted">@rowIdx</td>
+                                        @for (int b = 0; b < VariableCount; b++)
+                                        {
+                                            <td class="mono">@(bits[b] ? "1" : "0")</td>
+                                        }
+                                        <td class="td-out" @onclick="() => ToggleOutputBit(rowIdx)">
+                                            <button class="out-toggle-btn @(isOne ? "btn-one" : "btn-zero")">
+                                                @(isOne ? "1" : "0")
+                                            </button>
+                                        </td>
+                                        <td class="mono minterm-col @(isOne ? "active-term" : "")">
+                                            @GetMintermString(bits)
+                                        </td>
+                                        <td class="mono maxterm-col @(!isOne ? "active-term" : "")">
+                                            @GetMaxtermString(bits)
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Right: Construction Steps & Details -->
+                <div class="traces-panel">
+                    <div class="sub-card">
+                        <div class="sub-card-header">
+                            <h4>Konstruktionsschritte</h4>
+                        </div>
+                        <div class="trace-list">
+                            @for (int i = 0; i < Solution.Steps.Count; i++)
+                            {
+                                <div class="trace-item">
+                                    <span class="trace-num">@(i + 1).</span>
+                                    <span class="trace-text">@Solution.Steps[i]</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="formula-card">
+                        <div class="formula-title">Regeln zur Aufstellung:</div>
+                        <div class="rule-box">
+                            <p><strong>KDNF:</strong> Disjunktion ($\vee$) aller Zeilen mit $y=1$. In den Konjunktionstermen gilt: $x_i$ wenn $x_i=1$, $\neg x_i$ wenn $x_i=0$.</p>
+                            <p><strong>KKNF:</strong> Konjunktion ($\wedge$) aller Zeilen mit $y=0$. In den Disjunktionstermen gilt: $\neg x_i$ wenn $x_i=1$, $x_i$ wenn $x_i=0$.</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        }
+    }
+
+    <!-- ========================================================================= -->
+    <!-- WORKSHEET VIEW (1:1 EXAM REPLICA)                                         -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Worksheet)
+    {
+        <div class="worksheet-paper">
+
+            <!-- Exam Header -->
+            <div class="exam-header">
+                <div class="exam-title-block">
+                    <span class="exam-sub">Grundlagen der Informatik &bull; Boolesche Algebra</span>
+                    <h1 class="exam-main-title">Übungs- und Klausuraufgabe: Wahrheitstafeln &amp; Normalformen</h1>
+                </div>
+                <div class="exam-meta-box no-print">
+                    <button class="toggle-sol-btn @(ShowSolution ? "active" : "")" @onclick="ToggleSolution">
+                        @(ShowSolution ? "👁️ Musterlösung ausblenden" : "💡 Musterlösung einblenden")
+                    </button>
+                    <button class="print-btn" @onclick="TriggerPrint">
+                        🖨️ Seite drucken / PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Student Info Fields -->
+            <div class="student-info-strip">
+                <div class="info-field">
+                    <span class="info-label">Name, Vorname:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field">
+                    <span class="info-label">Matrikelnummer:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field points-field">
+                    <span class="info-label">Punkte:</span>
+                    <div class="points-box">/ 6 P.</div>
+                </div>
+            </div>
+
+            <!-- Task Prompt -->
+            <div class="task-prompt-box">
+                <p class="task-text">
+                    Gegeben sei eine Boolesche Funktion $f(x_{@(VariableCount-1)} \dots x_0)$ mit der folgenden Ausgabespalte:
+                    $$\mathbf{f} = (@string.Join(", ", TruthValues))$$
+                </p>
+            </div>
+
+            <!-- Teilaufgabe 1: Wahrheitstafel -->
+            <div class="task-section">
+                <div class="task-sub-title">
+                    <span>Teilaufgabe 1 (2 Punkte)</span>
+                </div>
+                <p class="task-text">
+                    Vervollständigen Sie die folgende Wahrheitstafel mit den korrekten Belegungen der Variablen und Funktionswerten:
+                </p>
+
+                <div class="ws-table-container">
+                    <table class="ws-matrix-table">
+                        <thead>
+                            <tr>
+                                <th>$i$</th>
+                                @for (int v = VariableCount - 1; v >= 0; v--)
+                                {
+                                    <th>$x_@v$</th>
+                                }
+                                <th class="ws-th-highlight">$y$</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (int r = 0; r < TruthValues.Length; r++)
+                            {
+                                var bits = GetBits(r, VariableCount);
+                                <tr>
+                                    <td class="mono bold text-muted">@r</td>
+                                    @for (int b = 0; b < VariableCount; b++)
+                                    {
+                                        <td class="mono">@(bits[b] ? "1" : "0")</td>
+                                    }
+                                    <td class="mono bold @(ShowSolution ? (TruthValues[r] == 1 ? "ws-val-one" : "ws-val-zero") : "ws-blank-slot")">
+                                        @(ShowSolution ? TruthValues[r].ToString() : "")
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Teilaufgabe 2: KDNF -->
+            <div class="task-section">
+                <div class="task-sub-title">
+                    <span>Teilaufgabe 2 (2 Punkte)</span>
+                </div>
+                <p class="task-text">
+                    Geben Sie die <strong>Kanonische Disjunktive Normalform (KDNF)</strong> als Disjunktion von Mintermen an:
+                </p>
+
+                @if (ShowSolution && Solution != null)
+                {
+                    <div class="ws-solution-box">
+                        <div class="sol-formula-line mono bold emerald">
+                            $$y_{KDNF} = @FormatDnfMath(Solution.Dnf)$$
+                        </div>
+                        <div class="sol-details">
+                            Minterme aus Einsmenge $L_{ein} = \{@string.Join(", ", GetOneIndices())\}$
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="ws-formula-blank">
+                        <span class="mono bold">y_{KDNF} = </span>
+                        <div class="blank-line-long"></div>
+                    </div>
+                }
+            </div>
+
+            <!-- Teilaufgabe 3: KKNF -->
+            <div class="task-section">
+                <div class="task-sub-title">
+                    <span>Teilaufgabe 3 (2 Punkte)</span>
+                </div>
+                <p class="task-text">
+                    Geben Sie die <strong>Kanonische Konjunktive Normalform (KKNF)</strong> als Konjunktion von Maxtermen an:
+                </p>
+
+                @if (ShowSolution && Solution != null)
+                {
+                    <div class="ws-solution-box">
+                        <div class="sol-formula-line mono bold red">
+                            $$y_{KKNF} = @FormatCnfMath(Solution.Cnf)$$
+                        </div>
+                        <div class="sol-details">
+                            Maxterme aus Nullmenge $L_{null} = \{@string.Join(", ", GetZeroIndices())\}$
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="ws-formula-blank">
+                        <span class="mono bold">y_{KKNF} = </span>
+                        <div class="blank-line-long"></div>
+                    </div>
+                }
+            </div>
+
+            <!-- Footer -->
+            <div class="exam-footer">
+                <div class="exam-footer-note">
+                    Hinweis: Minterme entsprechen Konjunktionen aller Literale für Zeilen mit Funktionswert 1; Maxterme entsprechen Disjunktionen invertierter Literale für Zeilen mit Funktionswert 0.
+                </div>
+            </div>
+
         </div>
     }
-    else
-    {
-        <p class="validation-copy">@normalFormError</p>
-    }
+
 </article>
 
 @code {
-    private readonly NormalFormSolver normalFormSolver = new();
+    public enum ViewMode { Simulator, Worksheet }
 
-    [Parameter]
-    public int NormalFormVariableCount { get; set; } = 2;
+    [Parameter] public string? View { get; set; }
+    [Parameter] public bool? SolutionParam { get; set; }
+    [Parameter] public bool? Embed { get; set; }
 
-    [Parameter]
-    public string NormalFormTruthValuesInput { get; set; } = "0,1,1,0";
+    private ViewMode ActiveView = ViewMode.Simulator;
+    private bool ShowSolution = false;
+    private bool IsEmbed = false;
 
-    private bool TryGetNormalFormSolution(out NormalFormSolution? solution, out string errorMessage)
+    private int VariableCount = 3;
+    private string TruthValuesInput = "0,0,1,1,1,1,1,1";
+    private int[] TruthValues = new int[] { 0, 0, 1, 1, 1, 1, 1, 1 };
+
+    private NormalFormSolution? Solution;
+    private readonly NormalFormSolver solver = new();
+
+    protected override void OnInitialized()
+    {
+        ReadQueryParameters();
+        Recalculate();
+    }
+
+    protected override void OnParametersSet()
+    {
+        ReadQueryParameters();
+    }
+
+    private void ReadQueryParameters()
     {
         try
         {
-            var variableCount = Math.Clamp(NormalFormVariableCount, 1, 4);
-            var truthValues = ParseTruthValues(NormalFormTruthValuesInput);
-
-            solution = (NormalFormSolution)normalFormSolver.Solve(new NormalFormParameters(variableCount, truthValues));
-            errorMessage = string.Empty;
-            return true;
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query;
+            if (!string.IsNullOrEmpty(query))
+            {
+                if (query.Contains("view=worksheet", StringComparison.OrdinalIgnoreCase))
+                {
+                    ActiveView = ViewMode.Worksheet;
+                }
+                if (query.Contains("solution=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    ShowSolution = true;
+                }
+                if (query.Contains("embed=true", StringComparison.OrdinalIgnoreCase) || query.Contains("embedded=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsEmbed = true;
+                }
+            }
         }
-        catch (Exception ex)
+        catch { }
+    }
+
+    private void SetView(ViewMode mode)
+    {
+        ActiveView = mode;
+    }
+
+    private void ToggleSolution()
+    {
+        ShowSolution = !ShowSolution;
+    }
+
+    private async Task TriggerPrint()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+
+    private void OnVariableCountChanged()
+    {
+        int count = 1 << VariableCount;
+        TruthValues = new int[count];
+        if (VariableCount == 2)
         {
-            solution = null;
-            errorMessage = ex.Message;
-            return false;
+            TruthValues = new int[] { 0, 1, 1, 0 }; // XOR
+        }
+        else if (VariableCount == 3)
+        {
+            TruthValues = new int[] { 0, 0, 1, 1, 1, 1, 1, 1 };
+        }
+        else
+        {
+            TruthValues = new int[] { 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0 };
+        }
+        TruthValuesInput = string.Join(",", TruthValues);
+        Recalculate();
+    }
+
+    private void LoadPreset(string preset)
+    {
+        switch (preset)
+        {
+            case "XOR":
+                VariableCount = 2;
+                TruthValues = new int[] { 0, 1, 1, 0 };
+                break;
+            case "Majority3":
+                VariableCount = 3;
+                TruthValues = new int[] { 0, 0, 0, 1, 0, 1, 1, 1 };
+                break;
+            case "Exam1":
+                VariableCount = 3;
+                TruthValues = new int[] { 0, 0, 1, 1, 1, 1, 1, 1 };
+                break;
+            case "Decoder4":
+                VariableCount = 4;
+                TruthValues = new int[] { 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0 };
+                break;
+        }
+        TruthValuesInput = string.Join(",", TruthValues);
+        Recalculate();
+    }
+
+    private void GenerateRandomFunction()
+    {
+        var rand = new Random();
+        int len = 1 << VariableCount;
+        TruthValues = new int[len];
+        for (int i = 0; i < len; i++)
+        {
+            TruthValues[i] = rand.Next(2);
+        }
+        TruthValuesInput = string.Join(",", TruthValues);
+        Recalculate();
+    }
+
+    private void ToggleOutputBit(int row)
+    {
+        if (row >= 0 && row < TruthValues.Length)
+        {
+            TruthValues[row] = TruthValues[row] == 1 ? 0 : 1;
+            TruthValuesInput = string.Join(",", TruthValues);
+            Recalculate();
         }
     }
 
-    private static int[] ParseTruthValues(string input) =>
-        input
-            .Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(token => int.TryParse(token, out var value)
-                ? value
-                : throw new InvalidOperationException($"Invalid truth-table value '{token}'."))
-            .ToArray();
+    private void Recalculate()
+    {
+        try
+        {
+            var parsed = TruthValuesInput
+                .Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(t => int.TryParse(t, out var val) ? val : 0)
+                .ToArray();
+
+            int requiredLength = 1 << VariableCount;
+            if (parsed.Length != requiredLength)
+            {
+                var adjusted = new int[requiredLength];
+                Array.Copy(parsed, adjusted, Math.Min(parsed.Length, requiredLength));
+                parsed = adjusted;
+            }
+
+            TruthValues = parsed;
+            Solution = (NormalFormSolution)solver.Solve(new NormalFormParameters(VariableCount, TruthValues));
+        }
+        catch { }
+    }
+
+    private static bool[] GetBits(int row, int variableCount)
+    {
+        var bits = new bool[variableCount];
+        for (var bit = 0; bit < variableCount; bit++)
+        {
+            var shift = variableCount - bit - 1;
+            bits[bit] = ((row >> shift) & 0x1) == 1;
+        }
+        return bits;
+    }
+
+    private static string GetMintermString(bool[] bits)
+    {
+        var terms = new List<string>();
+        for (int i = 0; i < bits.Length; i++)
+        {
+            int varIndex = bits.Length - 1 - i;
+            terms.Add(bits[i] ? $"x_{varIndex}" : $"\\neg x_{varIndex}");
+        }
+        return "(" + string.Join(" \\wedge ", terms) + ")";
+    }
+
+    private static string GetMaxtermString(bool[] bits)
+    {
+        var terms = new List<string>();
+        for (int i = 0; i < bits.Length; i++)
+        {
+            int varIndex = bits.Length - 1 - i;
+            terms.Add(bits[i] ? $"\\neg x_{varIndex}" : $"x_{varIndex}");
+        }
+        return "(" + string.Join(" \\vee ", terms) + ")";
+    }
+
+    private List<int> GetOneIndices()
+    {
+        var list = new List<int>();
+        for (int i = 0; i < TruthValues.Length; i++)
+        {
+            if (TruthValues[i] == 1) list.Add(i);
+        }
+        return list;
+    }
+
+    private List<int> GetZeroIndices()
+    {
+        var list = new List<int>();
+        for (int i = 0; i < TruthValues.Length; i++)
+        {
+            if (TruthValues[i] == 0) list.Add(i);
+        }
+        return list;
+    }
+
+    private static string FormatDnfMath(string dnf)
+    {
+        return dnf.Replace(" | ", " \\vee ").Replace(" & ", " \\wedge ").Replace("!", "\\neg ");
+    }
+
+    private static string FormatCnfMath(string cnf)
+    {
+        return cnf.Replace(" & ", " \\wedge ").Replace(" | ", " \\vee ").Replace("!", "\\neg ");
+    }
 }

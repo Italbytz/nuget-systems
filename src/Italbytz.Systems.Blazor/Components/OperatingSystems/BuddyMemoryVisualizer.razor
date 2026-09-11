@@ -1,127 +1,683 @@
 @namespace Italbytz.Systems.Blazor.Components.OperatingSystems
+@using Italbytz.OperatingSystems
+@using Italbytz.OperatingSystems.Abstractions
+@using Italbytz.OperatingSystems.Resources.Buddy
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
 
-<article class="demo-card wide-card">
-    <div class="card-heading">
-        <p class="feature-kicker">Buddy allocation</p>
-        <h2>Inspect chunk-level history for allocation and release operations</h2>
-    </div>
-
-    <div class="input-grid two-up">
-        <label>
-            <span>Requests in KB for A-E</span>
-            <input type="text" @bind="BuddyRequestsInput" />
-        </label>
-        <label>
-            <span>Release order</span>
-            <input type="text" @bind="BuddyReleaseOrderInput" />
-        </label>
-    </div>
-
-    @if (TryGetBuddyDemo(out var buddyResult, out var buddyError))
+<article class="buddy-container @(IsEmbed ? "embed-mode" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
+    
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
     {
-        <div class="card-grid card-grid-three compact-grid">
-            <div class="metric-card">
-                <span>Snapshots</span>
-                <strong>@buddyResult!.History.Length</strong>
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Betriebssysteme &bull; Speicherverwaltung</p>
+            <h2>Buddy-System (Speicherallokation, Split &amp; Coalescing)</h2>
+            <p class="feature-intro">
+                Schritt-für-Schritt-Ablaufverfolgung der binären Speicheraufteilung in 2er-Potenzen (1024 KB Gesamtspeicher, 32 Kacheln à 32 KB), 
+                Berechnung des internen Verschnitts und Verschmelzung (Merging) von Partner-Blöcken (Buddies) bei der Freigabe.
+            </p>
+        </div>
+    }
+
+    <!-- View Switcher -->
+    @if (!IsEmbed)
+    {
+        <div class="view-switch no-print">
+            <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Simulator)">
+                🚀 Interaktiver Simulator (Step-Trace)
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Worksheet)">
+                🖨️ Klausur-Arbeitsblatt (Druckansicht)
+            </button>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- SIMULATOR VIEW                                                            -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Controls Panel -->
+        <div class="controls-panel no-print">
+            <div class="config-grid">
+                <label class="control-label">
+                    <span>Anforderungen in KB für Prozesse A–E:</span>
+                    <input type="text" class="form-input" @bind="BuddyRequestsInput" @bind:after="OnConfigurationChanged" placeholder="z. B. 120, 64, 200, 32, 90" />
+                </label>
+
+                <label class="control-label">
+                    <span>Freigabe-Reihenfolge:</span>
+                    <input type="text" class="form-input" @bind="BuddyReleaseOrderInput" @bind:after="OnConfigurationChanged" placeholder="z. B. B, D, A, E, C" />
+                </label>
             </div>
-            <div class="metric-card">
-                <span>Final occupied chunks</span>
-                <strong>@buddyResult.FinalOccupiedChunks</strong>
-            </div>
-            <div class="metric-card">
-                <span>Release order</span>
-                <strong>@string.Join(" -> ", buddyResult.ReleaseOrder)</strong>
+
+            <!-- Presets Bar -->
+            <div class="preset-bar">
+                <span class="preset-label">Beispiele:</span>
+                <button class="preset-btn" @onclick="() => LoadPreset(Preset1Requests, Preset1Release)">Klausur-Set 1 (120, 64, 200, 32, 90 | B,D,A,E,C)</button>
+                <button class="preset-btn" @onclick="() => LoadPreset(Preset2Requests, Preset2Release)">Klausur-Set 2 (171, 7, 394, 41, 9 | C,E,D,B,A)</button>
+                <button class="preset-btn" @onclick="() => LoadPreset(Preset3Requests, Preset3Release)">Klausur-Set 3 (80, 240, 60, 110, 45 | A,C,B,E,D)</button>
+                <button class="preset-btn random" @onclick="GenerateRandomSet">🎲 Zufallswerte</button>
             </div>
         </div>
 
-        <div class="memory-legend">
-            @foreach (var legendItem in buddyResult.Legend)
-            {
-                <span class="memory-chip @(legendItem.IsFree ? "free" : string.Empty)">@legendItem.Label</span>
-            }
-        </div>
+        @if (TryGetParsedBuddy(out var buddyData, out var parseError))
+        {
+            var maxSteps = buddyData!.Snapshots.Count; // 10 steps (0..9) + initial (step 0 = initial, 1..10 = ops)
+            var currentSnapshot = CurrentStepIndex == 0 
+                ? Enumerable.Repeat("free", 32).ToArray() 
+                : buddyData.Snapshots[CurrentStepIndex - 1];
 
-        <div class="table-shell">
-            <table class="trace-table">
-                <thead>
-                    <tr>
-                        <th>Snapshot</th>
-                        <th>State</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @for (var snapshotIndex = 0; snapshotIndex < buddyResult.History.Length; snapshotIndex++)
-                    {
-                        var snapshot = buddyResult.History[snapshotIndex];
-                        <tr>
-                            <td>@(snapshotIndex + 1)</td>
-                            <td>
-                                <div class="memory-strip">
-                                    @foreach (var slot in snapshot)
+            <!-- Player Toolbar -->
+            <div class="player-toolbar no-print">
+                <div class="player-controls">
+                    <button class="player-btn" title="Start" disabled="@(CurrentStepIndex == 0)" @onclick="GoToStart">⏮ Start</button>
+                    <button class="player-btn" title="Zurück" disabled="@(CurrentStepIndex == 0)" @onclick="PreviousStep">◀ Zurück</button>
+                    <button class="player-btn primary" title="Nächster Schritt" disabled="@(CurrentStepIndex >= maxSteps)" @onclick="NextStep">▶ Weiter</button>
+                    <button class="player-btn" title="Ende" disabled="@(CurrentStepIndex >= maxSteps)" @onclick="GoToEnd">⏭ Ende</button>
+                    <button class="player-btn reset" title="Zurücksetzen" @onclick="GoToStart">🔄 Reset</button>
+                </div>
+
+                <div class="player-progress">
+                    <span class="step-indicator">
+                        @if (CurrentStepIndex == 0)
+                        {
+                            <strong>Schritt 0 / @maxSteps:</strong> <span>Initialzustand (1024 KB freier Speicher)</span>
+                        }
+                        else
+                        {
+                            var stepInfo = buddyData.StepDetails[CurrentStepIndex - 1];
+                            <strong>Schritt @CurrentStepIndex / @maxSteps:</strong> <span>@stepInfo.Title</span>
+                        }
+                    </span>
+                    <input type="range" min="0" max="@maxSteps" value="@CurrentStepIndex" @oninput="OnSliderChanged" class="step-slider" />
+                </div>
+            </div>
+
+            <!-- Narrator Card -->
+            <div class="narrator-card">
+                <div class="narrator-header">
+                    <div class="step-badge @(CurrentStepIndex == 0 ? "badge-init" : (CurrentStepIndex <= 5 ? "badge-alloc" : "badge-free"))">
+                        @if (CurrentStepIndex == 0)
+                        {
+                            <span>🏁 Initialisierung</span>
+                        }
+                        else if (CurrentStepIndex <= 5)
+                        {
+                            var op = buddyData.StepDetails[CurrentStepIndex - 1];
+                            <span>📥 Allokation: @op.ProcessName</span>
+                        }
+                        else
+                        {
+                            var op = buddyData.StepDetails[CurrentStepIndex - 1];
+                            <span>📤 Freigabe: @op.ProcessName</span>
+                        }
+                    </div>
+                    <div class="narrator-title">
+                        @if (CurrentStepIndex == 0)
+                        {
+                            <span>1024 KB Speicher unsegmentiert verfügbar (32 Kacheln à 32 KB)</span>
+                        }
+                        else
+                        {
+                            var op = buddyData.StepDetails[CurrentStepIndex - 1];
+                            <span>@op.DescriptionHeader</span>
+                        }
+                    </div>
+                </div>
+
+                <div class="narrator-body">
+                    <p class="narrator-text">
+                        @GetBuddyNarratorText(CurrentStepIndex, buddyData)
+                    </p>
+                </div>
+            </div>
+
+            <!-- Memory Strip Visualizer Card -->
+            <div class="memory-card">
+                <div class="memory-header">
+                    <h4 class="memory-title">Speicherbelegung (32 Blöcke à 32 KB = 1024 KB)</h4>
+                    <div class="memory-legend">
+                        <span class="legend-chip free">Frei</span>
+                        <span class="legend-chip p-blue">A (@buddyData.Requests[0] KB)</span>
+                        <span class="legend-chip p-green">B (@buddyData.Requests[1] KB)</span>
+                        <span class="legend-chip p-amber">C (@buddyData.Requests[2] KB)</span>
+                        <span class="legend-chip p-purple">D (@buddyData.Requests[3] KB)</span>
+                        <span class="legend-chip p-rose">E (@buddyData.Requests[4] KB)</span>
+                    </div>
+                </div>
+
+                <!-- 32-Chunk Visual Memory Bar -->
+                <div class="memory-bar-wrapper">
+                    <div class="memory-bar-container">
+                        @for (int c = 0; c < 32; c++)
+                        {
+                            var slot = currentSnapshot[c];
+                            var colorClass = GetSlotColorClass(slot);
+                            var isSlotActive = CurrentStepIndex > 0 && buddyData.StepDetails[CurrentStepIndex - 1].AffectedSlots.Contains(c);
+
+                            <div class="memory-slot @colorClass @(isSlotActive ? "active-slot" : "")"
+                                 title="Kachel @c [@(c * 32) KB – @((c + 1) * 32) KB]: @(slot == "free" ? "Frei" : $"Prozess {slot}")">
+                                <span class="slot-text">@(slot == "free" ? "–" : slot)</span>
+                                <span class="slot-idx">@c</span>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Memory Scale Ticks -->
+                    <div class="memory-ticks">
+                        <span class="tick tick-0">0 KB</span>
+                        <span class="tick tick-256">256 KB</span>
+                        <span class="tick tick-512">512 KB</span>
+                        <span class="tick tick-768">768 KB</span>
+                        <span class="tick tick-1024">1024 KB</span>
+                    </div>
+                </div>
+
+                <!-- Step Metrics Bar -->
+                <div class="metrics-grid four-up">
+                    <div class="metric-card">
+                        <span class="metric-label">Belegter Speicher</span>
+                        <strong class="metric-val">@((currentSnapshot.Count(s => s != "free") * 32)) KB</strong>
+                        <span class="metric-sub">@currentSnapshot.Count(s => s != "free") von 32 Kacheln</span>
+                    </div>
+
+                    <div class="metric-card">
+                        <span class="metric-label">Freier Speicher</span>
+                        <strong class="metric-val text-success">@((currentSnapshot.Count(s => s == "free") * 32)) KB</strong>
+                        <span class="metric-sub">@currentSnapshot.Count(s => s == "free") von 32 Kacheln</span>
+                    </div>
+
+                    <div class="metric-card">
+                        <span class="metric-label">Aktive Prozesse</span>
+                        <strong class="metric-val text-brand">@currentSnapshot.Where(s => s != "free").Distinct().Count()</strong>
+                        <span class="metric-sub">im RAM residierend</span>
+                    </div>
+
+                    <div class="metric-card">
+                        <span class="metric-label">Freigabereihenfolge</span>
+                        <strong class="metric-val text-amber">@string.Join(" → ", buddyData.ReleaseOrder)</strong>
+                        <span class="metric-sub">Schritte 6 bis 10</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Full History Matrix Table -->
+            <div class="history-matrix-card">
+                <h4 class="history-title">Gesamter Ablauf (10-Schritte Allokations-Matrix)</h4>
+                <div class="history-table-wrapper">
+                    <table class="buddy-matrix-table">
+                        <thead>
+                            <tr>
+                                <th class="col-op">Operation</th>
+                                @for (int c = 0; c < 32; c++)
+                                {
+                                    <th class="col-kachel">@c</th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Step 0: Initial -->
+                            <tr class="@(CurrentStepIndex == 0 ? "matrix-row-active" : "")">
+                                <td class="op-cell">Initial (1024 KB)</td>
+                                <td colspan="32" class="initial-bar">1024 KB Frei</td>
+                            </tr>
+
+                            @for (int s = 0; s < buddyData.Snapshots.Count; s++)
+                            {
+                                var stepNum = s + 1;
+                                var isRowActive = CurrentStepIndex == stepNum;
+                                var op = buddyData.StepDetails[s];
+                                var rowSnap = buddyData.Snapshots[s];
+
+                                <tr class="@(isRowActive ? "matrix-row-active" : "")">
+                                    <td class="op-cell">
+                                        <span class="proc-indicator @GetSlotColorClass(op.ProcessName)">@op.Title</span>
+                                    </td>
+                                    @for (int c = 0; c < 32; c++)
                                     {
-                                        <span class="memory-cell @(slot == "free" ? "free" : string.Empty)">@slot</span>
+                                        var slotVal = rowSnap[c];
+                                        var isAffected = op.AffectedSlots.Contains(c);
+
+                                        <td class="matrix-cell @GetSlotColorClass(slotVal) @(isAffected ? "affected-cell" : "")">
+                                            @(slotVal == "free" ? "–" : slotVal)
+                                        </td>
                                     }
-                                </div>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="validation-box">
+                <p class="validation-copy">⚠️ @parseError</p>
+            </div>
+        }
     }
     else
     {
-        <p class="validation-copy">@buddyError</p>
+        <!-- ========================================================================= -->
+        <!-- WORKSHEET VIEW (1:1 EXAM PRINTABLE WORKSPACE)                            -->
+        <!-- ========================================================================= -->
+        <div class="worksheet-view">
+            <div class="worksheet-toolbar no-print">
+                <button class="ws-btn solution-toggle @(ShowSolution ? "active" : "")" @onclick="ToggleSolution">
+                    @(ShowSolution ? "👁️ Musterlösung ausblenden" : "💡 Musterlösung anzeigen")
+                </button>
+                <button class="ws-btn print-btn" @onclick="PrintWorksheet">
+                    🖨️ Arbeitsblatt drucken
+                </button>
+            </div>
+
+            <div class="worksheet-paper">
+                <div class="ws-header">
+                    <div class="ws-title-group">
+                        <span class="ws-kicker">Übungsaufgabe zur Speicherverwaltung</span>
+                        <h3 class="ws-title">Buddy-System (Speicherzuweisung)</h3>
+                    </div>
+                    <div class="ws-meta-box">
+                        <div><strong>Vorlesung:</strong> Betriebssysteme</div>
+                        <div><strong>Thema:</strong> Speicherzuweisung &amp; Partner-Verfahren</div>
+                    </div>
+                </div>
+
+                <div class="ws-instructions">
+                    <p>
+                        Gegeben sei ein Hauptspeicher mit einer Gesamtgröße von <strong>1024 KB</strong>. 
+                        Die kleinste verwaltbare Kachelgröße beträgt <strong>32 KB</strong> (insgesamt 32 Kacheln).
+                    </p>
+                    <p>
+                        Tragen Sie für die folgenden Anforderungen der Prozesse <strong>A bis E</strong> sowie die anschließenden 
+                        Freigaben die jeweilige Belegung in das Raster ein. Verwenden Sie für belegte Kacheln den Prozessbuchstaben und für freie Bereiche einen Strich (<code>–</code>).
+                    </p>
+                </div>
+
+                @if (TryGetParsedBuddy(out var wsBuddy, out _))
+                {
+                    <!-- Process Spec Table -->
+                    <div class="ws-proc-specs">
+                        <table class="ws-spec-table">
+                            <thead>
+                                <tr>
+                                    <th>Prozess</th>
+                                    <th>A</th>
+                                    <th>B</th>
+                                    <th>C</th>
+                                    <th>D</th>
+                                    <th>E</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>Anforderung (KB)</strong></td>
+                                    <td>@wsBuddy!.Requests[0]</td>
+                                    <td>@wsBuddy.Requests[1]</td>
+                                    <td>@wsBuddy.Requests[2]</td>
+                                    <td>@wsBuddy.Requests[3]</td>
+                                    <td>@wsBuddy.Requests[4]</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Allokierte 2er-Potenz</strong></td>
+                                    <td>@(GetBlockSize(wsBuddy.Requests[0])) KB</td>
+                                    <td>@(GetBlockSize(wsBuddy.Requests[1])) KB</td>
+                                    <td>@(GetBlockSize(wsBuddy.Requests[2])) KB</td>
+                                    <td>@(GetBlockSize(wsBuddy.Requests[3])) KB</td>
+                                    <td>@(GetBlockSize(wsBuddy.Requests[4])) KB</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <p class="ws-release-note">
+                            <strong>Reihenfolge der Freigabe:</strong> @string.Join(" → ", wsBuddy.ReleaseOrder)
+                        </p>
+                    </div>
+
+                    <!-- 32-Column Exam Grid Table -->
+                    <div class="ws-matrix-wrapper">
+                        <table class="ws-matrix-table">
+                            <thead>
+                                <tr>
+                                    <th class="ws-col-hdr">Operation</th>
+                                    @for (int c = 0; c < 32; c++)
+                                    {
+                                        <th>@c</th>
+                                    }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Initial Row -->
+                                <tr>
+                                    <td class="ws-row-label">Initial</td>
+                                    <td colspan="32" class="ws-init-cell">1024 KB</td>
+                                </tr>
+
+                                <!-- 5 Allocation Rows -->
+                                @for (int i = 0; i < 5; i++)
+                                {
+                                    var op = wsBuddy.StepDetails[i];
+                                    var snap = wsBuddy.Snapshots[i];
+
+                                    <tr>
+                                        <td class="ws-row-label">@op.ProcessName (@wsBuddy.Requests[i])</td>
+                                        @for (int c = 0; c < 32; c++)
+                                        {
+                                            var val = snap[c];
+                                            <td class="ws-slot-cell @(ShowSolution && val != "free" ? "ws-filled" : "")">
+                                                @(ShowSolution ? (val == "free" ? "–" : val) : "")
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+
+                                <!-- 5 Release Rows -->
+                                @for (int i = 5; i < 10; i++)
+                                {
+                                    var op = wsBuddy.StepDetails[i];
+                                    var snap = wsBuddy.Snapshots[i];
+
+                                    <tr>
+                                        <td class="ws-row-label">Free @op.ProcessName</td>
+                                        @for (int c = 0; c < 32; c++)
+                                        {
+                                            var val = snap[c];
+                                            <td class="ws-slot-cell @(ShowSolution && val != "free" ? "ws-filled" : "")">
+                                                @(ShowSolution ? (val == "free" ? "–" : val) : "")
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
     }
+
 </article>
 
 @code {
+    public enum ViewMode
+    {
+        Simulator,
+        Worksheet
+    }
+
     private static readonly string[] ProcessNames = ["A", "B", "C", "D", "E"];
 
     [Parameter]
-    public string BuddyRequestsInput { get; set; } = "120,64,200,32,90";
+    public string BuddyRequestsInput { get; set; } = "120, 64, 200, 32, 90";
 
     [Parameter]
-    public string BuddyReleaseOrderInput { get; set; } = "B,D,A,E,C";
+    public string BuddyReleaseOrderInput { get; set; } = "B, D, A, E, C";
 
-    private bool TryGetBuddyDemo(out BuddyDemoResult? result, out string errorMessage)
+    [Parameter]
+    public bool IsEmbed { get; set; } = false;
+
+    private ViewMode ActiveView { get; set; } = ViewMode.Simulator;
+    private bool ShowSolution { get; set; } = false;
+    private int CurrentStepIndex { get; set; } = 0;
+
+    // Presets
+    private const string Preset1Requests = "120, 64, 200, 32, 90";
+    private const string Preset1Release = "B, D, A, E, C";
+
+    private const string Preset2Requests = "171, 7, 394, 41, 9";
+    private const string Preset2Release = "C, E, D, B, A";
+
+    private const string Preset3Requests = "80, 240, 60, 110, 45";
+    private const string Preset3Release = "A, C, B, E, D";
+
+    public sealed record BuddyStepInfo(
+        int StepNumber,
+        string ProcessName,
+        string OperationType,
+        string Title,
+        string DescriptionHeader,
+        int RequestedSize,
+        int BlockSize,
+        List<int> AffectedSlots
+    );
+
+    public sealed record ParsedBuddyData(
+        int[] Requests,
+        string[] ReleaseOrder,
+        List<string[]> Snapshots,
+        List<BuddyStepInfo> StepDetails
+    );
+
+    protected override void OnInitialized()
+    {
+        ReadQueryParameters();
+    }
+
+    private void ReadQueryParameters()
     {
         try
         {
-            var requests = ParseIntegerSequence(BuddyRequestsInput, "buddy requests");
-            if (requests.Length != ProcessNames.Length)
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query;
+            if (string.IsNullOrEmpty(query)) return;
+
+            var pairs = query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var pair in pairs)
             {
-                throw new InvalidOperationException("Provide exactly five buddy requests so they map to processes A-E.");
+                var parts = pair.Split('=', 2);
+                var key = parts[0].ToLowerInvariant();
+                var val = parts.Length > 1 ? Uri.UnescapeDataString(parts[1]) : "";
+
+                if (key == "embed" && bool.TryParse(val, out var embedBool))
+                {
+                    IsEmbed = embedBool;
+                }
+                else if (key == "view")
+                {
+                    ActiveView = val.Equals("worksheet", StringComparison.OrdinalIgnoreCase) 
+                        ? ViewMode.Worksheet 
+                        : ViewMode.Simulator;
+                }
+                else if (key == "solution" && bool.TryParse(val, out var solBool))
+                {
+                    ShowSolution = solBool;
+                }
+                else if (key == "requests" && !string.IsNullOrWhiteSpace(val))
+                {
+                    BuddyRequestsInput = val;
+                }
+                else if (key == "release" && !string.IsNullOrWhiteSpace(val))
+                {
+                    BuddyReleaseOrderInput = val;
+                }
+            }
+        }
+        catch { }
+    }
+
+    private void SetView(ViewMode mode)
+    {
+        ActiveView = mode;
+    }
+
+    private void ToggleSolution()
+    {
+        ShowSolution = !ShowSolution;
+    }
+
+    private async Task PrintWorksheet()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+
+    private void OnConfigurationChanged()
+    {
+        CurrentStepIndex = 0;
+    }
+
+    private void LoadPreset(string requests, string release)
+    {
+        BuddyRequestsInput = requests;
+        BuddyReleaseOrderInput = release;
+        CurrentStepIndex = 0;
+    }
+
+    private void GenerateRandomSet()
+    {
+        var rnd = new Random();
+        var requests = new int[5];
+        for (int i = 0; i < 5; i++)
+        {
+            requests[i] = rnd.Next(5, 450);
+        }
+
+        var shuffledRelease = ProcessNames.OrderBy(_ => rnd.Next()).ToArray();
+
+        BuddyRequestsInput = string.Join(", ", requests);
+        BuddyReleaseOrderInput = string.Join(", ", shuffledRelease);
+        CurrentStepIndex = 0;
+    }
+
+    private void GoToStart()
+    {
+        CurrentStepIndex = 0;
+    }
+
+    private void PreviousStep()
+    {
+        if (CurrentStepIndex > 0) CurrentStepIndex--;
+    }
+
+    private void NextStep()
+    {
+        if (TryGetParsedBuddy(out var buddyData, out _))
+        {
+            if (CurrentStepIndex < buddyData!.Snapshots.Count)
+            {
+                CurrentStepIndex++;
+            }
+        }
+    }
+
+    private void GoToEnd()
+    {
+        if (TryGetParsedBuddy(out var buddyData, out _))
+        {
+            CurrentStepIndex = buddyData!.Snapshots.Count;
+        }
+    }
+
+    private void OnSliderChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var step))
+        {
+            CurrentStepIndex = step;
+        }
+    }
+
+    private static int GetBlockSize(int requestSize)
+    {
+        if (requestSize <= 0) return 0;
+        int power = (int)Math.Ceiling(Math.Log2(requestSize));
+        return (int)Math.Pow(2, Math.Max(5, power)); // at least 32 KB chunk
+    }
+
+    private bool TryGetParsedBuddy(out ParsedBuddyData? data, out string errorMessage)
+    {
+        try
+        {
+            var requests = BuddyRequestsInput
+                .Split(new[] { ',', ';', ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(t => int.TryParse(t, out var val) ? val : throw new InvalidOperationException($"Ungültige Zahl '{t}' in den Anforderungen."))
+                .ToArray();
+
+            if (requests.Length != 5)
+            {
+                throw new InvalidOperationException("Bitte geben Sie genau 5 Speicheranforderungen für die Prozesse A bis E an.");
             }
 
-            if (requests.Any(request => request < 1 || request > 512))
+            if (requests.Any(r => r < 1 || r > 512))
             {
-                throw new InvalidOperationException("Buddy requests must stay between 1 KB and 512 KB.");
+                throw new InvalidOperationException("Anforderungen müssen zwischen 1 KB und 512 KB liegen.");
             }
 
-            var releaseOrder = ParseReleaseOrder(BuddyReleaseOrderInput);
+            var release = BuddyReleaseOrderInput
+                .Split(new[] { ',', ';', ' ', '\t', '>', '-' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(item => item.ToUpperInvariant())
+                .ToArray();
+
+            if (release.Length != 5 || release.Distinct().Count() != 5 || release.Except(ProcessNames).Any())
+            {
+                throw new InvalidOperationException("Freigabereihenfolge muss die Prozesse A, B, C, D, E jeweils genau einmal enthalten.");
+            }
+
             var parameters = new BuddyParameters
             {
                 Processes = ProcessNames.ToArray(),
                 Requests = requests,
-                FreeOrder = releaseOrder
+                FreeOrder = release
             };
 
             var solution = (BuddySolution)new BuddySolver().Solve(parameters);
-            var mappedHistory = solution.History
-                .Select(snapshot => snapshot.Select(MapBuddySlot).ToArray())
-                .ToArray();
+            var mappedSnapshots = solution.History
+                .Select(snap => snap.Select(MapBuddySlot).ToArray())
+                .ToList();
 
-            result = new BuddyDemoResult(
-                mappedHistory,
-                releaseOrder,
-                [new MemoryLegendItem("free", true), .. ProcessNames.Select(name => new MemoryLegendItem(name, false))]);
+            // Construct step info details
+            var stepDetails = new List<BuddyStepInfo>();
+            for (int s = 0; s < mappedSnapshots.Count; s++)
+            {
+                var stepNum = s + 1;
+                string pName;
+                string opType;
+                int reqSize = 0;
+                int blkSize = 0;
+
+                if (s < 5)
+                {
+                    pName = ProcessNames[s];
+                    opType = "Allocate";
+                    reqSize = requests[s];
+                    blkSize = GetBlockSize(reqSize);
+                }
+                else
+                {
+                    pName = release[s - 5];
+                    opType = "Release";
+                    var pIdx = Array.IndexOf(ProcessNames, pName);
+                    reqSize = pIdx >= 0 ? requests[pIdx] : 0;
+                    blkSize = GetBlockSize(reqSize);
+                }
+
+                var currentSnap = mappedSnapshots[s];
+                var prevSnap = s == 0 ? Enumerable.Repeat("free", 32).ToArray() : mappedSnapshots[s - 1];
+
+                var affected = new List<int>();
+                for (int c = 0; c < 32; c++)
+                {
+                    if (currentSnap[c] != prevSnap[c])
+                    {
+                        affected.Add(c);
+                    }
+                }
+
+                var title = opType == "Allocate" ? $"{pName} ({reqSize} KB)" : $"Free {pName}";
+                var descHeader = opType == "Allocate"
+                    ? $"Anforderung von Prozess {pName}: {reqSize} KB (Allokiert: {blkSize} KB)"
+                    : $"Freigabe von Prozess {pName} ({reqSize} KB, {blkSize} KB Block)";
+
+                stepDetails.Add(new BuddyStepInfo(stepNum, pName, opType, title, descHeader, reqSize, blkSize, affected));
+            }
+
+            data = new ParsedBuddyData(requests, release, mappedSnapshots, stepDetails);
             errorMessage = string.Empty;
             return true;
         }
         catch (Exception ex)
         {
-            result = null;
+            data = null;
             errorMessage = ex.Message;
             return false;
         }
@@ -135,41 +691,45 @@
             _ => "?"
         };
 
-    private int[] ParseIntegerSequence(string input, string fieldName) =>
-        input
-            .Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(token => int.TryParse(token, out var value)
-                ? value
-                : throw new InvalidOperationException($"Invalid number '{token}' in {fieldName}."))
-            .ToArray();
-
-    private string[] ParseReleaseOrder(string input)
-    {
-        var releaseOrder = input
-            .Split(new[] { ',', ';', ' ', '|' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(item => item.ToUpperInvariant())
-            .ToArray();
-
-        if (releaseOrder.Length != ProcessNames.Length)
+    private string GetSlotColorClass(string slot) =>
+        slot switch
         {
-            throw new InvalidOperationException("Provide a release order with exactly the process names A-E.");
+            "A" => "p-blue",
+            "B" => "p-green",
+            "C" => "p-amber",
+            "D" => "p-purple",
+            "E" => "p-rose",
+            "Free A" or "A (120)" or "A (171)" or "A (80)" => "p-blue",
+            "Free B" or "B (64)" or "B (7)" or "B (240)" => "p-green",
+            "Free C" or "C (200)" or "C (394)" or "C (60)" => "p-amber",
+            "Free D" or "D (32)" or "D (41)" or "D (110)" => "p-purple",
+            "Free E" or "E (90)" or "E (9)" or "E (45)" => "p-rose",
+            _ => "free"
+        };
+
+    private string GetBuddyNarratorText(int stepIndex, ParsedBuddyData data)
+    {
+        if (stepIndex == 0)
+        {
+            return "Initialzustand: Der gesamte Speicher von 1024 KB ist ungeteilt und frei. 32 Kacheln à 32 KB stehen bereit.";
         }
 
-        if (releaseOrder.Except(ProcessNames).Any() || releaseOrder.Distinct().Count() != ProcessNames.Length)
+        var op = data.StepDetails[stepIndex - 1];
+        if (op.OperationType == "Allocate")
         {
-            throw new InvalidOperationException("Release order must contain each of A, B, C, D, and E exactly once.");
+            var frag = op.BlockSize - op.RequestedSize;
+            var numChunks = op.BlockSize / 32;
+            var startKb = op.AffectedSlots.Count > 0 ? op.AffectedSlots.Min() * 32 : 0;
+            var endKb = startKb + op.BlockSize;
+
+            return $"Schritt {stepIndex} (Allokation): Prozess {op.ProcessName} fordert {op.RequestedSize} KB an. Die kleinste passende 2er-Potenz ist {op.BlockSize} KB ({numChunks} Kacheln à 32 KB). Größere freie Blöcke werden rekursiv halbiert (Split), bis ein passender {op.BlockSize} KB Block entsteht. Prozess {op.ProcessName} wird im Adressbereich [{startKb}..{endKb} KB] platziert. Interner Verschnitt: {frag} KB ({((double)frag / op.BlockSize * 100):F1}%).";
         }
+        else
+        {
+            var startKb = op.AffectedSlots.Count > 0 ? op.AffectedSlots.Min() * 32 : 0;
+            var endKb = startKb + op.BlockSize;
 
-        return releaseOrder;
-    }
-
-    public sealed record MemoryLegendItem(string Label, bool IsFree);
-
-    public sealed record BuddyDemoResult(
-        string[][] History,
-        string[] ReleaseOrder,
-        MemoryLegendItem[] Legend)
-    {
-        public int FinalOccupiedChunks => History.LastOrDefault()?.Count(slot => slot != "free") ?? 0;
+            return $"Schritt {stepIndex} (Freigabe & Merge): Prozess {op.ProcessName} gibt seinen {op.BlockSize} KB Block [{startKb}..{endKb} KB] frei. Ist der zugehörige Nachbar-Partner (Buddy) ebenfalls frei, verschmelzen (coalesce) beide Partner sofort wieder zu einem doppelt so großen zusammenhängenden Block.";
+        }
     }
 }

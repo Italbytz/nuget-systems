@@ -1,0 +1,603 @@
+@namespace Italbytz.Systems.Blazor.Components.ComputingSystems
+@using Italbytz.ComputingSystems
+@using Italbytz.ComputingSystems.Abstractions
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<article class="kv-container @(IsEmbed ? "embed-mode" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
+
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
+    {
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Grundlagen der Informatik &bull; Schaltnetze &amp; Boolesche Algebra</p>
+            <h2>Karnaugh-Veitch-Diagramme (KV-Maps) &amp; Boolesche Minimierung</h2>
+            <p class="feature-intro">
+                Grafische Funktionsminimierung über 2D-Gray-Code-Raster (2, 3 und 4 Variablen). 
+                Interaktive Blockbildung (Primimplikanten mit Kantenlängen $2^k$), Randüberläufe und 
+                schrittweises Auslesen der disjunktiven Minimalform (DMF).
+            </p>
+        </div>
+    }
+
+    <!-- View Switcher -->
+    @if (!IsEmbed)
+    {
+        <div class="view-switch no-print">
+            <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Simulator)">
+                🚀 Interaktiver Simulator &amp; KV-Matrix
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Worksheet)">
+                🖨️ Klausur-Arbeitsblatt (Druckansicht)
+            </button>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- SIMULATOR VIEW                                                            -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Controls Panel -->
+        <div class="controls-panel no-print">
+            <div class="config-grid">
+                <label class="control-label">
+                    <span>Anzahl Variablen:</span>
+                    <select class="form-input select" @bind="VariableCount" @bind:after="OnVariableCountChanged">
+                        <option value="2">2 Variablen ($x_1, x_0$ &rarr; 4 Zellen)</option>
+                        <option value="3">3 Variablen ($x_2, x_1, x_0$ &rarr; 8 Zellen)</option>
+                        <option value="4">4 Variablen ($x_3, x_2, x_1, x_0$ &rarr; 16 Zellen)</option>
+                    </select>
+                </label>
+
+                <label class="control-label wide-label">
+                    <span>Wertevektor (Wahrheitswerte $f(m_0 \dots m_{2^n-1})$):</span>
+                    <input type="text" class="form-input mono" @bind="TruthValuesInput" @bind:after="Recalculate" />
+                </label>
+            </div>
+
+            <!-- Presets Bar -->
+            <div class="preset-bar">
+                <span class="preset-label">Beispiele:</span>
+                <button class="preset-btn" @onclick='() => LoadPreset("Exam1")'>Klausur-Standard (3-Var: 1,1,1,0,0,1,0,0)</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("Majority3")'>Mehrheitsfunktion (Majority-3)</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("Xor4")'>4-Var Schachbrett / Parität</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("FullAdderCarry")'>Volladdierer Übertrag</button>
+                <button class="preset-btn random" @onclick="GenerateRandomFunction">🎲 Zufallsfunktion</button>
+            </div>
+        </div>
+
+        @if (Solution != null)
+        {
+            var totalGroups = Solution.Groups.Length;
+            var currentGroup = (CurrentGroupIndex >= 0 && CurrentGroupIndex < totalGroups) ? Solution.Groups[CurrentGroupIndex] : null;
+
+            <!-- Player Toolbar -->
+            @if (totalGroups > 0)
+            {
+                <div class="player-toolbar no-print">
+                    <div class="player-controls">
+                        <button class="player-btn" title="Alle Blöcke" @onclick="() => CurrentGroupIndex = -1">👁️ Alle Blöcke</button>
+                        <button class="player-btn" title="Zurück" disabled="@(CurrentGroupIndex <= 0)" @onclick="PreviousGroup">◀ Zurück</button>
+                        <button class="player-btn primary" title="Nächster Block" disabled="@(CurrentGroupIndex >= totalGroups - 1)" @onclick="NextGroup">▶ Nächster Block</button>
+                        <button class="player-btn title" title="Ende" @onclick="() => CurrentGroupIndex = totalGroups - 1">⏭ Ende</button>
+                    </div>
+
+                    <div class="player-progress">
+                        <span class="step-indicator">
+                            @if (CurrentGroupIndex == -1)
+                            {
+                                <strong>Alle @totalGroups Primimplikanten aktiv</strong>
+                            }
+                            else
+                            {
+                                <strong>Block @(CurrentGroupIndex + 1) / @totalGroups:</strong>
+                                <span class="mono bold blue">@currentGroup?.Term</span>
+                            }
+                        </span>
+                    </div>
+                </div>
+            }
+
+            <!-- Narrator Card -->
+            <div class="narrator-card">
+                <div class="narrator-header">
+                    <div class="step-badge badge-kv">
+                        @(CurrentGroupIndex == -1 ? "Gesamtergebnis" : $"Primimplikant #{CurrentGroupIndex + 1}")
+                    </div>
+                    <div class="narrator-title">
+                        Minimalform: <strong class="emerald mono">@GetMinimalFormFormula()</strong>
+                    </div>
+                </div>
+                <p class="narrator-text">
+                    @if (currentGroup != null)
+                    {
+                        <span>Block <strong>@currentGroup.Term</strong> überdeckt die Minterme <code>@string.Join(", ", currentGroup.CoveredMintermIndices.Select(m => $"m_{m}"))</code>. @(currentGroup.IsEssential ? "(Essentieller Primimplikant)" : "")</span>
+                    }
+                    else
+                    {
+                        <span>Die Funktion wird durch @totalGroups Primimplikanten minimal überdeckt. Klicken Sie auf Zellen in der Matrix, um einzelne Bitwerte umzuschalten.</span>
+                    }
+                </p>
+                <div class="kv-stats-strip">
+                    <span>Minterme mit 1: <strong>@Solution.Cells.Count(c => c.Value == 1) / @Solution.Cells.Length</strong></span>
+                    <span>Anzahl Primimplikanten: <strong class="mono blue">@totalGroups</strong></span>
+                    <span>Variablen: <strong class="mono">@VariableCount</strong></span>
+                </div>
+            </div>
+
+            <!-- Main Display: KV Map Canvas & Group List -->
+            <div class="main-display-grid">
+
+                <!-- Left: KV Map Interactive Grid -->
+                <div class="kv-card">
+                    <div class="kv-header">
+                        <h3>KV-Diagramm (@VariableCount Variablen)</h3>
+                        <div class="kv-legend">
+                            <span class="leg-item"><span class="leg-dot dot-one"></span> 1 (Aktiv)</span>
+                            <span class="leg-item"><span class="leg-dot dot-zero"></span> 0 (Inaktiv)</span>
+                            <span class="leg-item"><span class="leg-dot dot-group"></span> Im gewählten Block</span>
+                        </div>
+                    </div>
+
+                    <div class="kv-matrix-container">
+                        <table class="kv-interactive-table">
+                            <thead>
+                                <tr>
+                                    <th class="axis-header" colspan="2">
+                                        <div class="axis-split">
+                                            <span class="axis-row-var">@GetRowVariablesLabel()</span>
+                                            <span class="axis-slash">\</span>
+                                            <span class="axis-col-var">@GetColVariablesLabel()</span>
+                                        </div>
+                                    </th>
+                                    @for (int c = 0; c < Solution.ColumnCount; c++)
+                                    {
+                                        var colCode = GetColumnCode(c);
+                                        <th class="col-gray-header">
+                                            <span class="mono bold">@colCode</span>
+                                        </th>
+                                    }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int r = 0; r < Solution.RowCount; r++)
+                                {
+                                    var rowCode = GetRowCode(r);
+                                    <tr>
+                                        <th class="row-gray-header" colspan="2">
+                                            <span class="mono bold">@rowCode</span>
+                                        </th>
+                                        @for (int c = 0; c < Solution.ColumnCount; c++)
+                                        {
+                                            var cell = Solution.Cells.FirstOrDefault(cl => cl.RowIndex == r && cl.ColumnIndex == c);
+                                            if (cell != null)
+                                            {
+                                                bool isInCurrentGroup = currentGroup != null && currentGroup.CoveredMintermIndices.Contains(cell.MintermIndex);
+                                                string cellClass = cell.Value == 1 ? "cell-one" : (cell.Value == -1 ? "cell-dc" : "cell-zero");
+                                                if (isInCurrentGroup) cellClass += " cell-highlight";
+
+                                                <td class="kv-cell @cellClass" @onclick="() => ToggleCell(cell.MintermIndex)">
+                                                    <div class="cell-minterm">m@(cell.MintermIndex)</div>
+                                                    <div class="cell-val">@(cell.Value == -1 ? "-" : cell.Value.ToString())</div>
+                                                </td>
+                                            }
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Right: Groups List & Boolean Expression -->
+                <div class="groups-panel">
+                    <div class="sub-card">
+                        <div class="sub-card-header">
+                            <h4>Gefundene Primimplikanten</h4>
+                        </div>
+                        <div class="groups-list">
+                            @for (int i = 0; i < Solution.Groups.Length; i++)
+                            {
+                                var grp = Solution.Groups[i];
+                                bool isCur = (i == CurrentGroupIndex);
+                                int grpIdx = i;
+
+                                <div class="group-item @(isCur ? "active-grp" : "")" @onclick="() => CurrentGroupIndex = grpIdx">
+                                    <div class="grp-badge">Block @(i + 1)</div>
+                                    <div class="grp-term mono bold">@grp.Term</div>
+                                    <div class="grp-minterms">Überdeckt: @string.Join(", ", grp.CoveredMintermIndices.Select(m => $"m{m}"))</div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="formula-card">
+                        <div class="formula-title">Disjunktive Minimalform (DMF):</div>
+                        <div class="formula-display mono bold emerald">
+                            $y = @GetMinimalFormFormula()$
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        }
+    }
+
+    <!-- ========================================================================= -->
+    <!-- WORKSHEET VIEW (1:1 EXAM REPLICA)                                         -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Worksheet)
+    {
+        <div class="worksheet-paper">
+
+            <!-- Exam Header -->
+            <div class="exam-header">
+                <div class="exam-title-block">
+                    <span class="exam-sub">Grundlagen der Informatik &bull; Schaltnetze</span>
+                    <h1 class="exam-main-title">Übungs- und Klausuraufgabe: Minimierung mit KV-Diagrammen</h1>
+                </div>
+                <div class="exam-meta-box no-print">
+                    <button class="toggle-sol-btn @(ShowSolution ? "active" : "")" @onclick="ToggleSolution">
+                        @(ShowSolution ? "👁️ Musterlösung ausblenden" : "💡 Musterlösung einblenden")
+                    </button>
+                    <button class="print-btn" @onclick="TriggerPrint">
+                        🖨️ Seite drucken / PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Student Info Fields -->
+            <div class="student-info-strip">
+                <div class="info-field">
+                    <span class="info-label">Name, Vorname:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field">
+                    <span class="info-label">Matrikelnummer:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field points-field">
+                    <span class="info-label">Punkte:</span>
+                    <div class="points-box">/ 5 P.</div>
+                </div>
+            </div>
+
+            <!-- Intro Text matching TIKarnaughVeitch -->
+            <div class="task-prompt-box">
+                <p class="task-text">
+                    In KV-Diagrammen müssen zunächst maximale Blöcke um Einsen mit Kantenlänge $1, 2, 4, \ldots$ gefunden werden 
+                    (die Blöcke können über die Diagrammgrenzen hinweggehen) und dann das entsprechende Monom ausgelesen werden.
+                </p>
+            </div>
+
+            <!-- Task Section -->
+            <div class="task-section">
+                <p class="task-text">
+                    Der Ausgang einer Funktion $y = f(x_2, x_1, x_0)$ ist durch folgenden Wertevektor beschrieben:
+                    $$\mathbf{f} = (@string.Join(", ", TruthValues))$$
+                    Ermitteln Sie die Ausgangsfunktion mit Hilfe des folgenden KV-Diagramms und geben Sie die <strong>disjunktive Minimalform (DMF)</strong> an:
+                </p>
+
+                <div class="ws-content-grid">
+                    
+                    <!-- Left: KV Map Grid -->
+                    <div class="ws-kv-box">
+                        <table class="ws-matrix-table">
+                            <thead>
+                                <tr>
+                                    <th class="ws-axis" colspan="2">$x_2 \backslash x_1 x_0$</th>
+                                    <th class="ws-gray-hdr">00</th>
+                                    <th class="ws-gray-hdr">01</th>
+                                    <th class="ws-gray-hdr">11</th>
+                                    <th class="ws-gray-hdr">10</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int r = 0; r < (Solution?.RowCount ?? 2); r++)
+                                {
+                                    <tr>
+                                        <th class="ws-gray-hdr" colspan="2">@(r == 0 ? "0" : "1")</th>
+                                        @for (int c = 0; c < (Solution?.ColumnCount ?? 4); c++)
+                                        {
+                                            var cell = Solution?.Cells.FirstOrDefault(cl => cl.RowIndex == r && cl.ColumnIndex == c);
+                                            var val = cell?.Value ?? 0;
+                                            
+                                            <td class="ws-cell @(ShowSolution && val == 1 ? "ws-cell-fill" : "")">
+                                                @if (ShowSolution)
+                                                {
+                                                    <span>@val</span>
+                                                }
+                                                else
+                                                {
+                                                    <div class="ws-empty-slot"></div>
+                                                }
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Right: Solution / Formula Area -->
+                    <div class="ws-answer-col">
+                        <div class="ws-box-heading">Disjunktive Minimalform $y$:</div>
+
+                        @if (ShowSolution && Solution != null)
+                        {
+                            <div class="ws-solution-box">
+                                <div class="sol-formula-line mono bold">
+                                    $$y = @GetMinimalFormFormula()$$
+                                </div>
+                                <div class="sol-details">
+                                    <strong>Gefundene Primimplikanten:</strong>
+                                    <ul class="sol-grp-list">
+                                        @foreach (var grp in Solution.Groups)
+                                        {
+                                            <li>
+                                                <code class="mono bold">@grp.Term</code> (überdeckt: @string.Join(", ", grp.CoveredMintermIndices.Select(m => $"m_{m}")))
+                                            </li>
+                                        }
+                                    </ul>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="ws-blank-answer-area">
+                                <div class="blank-formula-slot">
+                                    <span class="mono bold">y = </span>
+                                    <div class="blank-line-long"></div>
+                                </div>
+                                <div class="blank-calc-lines">
+                                    <div class="calc-line"></div>
+                                    <div class="calc-line"></div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="exam-footer">
+                <div class="exam-footer-note">
+                    Hinweis: Blöcke müssen Zweierpotenz-Größen ($1, 2, 4, 8$) haben. Rand- und Ecküberläufe (Torus-Topologie) beachten!
+                </div>
+            </div>
+
+        </div>
+    }
+
+</article>
+
+@code {
+    public enum ViewMode { Simulator, Worksheet }
+
+    [Parameter] public string? View { get; set; }
+    [Parameter] public bool? SolutionParam { get; set; }
+    [Parameter] public bool? Embed { get; set; }
+
+    private ViewMode ActiveView = ViewMode.Simulator;
+    private bool ShowSolution = false;
+    private bool IsEmbed = false;
+
+    private int VariableCount = 3;
+    private string TruthValuesInput = "1,1,1,0,0,1,0,0";
+    private int[] TruthValues = new int[] { 1, 1, 1, 0, 0, 1, 0, 0 };
+
+    private IKarnaughMapSolution? Solution;
+    private int CurrentGroupIndex = -1;
+
+    protected override void OnInitialized()
+    {
+        ReadQueryParameters();
+        Recalculate();
+    }
+
+    protected override void OnParametersSet()
+    {
+        ReadQueryParameters();
+    }
+
+    private void ReadQueryParameters()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query;
+            if (!string.IsNullOrEmpty(query))
+            {
+                if (query.Contains("view=worksheet", StringComparison.OrdinalIgnoreCase))
+                {
+                    ActiveView = ViewMode.Worksheet;
+                }
+                if (query.Contains("solution=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    ShowSolution = true;
+                }
+                if (query.Contains("embed=true", StringComparison.OrdinalIgnoreCase) || query.Contains("embedded=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsEmbed = true;
+                }
+            }
+        }
+        catch { }
+    }
+
+    private void SetView(ViewMode mode)
+    {
+        ActiveView = mode;
+    }
+
+    private void ToggleSolution()
+    {
+        ShowSolution = !ShowSolution;
+    }
+
+    private async Task TriggerPrint()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+
+    private void OnVariableCountChanged()
+    {
+        int requiredLength = 1 << VariableCount;
+        TruthValues = new int[requiredLength];
+        // Fill initial pattern
+        if (VariableCount == 3)
+        {
+            TruthValues = new int[] { 1, 1, 1, 0, 0, 1, 0, 0 };
+        }
+        else if (VariableCount == 2)
+        {
+            TruthValues = new int[] { 0, 1, 1, 0 };
+        }
+        else
+        {
+            TruthValues = new int[] { 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1 };
+        }
+        TruthValuesInput = string.Join(",", TruthValues);
+        Recalculate();
+    }
+
+    private void LoadPreset(string preset)
+    {
+        switch (preset)
+        {
+            case "Exam1":
+                VariableCount = 3;
+                TruthValues = new int[] { 1, 1, 1, 0, 0, 1, 0, 0 };
+                break;
+            case "Majority3":
+                VariableCount = 3;
+                TruthValues = new int[] { 0, 0, 0, 1, 0, 1, 1, 1 };
+                break;
+            case "Xor4":
+                VariableCount = 4;
+                TruthValues = new int[] { 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0 };
+                break;
+            case "FullAdderCarry":
+                VariableCount = 3;
+                TruthValues = new int[] { 0, 0, 0, 1, 0, 1, 1, 1 };
+                break;
+        }
+        TruthValuesInput = string.Join(",", TruthValues);
+        Recalculate();
+    }
+
+    private void GenerateRandomFunction()
+    {
+        var rand = new Random();
+        int len = 1 << VariableCount;
+        TruthValues = new int[len];
+        for (int i = 0; i < len; i++)
+        {
+            TruthValues[i] = rand.Next(2);
+        }
+        TruthValuesInput = string.Join(",", TruthValues);
+        Recalculate();
+    }
+
+    private void ToggleCell(int mintermIdx)
+    {
+        if (mintermIdx >= 0 && mintermIdx < TruthValues.Length)
+        {
+            TruthValues[mintermIdx] = (TruthValues[mintermIdx] + 1) % 2;
+            TruthValuesInput = string.Join(",", TruthValues);
+            Recalculate();
+        }
+    }
+
+    private void Recalculate()
+    {
+        try
+        {
+            var parsed = TruthValuesInput
+                .Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(t => int.TryParse(t, out var val) ? val : 0)
+                .ToArray();
+
+            int requiredLength = 1 << VariableCount;
+            if (parsed.Length != requiredLength)
+            {
+                var adjusted = new int[requiredLength];
+                Array.Copy(parsed, adjusted, Math.Min(parsed.Length, requiredLength));
+                parsed = adjusted;
+            }
+
+            TruthValues = parsed;
+            var solver = new KarnaughMapSolver();
+            Solution = solver.Solve(new KarnaughMapParameters(VariableCount, TruthValues));
+            CurrentGroupIndex = -1;
+        }
+        catch { }
+    }
+
+    private void PreviousGroup() { if (CurrentGroupIndex > 0) CurrentGroupIndex--; }
+    private void NextGroup() { if (Solution != null && CurrentGroupIndex < Solution.Groups.Length - 1) CurrentGroupIndex++; }
+
+    private string GetRowVariablesLabel()
+    {
+        return VariableCount switch
+        {
+            2 => "x_1",
+            3 => "x_2",
+            4 => "x_3 x_2",
+            _ => "x_row"
+        };
+    }
+
+    private string GetColVariablesLabel()
+    {
+        return VariableCount switch
+        {
+            2 => "x_0",
+            3 => "x_1 x_0",
+            4 => "x_1 x_0",
+            _ => "x_col"
+        };
+    }
+
+    private string GetRowCode(int rowIndex)
+    {
+        var cell = Solution?.Cells.FirstOrDefault(c => c.RowIndex == rowIndex);
+        return cell?.RowCode ?? (rowIndex == 0 ? "0" : "1");
+    }
+
+    private string GetColumnCode(int colIndex)
+    {
+        var cell = Solution?.Cells.FirstOrDefault(c => c.ColumnIndex == colIndex);
+        return cell?.ColumnCode ?? (colIndex == 0 ? "00" : (colIndex == 1 ? "01" : (colIndex == 2 ? "11" : "10")));
+    }
+
+    private string GetMinimalFormFormula()
+    {
+        if (Solution == null || Solution.Groups.Length == 0) return "0";
+        return string.Join(" \\vee ", Solution.Groups.Select(g => FormatTermLatex(g.Term)));
+    }
+
+    private string FormatTermLatex(string term)
+    {
+        if (string.IsNullOrEmpty(term)) return "1";
+        // Convert terms like !x1 x0 to \overline{x_1} x_0
+        var tokens = term.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var latexTokens = new List<string>();
+        foreach (var tok in tokens)
+        {
+            if (tok.StartsWith("!"))
+            {
+                var varName = tok.Substring(1);
+                latexTokens.Add($"\\overline{{{varName}}}");
+            }
+            else
+            {
+                latexTokens.Add(tok);
+            }
+        }
+        return string.Join(" ", latexTokens);
+    }
+}
