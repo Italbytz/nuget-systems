@@ -1,0 +1,591 @@
+@using Microsoft.JSInterop
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+
+<article class="ident-container @(IsEmbed ? "is-embed" : "")">
+
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
+    {
+        <header class="ident-header">
+            <div class="header-content">
+                <span class="badge-cat">Rechnernetze &bull; Anwendungsschicht</span>
+                <h1 class="header-title">Webserver-Identifikation (3 weltweit eindeutige Merkmale)</h1>
+                <p class="header-desc">
+                    Typische Webserver besitzen drei weltweit eindeutige Identifikationsmöglichkeiten auf unterschiedlichen Schichten:
+                    <strong>DNS-Name (L7)</strong>, <strong>IP-Adresse (L3)</strong> und <strong>MAC-Adresse (L2)</strong>.
+                </p>
+            </div>
+            <nav class="view-tabs">
+                <button class="tab-btn @(ActiveView == ViewMode.TriadExplorer ? "active" : "")" @onclick="() => SetView(ViewMode.TriadExplorer)">
+                    <span class="tab-icon">🌐</span> Die 3 Identifikatoren
+                </button>
+                <button class="tab-btn @(ActiveView == ViewMode.ResolvingFlow ? "active" : "")" @onclick="() => SetView(ViewMode.ResolvingFlow)">
+                    <span class="tab-icon">🔄</span> Auflösungs-Workflow (DNS &rarr; IP &rarr; MAC)
+                </button>
+                <button class="tab-btn @(ActiveView == ViewMode.ComparisonMatrix ? "active" : "")" @onclick="() => SetView(ViewMode.ComparisonMatrix)">
+                    <span class="tab-icon">📊</span> Schichten-Vergleich
+                </button>
+                <button class="tab-btn @(ActiveView == ViewMode.Trainer ? "active" : "")" @onclick="() => SetView(ViewMode.Trainer)">
+                    <span class="tab-icon">📝</span> Klausur-Trainer
+                </button>
+                <button class="tab-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")" @onclick="() => SetView(ViewMode.Worksheet)">
+                    <span class="tab-icon">📄</span> Aufgabenblatt
+                </button>
+            </nav>
+        </header>
+    }
+
+    @if (ActiveView == ViewMode.TriadExplorer)
+    {
+        <!-- S1.1: Triad Explorer -->
+        <section class="explorer-section">
+            <div class="preset-bar">
+                <span class="ctrl-label">Beispiel-Webserver:</span>
+                <div class="preset-buttons">
+                    <button class="btn-sm @(SelectedPresetIndex == 0 ? "active" : "")" @onclick="() => SelectPreset(0)">
+                        🏫 HSHL Hochschul-Server
+                    </button>
+                    <button class="btn-sm @(SelectedPresetIndex == 1 ? "active" : "")" @onclick="() => SelectPreset(1)">
+                        📚 Wikipedia Web-Cluster
+                    </button>
+                    <button class="btn-sm @(SelectedPresetIndex == 2 ? "active" : "")" @onclick="() => SelectPreset(2)">
+                        🌍 Root-Nameserver A
+                    </button>
+                </div>
+            </div>
+
+            <!-- 3 Identification Pillar Cards -->
+            <div class="triad-cards-grid">
+                <!-- 1. DNS Name -->
+                <div class="ident-card dns-card">
+                    <div class="card-layer-badge">Schicht 7 &bull; Anwendungsschicht</div>
+                    <div class="card-icon-title">
+                        <span class="card-icon">🌐</span>
+                        <div class="card-headings">
+                            <span class="card-klausur-kicker">Klausurlösung 1</span>
+                            <h3 class="card-title">DNS-Name</h3>
+                        </div>
+                    </div>
+                    <div class="card-value-box">
+                        <span class="val-label">FQDN (Fully Qualified Domain Name):</span>
+                        <code class="val-code">@CurrentServer.DnsName</code>
+                    </div>
+                    <div class="card-details">
+                        <div class="detail-row">
+                            <span class="detail-lbl">Vergabestelle:</span>
+                            <span class="detail-val">ICANN &bull; DENIC (.de Registry)</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-lbl">Weltweite Eindeutigkeit:</span>
+                            <span class="detail-val">Hierarchischer Namensraum (.) &rarr; TLD &rarr; Domain</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-lbl">Aufgabe:</span>
+                            <span class="detail-val">Menschenlesbare Adressierung &amp; Host-Header (vHost)</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-lbl">Portabilität:</span>
+                            <span class="detail-val">IP kann wechseln, Domain bleibt identisch</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. IP Address -->
+                <div class="ident-card ip-card">
+                    <div class="card-layer-badge">Schicht 3 &bull; Vermittlungsschicht</div>
+                    <div class="card-icon-title">
+                        <span class="card-icon">📍</span>
+                        <div class="card-headings">
+                            <span class="card-klausur-kicker">Klausurlösung 2</span>
+                            <h3 class="card-title">IP-Adresse</h3>
+                        </div>
+                    </div>
+                    <div class="card-value-box">
+                        <span class="val-label">Globale Unicast-Adresse:</span>
+                        <code class="val-code">@CurrentServer.IpAddress</code>
+                    </div>
+                    <div class="card-details">
+                        <div class="detail-row">
+                            <span class="detail-lbl">Vergabestelle:</span>
+                            <span class="detail-val">IANA &bull; RIPE NCC (Europa) &bull; DFN</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-lbl">Weltweite Eindeutigkeit:</span>
+                            <span class="detail-val">CIDR-Präfixe &amp; globale BGP-Routing-Tabellen</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-lbl">Aufgabe:</span>
+                            <span class="detail-val">Ende-zu-Ende-Paketvermittlung über weltweite Router</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-lbl">IPv6 Alternative:</span>
+                            <span class="detail-val"><code>@CurrentServer.Ipv6Address</code></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. MAC Address -->
+                <div class="ident-card mac-card">
+                    <div class="card-layer-badge">Schicht 2 &bull; Sicherungsschicht</div>
+                    <div class="card-icon-title">
+                        <span class="card-icon">🔌</span>
+                        <div class="card-headings">
+                            <span class="card-klausur-kicker">Klausurlösung 3</span>
+                            <h3 class="card-title">MAC-Adresse</h3>
+                        </div>
+                    </div>
+                    <div class="card-value-box">
+                        <span class="val-label">Physische Hardware-Adresse (EUI-48):</span>
+                        <code class="val-code">@CurrentServer.MacAddress</code>
+                    </div>
+                    <div class="card-details">
+                        <div class="detail-row">
+                            <span class="detail-lbl">Vergabestelle:</span>
+                            <span class="detail-val">IEEE Registration Authority (OUI-Block)</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-lbl">Weltweite Eindeutigkeit:</span>
+                            <span class="detail-val">24-Bit OUI (Hersteller) + 24-Bit Seriennummer</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-lbl">Hersteller (OUI):</span>
+                            <span class="detail-val"><code>@CurrentServer.MacVendor</code></span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-lbl">Aufgabe:</span>
+                            <span class="detail-val">Punkt-zu-Punkt-Rahmenübertragung im lokalen Netz (Ethernet)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Server Summary Card -->
+            <div class="server-summary-panel">
+                <div class="panel-header">
+                    <span class="panel-icon">💡</span>
+                    <h4>Zusammenspiel beim Webserver-Zugriff</h4>
+                </div>
+                <p class="panel-desc">
+                    Wenn ein Client eine Webseite aufruft (z.B. per <code>https://@CurrentServer.DnsName</code>),
+                    durchläuft das System alle drei Identifikatoren:
+                    Der <strong>DNS-Name</strong> wird per DNS-Anfrage in die <strong>IP-Adresse</strong> übersetzt.
+                    Auf dem letzten Teilstück (oder zum Gateway-Router) wird die IP-Adresse per ARP in die physische <strong>MAC-Adresse</strong> aufgelöst.
+                    Erst dann kann die Netzwerkkarte des Webservers den Ethernet-Rahmen entgegennehmen!
+                </p>
+            </div>
+        </section>
+    }
+    else if (ActiveView == ViewMode.ResolvingFlow)
+    {
+        <!-- S1.2: Resolving Workflow (DNS -> IP -> MAC) -->
+        <section class="flow-section">
+            <h2 class="section-title">Auflösungs-Workflow: Vom URL-Klick zur Hardware</h2>
+            <p class="section-lead">
+                Schritt-für-Schritt-Darstellung, wie die drei weltweit eindeutigen Identifikatoren beim Zugriff ineinandergreifen:
+            </p>
+
+            <div class="flow-stepper-controls">
+                <button class="btn-ctrl" @onclick="PrevFlowStep" disabled="@(CurrentFlowStep == 0)">◀ Vorheriger Schritt</button>
+                <button class="btn-ctrl btn-primary" @onclick="NextFlowStep" disabled="@(CurrentFlowStep >= 3)">Nächster Schritt ▶</button>
+                <button class="btn-ctrl btn-secondary" @onclick="ResetFlowStep">↺ Zurücksetzen</button>
+                <span class="step-indicator">Schritt @(CurrentFlowStep + 1) von 4</span>
+            </div>
+
+            <div class="flow-pipeline-grid">
+                <!-- Step 0: URL & DNS Name -->
+                <div class="pipeline-step @(CurrentFlowStep == 0 ? "step-active" : (CurrentFlowStep > 0 ? "step-done" : ""))">
+                    <div class="step-badge">1. DNS-Name (L7)</div>
+                    <div class="step-icon">🌐</div>
+                    <div class="step-title">Browser-Eingabe</div>
+                    <div class="step-val"><code>https://@CurrentServer.DnsName</code></div>
+                    <p class="step-text">
+                        Der Anwender gibt den lesbaren DNS-Namen ein. Der Browser benötigt für den TCP-Verbindungsaufbau jedoch eine IP-Adresse.
+                    </p>
+                </div>
+
+                <!-- Step 1: DNS Query -> IP -->
+                <div class="pipeline-step @(CurrentFlowStep == 1 ? "step-active" : (CurrentFlowStep > 1 ? "step-done" : ""))">
+                    <div class="step-badge">2. DNS &rarr; IP-Adresse (L3)</div>
+                    <div class="step-icon">🔍</div>
+                    <div class="step-title">DNS-Namensauflösung</div>
+                    <div class="step-val"><code>A: @CurrentServer.IpAddress</code></div>
+                    <p class="step-text">
+                        DNS-Resolver liefert die weltweit eindeutige 32-Bit/128-Bit IP-Adresse des Zielservers zurück.
+                    </p>
+                </div>
+
+                <!-- Step 2: ARP Query -> MAC -->
+                <div class="pipeline-step @(CurrentFlowStep == 2 ? "step-active" : (CurrentFlowStep > 2 ? "step-done" : ""))">
+                    <div class="step-badge">3. IP &rarr; MAC-Adresse (L2)</div>
+                    <div class="step-icon">⚡</div>
+                    <div class="step-title">ARP / NDP Auflösung</div>
+                    <div class="step-val"><code>ARP: @CurrentServer.MacAddress</code></div>
+                    <p class="step-text">
+                        Im Subnetz des Servers löst das Address Resolution Protocol die IP-Adresse in die 48-Bit Hardware-MAC-Adresse auf.
+                    </p>
+                </div>
+
+                <!-- Step 3: Frame Delivery to NIC -->
+                <div class="pipeline-step @(CurrentFlowStep == 3 ? "step-active" : "")">
+                    <div class="step-badge">4. Rahmen-Zustellung</div>
+                    <div class="step-icon">🎯</div>
+                    <div class="step-title">Webserver NIC Empfang</div>
+                    <div class="step-val"><code>Port 443 (HTTPS)</code></div>
+                    <p class="step-text">
+                        Die Netzwerkkarte filtert nach ihrer eigenen MAC-Adresse, entpackt das IP-Paket und übergibt die HTTP-Anfrage an den Webserver.
+                    </p>
+                </div>
+            </div>
+        </section>
+    }
+    else if (ActiveView == ViewMode.ComparisonMatrix)
+    {
+        <!-- S1.3: Comparison Matrix -->
+        <section class="matrix-section">
+            <h2 class="section-title">Direktvergleich der drei Identifikationsmöglichkeiten</h2>
+            <div class="table-responsive">
+                <table class="ident-table">
+                    <thead>
+                        <tr>
+                            <th>Eigenschaft</th>
+                            <th>1. DNS-Name</th>
+                            <th>2. IP-Adresse</th>
+                            <th>3. MAC-Adresse</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>OSI-Schicht</strong></td>
+                            <td><span class="tag-layer l7">Schicht 7 (Anwendung)</span></td>
+                            <td><span class="tag-layer l3">Schicht 3 (Vermittlung)</span></td>
+                            <td><span class="tag-layer l2">Schicht 2 (Sicherung)</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Adressformat</strong></td>
+                            <td>Hierarchische Zeichenkette (z.B. <code>www.hshl.de</code>)</td>
+                            <td>32 Bit IPv4 (Dotted-Decimal) / 128 Bit IPv6</td>
+                            <td>48 Bit (6 Bytes Hex, z.B. <code>00:08:E3:FF:FC:14</code>)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Weltweite Eindeutigkeit durch</strong></td>
+                            <td>Globale Baumstruktur &amp; Domain-Registrare (ICANN/DENIC)</td>
+                            <td>Zentrale Zuteilung über IANA &amp; Regional Registries (RIPE)</td>
+                            <td>Hersteller-OUI (IEEE) + fortlaufende Seriennummer</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Gültigkeitsbereich</strong></td>
+                            <td>Weltweit (Ende-zu-Ende für Anwender &amp; vHost)</td>
+                            <td>Weltweit geroutet über autonome Systeme (AS)</td>
+                            <td>Lokal begrenzt auf das physische Netzwerksegment</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Veränderbarkeit</strong></td>
+                            <td>Sehr dynamisch (zeigt auf beliebige IPs)</td>
+                            <td>Dynamisch oder statisch vom Provider zugewiesen</td>
+                            <td>Fest in die Hardware eingebrannt (Burned-In)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Beispiel</strong></td>
+                            <td><code>@CurrentServer.DnsName</code></td>
+                            <td><code>@CurrentServer.IpAddress</code></td>
+                            <td><code>@CurrentServer.MacAddress</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    }
+    else if (ActiveView == ViewMode.Trainer)
+    {
+        <!-- S1.4: Klausur-Trainer -->
+        <section class="trainer-section">
+            <div class="trainer-card">
+                <div class="trainer-header">
+                    <span class="trainer-badge">Klausuraufgabe &bull; Rechnernetze Anwendungsschicht</span>
+                    <h2>Original-Klausurfrage</h2>
+                </div>
+                <div class="prompt-quote">
+                    „Typische Webserver haben insgesamt mindestens drei weltweit eindeutige Identifikationsmöglichkeiten. Welche sind dies?“
+                </div>
+
+                <div class="trainer-form">
+                    <label class="form-label">Ihre Antwort:</label>
+                    <textarea class="form-textarea" placeholder="Nennen Sie die drei weltweit eindeutigen Identifikationsmerkmale eines Webservers..." @bind="UserAnswer"></textarea>
+
+                    <div class="trainer-actions">
+                        <button class="btn-check" @onclick="ToggleTrainerSolution">
+                            @(ShowTrainerSolution ? "Lösung ausblenden" : "Musterlösung anzeigen")
+                        </button>
+                    </div>
+
+                    @if (ShowTrainerSolution)
+                    {
+                        <div class="trainer-solution-box">
+                            <div class="sol-title">Offizielle Musterlösung (aus XeLaTeX-Master):</div>
+                            <ul class="official-sol-list">
+                                <li><strong>DNS Name</strong> (Domain Name System, z.B. <code>www.hshl.de</code>)</li>
+                                <li><strong>IP-Adresse</strong> (IPv4 bzw. IPv6, z.B. <code>193.175.22.10</code>)</li>
+                                <li><strong>MAC-Adresse</strong> (Media Access Control Hardwareadresse, z.B. <code>00:08:E3:FF:FC:14</code>)</li>
+                            </ul>
+                            <div class="sol-explanation">
+                                <strong>Hintergrund:</strong>
+                                Jedes dieser drei Merkmale identifiziert den Webserver auf einer anderen Abstraktionsebene:
+                                Der DNS-Name auf Schicht 7 für Nutzer und virtuelle Hosts, die IP-Adresse auf Schicht 3 für das globale Routing im Internet,
+                                und die MAC-Adresse auf Schicht 2 zur physischen Adressierung der Netzwerkkarte im lokalen Ethernet-Segment.
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </section>
+    }
+    else if (ActiveView == ViewMode.Worksheet)
+    {
+        <!-- S2: 1:1 Printable A4 Exam-Replica Worksheet -->
+        <div class="worksheet-container">
+            <div class="no-print worksheet-controls">
+                <button class="btn-action" @onclick="ToggleSolution">
+                    @(ShowSolution ? "Musterlösung verbergen" : "Musterlösung einblenden")
+                </button>
+                <button class="btn-action print-btn" @onclick="TriggerPrint">🖨️ Drucken / PDF Export</button>
+            </div>
+
+            <!-- Single-page Header -->
+            <header class="worksheet-header">
+                <div class="ws-head-left">
+                    <div class="ws-institution">Hochschule Hamm-Lippstadt</div>
+                    <div class="ws-course">Grundlagen der Informatik &bull; Rechnernetze</div>
+                    <div class="ws-topic">Anwendungsschicht &bull; Webserver-Identifikation</div>
+                </div>
+                <div class="ws-head-right">
+                    <div class="ws-meta-field"><span>Name:</span> _________________________________</div>
+                    <div class="ws-meta-field"><span>Matrikelnr.:</span> ___________________________</div>
+                    <div class="ws-meta-field"><span>Datum:</span> _________________________________</div>
+                </div>
+            </header>
+
+            <div class="worksheet-body">
+                <div class="task-title-bar">
+                    <h2 class="task-title">Aufgabe: Identifikationsmöglichkeiten eines Webservers</h2>
+                    <span class="task-score">Punkte: / 5</span>
+                </div>
+
+                <div class="ws-prompt">
+                    Typische Webserver haben insgesamt mindestens drei weltweit eindeutige Identifikationsmöglichkeiten. Welche sind dies?
+                </div>
+
+                <!-- Conceptual Diagram: 3 Identification Tiers -->
+                <div class="ws-diagram-box">
+                    <div class="ws-diag-title">Die drei weltweit eindeutigen Identifikationsebenen:</div>
+                    <div class="ws-tier-grid">
+                        <div class="ws-tier-box">
+                            <span class="ws-tier-tag">Schicht 7</span>
+                            <strong>1. DNS-Name</strong>
+                            <div class="ws-tier-example"><code>www.hshl.de</code></div>
+                            <small>Globale ICANN-Baumhierarchie</small>
+                        </div>
+                        <div class="ws-tier-box">
+                            <span class="ws-tier-tag">Schicht 3</span>
+                            <strong>2. IP-Adresse</strong>
+                            <div class="ws-tier-example"><code>193.175.22.10</code></div>
+                            <small>Globale IANA/RIR Zuteilung</small>
+                        </div>
+                        <div class="ws-tier-box">
+                            <span class="ws-tier-tag">Schicht 2</span>
+                            <strong>3. MAC-Adresse</strong>
+                            <div class="ws-tier-example"><code>00:08:E3:FF:FC:14</code></div>
+                            <small>IEEE OUI + Hardware-ID</small>
+                        </div>
+                    </div>
+                </div>
+
+                @if (ShowSolution)
+                {
+                    <div class="solution-box">
+                        <div class="solution-badge">MUSTERLÖSUNG:</div>
+                        <ul class="solution-items">
+                            <li><strong>DNS Name</strong> (z.B. Domainname <code>www.hshl.de</code>, verwaltet durch Registrierungsstellen)</li>
+                            <li><strong>IP-Adresse</strong> (z.B. IPv4/IPv6-Adresse <code>193.175.22.10</code>, weltweit eindeutig geroutet)</li>
+                            <li><strong>MAC-Adresse</strong> (z.B. Ethernet-Hardwareadresse <code>00:08:E3:FF:FC:14</code>, IEEE-zertifiziert)</li>
+                        </ul>
+                        <div class="solution-note">
+                            <em>Ergänzung:</em> Alle drei Identifikatoren garantieren auf ihrer jeweiligen Protokollschicht (L7, L3, L2)
+                            eine kollisionsfreie, weltweite Eindeutigkeit zur Adressierung und Datenzustellung.
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="ws-writing-area">
+                        <div class="answer-line"></div>
+                        <div class="answer-line"></div>
+                        <div class="answer-line"></div>
+                        <div class="answer-line"></div>
+                        <div class="answer-line"></div>
+                    </div>
+                }
+            </div>
+
+            <!-- Single-page Footer -->
+            <footer class="worksheet-footer">
+                <span>Intelligent Systems Design &bull; Hochschule Hamm-Lippstadt &bull; Rechnernetze</span>
+            </footer>
+        </div>
+    }
+
+</article>
+
+@code {
+    [Parameter]
+    public bool IsEmbed { get; set; } = false;
+
+    public enum ViewMode
+    {
+        TriadExplorer,
+        ResolvingFlow,
+        ComparisonMatrix,
+        Trainer,
+        Worksheet
+    }
+
+    public class WebServerPreset
+    {
+        public string Name { get; set; } = "";
+        public string DnsName { get; set; } = "";
+        public string IpAddress { get; set; } = "";
+        public string Ipv6Address { get; set; } = "";
+        public string MacAddress { get; set; } = "";
+        public string MacVendor { get; set; } = "";
+    }
+
+    private ViewMode ActiveView { get; set; } = ViewMode.TriadExplorer;
+    private bool ShowSolution { get; set; } = false;
+    private bool ShowTrainerSolution { get; set; } = false;
+    private string UserAnswer { get; set; } = "";
+
+    private int SelectedPresetIndex { get; set; } = 0;
+    private int CurrentFlowStep { get; set; } = 0;
+
+    private List<WebServerPreset> Presets = new()
+    {
+        new WebServerPreset
+        {
+            Name = "Hochschule Hamm-Lippstadt",
+            DnsName = "www.hshl.de",
+            IpAddress = "193.175.22.10",
+            Ipv6Address = "2001:0638:0504:0022::10",
+            MacAddress = "00:08:E3:FF:FC:14",
+            MacVendor = "Cisco Systems (OUI: 00:08:E3)"
+        },
+        new WebServerPreset
+        {
+            Name = "Wikipedia Web-Cluster",
+            DnsName = "www.wikipedia.org",
+            IpAddress = "208.80.154.224",
+            Ipv6Address = "2620:0000:0860:ed1a::1",
+            MacAddress = "00:1F:29:4A:12:88",
+            MacVendor = "Hewlett Packard Enterprise (OUI: 00:1F:29)"
+        },
+        new WebServerPreset
+        {
+            Name = "Root-Nameserver A",
+            DnsName = "a.root-servers.net",
+            IpAddress = "198.41.0.4",
+            Ipv6Address = "2001:0503:ba3e::2:30",
+            MacAddress = "E4:11:5B:3C:90:01",
+            MacVendor = "Dell Inc. (OUI: E4:11:5B)"
+        }
+    };
+
+    private WebServerPreset CurrentServer => Presets[SelectedPresetIndex];
+
+    protected override void OnInitialized()
+    {
+        CheckUrlParameters();
+    }
+
+    protected override void OnParametersSet()
+    {
+        CheckUrlParameters();
+    }
+
+    private void CheckUrlParameters()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query.ToLowerInvariant();
+
+            if (query.Contains("embed=true") || query.Contains("embedded=true") || query.Contains("embed=1"))
+            {
+                IsEmbed = true;
+            }
+
+            if (query.Contains("view=worksheet") || query.Contains("view=sheet"))
+            {
+                ActiveView = ViewMode.Worksheet;
+            }
+            else if (query.Contains("view=flow") || query.Contains("view=workflow"))
+            {
+                ActiveView = ViewMode.ResolvingFlow;
+            }
+            else if (query.Contains("view=matrix") || query.Contains("view=table"))
+            {
+                ActiveView = ViewMode.ComparisonMatrix;
+            }
+            else if (query.Contains("view=trainer"))
+            {
+                ActiveView = ViewMode.Trainer;
+            }
+
+            if (query.Contains("solution=true") || query.Contains("sol=true") || query.Contains("loesung=true"))
+            {
+                ShowSolution = true;
+            }
+        }
+        catch
+        {
+            // Fallback
+        }
+    }
+
+    private void SetView(ViewMode mode)
+    {
+        ActiveView = mode;
+    }
+
+    private void SelectPreset(int index)
+    {
+        SelectedPresetIndex = index;
+    }
+
+    private void NextFlowStep()
+    {
+        if (CurrentFlowStep < 3) CurrentFlowStep++;
+    }
+
+    private void PrevFlowStep()
+    {
+        if (CurrentFlowStep > 0) CurrentFlowStep--;
+    }
+
+    private void ResetFlowStep()
+    {
+        CurrentFlowStep = 0;
+    }
+
+    private void ToggleSolution()
+    {
+        ShowSolution = !ShowSolution;
+    }
+
+    private void ToggleTrainerSolution()
+    {
+        ShowTrainerSolution = !ShowTrainerSolution;
+    }
+
+    private async Task TriggerPrint()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+}
