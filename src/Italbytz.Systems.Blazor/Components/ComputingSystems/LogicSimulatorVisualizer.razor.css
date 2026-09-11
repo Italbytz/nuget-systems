@@ -1,0 +1,703 @@
+/* ========================================================================= */
+/* LogicSimulator Visualizer Styles                                          */
+/* ========================================================================= */
+
+.logic-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--text-color, #1e293b);
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* Card Heading */
+.card-heading {
+    border-bottom: 1px solid var(--border-color, #e2e8f0);
+    padding-bottom: 1rem;
+}
+
+.feature-kicker {
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #8b5cf6;
+    margin: 0 0 0.25rem 0;
+}
+
+.card-heading h2 {
+    font-size: 1.6rem;
+    font-weight: 800;
+    margin: 0 0 0.5rem 0;
+    color: var(--heading-color, #0f172a);
+}
+
+.feature-intro {
+    font-size: 0.95rem;
+    color: var(--muted-color, #64748b);
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* View Switcher */
+.view-switch {
+    display: flex;
+    gap: 0.5rem;
+    background: var(--bg-surface-subtle, #f1f5f9);
+    padding: 0.35rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-color, #e2e8f0);
+    width: fit-content;
+}
+
+.view-btn {
+    background: transparent;
+    border: none;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border-radius: 0.375rem;
+    color: var(--muted-color, #64748b);
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+}
+
+.view-btn:hover {
+    color: var(--text-color, #0f172a);
+}
+
+.view-btn.active {
+    background: #ffffff;
+    color: #8b5cf6;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Circuit Tabs */
+.circuit-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 0.5rem;
+}
+
+.circuit-tab {
+    padding: 0.45rem 0.85rem;
+    border-radius: 0.375rem;
+    border: 1px solid transparent;
+    background: transparent;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.circuit-tab:hover {
+    color: #0f172a;
+    background: #f1f5f9;
+}
+
+.circuit-tab.active {
+    background: #ede9fe;
+    color: #7c3aed;
+    border-color: #c4b5fd;
+}
+
+/* Narrator Card */
+.narrator-card {
+    background: #f5f3ff;
+    border: 1px solid #ddd6fe;
+    border-left: 4px solid #8b5cf6;
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.narrator-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.step-badge.badge-mux {
+    background: #8b5cf6;
+    color: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.25rem;
+}
+
+.narrator-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #4c1d95;
+}
+
+.narrator-text {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: #334155;
+    margin: 0;
+}
+
+.logic-metrics-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    font-size: 0.85rem;
+    background: #ffffff;
+    border: 1px solid #ede9fe;
+    border-radius: 0.375rem;
+    padding: 0.5rem 0.75rem;
+    margin-top: 0.25rem;
+}
+
+/* Main Display Grid */
+.main-display-grid {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: 1.5rem;
+}
+
+@media (max-width: 900px) {
+    .main-display-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Circuit Card */
+.circuit-card {
+    background: var(--bg-surface, #ffffff);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.circuit-card-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--heading-color, #0f172a);
+    border-bottom: 1px solid var(--border-color, #f1f5f9);
+    padding-bottom: 0.5rem;
+}
+
+.mux-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    padding: 0.6rem 0.85rem;
+}
+
+.mux-group {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.toolbar-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #475569;
+}
+
+.toggle-btn {
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid #cbd5e1;
+    transition: all 0.15s ease;
+}
+
+.toggle-btn.high {
+    background: #d1fae5;
+    color: #065f46;
+    border-color: #10b981;
+}
+
+.toggle-btn.low {
+    background: #ffffff;
+    color: #64748b;
+}
+
+.svg-container {
+    display: flex;
+    justify-content: center;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    padding: 1rem;
+}
+
+.circuit-svg {
+    width: 100%;
+    max-height: 320px;
+}
+
+.wire {
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    transition: stroke 0.2s;
+}
+
+.wire-high { stroke: #10b981; }
+.wire-low { stroke: #cbd5e1; }
+
+.gate-box {
+    fill: #1e293b;
+    stroke: #0f172a;
+    stroke-width: 1.5;
+}
+
+.gate-box.gate-selected {
+    fill: #7c3aed;
+    stroke: #5b21b6;
+}
+
+.gate-box-text {
+    fill: #ffffff;
+    font-size: 14px;
+    font-weight: 700;
+    text-anchor: middle;
+}
+
+.pin-label {
+    font-size: 13px;
+    font-family: system-ui, sans-serif;
+}
+
+/* Table Card */
+.table-card {
+    background: var(--bg-surface, #ffffff);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.table-card-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--heading-color, #0f172a);
+    border-bottom: 1px solid var(--border-color, #f1f5f9);
+    padding-bottom: 0.5rem;
+}
+
+.table-responsive {
+    overflow-x: auto;
+}
+
+.interactive-truth-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.interactive-truth-table th,
+.interactive-truth-table td {
+    padding: 0.4rem 0.5rem;
+    border-bottom: 1px solid #e2e8f0;
+    text-align: center;
+}
+
+.interactive-truth-table th {
+    background: #f8fafc;
+    font-weight: 700;
+    color: #475569;
+}
+
+.interactive-truth-table th.th-out {
+    background: #ede9fe;
+    color: #7c3aed;
+}
+
+.table-row-active {
+    background: #ede9fe !important;
+    font-weight: 700;
+}
+
+.circuit-summary-box {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+}
+
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+}
+
+/* Basic Gates Showcase */
+.gates-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.inputs-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+}
+
+.bar-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.gates-showcase {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+}
+
+.gate-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.gate-name {
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.gate-formula {
+    font-size: 0.8rem;
+    color: #64748b;
+}
+
+.gate-output-pill {
+    padding: 0.35rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+.gate-output-pill.high {
+    background: #d1fae5;
+    color: #065f46;
+    font-weight: 700;
+}
+
+.gate-output-pill.low {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+/* Utilities */
+.mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.bold { font-weight: 700; }
+.blue { color: #2563eb; }
+.purple { color: #8b5cf6; }
+.emerald { color: #059669; }
+.red { color: #dc2626; }
+
+/* ========================================================================= */
+/* EMBED MODE                                                                */
+/* ========================================================================= */
+.logic-container.embed-mode {
+    max-width: 100%;
+    gap: 0.75rem;
+    padding: 0;
+}
+
+.logic-container.embed-mode .card-heading,
+.logic-container.embed-mode .view-switch {
+    display: none;
+}
+
+/* ========================================================================= */
+/* WORKSHEET MODE (1:1 EXAM REPLICA)                                         */
+/* ========================================================================= */
+.worksheet-paper {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.5rem;
+    padding: 2.5rem 3rem;
+    color: #000000;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    margin: 0 auto;
+    max-width: 900px;
+}
+
+.exam-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 2px solid #000000;
+    padding-bottom: 0.75rem;
+}
+
+.exam-sub {
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #475569;
+}
+
+.exam-main-title {
+    font-size: 1.35rem;
+    font-weight: 800;
+    margin: 0.25rem 0 0 0;
+    color: #000000;
+}
+
+.exam-meta-box {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.toggle-sol-btn,
+.print-btn {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: 0.375rem;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    cursor: pointer;
+}
+
+.toggle-sol-btn.active {
+    background: #ede9fe;
+    border-color: #8b5cf6;
+    color: #8b5cf6;
+}
+
+.student-info-strip {
+    display: grid;
+    grid-template-columns: 2fr 1.5fr 1fr;
+    gap: 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 1rem;
+}
+
+.info-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.info-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #475569;
+}
+
+.info-line {
+    border-bottom: 1px dotted #94a3b8;
+    height: 1.5rem;
+}
+
+.points-field {
+    align-items: flex-end;
+}
+
+.points-box {
+    font-size: 1.1rem;
+    font-weight: 700;
+    border: 1px solid #cbd5e1;
+    padding: 0.25rem 0.75rem;
+    border-radius: 0.25rem;
+}
+
+.task-prompt-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #8b5cf6;
+    border-radius: 0.375rem;
+    padding: 0.75rem 1rem;
+}
+
+.ws-diagram-center {
+    display: flex;
+    justify-content: center;
+    padding: 0.5rem 0;
+}
+
+.ws-svg-exam {
+    width: 85%;
+    max-height: 240px;
+}
+
+.ws-svg-txt {
+    font-size: 13px;
+    font-family: sans-serif;
+}
+
+.task-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.task-sub-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.task-text {
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.ws-table-container {
+    display: flex;
+    justify-content: flex-start;
+}
+
+.ws-matrix-table {
+    border-collapse: collapse;
+    border: 2px solid #000000;
+}
+
+.ws-matrix-table th,
+.ws-matrix-table td {
+    border: 1px solid #000000;
+    padding: 0.35rem 0.75rem;
+    text-align: center;
+    font-family: ui-monospace, monospace;
+    font-size: 0.9rem;
+    min-width: 38px;
+}
+
+.ws-matrix-table th {
+    background: #f1f5f9;
+    font-weight: 700;
+}
+
+.ws-matrix-table th.ws-th-highlight {
+    background: #0f172a;
+    color: #ffffff;
+}
+
+.ws-blank-slot {
+    height: 24px;
+    background: #ffffff;
+}
+
+.ws-val-one {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.ws-val-zero {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.ws-solution-box {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-left: 3px solid #059669;
+    border-radius: 0.375rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+}
+
+.sol-formula-line {
+    font-size: 1.15rem;
+    color: #065f46;
+}
+
+.sol-para {
+    margin: 0;
+    color: #1f2937;
+}
+
+.ws-formula-blank {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.1rem;
+}
+
+.blank-line-long {
+    border-bottom: 1px solid #000000;
+    flex: 1;
+    height: 1.5rem;
+}
+
+.exam-footer {
+    border-top: 1px solid #cbd5e1;
+    padding-top: 0.75rem;
+}
+
+.exam-footer-note {
+    font-size: 0.75rem;
+    color: #64748b;
+    font-style: italic;
+}
+
+/* ========================================================================= */
+/* PRINT STYLES                                                              */
+/* ========================================================================= */
+@media print {
+    .no-print {
+        display: none !important;
+    }
+
+    body {
+        background: #ffffff !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    .logic-container {
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    .worksheet-paper {
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+}

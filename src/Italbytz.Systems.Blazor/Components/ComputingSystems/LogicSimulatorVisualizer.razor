@@ -1,378 +1,543 @@
 @namespace Italbytz.Systems.Blazor.Components.ComputingSystems
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
 
-<div class="logic-sim-card">
-    <div class="sim-header">
-        <div>
-            <h3 class="sim-title">Logikgatter- &amp; Schaltungssimulator (Logic Simulator)</h3>
-            <p class="sim-subtitle">
-                Interaktive Simulation elementarer Gatter, kombinatorischer Schaltnetze (Addierer) und sequentieller Schaltwerke (Flip-Flops).
+<article class="logic-container @(IsEmbed ? "embed-mode" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
+
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
+    {
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Grundlagen der Informatik &bull; Schaltnetze &amp; Schaltwerke</p>
+            <h2>Logikgatter- &amp; Schaltungssimulator (Logic Circuit Simulator)</h2>
+            <p class="feature-intro">
+                Interaktive Simulation elementarer Logikgatter, kombinatorischer Schaltnetze (Halb-/Volladdierer, 4-zu-1 Multiplexer) 
+                und sequentieller Speicherglieder (D-Latch) mit Signalfluss und Wertetabellen.
             </p>
         </div>
-    </div>
+    }
 
-    <!-- Circuit Selector -->
-    <div class="circuit-tabs">
-        <button class="circuit-tab @(SelectedCircuit == CircuitType.Gates ? "active" : "")" @onclick="() => SetCircuit(CircuitType.Gates)">
-            Elementare Gatter
-        </button>
-        <button class="circuit-tab @(SelectedCircuit == CircuitType.HalfAdder ? "active" : "")" @onclick="() => SetCircuit(CircuitType.HalfAdder)">
-            Halbaddierer
-        </button>
-        <button class="circuit-tab @(SelectedCircuit == CircuitType.FullAdder ? "active" : "")" @onclick="() => SetCircuit(CircuitType.FullAdder)">
-            Volladdierer (1-Bit)
-        </button>
-        <button class="circuit-tab @(SelectedCircuit == CircuitType.DLatch ? "active" : "")" @onclick="() => SetCircuit(CircuitType.DLatch)">
-            D-Latch (Speicherglied)
-        </button>
-    </div>
-
-    @if (SelectedCircuit == CircuitType.Gates)
+    <!-- View Switcher -->
+    @if (!IsEmbed)
     {
-        <!-- Basic Gates Grid -->
-        <div class="gates-grid">
-            <!-- Inputs Bar -->
-            <div class="inputs-bar">
-                <span class="bar-label">Eingangssignale:</span>
-                <button class="toggle-btn @(InputA ? "high" : "low")" @onclick="() => InputA = !InputA">
-                    Eingang A: <strong>@(InputA ? "1 (HIGH)" : "0 (LOW)")</strong>
-                </button>
-                <button class="toggle-btn @(InputB ? "high" : "low")" @onclick="() => InputB = !InputB">
-                    Eingang B: <strong>@(InputB ? "1 (HIGH)" : "0 (LOW)")</strong>
-                </button>
-            </div>
-
-            <div class="gates-showcase">
-                <!-- AND -->
-                <div class="gate-card">
-                    <div class="gate-name">AND (Konjunktion)</div>
-                    <div class="gate-formula">Y = A ∧ B</div>
-                    <div class="gate-output-pill @(GateAnd ? "high" : "low")">
-                        Ausgang Y = <strong>@(GateAnd ? "1" : "0")</strong>
-                    </div>
-                </div>
-
-                <!-- OR -->
-                <div class="gate-card">
-                    <div class="gate-name">OR (Disjunktion)</div>
-                    <div class="gate-formula">Y = A ∨ B</div>
-                    <div class="gate-output-pill @(GateOr ? "high" : "low")">
-                        Ausgang Y = <strong>@(GateOr ? "1" : "0")</strong>
-                    </div>
-                </div>
-
-                <!-- NOT -->
-                <div class="gate-card">
-                    <div class="gate-name">NOT (Invertierung)</div>
-                    <div class="gate-formula">Y = ¬A</div>
-                    <div class="gate-output-pill @(GateNotA ? "high" : "low")">
-                        Ausgang Y = <strong>@(GateNotA ? "1" : "0")</strong>
-                    </div>
-                </div>
-
-                <!-- NAND -->
-                <div class="gate-card">
-                    <div class="gate-name">NAND (Sheffer-Strich)</div>
-                    <div class="gate-formula">Y = ¬(A ∧ B)</div>
-                    <div class="gate-output-pill @(GateNand ? "high" : "low")">
-                        Ausgang Y = <strong>@(GateNand ? "1" : "0")</strong>
-                    </div>
-                </div>
-
-                <!-- NOR -->
-                <div class="gate-card">
-                    <div class="gate-name">NOR (Peirce-Pfeil)</div>
-                    <div class="gate-formula">Y = ¬(A ∨ B)</div>
-                    <div class="gate-output-pill @(GateNor ? "high" : "low")">
-                        Ausgang Y = <strong>@(GateNor ? "1" : "0")</strong>
-                    </div>
-                </div>
-
-                <!-- XOR -->
-                <div class="gate-card">
-                    <div class="gate-name">XOR (Antivalenz)</div>
-                    <div class="gate-formula">Y = A ⊕ B</div>
-                    <div class="gate-output-pill @(GateXor ? "high" : "low")">
-                        Ausgang Y = <strong>@(GateXor ? "1" : "0")</strong>
-                    </div>
-                </div>
-            </div>
+        <div class="view-switch no-print">
+            <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Simulator)">
+                🚀 Interaktiver Simulator &amp; Gatter-Schaltungen
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Worksheet)">
+                🖨️ Klausur-Arbeitsblatt (Druckansicht)
+            </button>
         </div>
     }
-    else if (SelectedCircuit == CircuitType.HalfAdder)
+
+    <!-- ========================================================================= -->
+    <!-- SIMULATOR VIEW                                                            -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Simulator)
     {
-        <div class="circuit-layout">
-            <div class="circuit-interactive-panel">
-                <div class="inputs-bar">
-                    <button class="toggle-btn @(InputA ? "high" : "low")" @onclick="() => InputA = !InputA">
-                        A: <strong>@(InputA ? "1" : "0")</strong>
-                    </button>
-                    <button class="toggle-btn @(InputB ? "high" : "low")" @onclick="() => InputB = !InputB">
-                        B: <strong>@(InputB ? "1" : "0")</strong>
-                    </button>
+        <!-- Circuit Selector Tabs -->
+        <div class="circuit-tabs no-print">
+            <button class="circuit-tab @(SelectedCircuit == CircuitType.Multiplexer ? "active" : "")" @onclick="() => SetCircuit(CircuitType.Multiplexer)">
+                🔀 4-zu-1 Multiplexer (Klausur)
+            </button>
+            <button class="circuit-tab @(SelectedCircuit == CircuitType.Gates ? "active" : "")" @onclick="() => SetCircuit(CircuitType.Gates)">
+                Elementare Gatter
+            </button>
+            <button class="circuit-tab @(SelectedCircuit == CircuitType.HalfAdder ? "active" : "")" @onclick="() => SetCircuit(CircuitType.HalfAdder)">
+                Halbaddierer
+            </button>
+            <button class="circuit-tab @(SelectedCircuit == CircuitType.FullAdder ? "active" : "")" @onclick="() => SetCircuit(CircuitType.FullAdder)">
+                Volladdierer (1-Bit)
+            </button>
+            <button class="circuit-tab @(SelectedCircuit == CircuitType.DLatch ? "active" : "")" @onclick="() => SetCircuit(CircuitType.DLatch)">
+                D-Latch (Speicher)
+            </button>
+        </div>
+
+        @if (SelectedCircuit == CircuitType.Multiplexer)
+        {
+            <!-- Narrator Card -->
+            <div class="narrator-card">
+                <div class="narrator-header">
+                    <div class="step-badge badge-mux">4-zu-1 Multiplexer</div>
+                    <div class="narrator-title">
+                        Steuereingänge: <span class="mono bold purple">S1=@(MuxS1 ? "1" : "0"), S0=@(MuxS0 ? "1" : "0")</span> &rarr;
+                        Kanal gewählt: <strong class="blue mono">e@(SelectedChannel)</strong> &bull;
+                        Ausgang: <strong class="@(MuxOutput ? "emerald" : "red") mono">a = @(MuxOutput ? "1" : "0")</strong>
+                    </div>
                 </div>
-
-                <div class="circuit-svg-container">
-                    <svg viewBox="0 0 420 180" class="circuit-svg">
-                        <!-- Wires A & B -->
-                        <line x1="30" y1="50" x2="160" y2="50" class="wire @(InputA ? "wire-high" : "wire-low")" />
-                        <line x1="30" y1="130" x2="160" y2="130" class="wire @(InputB ? "wire-high" : "wire-low")" />
-                        <line x1="70" y1="50" x2="70" y2="90" class="wire @(InputA ? "wire-high" : "wire-low")" />
-                        <line x1="70" y1="90" x2="160" y2="90" class="wire @(InputA ? "wire-high" : "wire-low")" />
-                        <line x1="90" y1="130" x2="90" y2="110" class="wire @(InputB ? "wire-high" : "wire-low")" />
-                        <line x1="90" y1="110" x2="160" y2="110" class="wire @(InputB ? "wire-high" : "wire-low")" />
-
-                        <!-- XOR Box (Sum) -->
-                        <rect x="160" y="30" width="80" height="40" rx="8" class="gate-box" />
-                        <text x="200" y="55" class="gate-box-text">XOR</text>
-
-                        <!-- AND Box (Carry) -->
-                        <rect x="160" y="90" width="80" height="40" rx="8" class="gate-box" />
-                        <text x="200" y="115" class="gate-box-text">AND</text>
-
-                        <!-- Output Wires -->
-                        <line x1="240" y1="50" x2="350" y2="50" class="wire @(HalfAdderSum ? "wire-high" : "wire-low")" />
-                        <line x1="240" y1="110" x2="350" y2="110" class="wire @(HalfAdderCarry ? "wire-high" : "wire-low")" />
-
-                        <!-- Pin Labels -->
-                        <text x="20" y="55" class="pin-label">A</text>
-                        <text x="20" y="135" class="pin-label">B</text>
-                        <text x="360" y="55" class="pin-label">Sum (S) = @(HalfAdderSum ? "1" : "0")</text>
-                        <text x="360" y="115" class="pin-label">Carry (C) = @(HalfAdderCarry ? "1" : "0")</text>
-                    </svg>
+                <p class="narrator-text">
+                    Die Steuersignale $S_1, S_0$ dekodieren die Binärzahl @(SelectedChannel) und schalten ausschließlich den Eingang $e_{@SelectedChannel}$ (Wert @(GetChannelValue(SelectedChannel) ? "1" : "0")) über das zugehörige AND-Gatter und das abschließende OR-Gatter auf den Ausgang $a$ durch.
+                </p>
+                <div class="logic-metrics-strip">
+                    <span>Funktion: <strong class="mono">a = e₀·¬S₁·¬S₀ ∨ e₁·¬S₁·S₀ ∨ e₂·S₁·¬S₀ ∨ e₃·S₁·S₀</strong></span>
+                    <span>Aktiver Pfad: <strong class="mono emerald">Kanal e@(SelectedChannel) (@(GetChannelValue(SelectedChannel) ? "HIGH" : "LOW"))</strong></span>
                 </div>
             </div>
 
-            <!-- Truth table -->
-            <div class="truth-table-panel">
-                <h4>Wahrheitstabelle (Halbaddierer):</h4>
-                <table class="sim-table">
-                    <thead><tr><th>A</th><th>B</th><th>Summe (S)</th><th>Übertrag (C)</th></tr></thead>
-                    <tbody>
-                        @foreach (var row in new[] { (0, 0), (0, 1), (1, 0), (1, 1) })
-                        {
-                            var isCurrent = (InputA ? 1 : 0) == row.Item1 && (InputB ? 1 : 0) == row.Item2;
-                            <tr class="@(isCurrent ? "table-row-active" : "")">
-                                <td>@row.Item1</td>
-                                <td>@row.Item2</td>
-                                <td>@(row.Item1 ^ row.Item2)</td>
-                                <td>@(row.Item1 & row.Item2)</td>
+            <!-- Main Display: Interactive Schematic & Table -->
+            <div class="main-display-grid">
+
+                <!-- Left: Interactive Schematic SVG -->
+                <div class="circuit-card">
+                    <div class="circuit-card-header">
+                        <h3>Schaltplan (Klick auf Signale toggelt Pegel)</h3>
+                    </div>
+
+                    <!-- Input Controls Toolbar -->
+                    <div class="mux-toolbar">
+                        <div class="mux-group">
+                            <span class="toolbar-label">Steuerung ($S$):</span>
+                            <button class="toggle-btn @(MuxS1 ? "high" : "low")" @onclick="() => MuxS1 = !MuxS1">
+                                S₁: <strong>@(MuxS1 ? "1" : "0")</strong>
+                            </button>
+                            <button class="toggle-btn @(MuxS0 ? "high" : "low")" @onclick="() => MuxS0 = !MuxS0">
+                                S₀: <strong>@(MuxS0 ? "1" : "0")</strong>
+                            </button>
+                        </div>
+
+                        <div class="mux-group">
+                            <span class="toolbar-label">Daten ($e$):</span>
+                            <button class="toggle-btn @(MuxE0 ? "high" : "low")" @onclick="() => MuxE0 = !MuxE0">
+                                e₀: <strong>@(MuxE0 ? "1" : "0")</strong>
+                            </button>
+                            <button class="toggle-btn @(MuxE1 ? "high" : "low")" @onclick="() => MuxE1 = !MuxE1">
+                                e₁: <strong>@(MuxE1 ? "1" : "0")</strong>
+                            </button>
+                            <button class="toggle-btn @(MuxE2 ? "high" : "low")" @onclick="() => MuxE2 = !MuxE2">
+                                e₂: <strong>@(MuxE2 ? "1" : "0")</strong>
+                            </button>
+                            <button class="toggle-btn @(MuxE3 ? "high" : "low")" @onclick="() => MuxE3 = !MuxE3">
+                                e₃: <strong>@(MuxE3 ? "1" : "0")</strong>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="svg-container">
+                        <svg viewBox="0 0 650 340" class="circuit-svg" xmlns="http://www.w3.org/2000/svg">
+                            <!-- 4 AND Gate Boxes -->
+                            @for (int i = 0; i < 4; i++)
+                            {
+                                int idx = i;
+                                int y = 40 + idx * 70;
+                                bool isSelected = idx == SelectedChannel;
+                                bool outVal = isSelected && GetChannelValue(idx);
+
+                                <!-- Input lines e[i] -->
+                                <line x1="40" y1="@(y + 20)" x2="220" y2="@(y + 20)" class="wire @(GetChannelValue(idx) ? "wire-high" : "wire-low")" />
+                                @((MarkupString)$"<text x=\"30\" y=\"{y + 25}\" text-anchor=\"end\" class=\"pin-label mono bold\">e{idx}</text>")
+
+                                <!-- AND Gate Box -->
+                                <rect x="220" y="@y" width="60" height="40" rx="4" class="gate-box @(isSelected ? "gate-selected" : "")" />
+                                @((MarkupString)$"<text x=\"250\" y=\"{y + 25}\" class=\"gate-box-text\">&amp;</text>")
+
+                                <!-- Line to OR gate -->
+                                <path d="M 280 @(y + 20) L 430 @(120 + idx * 25)" class="wire @(outVal ? "wire-high" : "wire-low")" />
+                            }
+
+                            <!-- S1 and S0 vertical buses -->
+                            <line x1="120" y1="20" x2="120" y2="310" class="wire @(MuxS1 ? "wire-high" : "wire-low")" />
+                            @((MarkupString)$"<text x=\"120\" y=\"15\" text-anchor=\"middle\" class=\"pin-label mono bold purple\">S₁</text>")
+
+                            <line x1="160" y1="20" x2="160" y2="310" class="wire @(MuxS0 ? "wire-high" : "wire-low")" />
+                            @((MarkupString)$"<text x=\"160\" y=\"15\" text-anchor=\"middle\" class=\"pin-label mono bold purple\">S₀</text>")
+
+                            <!-- OR Gate Box -->
+                            <rect x="430" y="125" width="70" height="80" rx="6" class="gate-box @(MuxOutput ? "gate-selected" : "")" />
+                            @((MarkupString)$"<text x=\"465\" y=\"170\" class=\"gate-box-text\">≥1</text>")
+
+                            <!-- Output Line a -->
+                            <line x1="500" y1="165" x2="600" y2="165" class="wire @(MuxOutput ? "wire-high" : "wire-low")" stroke-width="4" />
+                            @((MarkupString)$"<text x=\"610\" y=\"170\" class=\"pin-label mono bold {(MuxOutput ? "emerald" : "red")}\">a = {(MuxOutput ? "1" : "0")}</text>")
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Right: Truth Table -->
+                <div class="table-card">
+                    <div class="table-card-header">
+                        <h3>Wahrheitstafel (Ausschnitt)</h3>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="interactive-truth-table">
+                            <thead>
+                                <tr>
+                                    <th>$S_1$</th>
+                                    <th>$S_0$</th>
+                                    <th>$e_0$</th>
+                                    <th>$e_1$</th>
+                                    <th>$e_2$</th>
+                                    <th>$e_3$</th>
+                                    <th class="th-out">Ausgang $a$</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int s1 = 0; s1 <= 1; s1++)
+                                {
+                                    for (int s0 = 0; s0 <= 1; s0++)
+                                    {
+                                        int ch = (s1 << 1) | s0;
+                                        bool isCurrentRow = (MuxS1 ? 1 : 0) == s1 && (MuxS0 ? 1 : 0) == s0;
+
+                                        <tr class="@(isCurrentRow ? "table-row-active" : "")">
+                                            <td class="mono bold purple">@s1</td>
+                                            <td class="mono bold purple">@s0</td>
+                                            <td class="mono">@(ch == 0 ? "e₀" : "–")</td>
+                                            <td class="mono">@(ch == 1 ? "e₁" : "–")</td>
+                                            <td class="mono">@(ch == 2 ? "e₂" : "–")</td>
+                                            <td class="mono">@(ch == 3 ? "e₃" : "–")</td>
+                                            <td class="mono bold @(isCurrentRow ? (MuxOutput ? "emerald" : "red") : "")">
+                                                <strong>e@ch</strong>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="circuit-summary-box">
+                        <div class="summary-item">
+                            <span>Ausgewählter Eingang:</span>
+                            <strong class="mono blue">e@SelectedChannel (@(GetChannelValue(SelectedChannel) ? "1" : "0"))</strong>
+                        </div>
+                        <div class="summary-item">
+                            <span>Ausgangspegel $a$:</span>
+                            <strong class="mono @(MuxOutput ? "emerald" : "red")">@(MuxOutput ? "1 (HIGH)" : "0 (LOW)")</strong>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        }
+        else if (SelectedCircuit == CircuitType.Gates)
+        {
+            <!-- Basic Gates Grid -->
+            <div class="gates-grid">
+                <div class="inputs-bar">
+                    <span class="bar-label">Eingangssignale:</span>
+                    <button class="toggle-btn @(InputA ? "high" : "low")" @onclick="() => InputA = !InputA">
+                        Eingang A: <strong>@(InputA ? "1" : "0")</strong>
+                    </button>
+                    <button class="toggle-btn @(InputB ? "high" : "low")" @onclick="() => InputB = !InputB">
+                        Eingang B: <strong>@(InputB ? "1" : "0")</strong>
+                    </button>
+                </div>
+
+                <div class="gates-showcase">
+                    <div class="gate-card">
+                        <div class="gate-name">AND (Konjunktion)</div>
+                        <div class="gate-formula mono">Y = A ∧ B</div>
+                        <div class="gate-output-pill @(GateAnd ? "high" : "low")">
+                            Ausgang Y = <strong>@(GateAnd ? "1" : "0")</strong>
+                        </div>
+                    </div>
+                    <div class="gate-card">
+                        <div class="gate-name">OR (Disjunktion)</div>
+                        <div class="gate-formula mono">Y = A ∨ B</div>
+                        <div class="gate-output-pill @(GateOr ? "high" : "low")">
+                            Ausgang Y = <strong>@(GateOr ? "1" : "0")</strong>
+                        </div>
+                    </div>
+                    <div class="gate-card">
+                        <div class="gate-name">NOT (Invertierung)</div>
+                        <div class="gate-formula mono">Y = ¬A</div>
+                        <div class="gate-output-pill @(GateNotA ? "high" : "low")">
+                            Ausgang Y = <strong>@(GateNotA ? "1" : "0")</strong>
+                        </div>
+                    </div>
+                    <div class="gate-card">
+                        <div class="gate-name">NAND (Sheffer)</div>
+                        <div class="gate-formula mono">Y = ¬(A ∧ B)</div>
+                        <div class="gate-output-pill @(GateNand ? "high" : "low")">
+                            Ausgang Y = <strong>@(GateNand ? "1" : "0")</strong>
+                        </div>
+                    </div>
+                    <div class="gate-card">
+                        <div class="gate-name">NOR (Peirce)</div>
+                        <div class="gate-formula mono">Y = ¬(A ∨ B)</div>
+                        <div class="gate-output-pill @(GateNor ? "high" : "low")">
+                            Ausgang Y = <strong>@(GateNor ? "1" : "0")</strong>
+                        </div>
+                    </div>
+                    <div class="gate-card">
+                        <div class="gate-name">XOR (Antivalenz)</div>
+                        <div class="gate-formula mono">Y = A ⊕ B</div>
+                        <div class="gate-output-pill @(GateXor ? "high" : "low")">
+                            Ausgang Y = <strong>@(GateXor ? "1" : "0")</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+        else if (SelectedCircuit == CircuitType.HalfAdder)
+        {
+            <div class="gates-grid">
+                <div class="inputs-bar">
+                    <span class="bar-label">Eingangssignale:</span>
+                    <button class="toggle-btn @(InputA ? "high" : "low")" @onclick="() => InputA = !InputA">A: @(InputA ? "1" : "0")</button>
+                    <button class="toggle-btn @(InputB ? "high" : "low")" @onclick="() => InputB = !InputB">B: @(InputB ? "1" : "0")</button>
+                </div>
+                <div class="circuit-summary-box">
+                    <div class="summary-item"><span>Summe S (A ⊕ B):</span><strong class="mono emerald">@(HalfAdderSum ? "1" : "0")</strong></div>
+                    <div class="summary-item"><span>Übertrag C (A ∧ B):</span><strong class="mono blue">@(HalfAdderCarry ? "1" : "0")</strong></div>
+                </div>
+            </div>
+        }
+        else if (SelectedCircuit == CircuitType.FullAdder)
+        {
+            <div class="gates-grid">
+                <div class="inputs-bar">
+                    <span class="bar-label">Eingangssignale:</span>
+                    <button class="toggle-btn @(InputA ? "high" : "low")" @onclick="() => InputA = !InputA">A: @(InputA ? "1" : "0")</button>
+                    <button class="toggle-btn @(InputB ? "high" : "low")" @onclick="() => InputB = !InputB">B: @(InputB ? "1" : "0")</button>
+                    <button class="toggle-btn @(InputCin ? "high" : "low")" @onclick="() => InputCin = !InputCin">C_in: @(InputCin ? "1" : "0")</button>
+                </div>
+                <div class="circuit-summary-box">
+                    <div class="summary-item"><span>Summe S:</span><strong class="mono emerald">@(FullAdderSum ? "1" : "0")</strong></div>
+                    <div class="summary-item"><span>Übertrag C_out:</span><strong class="mono blue">@(FullAdderCout ? "1" : "0")</strong></div>
+                </div>
+            </div>
+        }
+        else if (SelectedCircuit == CircuitType.DLatch)
+        {
+            <div class="gates-grid">
+                <div class="inputs-bar">
+                    <span class="bar-label">Signale:</span>
+                    <button class="toggle-btn @(InputD ? "high" : "low")" @onclick="ToggleD">D: @(InputD ? "1" : "0")</button>
+                    <button class="toggle-btn @(ClockSignal ? "high" : "low")" @onclick="ToggleClock">Clock (Takt): @(ClockSignal ? "1" : "0")</button>
+                </div>
+                <div class="circuit-summary-box">
+                    <div class="summary-item"><span>Gespeicherter Zustand Q:</span><strong class="mono emerald">@(LatchQ ? "1" : "0")</strong></div>
+                    <div class="summary-item"><span>Invertiert ¬Q:</span><strong class="mono red">@(!LatchQ ? "1" : "0")</strong></div>
+                </div>
+            </div>
+        }
+    }
+
+    <!-- ========================================================================= -->
+    <!-- WORKSHEET VIEW (1:1 EXAM REPLICA)                                         -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Worksheet)
+    {
+        <div class="worksheet-paper">
+
+            <!-- Exam Header -->
+            <div class="exam-header">
+                <div class="exam-title-block">
+                    <span class="exam-sub">Grundlagen der Informatik &bull; Schaltnetze</span>
+                    <h1 class="exam-main-title">Übungs- und Klausuraufgabe: Logikgatter &amp; Schaltungen</h1>
+                </div>
+                <div class="exam-meta-box no-print">
+                    <button class="toggle-sol-btn @(ShowSolution ? "active" : "")" @onclick="ToggleSolution">
+                        @(ShowSolution ? "👁️ Musterlösung ausblenden" : "💡 Musterlösung einblenden")
+                    </button>
+                    <button class="print-btn" @onclick="TriggerPrint">
+                        🖨️ Seite drucken / PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Student Info Fields -->
+            <div class="student-info-strip">
+                <div class="info-field">
+                    <span class="info-label">Name, Vorname:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field">
+                    <span class="info-label">Matrikelnummer:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field points-field">
+                    <span class="info-label">Punkte:</span>
+                    <div class="points-box">/ 8 P.</div>
+                </div>
+            </div>
+
+            <!-- Intro text matching TILogicCircuit.tex -->
+            <div class="task-prompt-box">
+                <p class="task-text">
+                    Betrachten Sie folgende kombinatorische Schaltung mit zwei Steuereingängen $S_1, S_0$, 
+                    vier Dateneingängen $e_0, e_1, e_2, e_3$ und einem Ausgang $a$:
+                </p>
+            </div>
+
+            <!-- Schematic Box -->
+            <div class="ws-diagram-center">
+                <svg viewBox="0 0 620 280" class="ws-svg-exam" xmlns="http://www.w3.org/2000/svg">
+                    <!-- 4 AND gates -->
+                    @for (int i = 0; i < 4; i++)
+                    {
+                        int y = 30 + i * 60;
+                        <line x1="30" y1="@(y + 15)" x2="200" y2="@(y + 15)" stroke="#000" stroke-width="1.5" />
+                        @((MarkupString)$"<text x=\"20\" y=\"{y + 20}\" text-anchor=\"end\" class=\"ws-svg-txt font-bold\">e{i}</text>")
+
+                        <rect x="200" y="@y" width="50" height="30" fill="#fff" stroke="#000" stroke-width="1.5" />
+                        @((MarkupString)$"<text x=\"225\" y=\"{y + 20}\" text-anchor=\"middle\" class=\"ws-svg-txt\">&amp;</text>")
+
+                        <path d="M 250 @(y + 15) L 380 @(100 + i * 20)" stroke="#000" stroke-width="1.5" fill="none" />
+                    }
+
+                    <!-- S1, S0 lines -->
+                    <line x1="100" y1="15" x2="100" y2="255" stroke="#000" stroke-width="1.5" />
+                    @((MarkupString)$"<text x=\"100\" y=\"12\" text-anchor=\"middle\" class=\"ws-svg-txt font-bold\">S₁</text>")
+
+                    <line x1="140" y1="15" x2="140" y2="255" stroke="#000" stroke-width="1.5" />
+                    @((MarkupString)$"<text x=\"140\" y=\"12\" text-anchor=\"middle\" class=\"ws-svg-txt font-bold\">S₀</text>")
+
+                    <!-- OR Gate -->
+                    <rect x="380" y="105" width="60" height="60" fill="#fff" stroke="#000" stroke-width="1.5" />
+                    @((MarkupString)$"<text x=\"410\" y=\"140\" text-anchor=\"middle\" class=\"ws-svg-txt\">≥1</text>")
+
+                    <!-- Output a -->
+                    <line x1="440" y1="135" x2="550" y2="135" stroke="#000" stroke-width="2" />
+                    @((MarkupString)$"<text x=\"560\" y=\"140\" class=\"ws-svg-txt font-bold\">a</text>")
+                </svg>
+            </div>
+
+            <!-- Teilaufgabe 1 -->
+            <div class="task-section">
+                <div class="task-sub-title">
+                    <span>Teilaufgabe 1 (2 Punkte)</span>
+                </div>
+                <p class="task-text">
+                    Formulieren Sie die Schaltung als boolesche Funktion $a = f(S_1, S_0, e_0, e_1, e_2, e_3)$:
+                </p>
+
+                @if (ShowSolution)
+                {
+                    <div class="ws-solution-box">
+                        <div class="sol-formula-line mono bold emerald">
+                            $$a = e_0 \overline{S_1}\,\overline{S_0} \;\vee\; e_1 \overline{S_1} S_0 \;\vee\; e_2 S_1 \overline{S_0} \;\vee\; e_3 S_1 S_0$$
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="ws-formula-blank">
+                        <span class="mono bold">a = </span>
+                        <div class="blank-line-long"></div>
+                    </div>
+                }
+            </div>
+
+            <!-- Teilaufgabe 2 -->
+            <div class="task-section">
+                <div class="task-sub-title">
+                    <span>Teilaufgabe 2 (4 Punkte)</span>
+                </div>
+                <p class="task-text">
+                    Ermitteln Sie einen Teil der Wertetabelle, indem Sie die fehlenden Ausgangswerte $a$ eintragen:
+                </p>
+
+                <div class="ws-table-container">
+                    <table class="ws-matrix-table">
+                        <thead>
+                            <tr>
+                                <th>$S_1$</th>
+                                <th>$S_0$</th>
+                                <th>$e_0$</th>
+                                <th>$e_1$</th>
+                                <th>$e_2$</th>
+                                <th>$e_3$</th>
+                                <th class="ws-th-highlight">$a$</th>
                             </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    }
-    else if (SelectedCircuit == CircuitType.FullAdder)
-    {
-        <div class="circuit-layout">
-            <div class="circuit-interactive-panel">
-                <div class="inputs-bar">
-                    <button class="toggle-btn @(InputA ? "high" : "low")" @onclick="() => InputA = !InputA">
-                        A: <strong>@(InputA ? "1" : "0")</strong>
-                    </button>
-                    <button class="toggle-btn @(InputB ? "high" : "low")" @onclick="() => InputB = !InputB">
-                        B: <strong>@(InputB ? "1" : "0")</strong>
-                    </button>
-                    <button class="toggle-btn @(InputCin ? "high" : "low")" @onclick="() => InputCin = !InputCin">
-                        Cin: <strong>@(InputCin ? "1" : "0")</strong>
-                    </button>
-                </div>
-
-                <div class="result-summary-box">
-                    <div class="result-item">
-                        <span>Summe (S = A ⊕ B ⊕ Cin):</span>
-                        <strong class="@(FullAdderSum ? "color-high" : "")">@(FullAdderSum ? "1" : "0")</strong>
-                    </div>
-                    <div class="result-item">
-                        <span>Übertrag (Cout = (A∧B) ∨ (Cin∧(A⊕B))):</span>
-                        <strong class="@(FullAdderCout ? "color-high" : "")">@(FullAdderCout ? "1" : "0")</strong>
-                    </div>
-                    <div class="result-item">
-                        <span>Dezimalergebnis:</span>
-                        <strong>@((InputA ? 1 : 0) + (InputB ? 1 : 0) + (InputCin ? 1 : 0)) = @((FullAdderCout ? 2 : 0) + (FullAdderSum ? 1 : 0))₂</strong>
-                    </div>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in ExamTableRows)
+                            {
+                                <tr>
+                                    <td class="mono">@row.S1</td>
+                                    <td class="mono">@row.S0</td>
+                                    <td class="mono">@row.E0</td>
+                                    <td class="mono">@row.E1</td>
+                                    <td class="mono">@row.E2</td>
+                                    <td class="mono">@row.E3</td>
+                                    <td class="mono bold @(ShowSolution ? (row.ExpectedA == 1 ? "ws-val-one" : "ws-val-zero") : "ws-blank-slot")">
+                                        @(ShowSolution ? row.ExpectedA.ToString() : "")
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
                 </div>
             </div>
-        </div>
-    }
-    else if (SelectedCircuit == CircuitType.DLatch)
-    {
-        <div class="circuit-layout">
-            <div class="circuit-interactive-panel">
-                <div class="inputs-bar">
-                    <button class="toggle-btn @(InputD ? "high" : "low")" @onclick="ToggleD">
-                        Datenleitung (D): <strong>@(InputD ? "1" : "0")</strong>
-                    </button>
-                    <button class="toggle-btn @(ClockSignal ? "high" : "low")" @onclick="ToggleClock">
-                        Taktsignal (CLK): <strong>@(ClockSignal ? "1 (Aktiv)" : "0 (Gesperrt)")</strong>
-                    </button>
-                </div>
 
-                <div class="latch-status-card">
-                    <div class="latch-state-indicator">
-                        <span class="state-label">Gespeicherter Zustand (Q):</span>
-                        <span class="latch-state-value @(LatchQ ? "high" : "low")">@(LatchQ ? "1" : "0")</span>
+            <!-- Teilaufgabe 3 -->
+            <div class="task-section">
+                <div class="task-sub-title">
+                    <span>Teilaufgabe 3 (2 Punkte)</span>
+                </div>
+                <p class="task-text">
+                    Wie heißt diese Schaltung?
+                </p>
+
+                @if (ShowSolution)
+                {
+                    <div class="ws-solution-box">
+                        <p class="sol-para mono bold emerald">
+                            Multiplexer (4-zu-1 Multiplexer / MUX)
+                        </p>
                     </div>
-                    <div class="latch-state-indicator">
-                        <span class="state-label">Invertierter Ausgang (/Q):</span>
-                        <span class="latch-state-value @(!LatchQ ? "high" : "low")">@(!LatchQ ? "1" : "0")</span>
+                }
+                else
+                {
+                    <div class="ws-formula-blank">
+                        <span class="mono">Antwort: </span>
+                        <div class="blank-line-long"></div>
                     </div>
-                    <p class="latch-note">
-                        @(ClockSignal 
-                            ? "✅ Takt aktiv (CLK=1): Datenübernahme transparent (Q folgt D)." 
-                            : "🔒 Takt gesperrt (CLK=0): Zustand Q bleibt stabil eingefroren.")
-                    </p>
+                }
+            </div>
+
+            <!-- Footer -->
+            <div class="exam-footer">
+                <div class="exam-footer-note">
+                    Hinweis: Ein Multiplexer schaltet genau ein Datensignal aus mehreren Eingängen auf einen einzigen Ausgang durch, gesteuert durch die Adressleitungen.
                 </div>
             </div>
+
         </div>
     }
-</div>
 
-<style>
-    .logic-sim-card {
-        background: #ffffff;
-        border-radius: 1.25rem;
-        border: 1px solid rgba(20, 50, 47, 0.1);
-        padding: 1.5rem;
-        box-shadow: 0 10px 30px rgba(20, 50, 47, 0.05);
-    }
-    .sim-title { margin: 0 0 0.35rem; color: #14322f; }
-    .sim-subtitle { margin: 0; color: #486a65; font-size: 0.92rem; }
-    .circuit-tabs {
-        display: flex;
-        gap: 0.5rem;
-        margin: 1.25rem 0;
-        flex-wrap: wrap;
-    }
-    .circuit-tab {
-        padding: 0.55rem 1rem;
-        border-radius: 0.75rem;
-        border: 1px solid #cbd5e1;
-        background: #f8fafc;
-        font-weight: 700;
-        cursor: pointer;
-        color: #334155;
-        transition: all 0.15s;
-    }
-    .circuit-tab.active {
-        background: #14322f;
-        color: #ffffff;
-        border-color: #14322f;
-    }
-    .inputs-bar {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        margin-bottom: 1.25rem;
-        flex-wrap: wrap;
-    }
-    .bar-label { font-weight: 700; font-size: 0.9rem; color: #334155; }
-    .toggle-btn {
-        padding: 0.5rem 1rem;
-        border-radius: 0.6rem;
-        border: 1px solid #cbd5e1;
-        cursor: pointer;
-        font-family: inherit;
-        font-size: 0.9rem;
-        transition: all 0.15s;
-    }
-    .toggle-btn.high { background: #dcfce7; border-color: #86efac; color: #166534; font-weight: 700; }
-    .toggle-btn.low { background: #f1f5f9; border-color: #cbd5e1; color: #475569; }
-    .gates-showcase {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1rem;
-    }
-    .gate-card {
-        padding: 1.1rem;
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 0.85rem;
-        text-align: center;
-    }
-    .gate-name { font-weight: 700; color: #0f172a; margin-bottom: 0.25rem; }
-    .gate-formula { font-size: 0.82rem; color: #64748b; font-family: monospace; margin-bottom: 0.75rem; }
-    .gate-output-pill {
-        display: inline-block;
-        padding: 0.4rem 0.85rem;
-        border-radius: 999px;
-        font-size: 0.9rem;
-    }
-    .gate-output-pill.high { background: #0d9488; color: #ffffff; font-weight: 700; }
-    .gate-output-pill.low { background: #e2e8f0; color: #64748b; }
-    .circuit-layout {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-        gap: 1.5rem;
-        margin-top: 1rem;
-    }
-    .circuit-svg-container {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 0.85rem;
-        padding: 1rem;
-    }
-    .circuit-svg { width: 100%; height: auto; display: block; }
-    .wire { stroke-width: 3; stroke-linecap: round; transition: stroke 0.2s; }
-    .wire-high { stroke: #0d9488; }
-    .wire-low { stroke: #94a3b8; }
-    .gate-box { fill: #1e293b; stroke: #0f172a; }
-    .gate-box-text { fill: #ffffff; font-size: 13px; font-weight: 700; text-anchor: middle; }
-    .pin-label { fill: #334155; font-size: 13px; font-weight: 600; }
-    .sim-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.9rem;
-        text-align: center;
-        background: #ffffff;
-        border: 1px solid #e2e8f0;
-        border-radius: 0.5rem;
-        overflow: hidden;
-    }
-    .sim-table th, .sim-table td { padding: 0.5rem; border: 1px solid #e2e8f0; }
-    .sim-table th { background: #f1f5f9; }
-    .table-row-active { background: #fef08a !important; font-weight: 700; }
-    .result-summary-box {
-        display: flex;
-        flex-direction: column;
-        gap: 0.75rem;
-        padding: 1.25rem;
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 0.85rem;
-    }
-    .result-item { display: flex; justify-content: space-between; font-size: 1rem; }
-    .color-high { color: #0d9488; }
-    .latch-status-card {
-        padding: 1.25rem;
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 0.85rem;
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-    .latch-state-indicator { display: flex; align-items: center; justify-content: space-between; }
-    .latch-state-value {
-        width: 2.5rem;
-        height: 2.5rem;
-        border-radius: 50%;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.2rem;
-        font-weight: 800;
-    }
-    .latch-state-value.high { background: #0d9488; color: #ffffff; }
-    .latch-state-value.low { background: #cbd5e1; color: #475569; }
-    .latch-note { margin: 0; font-size: 0.9rem; color: #334155; }
-</style>
+</article>
 
 @code {
-    private enum CircuitType { Gates, HalfAdder, FullAdder, DLatch }
-    private CircuitType SelectedCircuit = CircuitType.Gates;
+    public enum ViewMode { Simulator, Worksheet }
+    private enum CircuitType { Multiplexer, Gates, HalfAdder, FullAdder, DLatch }
 
+    [Parameter] public string? View { get; set; }
+    [Parameter] public bool? SolutionParam { get; set; }
+    [Parameter] public bool? Embed { get; set; }
+
+    private ViewMode ActiveView = ViewMode.Simulator;
+    private CircuitType SelectedCircuit = CircuitType.Multiplexer;
+    private bool ShowSolution = false;
+    private bool IsEmbed = false;
+
+    // Multiplexer state
+    private bool MuxS1 = false;
+    private bool MuxS0 = false;
+    private bool MuxE0 = true;
+    private bool MuxE1 = false;
+    private bool MuxE2 = false;
+    private bool MuxE3 = false;
+
+    private int SelectedChannel => ((MuxS1 ? 1 : 0) << 1) | (MuxS0 ? 1 : 0);
+
+    private bool GetChannelValue(int ch) => ch switch
+    {
+        0 => MuxE0,
+        1 => MuxE1,
+        2 => MuxE2,
+        3 => MuxE3,
+        _ => false
+    };
+
+    private bool MuxOutput => GetChannelValue(SelectedChannel);
+
+    // Basic Gates state
     private bool InputA = false;
     private bool InputB = false;
     private bool InputCin = false;
@@ -393,7 +558,68 @@
     private bool FullAdderSum => InputA ^ InputB ^ InputCin;
     private bool FullAdderCout => (InputA && InputB) || (InputCin && (InputA ^ InputB));
 
+    public class ExamRow
+    {
+        public int S1 { get; set; }
+        public int S0 { get; set; }
+        public int E0 { get; set; }
+        public int E1 { get; set; }
+        public int E2 { get; set; }
+        public int E3 { get; set; }
+        public int ExpectedA { get; set; }
+    }
+
+    private List<ExamRow> ExamTableRows = new()
+    {
+        new ExamRow { S1 = 0, S0 = 0, E0 = 0, E1 = 0, E2 = 0, E3 = 0, ExpectedA = 0 },
+        new ExamRow { S1 = 0, S0 = 0, E0 = 1, E1 = 0, E2 = 0, E3 = 0, ExpectedA = 1 },
+        new ExamRow { S1 = 0, S0 = 1, E0 = 0, E1 = 0, E2 = 0, E3 = 0, ExpectedA = 0 },
+        new ExamRow { S1 = 0, S0 = 1, E0 = 0, E1 = 1, E2 = 0, E3 = 0, ExpectedA = 1 },
+        new ExamRow { S1 = 1, S0 = 0, E0 = 0, E1 = 0, E2 = 0, E3 = 0, ExpectedA = 0 },
+        new ExamRow { S1 = 1, S0 = 0, E0 = 0, E1 = 0, E2 = 1, E3 = 0, ExpectedA = 1 },
+        new ExamRow { S1 = 1, S0 = 1, E0 = 0, E1 = 0, E2 = 0, E3 = 0, ExpectedA = 0 },
+        new ExamRow { S1 = 1, S0 = 1, E0 = 0, E1 = 0, E2 = 0, E3 = 1, ExpectedA = 1 },
+    };
+
+    protected override void OnInitialized()
+    {
+        ReadQueryParameters();
+    }
+
+    protected override void OnParametersSet()
+    {
+        ReadQueryParameters();
+    }
+
+    private void ReadQueryParameters()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query;
+            if (!string.IsNullOrEmpty(query))
+            {
+                if (query.Contains("view=worksheet", StringComparison.OrdinalIgnoreCase))
+                {
+                    ActiveView = ViewMode.Worksheet;
+                }
+                if (query.Contains("solution=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    ShowSolution = true;
+                }
+                if (query.Contains("embed=true", StringComparison.OrdinalIgnoreCase) || query.Contains("embedded=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsEmbed = true;
+                }
+            }
+        }
+        catch { }
+    }
+
+    private void SetView(ViewMode mode) => ActiveView = mode;
     private void SetCircuit(CircuitType circuit) => SelectedCircuit = circuit;
+    private void ToggleSolution() => ShowSolution = !ShowSolution;
+    private async Task TriggerPrint() => await JSRuntime.InvokeVoidAsync("window.print");
 
     private void ToggleD()
     {

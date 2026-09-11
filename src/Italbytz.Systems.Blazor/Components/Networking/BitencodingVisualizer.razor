@@ -334,11 +334,50 @@
                 </table>
             </div>
 
-            <!-- Theory / Follow-up Questions matching CNBituebertragungsschichtBitcodierungenWissenVarianteA -->
+            <!-- Theory / Follow-up Questions matching CNBituebertragungsschichtBitcodierungenWissen -->
             <div class="theory-question-box">
                 <div class="question-header">
-                    <strong>Ergänzungsfragen zur Signalanalyse:</strong>
+                    <strong>Teilaufgabe 2: Analyse der Leitungscodes &amp; Wissensfragen</strong>
                 </div>
+
+                <div class="ws-knowledge-table-box">
+                    <p class="q-text">Tragen Sie in jeder Zeile alle passenden Leitungscodes ein (NRZ, NRZI, MLT-3, Manchester, 8B6T):</p>
+                    <table class="ws-matrix-table" style="width: 100%; margin: 0.5rem 0 1rem 0;">
+                        <thead>
+                            <tr>
+                                <th style="width: 60%; text-align: left;">Aussage / Eigenschaft</th>
+                                <th style="width: 40%; text-align: left;">Passende Leitungscodes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="text-align: left;">Der Leitungscode verwendet genau zwei Signalpegel</td>
+                                <td class="mono @(ShowSolution ? "sol-revealed font-bold emerald" : "ws-blank-slot")">
+                                    @(ShowSolution ? "NRZ, NRZI, Manchester" : "")
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="text-align: left;">Der Leitungscode verwendet drei Signalpegel</td>
+                                <td class="mono @(ShowSolution ? "sol-revealed font-bold emerald" : "ws-blank-slot")">
+                                    @(ShowSolution ? "MLT-3, 8B6T" : "")
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="text-align: left;">Der Leitungscode garantiert gleichverteilte Signalpegel (DC-frei)</td>
+                                <td class="mono @(ShowSolution ? "sol-revealed font-bold emerald" : "ws-blank-slot")">
+                                    @(ShowSolution ? "Manchester, 8B6T" : "")
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="text-align: left;">Garantiert einen Signalpegelwechsel bei jedem übertragenen Bit</td>
+                                <td class="mono @(ShowSolution ? "sol-revealed font-bold emerald" : "ws-blank-slot")">
+                                    @(ShowSolution ? "Manchester" : "")
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
                 <div class="question-list">
                     <div class="q-item">
                         <span class="q-num">1.</span>
@@ -363,11 +402,11 @@
                     <div class="q-item">
                         <span class="q-num">2.</span>
                         <div class="q-body">
-                            <p class="q-text">Warum benötigt die Manchester-Codierung die doppelte Bandbreite (Baudrate) im Vergleich zu NRZ bei gleicher Datenrate?</p>
+                            <p class="q-text">Warum garantieren nicht alle Leitungscodes einen Signalpegelwechsel bei jedem übertragenen Bit?</p>
                             @if (ShowSolution)
                             {
                                 <div class="sol-answer">
-                                    <strong>Musterlösung:</strong> Manchester führt in der Mitte jedes Bits einen erzwungenen Pegelwechsel durch (2 Symbole pro Bit $\to 2$ Baud pro Bit/s). Die maximale Signalfrequenz ist somit doppelt so hoch wie bei NRZ.
+                                    <strong>Musterlösung:</strong> Ein garantierter Pegelwechsel bei jedem Bit (wie bei Manchester mit 2 Symbolen pro Bit) verdoppelt die erforderliche Bandbreite bzw. Baudrate bei gleicher Nutzdatenrate. Die spektrale Effizienz sinkt.
                                 </div>
                             }
                             else
