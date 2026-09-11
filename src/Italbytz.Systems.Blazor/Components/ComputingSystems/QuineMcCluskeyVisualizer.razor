@@ -45,13 +45,13 @@
                 <label class="control-label">
                     <span>Anzahl Variablen:</span>
                     <select class="form-input select" @bind="VariableCount" @bind:after="OnVariableCountChanged">
-                        <option value="3">3 Variablen ($x_2, x_1, x_0$ &rarr; 8 Minterme)</option>
-                        <option value="4">4 Variablen ($x_3, x_2, x_1, x_0$ &rarr; 16 Minterme)</option>
+                        <option value="3">3 Variablen (<em>x</em><sub>2</sub>, <em>x</em><sub>1</sub>, <em>x</em><sub>0</sub> &rarr; 8 Minterme)</option>
+                        <option value="4">4 Variablen (<em>x</em><sub>3</sub>, <em>x</em><sub>2</sub>, <em>x</em><sub>1</sub>, <em>x</em><sub>0</sub> &rarr; 16 Minterme)</option>
                     </select>
                 </label>
 
                 <label class="control-label wide-label">
-                    <span>Wertevektor der Ausgabespalte ($f(m_0 \dots m_{2^n-1})$):</span>
+                    <span>Wertevektor der Ausgabespalte (<em>f</em>(<em>m</em><sub>0</sub> &hellip; <em>m</em><sub>2<sup><em>n</em></sup>&minus;1</sub>)):</span>
                     <input type="text" class="form-input mono" @bind="TruthValuesInput" @bind:after="Recalculate" />
                 </label>
             </div>
@@ -59,9 +59,10 @@
             <!-- Presets Bar -->
             <div class="preset-bar">
                 <span class="preset-label">Beispiele:</span>
-                <button class="preset-btn" @onclick='() => LoadPreset("Exam1")'>Klausuraufgabe 1 (0,0,1,1,0,0,1,1,1,1,0,0,1,1,1,0)</button>
-                <button class="preset-btn" @onclick='() => LoadPreset("Exam2")'>Klausuraufgabe 2 (1,1,0,0,1,1,0,0,1,1,1,0,1,1,0,0)</button>
-                <button class="preset-btn" @onclick='() => LoadPreset("Majority3")'>3-Var Mehrheit</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("Exam1")'>Klausur 3-Bit</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("Majority3")'>Mehrheitsentscheid</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("Exam2")'>Klausur 4-Bit</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("Prime4")'>Primzahlen 4-Bit</button>
                 <button class="preset-btn random" @onclick="GenerateRandomFunction">🎲 Zufallsfunktion</button>
             </div>
         </div>
@@ -105,7 +106,7 @@
                             <table class="qmc-mini-table">
                                 <thead>
                                     <tr>
-                                        <th>$i$</th>
+                                        <th><em>i</em></th>
                                         <th>Binär</th>
                                         <th>✓</th>
                                     </tr>
@@ -185,7 +186,7 @@
                     <div class="formula-card">
                         <div class="formula-title">Ergebnis der Minimierung:</div>
                         <div class="formula-display mono bold emerald">
-                            $y = @QmcSolution.MinimalDnf$
+                            <em>y</em> = @QmcSolution.MinimalDnf
                         </div>
                     </div>
                 </div>
@@ -238,7 +239,7 @@
                 <p class="task-text">
                     Mit dem <strong>Quine-McCluskey-Verfahren</strong> können in drei Schritten minimale Polynome für Boolesche Funktionen gefunden werden.
                     Gegeben sei folgende Ausgabespalte einer Wahrheitstafel:
-                    $$\mathbf{f} = (@string.Join(", ", TruthValues))$$
+                    <div class="mono bold text-center" style="margin: 0.5rem 0;"><strong>f</strong> = (@string.Join(", ", TruthValues))</div>
                 </p>
             </div>
 
@@ -248,21 +249,21 @@
                     <span>Teilaufgabe 1 (2 Punkte)</span>
                 </div>
                 <p class="task-text">
-                    Bilden Sie zunächst eine Wahrheitstafel nur mit den Zeilen der <strong>Einsmenge</strong> ($0$. Ordnung):
+                    Bilden Sie zunächst eine Wahrheitstafel nur mit den Zeilen der <strong>Einsmenge</strong> (0. Ordnung):
                 </p>
 
                 <div class="ws-table-container">
                     <table class="ws-matrix-table">
                         <thead>
                             <tr>
-                                <th>$i$</th>
+                                <th><em>i</em></th>
                                 @if (VariableCount == 4)
                                 {
-                                    <th>$x_3$</th>
+                                    <th><em>x</em><sub>3</sub></th>
                                 }
-                                <th>$x_2$</th>
-                                <th>$x_1$</th>
-                                <th>$x_0$</th>
+                                <th><em>x</em><sub>2</sub></th>
+                                <th><em>x</em><sub>1</sub></th>
+                                <th><em>x</em><sub>0</sub></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -307,7 +308,7 @@
                     <span>Teilaufgabe 2 (4 Punkte)</span>
                 </div>
                 <p class="task-text">
-                    Suchen Sie paarweise nach Vereinfachungen (1. und 2. Ordnung) und markieren Sie vereinfachte Zeilen mit einem Haken $\checkmark$:
+                    Suchen Sie paarweise nach Vereinfachungen (1. und 2. Ordnung) und markieren Sie vereinfachte Zeilen mit einem Haken ✓:
                 </p>
 
                 @if (ShowSolution && QmcSolution != null)
@@ -350,14 +351,14 @@
                     <span>Teilaufgabe 3 (2 Punkte)</span>
                 </div>
                 <p class="task-text">
-                    Geben Sie das resultierende <strong>Minimalpolynom (disjunktive Minimalform $y$)</strong> an:
+                    Geben Sie das resultierende <strong>Minimalpolynom (disjunktive Minimalform <em>y</em>)</strong> an:
                 </p>
 
                 @if (ShowSolution && QmcSolution != null)
                 {
                     <div class="ws-solution-box">
                         <div class="sol-formula-line mono bold">
-                            $$y = @QmcSolution.MinimalDnf$$
+                            <em>y</em> = @QmcSolution.MinimalDnf
                         </div>
                     </div>
                 }

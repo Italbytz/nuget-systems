@@ -96,9 +96,9 @@
                     </span>
                 </div>
                 <div class="legend-pills no-print">
-                    <span class="legend-pill pill-pos">Ader A: Original ($S_+$)</span>
-                    <span class="legend-pill pill-neg">Ader B: Invertiert ($S_-$)</span>
-                    <span class="legend-pill pill-diff">Differenz: $S_+ - S_-$</span>
+                    <span class="legend-pill pill-pos">Ader A: Original (<em>S</em><sub>+</sub>)</span>
+                    <span class="legend-pill pill-neg">Ader B: Invertiert (<em>S</em><sub>&minus;</sub>)</span>
+                    <span class="legend-pill pill-diff">Differenz: <em>S</em><sub>+</sub> &minus; <em>S</em><sub>&minus;</sub></span>
                     <span class="legend-pill pill-rec">Rekonstruiert (0V / 5V)</span>
                 </div>
             </div>
@@ -207,8 +207,8 @@
                 <div class="formula-box">
                     <span class="f-title">Kabelübertragung (Verdrillung)</span>
                     <p class="f-desc">
-                        Ader 1: $S_+(t) = V(t) + \text{Noise}(t)$<br />
-                        Ader 2: $S_-(t) = (5\,\text{V} - V(t)) + \text{Noise}(t)$
+                        Ader 1: <em>S</em><sub>+</sub>(<em>t</em>) = <em>V</em>(<em>t</em>) + Noise(<em>t</em>)<br />
+                        Ader 2: <em>S</em><sub>&minus;</sub>(<em>t</em>) = (5 V &minus; <em>V</em>(<em>t</em>)) + Noise(<em>t</em>)
                     </p>
                     <span class="f-note">Störsignale koppeln wegen Verdrillung identisch in beide Adern ein.</span>
                 </div>
@@ -216,19 +216,19 @@
                 <div class="formula-box highlight-box">
                     <span class="f-title">Empfänger: Differenzbildung</span>
                     <p class="f-desc">
-                        $S_{\text{diff}}(t) = S_+(t) - S_-(t)$<br />
-                        $= [V(t) + \text{Noise}(t)] - [5\,\text{V} - V(t) + \text{Noise}(t)] = 2\cdot V(t) - 5\,\text{V}$
+                        <em>S</em><sub>diff</sub>(<em>t</em>) = <em>S</em><sub>+</sub>(<em>t</em>) &minus; <em>S</em><sub>&minus;</sub>(<em>t</em>)<br />
+                        = [<em>V</em>(<em>t</em>) + Noise(<em>t</em>)] &minus; [5 V &minus; <em>V</em>(<em>t</em>) + Noise(<em>t</em>)] = 2 &middot; <em>V</em>(<em>t</em>) &minus; 5 V
                     </p>
                     <span class="f-note text-green">
-                        &rArr; Der Rauschausdruck $\text{Noise}(t)$ entfällt vollständig!
+                        &rArr; Der Rauschausdruck Noise(<em>t</em>) entfällt vollständig!
                     </span>
                 </div>
 
                 <div class="formula-box">
                     <span class="f-title">Klausur-Entscheidungsregel</span>
                     <p class="f-desc">
-                        Liegt $S_+ > S_- \implies$ Signal als <strong>5 V</strong> interpretiert.<br />
-                        Liegt $S_+ \le S_- \implies$ Signal als <strong>0 V</strong> interpretiert.
+                        Liegt <em>S</em><sub>+</sub> &gt; <em>S</em><sub>&minus;</sub> &rArr; Signal als <strong>5 V</strong> interpretiert.<br />
+                        Liegt <em>S</em><sub>+</sub> &le; <em>S</em><sub>&minus;</sub> &rArr; Signal als <strong>0 V</strong> interpretiert.
                     </p>
                     <span class="f-note">Exakt entsprechend offizieller Musterlösung!</span>
                 </div>
@@ -367,9 +367,9 @@
                             <div class="evaluation-checklist">
                                 <strong>Kernkriterien für die volle Punktzahl (5 Punkte):</strong>
                                 <ul>
-                                    <li><span class="check-icon">✓</span> <strong>Differenzbildung:</strong> Subtraktion der beiden Adern ($S_+ - S_-$).</li>
+                                    <li><span class="check-icon">✓</span> <strong>Differenzbildung:</strong> Subtraktion der beiden Adern (<em>S</em><sub>+</sub> &minus; <em>S</em><sub>&minus;</sub>).</li>
                                     <li><span class="check-icon">✓</span> <strong>Gleichtaktunterdrückung:</strong> Beseitigung von Störungen, die auf beide Adern wirken.</li>
-                                    <li><span class="check-icon">✓</span> <strong>Vergleich / Entscheidung:</strong> Liegt $S_+ > S_- \implies 5\,\text{V}$, sonst $0\,\text{V}$.</li>
+                                    <li><span class="check-icon">✓</span> <strong>Vergleich / Entscheidung:</strong> Liegt <em>S</em><sub>+</sub> &gt; <em>S</em><sub>&minus;</sub> &rArr; 5 V, sonst 0 V.</li>
                                 </ul>
                             </div>
                         </div>

@@ -68,7 +68,7 @@
                     </div>
                 </div>
                 <p class="narrator-text">
-                    Die Steuersignale $S_1, S_0$ dekodieren die Binärzahl @(SelectedChannel) und schalten ausschließlich den Eingang $e_{@SelectedChannel}$ (Wert @(GetChannelValue(SelectedChannel) ? "1" : "0")) über das zugehörige AND-Gatter und das abschließende OR-Gatter auf den Ausgang $a$ durch.
+                    Die Steuersignale <em>S</em><sub>1</sub>, <em>S</em><sub>0</sub> dekodieren die Binärzahl @(SelectedChannel) und schalten ausschließlich den Eingang <em>e</em><sub>@(SelectedChannel)</sub> (Wert @(GetChannelValue(SelectedChannel) ? "1" : "0")) über das zugehörige AND-Gatter und das abschließende OR-Gatter auf den Ausgang <em>a</em> durch.
                 </p>
                 <div class="logic-metrics-strip">
                     <span>Funktion: <strong class="mono">a = e₀·¬S₁·¬S₀ ∨ e₁·¬S₁·S₀ ∨ e₂·S₁·¬S₀ ∨ e₃·S₁·S₀</strong></span>
@@ -88,7 +88,7 @@
                     <!-- Input Controls Toolbar -->
                     <div class="mux-toolbar">
                         <div class="mux-group">
-                            <span class="toolbar-label">Steuerung ($S$):</span>
+                            <span class="toolbar-label">Steuerung (<em>S</em>):</span>
                             <button class="toggle-btn @(MuxS1 ? "high" : "low")" @onclick="() => MuxS1 = !MuxS1">
                                 S₁: <strong>@(MuxS1 ? "1" : "0")</strong>
                             </button>
@@ -98,7 +98,7 @@
                         </div>
 
                         <div class="mux-group">
-                            <span class="toolbar-label">Daten ($e$):</span>
+                            <span class="toolbar-label">Daten (<em>e</em>):</span>
                             <button class="toggle-btn @(MuxE0 ? "high" : "low")" @onclick="() => MuxE0 = !MuxE0">
                                 e₀: <strong>@(MuxE0 ? "1" : "0")</strong>
                             </button>
@@ -164,13 +164,13 @@
                         <table class="interactive-truth-table">
                             <thead>
                                 <tr>
-                                    <th>$S_1$</th>
-                                    <th>$S_0$</th>
-                                    <th>$e_0$</th>
-                                    <th>$e_1$</th>
-                                    <th>$e_2$</th>
-                                    <th>$e_3$</th>
-                                    <th class="th-out">Ausgang $a$</th>
+                                    <th><em>S</em><sub>1</sub></th>
+                                    <th><em>S</em><sub>0</sub></th>
+                                    <th><em>e</em><sub>0</sub></th>
+                                    <th><em>e</em><sub>1</sub></th>
+                                    <th><em>e</em><sub>2</sub></th>
+                                    <th><em>e</em><sub>3</sub></th>
+                                    <th class="th-out">Ausgang <em>a</em></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -204,7 +204,7 @@
                             <strong class="mono blue">e@SelectedChannel (@(GetChannelValue(SelectedChannel) ? "1" : "0"))</strong>
                         </div>
                         <div class="summary-item">
-                            <span>Ausgangspegel $a$:</span>
+                            <span>Ausgangspegel <em>a</em>:</span>
                             <strong class="mono @(MuxOutput ? "emerald" : "red")">@(MuxOutput ? "1 (HIGH)" : "0 (LOW)")</strong>
                         </div>
                     </div>
@@ -359,8 +359,8 @@
             <!-- Intro text matching TILogicCircuit.tex -->
             <div class="task-prompt-box">
                 <p class="task-text">
-                    Betrachten Sie folgende kombinatorische Schaltung mit zwei Steuereingängen $S_1, S_0$, 
-                    vier Dateneingängen $e_0, e_1, e_2, e_3$ und einem Ausgang $a$:
+                    Betrachten Sie folgende kombinatorische Schaltung mit zwei Steuereingängen <em>S</em><sub>1</sub>, <em>S</em><sub>0</sub>, 
+                    vier Dateneingängen <em>e</em><sub>0</sub>, <em>e</em><sub>1</sub>, <em>e</em><sub>2</sub>, <em>e</em><sub>3</sub> und einem Ausgang <em>a</em>:
                 </p>
             </div>
 
@@ -403,14 +403,14 @@
                     <span>Teilaufgabe 1 (2 Punkte)</span>
                 </div>
                 <p class="task-text">
-                    Formulieren Sie die Schaltung als boolesche Funktion $a = f(S_1, S_0, e_0, e_1, e_2, e_3)$:
+                    Formulieren Sie die Schaltung als boolesche Funktion <em>a</em> = <em>f</em>(<em>S</em><sub>1</sub>, <em>S</em><sub>0</sub>, <em>e</em><sub>0</sub>, <em>e</em><sub>1</sub>, <em>e</em><sub>2</sub>, <em>e</em><sub>3</sub>):
                 </p>
 
                 @if (ShowSolution)
                 {
                     <div class="ws-solution-box">
                         <div class="sol-formula-line mono bold emerald">
-                            $$a = e_0 \overline{S_1}\,\overline{S_0} \;\vee\; e_1 \overline{S_1} S_0 \;\vee\; e_2 S_1 \overline{S_0} \;\vee\; e_3 S_1 S_0$$
+                            <em>a</em> = <em>e</em><sub>0</sub>·<span style="text-decoration: overline"><em>S</em><sub>1</sub></span>·<span style="text-decoration: overline"><em>S</em><sub>0</sub></span> &or; <em>e</em><sub>1</sub>·<span style="text-decoration: overline"><em>S</em><sub>1</sub></span>·<em>S</em><sub>0</sub> &or; <em>e</em><sub>2</sub>·<em>S</em><sub>1</sub>·<span style="text-decoration: overline"><em>S</em><sub>0</sub></span> &or; <em>e</em><sub>3</sub>·<em>S</em><sub>1</sub>·<em>S</em><sub>0</sub>
                         </div>
                     </div>
                 }
@@ -429,20 +429,20 @@
                     <span>Teilaufgabe 2 (4 Punkte)</span>
                 </div>
                 <p class="task-text">
-                    Ermitteln Sie einen Teil der Wertetabelle, indem Sie die fehlenden Ausgangswerte $a$ eintragen:
+                    Ermitteln Sie einen Teil der Wertetabelle, indem Sie die fehlenden Ausgangswerte <em>a</em> eintragen:
                 </p>
 
                 <div class="ws-table-container">
                     <table class="ws-matrix-table">
                         <thead>
                             <tr>
-                                <th>$S_1$</th>
-                                <th>$S_0$</th>
-                                <th>$e_0$</th>
-                                <th>$e_1$</th>
-                                <th>$e_2$</th>
-                                <th>$e_3$</th>
-                                <th class="ws-th-highlight">$a$</th>
+                                <th><em>S</em><sub>1</sub></th>
+                                <th><em>S</em><sub>0</sub></th>
+                                <th><em>e</em><sub>0</sub></th>
+                                <th><em>e</em><sub>1</sub></th>
+                                <th><em>e</em><sub>2</sub></th>
+                                <th><em>e</em><sub>3</sub></th>
+                                <th class="ws-th-highlight"><em>a</em></th>
                             </tr>
                         </thead>
                         <tbody>

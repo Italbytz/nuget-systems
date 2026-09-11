@@ -12,7 +12,7 @@
             <p class="feature-kicker">Grundlagen der Informatik &bull; Boolesche Algebra</p>
             <h2>Wahrheitstafeln &amp; Kanonische Normalformen (KDNF &amp; KKNF)</h2>
             <p class="feature-intro">
-                Systematische Aufstellung von Wahrheitstafeln für $n$ Variablen sowie Konstruktion der 
+                Systematische Aufstellung von Wahrheitstafeln für <em>n</em> Variablen sowie Konstruktion der 
                 <strong>Kanonischen Disjunktiven Normalform (KDNF)</strong> über die Einsmenge (Minterme) und der 
                 <strong>Kanonischen Konjunktiven Normalform (KKNF)</strong> über die Nullmenge (Maxterme).
             </p>
@@ -45,14 +45,14 @@
                 <label class="control-label">
                     <span>Anzahl Variablen:</span>
                     <select class="form-input select" @bind="VariableCount" @bind:after="OnVariableCountChanged">
-                        <option value="2">2 Variablen ($x_1, x_0$ &rarr; 4 Zeilen)</option>
-                        <option value="3">3 Variablen ($x_2, x_1, x_0$ &rarr; 8 Zeilen)</option>
-                        <option value="4">4 Variablen ($x_3, x_2, x_1, x_0$ &rarr; 16 Zeilen)</option>
+                        <option value="2">2 Variablen (<em>x</em><sub>1</sub>, <em>x</em><sub>0</sub> &rarr; 4 Zeilen)</option>
+                        <option value="3">3 Variablen (<em>x</em><sub>2</sub>, <em>x</em><sub>1</sub>, <em>x</em><sub>0</sub> &rarr; 8 Zeilen)</option>
+                        <option value="4">4 Variablen (<em>x</em><sub>3</sub>, <em>x</em><sub>2</sub>, <em>x</em><sub>1</sub>, <em>x</em><sub>0</sub> &rarr; 16 Zeilen)</option>
                     </select>
                 </label>
 
                 <label class="control-label wide-label">
-                    <span>Ausgabespalte $y = f(x_{n-1} \dots x_0)$ (kommagetrennt):</span>
+                    <span>Ausgabespalte <em>y</em> = <em>f</em>(<em>x</em><sub><em>n</em>-1</sub> &hellip; <em>x</em><sub>0</sub>) (kommagetrennt):</span>
                     <input type="text" class="form-input mono" @bind="TruthValuesInput" @bind:after="Recalculate" />
                 </label>
             </div>
@@ -60,7 +60,7 @@
             <!-- Presets Bar -->
             <div class="preset-bar">
                 <span class="preset-label">Beispiele:</span>
-                <button class="preset-btn" @onclick='() => LoadPreset("XOR")'>XOR ($x_1 \oplus x_0$)</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("XOR")'>XOR (<em>x</em><sub>1</sub> &oplus; <em>x</em><sub>0</sub>)</button>
                 <button class="preset-btn" @onclick='() => LoadPreset("Majority3")'>Mehrheitsgatter 3-Bit</button>
                 <button class="preset-btn" @onclick='() => LoadPreset("Exam1")'>Klausuraufgabe 3-Bit</button>
                 <button class="preset-btn" @onclick='() => LoadPreset("Decoder4")'>4-Bit Parität</button>
@@ -81,11 +81,11 @@
                 </div>
                 <div class="nf-metrics-strip">
                     <div class="metric-item">
-                        <span class="metric-label">KDNF (Minterme $\bigvee m_i$):</span>
+                        <span class="metric-label">KDNF (Minterme &or; <em>m</em><sub><em>i</em></sub>):</span>
                         <div class="metric-val mono bold emerald">@FormatDnfMath(Solution.Dnf)</div>
                     </div>
                     <div class="metric-item">
-                        <span class="metric-label">KKNF (Maxterme $\bigwedge M_i$):</span>
+                        <span class="metric-label">KKNF (Maxterme &and; <em>M</em><sub><em>i</em></sub>):</span>
                         <div class="metric-val mono bold red">@FormatCnfMath(Solution.Cnf)</div>
                     </div>
                 </div>
@@ -97,21 +97,21 @@
                 <!-- Left: Interactive Truth Table -->
                 <div class="table-card">
                     <div class="table-card-header">
-                        <h3>Wahrheitstafel (Interaktiv: Klick auf $y$ toggelt 0/1)</h3>
+                        <h3>Wahrheitstafel (Interaktiv: Klick auf <em>y</em> toggelt 0/1)</h3>
                     </div>
 
                     <div class="table-responsive">
                         <table class="interactive-truth-table">
                             <thead>
                                 <tr>
-                                    <th>Zeile $i$</th>
+                                    <th>Zeile <em>i</em></th>
                                     @for (int v = VariableCount - 1; v >= 0; v--)
                                     {
-                                        <th>$x_@v$</th>
+                                        <th><em>x</em><sub>@v</sub></th>
                                     }
-                                    <th class="th-out">Ausgang $y$</th>
-                                    <th>Minterm $m_i$</th>
-                                    <th>Maxterm $M_i$</th>
+                                    <th class="th-out">Ausgang <em>y</em></th>
+                                    <th>Minterm <em>m</em><sub><em>i</em></sub></th>
+                                    <th>Maxterm <em>M</em><sub><em>i</em></sub></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -165,8 +165,8 @@
                     <div class="formula-card">
                         <div class="formula-title">Regeln zur Aufstellung:</div>
                         <div class="rule-box">
-                            <p><strong>KDNF:</strong> Disjunktion ($\vee$) aller Zeilen mit $y=1$. In den Konjunktionstermen gilt: $x_i$ wenn $x_i=1$, $\neg x_i$ wenn $x_i=0$.</p>
-                            <p><strong>KKNF:</strong> Konjunktion ($\wedge$) aller Zeilen mit $y=0$. In den Disjunktionstermen gilt: $\neg x_i$ wenn $x_i=1$, $x_i$ wenn $x_i=0$.</p>
+                            <p><strong>KDNF:</strong> Disjunktion (&or;) aller Zeilen mit <em>y</em>=1. In den Konjunktionstermen gilt: <em>x</em><sub><em>i</em></sub> wenn <em>x</em><sub><em>i</em></sub>=1, &not;<em>x</em><sub><em>i</em></sub> wenn <em>x</em><sub><em>i</em></sub>=0.</p>
+                            <p><strong>KKNF:</strong> Konjunktion (&and;) aller Zeilen mit <em>y</em>=0. In den Disjunktionstermen gilt: &not;<em>x</em><sub><em>i</em></sub> wenn <em>x</em><sub><em>i</em></sub>=1, <em>x</em><sub><em>i</em></sub> wenn <em>x</em><sub><em>i</em></sub>=0.</p>
                         </div>
                     </div>
                 </div>
@@ -235,12 +235,12 @@
                     <table class="ws-matrix-table">
                         <thead>
                             <tr>
-                                <th>$i$</th>
+                                <th><em>i</em></th>
                                 @for (int v = VariableCount - 1; v >= 0; v--)
                                 {
-                                    <th>$x_@v$</th>
+                                    <th><em>x</em><sub>@v</sub></th>
                                 }
-                                <th class="ws-th-highlight">$y$</th>
+                                <th class="ws-th-highlight"><em>y</em></th>
                             </tr>
                         </thead>
                         <tbody>

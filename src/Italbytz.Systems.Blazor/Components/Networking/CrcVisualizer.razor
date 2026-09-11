@@ -13,7 +13,7 @@
             <h2>Zyklische Redundanzprüfung (CRC-5 Modulo-2 Polynomdivision)</h2>
             <p class="feature-intro">
                 Schritt-für-Schritt-Ablaufverfolgung der binären Modulo-2-Division (XOR-Arithmetik) mit dem Standard-Generatorpolynom 
-                $G(x) = x^5 + x^2 + 1$ ($\texttt{100101}_2$), Berechnung der 5-Bit-Prüfsumme (FCS) und Verifikation beim Empfänger.
+                <em>G</em>(<em>x</em>) = <em>x</em><sup>5</sup> + <em>x</em><sup>2</sup> + 1 (<code>100101</code><sub>2</sub>), Berechnung der 5-Bit-Prüfsumme (FCS) und Verifikation beim Empfänger.
             </p>
         </div>
     }
@@ -145,7 +145,7 @@
                                     <span class="math-bits">@currentStep.DividendWindow</span>
                                 </div>
                                 <div class="math-row">
-                                    <span class="math-label">Polynom ($G$):</span>
+                                    <span class="math-label">Polynom (<em>G</em>):</span>
                                     <span class="math-bits poly">@currentStep.PolyWindow</span>
                                     <span class="math-op">&oplus; (Modulo-2 / XOR)</span>
                                 </div>
@@ -163,19 +163,19 @@
             <!-- Transmission / Frame Status Bar -->
             <div class="frame-status-card">
                 <div class="frame-col">
-                    <span class="frame-label">Nutzdaten ($M$):</span>
+                    <span class="frame-label">Nutzdaten (<em>M</em>):</span>
                     <span class="frame-val mono blue">@BinaryInput</span>
                 </div>
                 <div class="frame-col">
-                    <span class="frame-label">Polynom ($G(x)$):</span>
+                    <span class="frame-label">Polynom (<em>G</em>(<em>x</em>)):</span>
                     <span class="frame-val mono amber">@SelectedPolyString</span>
                 </div>
                 <div class="frame-col">
-                    <span class="frame-label">Berechneter Rest ($R$ / FCS):</span>
+                    <span class="frame-label">Berechneter Rest (<em>R</em> / FCS):</span>
                     <span class="frame-val mono emerald">@CalculationResult.RemainderString</span>
                 </div>
                 <div class="frame-col highlight">
-                    <span class="frame-label">Gesendeter Rahmen ($T = M \circ R$):</span>
+                    <span class="frame-label">Gesendeter Rahmen (<em>T</em> = <em>M</em> &compfn; <em>R</em>):</span>
                     <span class="frame-val mono bold">
                         <span class="blue">@BinaryInput</span><span class="emerald">@CalculationResult.RemainderString</span>
                     </span>
@@ -211,7 +211,7 @@
                     @if (HasTransmissionError)
                     {
                         <div class="error-alert">
-                            ⚠️ <strong>Übertragungsfehler aktiv!</strong> Das Prüfergebnis am Empfänger wird von 0 abweichen (Rest $\neq 0$).
+                            ⚠️ <strong>Übertragungsfehler aktiv!</strong> Das Prüfergebnis am Empfänger wird von 0 abweichen (Rest &ne; 0).
                             <button class="reset-err-btn" @onclick="ResetTransmissionErrors">Fehler zurücksetzen</button>
                         </div>
                     }
@@ -367,9 +367,9 @@
                 <div class="task-number">Aufgabe 1 (Zyklische Redundanzprüfung)</div>
                 <p class="task-text">
                     Berechnen Sie die <strong>CRC-5-Prüfsumme</strong> für die Bitfolge <code class="exam-code">@BinaryInput</code> 
-                    unter Verwendung des Standard-Generatorpolynoms $G(x) = x^5 + x^2 + 1$ ($\texttt{100101}_2$).
+                    unter Verwendung des Standard-Generatorpolynoms <em>G</em>(<em>x</em>) = <em>x</em><sup>5</sup> + <em>x</em><sup>2</sup> + 1 (<code>100101</code><sub>2</sub>).
                     Zeigen Sie anschließend anhand der Modulo-2-Division auf der Empfängerseite, dass bei fehlerfreier Übertragung 
-                    des erzeugten Rahmens das Prüfergebnis $0$ ist.
+                    des erzeugten Rahmens das Prüfergebnis 0 ist.
                 </p>
             </div>
 
@@ -451,7 +451,7 @@
             <!-- Footer / Evaluation -->
             <div class="exam-footer">
                 <div class="exam-footer-note">
-                    Hinweis: Bei der Modulo-2-Arithmetik entspricht die bitweise Addition und Subtraktion der XOR-Verknüpfung ($1 \oplus 1 = 0, 1 \oplus 0 = 1, 0 \oplus 0 = 0$) ohne Überträge.
+                    Hinweis: Bei der Modulo-2-Arithmetik entspricht die bitweise Addition und Subtraktion der XOR-Verknüpfung (1 &oplus; 1 = 0, 1 &oplus; 0 = 1, 0 &oplus; 0 = 0) ohne Überträge.
                 </div>
             </div>
 

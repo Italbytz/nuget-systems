@@ -13,7 +13,7 @@
             <h2>Karnaugh-Veitch-Diagramme (KV-Maps) &amp; Boolesche Minimierung</h2>
             <p class="feature-intro">
                 Grafische Funktionsminimierung über 2D-Gray-Code-Raster (2, 3 und 4 Variablen). 
-                Interaktive Blockbildung (Primimplikanten mit Kantenlängen $2^k$), Randüberläufe und 
+                Interaktive Blockbildung (Primimplikanten mit Kantenlängen 2<sup><em>k</em></sup>), Randüberläufe und 
                 schrittweises Auslesen der disjunktiven Minimalform (DMF).
             </p>
         </div>
@@ -45,14 +45,14 @@
                 <label class="control-label">
                     <span>Anzahl Variablen:</span>
                     <select class="form-input select" @bind="VariableCount" @bind:after="OnVariableCountChanged">
-                        <option value="2">2 Variablen ($x_1, x_0$ &rarr; 4 Zellen)</option>
-                        <option value="3">3 Variablen ($x_2, x_1, x_0$ &rarr; 8 Zellen)</option>
-                        <option value="4">4 Variablen ($x_3, x_2, x_1, x_0$ &rarr; 16 Zellen)</option>
+                        <option value="2">2 Variablen (<em>x</em><sub>1</sub>, <em>x</em><sub>0</sub> &rarr; 4 Zellen)</option>
+                        <option value="3">3 Variablen (<em>x</em><sub>2</sub>, <em>x</em><sub>1</sub>, <em>x</em><sub>0</sub> &rarr; 8 Zellen)</option>
+                        <option value="4">4 Variablen (<em>x</em><sub>3</sub>, <em>x</em><sub>2</sub>, <em>x</em><sub>1</sub>, <em>x</em><sub>0</sub> &rarr; 16 Zellen)</option>
                     </select>
                 </label>
 
                 <label class="control-label wide-label">
-                    <span>Wertevektor (Wahrheitswerte $f(m_0 \dots m_{2^n-1})$):</span>
+                    <span>Wertevektor (Wahrheitswerte <em>f</em>(<em>m</em><sub>0</sub> &hellip; <em>m</em><sub>2<sup><em>n</em></sup>&minus;1</sub>)):</span>
                     <input type="text" class="form-input mono" @bind="TruthValuesInput" @bind:after="Recalculate" />
                 </label>
             </div>
@@ -267,7 +267,7 @@
             <!-- Intro Text matching TIKarnaughVeitch -->
             <div class="task-prompt-box">
                 <p class="task-text">
-                    In KV-Diagrammen müssen zunächst maximale Blöcke um Einsen mit Kantenlänge $1, 2, 4, \ldots$ gefunden werden 
+                    In KV-Diagrammen müssen zunächst maximale Blöcke um Einsen mit Kantenlänge 1, 2, 4, &hellip; gefunden werden 
                     (die Blöcke können über die Diagrammgrenzen hinweggehen) und dann das entsprechende Monom ausgelesen werden.
                 </p>
             </div>
@@ -275,8 +275,8 @@
             <!-- Task Section -->
             <div class="task-section">
                 <p class="task-text">
-                    Der Ausgang einer Funktion $y = f(x_2, x_1, x_0)$ ist durch folgenden Wertevektor beschrieben:
-                    $$\mathbf{f} = (@string.Join(", ", TruthValues))$$
+                    Der Ausgang einer Funktion <em>y</em> = <em>f</em>(<em>x</em><sub>2</sub>, <em>x</em><sub>1</sub>, <em>x</em><sub>0</sub>) ist durch folgenden Wertevektor beschrieben:
+                    <div class="mono bold text-center" style="margin: 0.5rem 0;"><strong>f</strong> = (@string.Join(", ", TruthValues))</div>
                     Ermitteln Sie die Ausgangsfunktion mit Hilfe des folgenden KV-Diagramms und geben Sie die <strong>disjunktive Minimalform (DMF)</strong> an:
                 </p>
 
@@ -287,7 +287,7 @@
                         <table class="ws-matrix-table">
                             <thead>
                                 <tr>
-                                    <th class="ws-axis" colspan="2">$x_2 \backslash x_1 x_0$</th>
+                                    <th class="ws-axis" colspan="2"><em>x</em><sub>2</sub> \ <em>x</em><sub>1</sub><em>x</em><sub>0</sub></th>
                                     <th class="ws-gray-hdr">00</th>
                                     <th class="ws-gray-hdr">01</th>
                                     <th class="ws-gray-hdr">11</th>
@@ -323,13 +323,13 @@
 
                     <!-- Right: Solution / Formula Area -->
                     <div class="ws-answer-col">
-                        <div class="ws-box-heading">Disjunktive Minimalform $y$:</div>
+                        <div class="ws-box-heading">Disjunktive Minimalform <em>y</em>:</div>
 
                         @if (ShowSolution && Solution != null)
                         {
                             <div class="ws-solution-box">
                                 <div class="sol-formula-line mono bold">
-                                    $$y = @GetMinimalFormFormula()$$
+                                    <em>y</em> = @GetMinimalFormFormula()
                                 </div>
                                 <div class="sol-details">
                                     <strong>Gefundene Primimplikanten:</strong>
@@ -365,7 +365,7 @@
             <!-- Footer -->
             <div class="exam-footer">
                 <div class="exam-footer-note">
-                    Hinweis: Blöcke müssen Zweierpotenz-Größen ($1, 2, 4, 8$) haben. Rand- und Ecküberläufe (Torus-Topologie) beachten!
+                    Hinweis: Blöcke müssen Zweierpotenz-Größen (1, 2, 4, 8) haben. Rand- und Ecküberläufe (Torus-Topologie) beachten!
                 </div>
             </div>
 

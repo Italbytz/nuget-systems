@@ -101,7 +101,7 @@
                 <!-- Registers Box -->
                 <div class="state-card">
                     <div class="state-card-header">
-                        <h3>CPU-Register ($R_0 \dots R_4$)</h3>
+                        <h3>CPU-Register (<em>R</em><sub>0</sub> &hellip; <em>R</em><sub>4</sub>)</h3>
                     </div>
                     <div class="reg-grid">
                         @for (int r = 0; r < Registers.Length; r++)
@@ -313,7 +313,7 @@
             <!-- Footer -->
             <div class="exam-footer">
                 <div class="exam-footer-note">
-                    Hinweis: <code class="mono">lw rt, offset(rs)</code> lädt das 32-Bit-Wort an der Adresse $(R[rs] + offset)$ in das Register $R[rt]$; <code class="mono">addi rt, rs, imm</code> addiert den vorzeichenbehafteten Wert $imm$ zum Register $R[rs]$.
+                    Hinweis: <code class="mono">lw rt, offset(rs)</code> lädt das 32-Bit-Wort an der Adresse (<em>R</em>[<em>rs</em>] + <em>offset</em>) in das Register <em>R</em>[<em>rt</em>]; <code class="mono">addi rt, rs, imm</code> addiert den vorzeichenbehafteten Wert <em>imm</em> zum Register <em>R</em>[<em>rs</em>].
                 </div>
             </div>
 

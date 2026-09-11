@@ -322,8 +322,8 @@
                     <div class="window-info-card">
                         <div class="win-title">💡 TCP-Grundregel zur Nummernfortschaltung</div>
                         <ul class="rule-list">
-                            <li><strong>Nächstes SEQ beim Sender:</strong> $\text{Seq}_{\text{neu}} = \text{Seq}_{\text{alt}} + \text{Nutzdaten-Bytes}$ (bzw. $+1$ bei SYN/FIN).</li>
-                            <li><strong>Bestätigung ACK beim Empfänger:</strong> $\text{Ack} = \text{Empfangenes Seq} + \text{Nutzdaten-Bytes}$ (kumulative Bestätigung).</li>
+                            <li><strong>Nächstes SEQ beim Sender:</strong> Seq<sub>neu</sub> = Seq<sub>alt</sub> + Nutzdaten-Bytes (bzw. +1 bei SYN/FIN).</li>
+                            <li><strong>Bestätigung ACK beim Empfänger:</strong> Ack = Empfangenes Seq + Nutzdaten-Bytes (kumulative Bestätigung).</li>
                             <li><strong>Reine Bestätigungen (0 Byte Nutzdaten):</strong> Verbrauchen keine Sequenznummernfolge für nachfolgende Daten.</li>
                         </ul>
                     </div>
@@ -511,7 +511,7 @@
                 {
                     <div class="ws-solution-box">
                         <p class="sol-text">
-                            <strong>Erkennung fehlender Pakete:</strong> Trifft beim Empfänger ein Segment mit einer höheren Sequenznummer ($Seq$) ein als die aktuell erwartete Bestätigungsnummer ($Ack$), ist mindestens ein vorausgehendes Segment verloren gegangen. Der Empfänger bestätigt weiterhin nur die lückenlos empfangene Bytereihenfolge (Duplicate ACKs).
+                            <strong>Erkennung fehlender Pakete:</strong> Trifft beim Empfänger ein Segment mit einer höheren Sequenznummer (<em>Seq</em>) ein als die aktuell erwartete Bestätigungsnummer (<em>Ack</em>), ist mindestens ein vorausgehendes Segment verloren gegangen. Der Empfänger bestätigt weiterhin nur die lückenlos empfangene Bytereihenfolge (Duplicate ACKs).
                         </p>
                         <p class="sol-text">
                             <strong>Erkennung falscher Reihenfolge:</strong> Über die fortlaufenden Sequenznummern kann der Empfänger eintreffende Segmente genau in den Datenstrom einsortieren und zwischenspeichern, bis die Lücke geschlossen ist.

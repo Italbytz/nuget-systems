@@ -15,7 +15,7 @@
             <h2>IPv4-Subnetting &amp; Netzmasken-Analyse (CIDR)</h2>
             <p class="feature-intro">
                 Schritt-für-Schritt-Ablaufverfolgung der bitweisen Adressaufteilung in Netz- und Hostanteil, 
-                Berechnung von Subnetznummer ($IP \text{ AND } \text{Mask}$), Hostadresse ($IP \text{ AND } \neg\text{Mask}$), 
+                Berechnung von Subnetznummer (<em>IP</em> AND <em>Mask</em>), Hostadresse (<em>IP</em> AND &not;<em>Mask</em>), 
                 Broadcast-Adresse und nutzbarem Hostbereich.
             </p>
         </div>
@@ -339,11 +339,11 @@
                                     <code class="sol-val mono">@task1.SubnetMask (@task1.PrefixLength x 1, @(32 - task1.PrefixLength) x 0)</code>
                                 </div>
                                 <div class="sol-row">
-                                    <span class="sol-label">Subnetznummer ($IP \text{ AND } \text{Mask}$):</span>
+                                    <span class="sol-label">Subnetznummer (<em>IP</em> AND <em>Mask</em>):</span>
                                     <code class="sol-val mono bold blue">@task1.NetworkAddress</code>
                                 </div>
                                 <div class="sol-row">
-                                    <span class="sol-label">Hostadresse ($IP \text{ AND } \neg\text{Mask}$):</span>
+                                    <span class="sol-label">Hostadresse (<em>IP</em> AND &not;<em>Mask</em>):</span>
                                     <code class="sol-val mono bold amber">@task1.HostAddress</code>
                                 </div>
                                 <div class="sol-row">
@@ -393,11 +393,11 @@
                                     <code class="sol-val mono">@task2.SubnetMask (@task2.PrefixLength x 1, @(32 - task2.PrefixLength) x 0)</code>
                                 </div>
                                 <div class="sol-row">
-                                    <span class="sol-label">Subnetznummer ($IP \text{ AND } \text{Mask}$):</span>
+                                    <span class="sol-label">Subnetznummer (<em>IP</em> AND <em>Mask</em>):</span>
                                     <code class="sol-val mono bold blue">@task2.NetworkAddress</code>
                                 </div>
                                 <div class="sol-row">
-                                    <span class="sol-label">Hostadresse ($IP \text{ AND } \neg\text{Mask}$):</span>
+                                    <span class="sol-label">Hostadresse (<em>IP</em> AND &not;<em>Mask</em>):</span>
                                     <code class="sol-val mono bold amber">@task2.HostAddress</code>
                                 </div>
                                 <div class="sol-row">

@@ -53,7 +53,7 @@
                 </label>
 
                 <label class="control-label">
-                    <span>Kachelanzahl ($k$):</span>
+                    <span>Kachelanzahl (<em>k</em>):</span>
                     <input type="number" min="1" max="8" class="form-input" @bind="FrameCount" @bind:after="OnConfigurationChanged" />
                 </label>
 
@@ -151,15 +151,15 @@
                     <strong class="metric-val text-brand">@SelectedPagePolicy</strong>
                 </div>
                 <div class="metric-card">
-                    <span class="metric-label">Kacheln ($k$)</span>
+                    <span class="metric-label">Kacheln (<em>k</em>)</span>
                     <strong class="metric-val">@FrameCount</strong>
                 </div>
                 <div class="metric-card">
-                    <span class="metric-label">Seitenfehler ($M$)</span>
+                    <span class="metric-label">Seitenfehler (<em>M</em>)</span>
                     <strong class="metric-val text-danger">@finalFaults / @totalRequests</strong>
                 </div>
                 <div class="metric-card">
-                    <span class="metric-label">Treffer ($H$)</span>
+                    <span class="metric-label">Treffer (<em>H</em>)</span>
                     <strong class="metric-val text-success">@finalHits</strong>
                 </div>
                 <div class="metric-card">
