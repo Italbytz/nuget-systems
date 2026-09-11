@@ -1,0 +1,825 @@
+/* ==========================================================================
+   LAYERING VISUALIZER STYLES (Task 35: Schichtenmodell & Kapselung)
+   ========================================================================== */
+
+.layering-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #e2e8f0;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem;
+    box-sizing: border-box;
+}
+
+.embed-mode {
+    padding: 0.5rem;
+    max-width: 100%;
+    gap: 0.75rem;
+    background: #0b0f19;
+}
+
+.mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+.bold {
+    font-weight: 700;
+}
+
+.text-green { color: #10b981; }
+.text-amber { color: #f59e0b; }
+
+/* Card Heading */
+.card-heading {
+    border-bottom: 1px solid #1e293b;
+    padding-bottom: 1rem;
+}
+
+.feature-kicker {
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #38bdf8;
+    margin: 0 0 0.25rem 0;
+}
+
+.card-heading h2 {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #f8fafc;
+    margin: 0 0 0.5rem 0;
+}
+
+.feature-intro {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: #94a3b8;
+    margin: 0;
+}
+
+/* View Switcher */
+.view-switch {
+    display: flex;
+    gap: 0.5rem;
+    border-bottom: 1px solid #334155;
+    padding-bottom: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.view-btn {
+    background: #1e293b;
+    color: #cbd5e1;
+    border: 1px solid #475569;
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.view-btn:hover {
+    background: #334155;
+    color: #f8fafc;
+}
+
+.view-btn.active {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #38bdf8;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+}
+
+/* Controls Panel & Scenario Selector */
+.controls-panel {
+    background: #111827;
+    border: 1px solid #1f2937;
+    border-radius: 8px;
+    padding: 0.875rem 1rem;
+}
+
+.scenario-selector-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.ctrl-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #94a3b8;
+}
+
+.scenario-btn-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+@media (max-width: 768px) {
+    .scenario-btn-group {
+        grid-template-columns: 1fr;
+    }
+}
+
+.scenario-btn {
+    background: #1e293b;
+    border: 2px solid #334155;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+}
+
+.scenario-btn:hover {
+    background: #273549;
+    transform: translateY(-1px);
+}
+
+.scenario-btn.active {
+    border-color: #38bdf8;
+    background: #132338;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+}
+
+.btn-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.btn-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.btn-text strong {
+    font-size: 0.95rem;
+    color: #f8fafc;
+}
+
+.btn-text small {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    line-height: 1.3;
+}
+
+/* ==========================================================================
+   SIMULATION STAGE: 3-TIER LAYER ARCHITECTURE
+   ========================================================================== */
+
+.layer-stage {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    padding: 1.25rem;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+
+.layer-card {
+    background: #1e293b;
+    border: 2px solid #334155;
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    transition: all 0.25s ease;
+}
+
+.layer-above.impact-warning {
+    border-color: #f59e0b;
+    background: #2a2012;
+    box-shadow: 0 0 14px rgba(245, 158, 11, 0.2);
+}
+
+.layer-above.impact-neutral, .layer-below.impact-neutral {
+    border-color: #059669;
+    background: #0f231c;
+}
+
+.layer-current {
+    border-color: #0284c7;
+    background: #13243a;
+    border-width: 2.5px;
+    box-shadow: 0 4px 14px rgba(2, 132, 199, 0.2);
+}
+
+.layer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.layer-title-box {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.layer-badge {
+    background: #334155;
+    color: #f1f5f9;
+    padding: 0.2rem 0.55rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 800;
+}
+
+.current-badge {
+    background: #0284c7;
+    color: #ffffff;
+}
+
+.layer-name {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #f8fafc;
+}
+
+.capsule-tag {
+    background: rgba(56, 189, 248, 0.15);
+    border: 1px solid #0284c7;
+    color: #38bdf8;
+    padding: 0.15rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.impact-indicator {
+    font-size: 0.8rem;
+    font-weight: 800;
+    padding: 0.25rem 0.65rem;
+    border-radius: 4px;
+    letter-spacing: 0.03em;
+}
+
+.impact-badge-ok {
+    background: #064e3b;
+    color: #34d399;
+    border: 1px solid #059669;
+}
+
+.impact-badge-warn {
+    background: #451a03;
+    color: #fbbf24;
+    border: 1px solid #d97706;
+}
+
+.layer-desc {
+    margin: 0;
+    font-size: 0.88rem;
+    line-height: 1.4;
+    color: #cbd5e1;
+}
+
+.impact-txt {
+    display: block;
+    margin-top: 0.3rem;
+}
+
+/* Interface Connector */
+.interface-connector {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.4rem 1rem;
+    background: #111827;
+    border: 1px dashed #475569;
+    border-radius: 6px;
+    margin: 0.15rem 0;
+}
+
+.conn-intact {
+    border-color: #059669;
+}
+
+.conn-modified {
+    border-color: #f59e0b;
+    background: #23190a;
+}
+
+.sap-pill {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+}
+
+.sap-icon {
+    font-size: 1.1rem;
+}
+
+.sap-sub {
+    font-size: 0.78rem;
+    color: #94a3b8;
+}
+
+.data-flow-indicator {
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+}
+
+.flow-normal {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+}
+
+.flow-broken {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+}
+
+/* Change Inspector Box inside Layer N */
+.change-inspector-box {
+    background: #0b1523;
+    border: 1px solid #1e3a5f;
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.inspector-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #38bdf8;
+}
+
+.algorithm-switch-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+@media (max-width: 640px) {
+    .algorithm-switch-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.algo-box {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.algo-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #94a3b8;
+}
+
+.algo-val {
+    font-size: 0.88rem;
+    color: #f1f5f9;
+}
+
+.algo-status {
+    font-size: 0.88rem;
+    font-weight: 700;
+}
+
+/* Takeaway Card */
+.takeaway-card {
+    background: #111827;
+    border: 1px solid #1f2937;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.takeaway-header {
+    background: #1a2234;
+    border-bottom: 1px solid #233044;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.takeaway-icon {
+    font-size: 1.2rem;
+}
+
+.takeaway-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #f8fafc;
+}
+
+.takeaway-body {
+    padding: 1rem;
+}
+
+.takeaway-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+}
+
+@media (max-width: 768px) {
+    .takeaway-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.takeaway-col h4 {
+    margin: 0 0 0.4rem 0;
+    font-size: 0.92rem;
+    color: #38bdf8;
+}
+
+.takeaway-col p {
+    margin: 0;
+    font-size: 0.88rem;
+    line-height: 1.45;
+    color: #cbd5e1;
+}
+
+/* ==========================================================================
+   VIEW 2: EXAM TRAINER
+   ========================================================================= */
+
+.trainer-card {
+    background: #111827;
+    border: 1px solid #1f2937;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.trainer-body {
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.prompt-box {
+    background: #0f172a;
+    border-left: 4px solid #38bdf8;
+    padding: 0.85rem 1.1rem;
+    border-radius: 0 6px 6px 0;
+}
+
+.prompt-lead {
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    color: #f1f5f9;
+}
+
+.subtask-card {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.subtask-card.solved-card {
+    border-color: #059669;
+    background: #0f231c;
+}
+
+.subtask-header {
+    background: #141d2e;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    border-bottom: 1px solid #273549;
+}
+
+.subtask-label {
+    font-weight: 800;
+    color: #38bdf8;
+    font-size: 0.9rem;
+}
+
+.subtask-question {
+    font-weight: 700;
+    color: #f8fafc;
+    font-size: 0.95rem;
+}
+
+.subtask-content {
+    padding: 1rem;
+}
+
+.user-input-box {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.input-hint {
+    font-size: 0.8rem;
+    color: #94a3b8;
+}
+
+.trainer-textarea {
+    width: 100%;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 0.65rem 0.85rem;
+    color: #f8fafc;
+    font-family: inherit;
+    font-size: 0.9rem;
+    box-sizing: border-box;
+    resize: vertical;
+}
+
+.trainer-textarea:focus {
+    outline: none;
+    border-color: #38bdf8;
+}
+
+.solution-reveal-box {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    animation: fadeIn 0.3s ease-in;
+}
+
+.sol-title {
+    font-size: 0.8rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.sol-quote {
+    font-size: 1.05rem;
+    color: #f8fafc;
+    background: rgba(16, 185, 129, 0.1);
+    border-left: 3px solid #10b981;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0 4px 4px 0;
+}
+
+.sol-explanation {
+    font-size: 0.85rem;
+    color: #cbd5e1;
+    line-height: 1.4;
+}
+
+/* ==========================================================================
+   VIEW 3: WORKSHEET VIEW & A4 PRINT STYLES (1:1 EXAM REPLICA)
+   ========================================================================== */
+
+.worksheet-container {
+    background: #f8fafc;
+    color: #0f172a;
+    padding: 0;
+    max-width: 100%;
+}
+
+.worksheet-paper {
+    background: #ffffff;
+    color: #0f172a;
+    max-width: 210mm;
+    margin: 0 auto;
+    padding: 14mm 16mm;
+    box-sizing: border-box;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.35;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.exam-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 2px solid #0f172a;
+    padding-bottom: 6px;
+    margin-bottom: 8px;
+}
+
+.exam-title-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.exam-sub {
+    font-size: 10pt;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #475569;
+    font-weight: 600;
+}
+
+.exam-main-title {
+    font-size: 18pt;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 2px 0 3px 0;
+}
+
+.exam-task-label {
+    font-size: 11pt;
+    font-weight: 700;
+    color: #334155;
+}
+
+.exam-meta-box {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.toggle-sol-btn, .print-btn {
+    background: #0f172a;
+    color: #ffffff;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 9pt;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.toggle-sol-btn.active {
+    background: #059669;
+}
+
+.student-info-strip {
+    display: grid;
+    grid-template-columns: 2fr 1.5fr 1fr;
+    gap: 15px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #cbd5e1;
+}
+
+.info-field {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+}
+
+.info-label {
+    font-size: 9pt;
+    font-weight: 600;
+    color: #475569;
+    white-space: nowrap;
+}
+
+.info-line {
+    border-bottom: 1px solid #94a3b8;
+    flex-grow: 1;
+    height: 16px;
+}
+
+.points-field {
+    justify-content: flex-end;
+}
+
+.points-box {
+    font-size: 10pt;
+    font-weight: 700;
+    border: 1px solid #0f172a;
+    padding: 2px 8px;
+    border-radius: 3px;
+}
+
+.task-prompt-box {
+    margin-bottom: 14px;
+}
+
+.task-text {
+    font-size: 10.5pt;
+    line-height: 1.45;
+    color: #0f172a;
+    margin: 0;
+}
+
+.ws-subtask {
+    margin-bottom: 20px;
+}
+
+.ws-subtask-title {
+    font-size: 10.5pt;
+    font-weight: 600;
+    color: #0f172a;
+    margin-bottom: 8px;
+}
+
+.ws-textfield {
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    padding: 12px 14px;
+    background: #fbfcfd;
+}
+
+.ws-answer-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin: 4px 0;
+}
+
+.answer-line {
+    border-bottom: 1px dotted #94a3b8;
+    height: 1px;
+}
+
+.ws-solution-box {
+    background: #f0fdf4;
+    border: 1.5px solid #059669;
+    border-radius: 4px;
+    padding: 12px 16px;
+}
+
+.ws-solution-text {
+    margin: 0;
+    font-size: 10.5pt;
+    line-height: 1.4;
+    color: #064e3b;
+    font-weight: 600;
+}
+
+.worksheet-footer {
+    margin-top: 24px;
+    border-top: 1px solid #cbd5e1;
+    padding-top: 6px;
+    font-size: 8pt;
+    color: #64748b;
+    text-align: center;
+}
+
+/* ==========================================================================
+   PRINT MEDIA - SINGLE PAGE A4 GUARANTEE
+   ========================================================================== */
+
+@media print {
+    @page {
+        size: A4 portrait;
+        margin: 8mm 15mm;
+    }
+
+    html, body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+
+    .layering-container {
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+    }
+
+    .worksheet-paper {
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+        box-shadow: none !important;
+        page-break-inside: avoid !important;
+    }
+
+    .ws-subtask {
+        margin-bottom: 16px !important;
+    }
+
+    .ws-answer-lines {
+        gap: 14px !important;
+    }
+
+    .ws-solution-box {
+        padding: 10px 14px !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    .worksheet-footer {
+        position: fixed;
+        bottom: 5mm;
+        left: 0;
+        right: 0;
+    }
+}
