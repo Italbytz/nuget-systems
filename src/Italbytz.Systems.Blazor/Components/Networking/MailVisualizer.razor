@@ -1,0 +1,734 @@
+@using Microsoft.JSInterop
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+
+<article class="mail-container @(IsEmbed ? "is-embed" : "")">
+
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
+    {
+        <header class="mail-header">
+            <div class="header-content">
+                <span class="badge-cat">Rechnernetze &bull; Anwendungsschicht</span>
+                <h1 class="header-title">E-Mail-Protokolle &amp; Zeichenorientierte Kommunikation</h1>
+                <p class="header-desc">
+                    Interaktive Analyse von <strong>SMTP</strong>, <strong>POP3</strong> und <strong>IMAP</strong>.
+                    Erforschen Sie zeichenorientierte Protokolle und die Paketierung von
+                    <strong>Sender</strong>, <strong>Empfänger</strong> und <strong>Maildaten</strong> in getrennten TCP-Paketen.
+                </p>
+            </div>
+            <nav class="view-tabs">
+                <button class="tab-btn @(ActiveView == ViewMode.Simulator ? "active" : "")" @onclick="() => SetView(ViewMode.Simulator)">
+                    <span class="tab-icon">✉️</span> SMTP-Simulator
+                </button>
+                <button class="tab-btn @(ActiveView == ViewMode.Protocols ? "active" : "")" @onclick="() => SetView(ViewMode.Protocols)">
+                    <span class="tab-icon">🔄</span> SMTP vs. POP3 vs. IMAP
+                </button>
+                <button class="tab-btn @(ActiveView == ViewMode.CharacterVsBinary ? "active" : "")" @onclick="() => SetView(ViewMode.CharacterVsBinary)">
+                    <span class="tab-icon">🔤</span> Zeichen- vs. Binärprotokolle
+                </button>
+                <button class="tab-btn @(ActiveView == ViewMode.Trainer ? "active" : "")" @onclick="() => SetView(ViewMode.Trainer)">
+                    <span class="tab-icon">📝</span> Klausur-Trainer
+                </button>
+                <button class="tab-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")" @onclick="() => SetView(ViewMode.Worksheet)">
+                    <span class="tab-icon">📄</span> Aufgabenblatt
+                </button>
+            </nav>
+        </header>
+    }
+
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- S1: Interactive SMTP Protocol Flow Simulator -->
+        <section class="simulator-section">
+            <div class="sim-toolbar">
+                <div class="dialogue-stepper">
+                    <button class="btn-ctrl" @onclick="PrevStep" disabled="@(CurrentStepIndex == 0)">◀ Zurück</button>
+                    <button class="btn-ctrl btn-primary" @onclick="NextStep" disabled="@(CurrentStepIndex >= Steps.Count - 1)">Weiter ▶</button>
+                    <button class="btn-ctrl btn-secondary" @onclick="ResetSimulation">↺ Zurücksetzen</button>
+                    <span class="step-counter">Schritt @(CurrentStepIndex + 1) / @Steps.Count</span>
+                </div>
+                <div class="sim-preset-group">
+                    <span class="ctrl-label">Beispiel-Mail:</span>
+                    <button class="btn-sm @(SelectedMailIndex == 0 ? "active" : "")" @onclick="() => SelectMailPreset(0)">Klausur-Muster</button>
+                    <button class="btn-sm @(SelectedMailIndex == 1 ? "active" : "")" @onclick="() => SelectMailPreset(1)">Projekt-Abgabe</button>
+                    <button class="btn-sm @(SelectedMailIndex == 2 ? "active" : "")" @onclick="() => SelectMailPreset(2)">Server-Relay</button>
+                </div>
+            </div>
+
+            <!-- Visual Mail Flow Stage -->
+            <div class="protocol-stage">
+                <!-- Client Node -->
+                <div class="node-box client-node">
+                    <div class="node-icon">💻</div>
+                    <div class="node-title">Mail-Client (MUA)</div>
+                    <div class="node-sub">Port 54321 (Ephemeral)</div>
+                    <div class="node-badge">TCP-Quelle</div>
+                </div>
+
+                <!-- Live Network Pipe -->
+                <div class="network-pipe">
+                    <div class="pipe-track"></div>
+                    @if (CurrentStep != null)
+                    {
+                        <div class="live-packet @(CurrentStep.IsClient ? "packet-ltr" : "packet-rtl") @GetPacketTypeClass(CurrentStep.PacketType)">
+                            <span class="packet-arrow">@(CurrentStep.IsClient ? "➔" : "⬅")</span>
+                            <span class="packet-label">@CurrentStep.PacketType</span>
+                        </div>
+                    }
+                    <div class="pipe-label">TCP Port 25 (SMTP Stream)</div>
+                </div>
+
+                <!-- Server Node -->
+                <div class="node-box server-node">
+                    <div class="node-icon">🏢</div>
+                    <div class="node-title">Mail-Server (MTA)</div>
+                    <div class="node-sub">mail.hshl.de:25</div>
+                    <div class="node-badge">SMTP-Dienst</div>
+                </div>
+            </div>
+
+            <!-- Dialogue Terminal & Packet Breakdown Grid -->
+            <div class="stage-grid">
+                <!-- Left: Terminal Session Log -->
+                <div class="terminal-card">
+                    <div class="card-header">
+                        <span class="terminal-dots">
+                            <span class="dot red"></span>
+                            <span class="dot yellow"></span>
+                            <span class="dot green"></span>
+                        </span>
+                        <span class="terminal-title">SMTP Terminal Session (ASCII-Klartext)</span>
+                        <span class="badge-port">Port 25</span>
+                    </div>
+                    <div class="terminal-body" id="smtp-log">
+                        @for (int i = 0; i <= CurrentStepIndex; i++)
+                        {
+                            var s = Steps[i];
+                            <div class="log-line @(i == CurrentStepIndex ? "active-line" : "")">
+                                <span class="prefix @(s.IsClient ? "prefix-client" : "prefix-server")">@(s.IsClient ? "C:" : "S:")</span>
+                                <span class="command-text">@s.RawText</span>
+                                @if (s.PacketType != PacketCategory.Control)
+                                {
+                                    <span class="klausur-badge @GetKlausurBadgeClass(s.PacketType)">
+                                        ★ @GetKlausurBadgeName(s.PacketType)
+                                    </span>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Right: TCP Packet Inspector & Explanation -->
+                <div class="inspector-card">
+                    <div class="card-header">
+                        <span class="card-title">🔍 Aktuelles TCP-Paket</span>
+                        <span class="badge-type @GetPacketTypeClass(CurrentStep?.PacketType ?? PacketCategory.Control)">
+                            @GetPacketTypeName(CurrentStep?.PacketType ?? PacketCategory.Control)
+                        </span>
+                    </div>
+                    <div class="inspector-content">
+                        @if (CurrentStep != null)
+                        {
+                            <div class="packet-highlight-box @GetPacketHighlightClass(CurrentStep.PacketType)">
+                                <div class="highlight-title">
+                                    @(CurrentStep.IsClient ? "📤 Client sendet TCP-Paket an Server" : "📥 Server antwortet per TCP-Paket")
+                                </div>
+                                <div class="highlight-code">
+                                    <code>@CurrentStep.RawText</code>
+                                </div>
+                                <p class="highlight-desc">@CurrentStep.Description</p>
+                            </div>
+
+                            <div class="exam-connection-callout">
+                                <span class="callout-badge">Klausur-Relevanz:</span>
+                                <p class="callout-text">
+                                    @GetExamRelevanceNote(CurrentStep.PacketType)
+                                </p>
+                            </div>
+
+                            <div class="tcp-envelope-preview">
+                                <div class="envelope-header">
+                                    <span>TCP Header (Flags: PSH, ACK)</span>
+                                    <span>Payload: @CurrentStep.RawText.Length Bytes</span>
+                                </div>
+                                <div class="envelope-body">
+                                    <span class="ascii-tag">ASCII</span>
+                                    <code>@CurrentStep.RawText\r\n</code>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Key Summary: Die 3 getrennten TCP-Pakete -->
+            <div class="triad-summary-box">
+                <div class="triad-header">
+                    <span class="triad-icon">💡</span>
+                    <h3>Klausur-Kernkonzept: Welche Daten landen in unterschiedlichen TCP-Paketen?</h3>
+                </div>
+                <div class="triad-grid">
+                    <div class="triad-card @(CurrentStep?.PacketType == PacketCategory.Sender ? "triad-active" : "")">
+                        <div class="triad-badge badge-sender">1. Sender</div>
+                        <div class="triad-cmd">MAIL FROM:&lt;...&gt;</div>
+                        <p class="triad-desc">Überträgt die Absenderadresse des Umschlags (Envelope-Sender). Wird separat übertragen und vom Server mit Status 250 bestätigt.</p>
+                    </div>
+                    <div class="triad-card @(CurrentStep?.PacketType == PacketCategory.Recipient ? "triad-active" : "")">
+                        <div class="triad-badge badge-recipient">2. Empfänger</div>
+                        <div class="triad-cmd">RCPT TO:&lt;...&gt;</div>
+                        <p class="triad-desc">Überträgt die Zieladresse (Envelope-Recipient). Kann bei mehreren Empfängern in mehreren Paketen wiederholt werden.</p>
+                    </div>
+                    <div class="triad-card @(CurrentStep?.PacketType == PacketCategory.MailData ? "triad-active" : "")">
+                        <div class="triad-badge badge-maildata">3. Maildaten</div>
+                        <div class="triad-cmd">DATA ... \r\n.\r\n</div>
+                        <p class="triad-desc">Enthält den eigentlichen Nachrichteninhalt (Mail-Header wie From/To/Subject + Mail-Body + MIME-Anhänge), abgeschlossen durch einen einzelnen Punkt.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    }
+    else if (ActiveView == ViewMode.Protocols)
+    {
+        <!-- S1.2: Protocol Comparison (SMTP vs. POP3 vs. IMAP) -->
+        <section class="protocols-section">
+            <h2 class="section-title">E-Mail-Protokolle im Vergleich: Versand vs. Abholen</h2>
+            <p class="section-lead">
+                Das E-Mail-System trennt strikt zwischen dem <strong>Versand &amp; Weiterleitung</strong> (SMTP) und dem
+                <strong>Abrufen &amp; Verwalten</strong> aus dem Postfach (POP3 oder IMAP).
+            </p>
+
+            <div class="comparison-grid">
+                <!-- SMTP -->
+                <div class="proto-card smtp-card">
+                    <div class="proto-header">
+                        <span class="proto-icon">📤</span>
+                        <div class="proto-title">
+                            <h3>SMTP</h3>
+                            <span class="proto-fullname">Simple Mail Transfer Protocol</span>
+                        </div>
+                    </div>
+                    <div class="proto-meta">
+                        <div class="meta-row"><span class="meta-lbl">Standard-Ports:</span> <span class="meta-val">25 (Relay), 587 (Submission), 465 (SMTPS)</span></div>
+                        <div class="meta-row"><span class="meta-lbl">Richtung:</span> <span class="meta-val">Client &rarr; Server &amp; Server &rarr; Server</span></div>
+                        <div class="meta-row"><span class="meta-lbl">Typ:</span> <span class="meta-val">Push-Protokoll (Versand)</span></div>
+                        <div class="meta-row"><span class="meta-lbl">Format:</span> <span class="meta-val">Zeichenorientiert (ASCII)</span></div>
+                    </div>
+                    <ul class="proto-features">
+                        <li>Versand von E-Mails vom MUA zum ersten Mailserver</li>
+                        <li>Weltweites Weiterleiten (Relay) zwischen MTA-Servern</li>
+                        <li>Statuscodes: <code>2xx</code> Erfolg, <code>3xx</code> Zwischenschritt, <code>4xx</code> Temp-Fehler, <code>5xx</code> Fatal</li>
+                        <li>Keine Unterstützung zum Abholen gespeicherter E-Mails!</li>
+                    </ul>
+                </div>
+
+                <!-- POP3 -->
+                <div class="proto-card pop3-card">
+                    <div class="proto-header">
+                        <span class="proto-icon">📥</span>
+                        <div class="proto-title">
+                            <h3>POP3</h3>
+                            <span class="proto-fullname">Post Office Protocol Version 3</span>
+                        </div>
+                    </div>
+                    <div class="proto-meta">
+                        <div class="meta-row"><span class="meta-lbl">Standard-Ports:</span> <span class="meta-val">110 (Plain), 995 (POP3S)</span></div>
+                        <div class="meta-row"><span class="meta-lbl">Richtung:</span> <span class="meta-val">Server &rarr; Client</span></div>
+                        <div class="meta-row"><span class="meta-lbl">Typ:</span> <span class="meta-val">Pull-Protokoll (Abholen)</span></div>
+                        <div class="meta-row"><span class="meta-lbl">Konzept:</span> <span class="meta-val">Download &amp; Delete (Standard)</span></div>
+                    </div>
+                    <ul class="proto-features">
+                        <li>Herunterladen der Nachrichten auf das lokale Gerät</li>
+                        <li>Standardmäßig Löschen der Mails auf dem Server nach Abruf</li>
+                        <li>Kommandos: <code>USER</code>, <code>PASS</code>, <code>STAT</code>, <code>LIST</code>, <code>RETR</code>, <code>DELE</code>, <code>QUIT</code></li>
+                        <li>Keine Synchronisation zwischen mehreren Geräten (Smartphone &amp; PC)</li>
+                    </ul>
+                </div>
+
+                <!-- IMAP -->
+                <div class="proto-card imap-card">
+                    <div class="proto-header">
+                        <span class="proto-icon">🔄</span>
+                        <div class="proto-title">
+                            <h3>IMAP</h3>
+                            <span class="proto-fullname">Internet Message Access Protocol</span>
+                        </div>
+                    </div>
+                    <div class="proto-meta">
+                        <div class="meta-row"><span class="meta-lbl">Standard-Ports:</span> <span class="meta-val">143 (Plain), 993 (IMAPS)</span></div>
+                        <div class="meta-row"><span class="meta-lbl">Richtung:</span> <span class="meta-val">Server &harr; Client</span></div>
+                        <div class="meta-row"><span class="meta-lbl">Typ:</span> <span class="meta-val">Zwei-Wege-Synchronisation</span></div>
+                        <div class="meta-row"><span class="meta-lbl">Konzept:</span> <span class="meta-val">Server-zentrierte Speicherung</span></div>
+                    </div>
+                    <ul class="proto-features">
+                        <li>Mails verbleiben permanent auf dem Server</li>
+                        <li>Ordnerverwaltung (Posteingang, Gesendet, Archiv) auf Server</li>
+                        <li>Zustands-Flags (Gelesen <code>\Seen</code>, Beantwortet, Gelöscht) synchron</li>
+                        <li>Ideal für Multi-Device-Nutzung (Smartphone, Laptop, Webmail)</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+    }
+    else if (ActiveView == ViewMode.CharacterVsBinary)
+    {
+        <!-- S1.3: Character-Oriented vs. Binary-Oriented Protocols -->
+        <section class="char-section">
+            <h2 class="section-title">Zeichenorientierte vs. Binäre Protokolle</h2>
+            <p class="section-lead">
+                Die Anwendungsschicht unterscheidet zwei fundamentale Entwurfsphilosophien für Protokolle:
+            </p>
+
+            <div class="paradigm-grid">
+                <div class="paradigm-card char-card">
+                    <div class="paradigm-header">
+                        <span class="paradigm-icon">🔤</span>
+                        <h3>Zeichenorientiert (Textbasiert)</h3>
+                    </div>
+                    <div class="paradigm-body">
+                        <p class="summary-text">
+                            Befehle und Parameter werden als menschenlesbare Zeichenfolgen (meist ASCII oder UTF-8) übertragen.
+                            Zeilen werden durch <code>\r\n</code> (CRLF) abgeschlossen.
+                        </p>
+                        <div class="prop-list">
+                            <div class="prop-item positive">
+                                <span class="prop-icon">✔</span>
+                                <span>Einfach per Telnet / Netcat interaktiv von Hand bedien- und debuggbar</span>
+                            </div>
+                            <div class="prop-item positive">
+                                <span class="prop-icon">✔</span>
+                                <span>Leicht erweiterbar durch neue Textkommandos und Header</span>
+                            </div>
+                            <div class="prop-item negative">
+                                <span class="prop-icon">✖</span>
+                                <span>Höherer Protokoll-Overhead durch ASCII-Encoding von Zahlen/Binärdaten (z.B. Base64)</span>
+                            </div>
+                            <div class="prop-item negative">
+                                <span class="prop-icon">✖</span>
+                                <span>Aufwendigeres String-Parsing auf Empfängerseite nötig</span>
+                            </div>
+                        </div>
+                        <div class="examples-box">
+                            <strong>Beispiele:</strong> SMTP, HTTP/1.1, FTP, POP3, IMAP, Telnet
+                        </div>
+                    </div>
+                </div>
+
+                <div class="paradigm-card bin-card">
+                    <div class="paradigm-header">
+                        <span class="paradigm-icon">⚡</span>
+                        <h3>Binärorientiert (Strukturiert)</h3>
+                    </div>
+                    <div class="paradigm-body">
+                        <p class="summary-text">
+                            Daten werden in fest definierten Bit- und Byte-Feldern nach exakten Offsets übertragen.
+                            Flags sind einzelne Bits, Längen und Nummern sind binäre Ganzzahlen.
+                        </p>
+                        <div class="prop-list">
+                            <div class="prop-item positive">
+                                <span class="prop-icon">✔</span>
+                                <span>Höchste Übertragungseffizienz und minimale Datenmenge</span>
+                            </div>
+                            <div class="prop-item positive">
+                                <span class="prop-icon">✔</span>
+                                <span>Extrem schnelles Parsing direkt in Speicherstrukturen / Hardware</span>
+                            </div>
+                            <div class="prop-item negative">
+                                <span class="prop-icon">✖</span>
+                                <span>Nicht menschenlesbar ohne Protokoll-Analyzer (Wireshark)</span>
+                            </div>
+                            <div class="prop-item negative">
+                                <span class="prop-icon">✖</span>
+                                <span>Striktere Headerformate; Protokollerweiterungen komplexer</span>
+                            </div>
+                        </div>
+                        <div class="examples-box">
+                            <strong>Beispiele:</strong> DNS, TCP, IPv4/IPv6, Ethernet, HTTP/2, QUIC
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    }
+    else if (ActiveView == ViewMode.Trainer)
+    {
+        <!-- S1.4: Klausur-Trainer -->
+        <section class="trainer-section">
+            <div class="trainer-card">
+                <div class="trainer-header">
+                    <span class="trainer-badge">Klausuraufgabe &bull; Zeichenorientierte Protokolle</span>
+                    <h2>Original-Klausurfrage</h2>
+                </div>
+                <div class="prompt-quote">
+                    „Einige Protokolle der Anwendungsschicht sind zeichenorientiert, d.h., dass es kein festes Datenformat gibt,
+                    sondern Befehle, die als Zeichen übertragen werden. Geben Sie Beispiele dafür, welche Daten z.B. bei Mails in
+                    unterschiedlichen TCP-Paketen landen.“
+                </div>
+
+                <div class="trainer-form">
+                    <label class="form-label">Ihre Antwort:</label>
+                    <textarea class="form-textarea" placeholder="Nennen Sie hier die 3 primären Datenbestandteile einer E-Mail, die in separaten TCP-Paketen übertragen werden..." @bind="UserAnswer"></textarea>
+
+                    <div class="trainer-actions">
+                        <button class="btn-check" @onclick="ToggleTrainerSolution">
+                            @(ShowTrainerSolution ? "Lösung ausblenden" : "Musterlösung anzeigen")
+                        </button>
+                    </div>
+
+                    @if (ShowTrainerSolution)
+                    {
+                        <div class="trainer-solution-box">
+                            <div class="sol-title">Offizielle Musterlösung (aus XeLaTeX-Master):</div>
+                            <ul class="official-sol-list">
+                                <li><strong>Sender</strong> (übertragen im TCP-Paket des <code>MAIL FROM:&lt;...&gt;</code> Kommandos)</li>
+                                <li><strong>Empfänger</strong> (übertragen im TCP-Paket des <code>RCPT TO:&lt;...&gt;</code> Kommandos)</li>
+                                <li><strong>Maildaten</strong> (übertragen nach dem <code>DATA</code> Kommando bis zum abschließenden <code>\r\n.\r\n</code>)</li>
+                            </ul>
+                            <div class="sol-explanation">
+                                <strong>Hintergrund:</strong>
+                                Da SMTP ein interaktives, zustandsbehaftetes Frage-Antwort-Protokoll über einen TCP-Bytestrom ist,
+                                sendet der Client ein Kommando (z.B. den Absender), wartet auf die Bestätigung des Servers (z.B. <code>250 OK</code>),
+                                und sendet erst dann im nächsten TCP-Paket den Empfänger. Erst nach Bestätigung des Empfängers und des <code>DATA</code>-Befehls
+                                werden die eigentlichen Maildaten (Header + Body) übertragen.
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </section>
+    }
+    else if (ActiveView == ViewMode.Worksheet)
+    {
+        <!-- S2: 1:1 Printable A4 Exam-Replica Worksheet -->
+        <div class="worksheet-container">
+            <div class="no-print worksheet-controls">
+                <button class="btn-action" @onclick="ToggleSolution">
+                    @(ShowSolution ? "Musterlösung verbergen" : "Musterlösung einblenden")
+                </button>
+                <button class="btn-action print-btn" @onclick="TriggerPrint">🖨️ Drucken / PDF Export</button>
+            </div>
+
+            <!-- Single-page Header -->
+            <header class="worksheet-header">
+                <div class="ws-head-left">
+                    <div class="ws-institution">Hochschule Hamm-Lippstadt</div>
+                    <div class="ws-course">Grundlagen der Informatik &bull; Rechnernetze</div>
+                    <div class="ws-topic">Zeichenorientierte Protokolle &bull; E-Mail (SMTP)</div>
+                </div>
+                <div class="ws-head-right">
+                    <div class="ws-meta-field"><span>Name:</span> _________________________________</div>
+                    <div class="ws-meta-field"><span>Matrikelnr.:</span> ___________________________</div>
+                    <div class="ws-meta-field"><span>Datum:</span> _________________________________</div>
+                </div>
+            </header>
+
+            <div class="worksheet-body">
+                <div class="task-title-bar">
+                    <h2 class="task-title">Aufgabe: Zeichenorientierte Protokolle am Beispiel von E-Mail</h2>
+                    <span class="task-score">Punkte: / 5</span>
+                </div>
+
+                <div class="ws-prompt">
+                    Einige Protokolle der Anwendungsschicht sind zeichenorientiert, d.h., dass es kein festes Datenformat gibt,
+                    sondern Befehle, die als Zeichen übertragen werden. Geben Sie Beispiele dafür, welche Daten z.B. bei Mails in
+                    unterschiedlichen TCP-Paketen landen.
+                </div>
+
+                <!-- Schematic Packet Flow Illustration -->
+                <div class="ws-diagram-box">
+                    <div class="ws-diag-title">Ablauf der SMTP-Sitzung über TCP (Kommando- &amp; Datenfluss):</div>
+                    <div class="ws-flow-diagram">
+                        <div class="ws-flow-node">Client<br/><small>(MUA)</small></div>
+                        <div class="ws-flow-lines">
+                            <div class="ws-flow-row">
+                                <span class="flow-cmd ltr"><code>MAIL FROM:&lt;alice&#64;hshl.de&gt;</code> &rarr;</span>
+                                <span class="flow-rsp rtl">&larr; <code>250 2.1.0 Ok</code></span>
+                            </div>
+                            <div class="ws-flow-row">
+                                <span class="flow-cmd ltr"><code>RCPT TO:&lt;bob&#64;hshl.de&gt;</code> &rarr;</span>
+                                <span class="flow-rsp rtl">&larr; <code>250 2.1.5 Ok</code></span>
+                            </div>
+                            <div class="ws-flow-row">
+                                <span class="flow-cmd ltr"><code>DATA</code> &rarr;</span>
+                                <span class="flow-rsp rtl">&larr; <code>354 Start mail input; end with &lt;CRLF&gt;.&lt;CRLF&gt;</code></span>
+                            </div>
+                            <div class="ws-flow-row">
+                                <span class="flow-cmd ltr"><code>From:... Subject:... Text... \r\n.\r\n</code> &rarr;</span>
+                                <span class="flow-rsp rtl">&larr; <code>250 2.0.0 Ok: queued</code></span>
+                            </div>
+                        </div>
+                        <div class="ws-flow-node">Server<br/><small>(MTA)</small></div>
+                    </div>
+                </div>
+
+                @if (ShowSolution)
+                {
+                    <div class="solution-box">
+                        <div class="solution-badge">MUSTERLÖSUNG:</div>
+                        <ul class="solution-items">
+                            <li><strong>Sender</strong> (Umschlag-Absenderadresse via <code>MAIL FROM:&lt;...&gt;</code>)</li>
+                            <li><strong>Empfänger</strong> (Umschlag-Zieladresse via <code>RCPT TO:&lt;...&gt;</code>)</li>
+                            <li><strong>Maildaten</strong> (Nachrichteninhalt inkl. Header wie <code>From:</code>/<code>Subject:</code> und Text-Body nach <code>DATA</code>)</li>
+                        </ul>
+                        <div class="solution-note">
+                            <em>Hinweis:</em> Da SMTP als zeichenorientiertes Frage-Antwort-Protokoll auf zwischenzeitliche Bestätigungen
+                            (Status <code>250</code> bzw. <code>354</code>) wartet, werden diese Informationseinheiten in zeitlich getrennten TCP-Paketen übertragen.
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="ws-writing-area">
+                        <div class="answer-line"></div>
+                        <div class="answer-line"></div>
+                        <div class="answer-line"></div>
+                        <div class="answer-line"></div>
+                    </div>
+                }
+            </div>
+
+            <!-- Single-page Footer -->
+            <footer class="worksheet-footer">
+                <span>Intelligent Systems Design &bull; Hochschule Hamm-Lippstadt &bull; Rechnernetze</span>
+            </footer>
+        </div>
+    }
+
+</article>
+
+@code {
+    [Parameter]
+    public bool IsEmbed { get; set; } = false;
+
+    public enum ViewMode
+    {
+        Simulator,
+        Protocols,
+        CharacterVsBinary,
+        Trainer,
+        Worksheet
+    }
+
+    public enum PacketCategory
+    {
+        Control,
+        Sender,
+        Recipient,
+        MailData
+    }
+
+    public class SmtpStep
+    {
+        public bool IsClient { get; set; }
+        public string RawText { get; set; } = "";
+        public PacketCategory PacketType { get; set; }
+        public string Description { get; set; } = "";
+    }
+
+    private ViewMode ActiveView { get; set; } = ViewMode.Simulator;
+    private bool ShowSolution { get; set; } = false;
+    private bool ShowTrainerSolution { get; set; } = false;
+    private string UserAnswer { get; set; } = "";
+
+    private int CurrentStepIndex { get; set; } = 0;
+    private int SelectedMailIndex { get; set; } = 0;
+
+    private SmtpStep? CurrentStep => Steps.Count > 0 && CurrentStepIndex < Steps.Count ? Steps[CurrentStepIndex] : null;
+
+    private List<SmtpStep> Steps { get; set; } = new();
+
+    protected override void OnInitialized()
+    {
+        LoadMailPreset(0);
+        CheckUrlParameters();
+    }
+
+    protected override void OnParametersSet()
+    {
+        CheckUrlParameters();
+    }
+
+    private void CheckUrlParameters()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query.ToLowerInvariant();
+
+            if (query.Contains("embed=true") || query.Contains("embedded=true") || query.Contains("embed=1"))
+            {
+                IsEmbed = true;
+            }
+
+            if (query.Contains("view=worksheet") || query.Contains("view=sheet"))
+            {
+                ActiveView = ViewMode.Worksheet;
+            }
+            else if (query.Contains("view=protocols") || query.Contains("view=proto"))
+            {
+                ActiveView = ViewMode.Protocols;
+            }
+            else if (query.Contains("view=trainer"))
+            {
+                ActiveView = ViewMode.Trainer;
+            }
+
+            if (query.Contains("solution=true") || query.Contains("sol=true") || query.Contains("loesung=true"))
+            {
+                ShowSolution = true;
+            }
+        }
+        catch
+        {
+            // Fallback
+        }
+    }
+
+    private void SetView(ViewMode mode)
+    {
+        ActiveView = mode;
+    }
+
+    private void SelectMailPreset(int index)
+    {
+        SelectedMailIndex = index;
+        LoadMailPreset(index);
+        CurrentStepIndex = 0;
+    }
+
+    private void LoadMailPreset(int index)
+    {
+        Steps.Clear();
+        if (index == 0) // Klausur-Muster
+        {
+            Steps.Add(new SmtpStep { IsClient = false, RawText = "220 mail.hshl.de ESMTP Postfix (Ubuntu)", PacketType = PacketCategory.Control, Description = "Server-Begrüßung nach erfolgreichem TCP 3-Way-Handshake auf Port 25." });
+            Steps.Add(new SmtpStep { IsClient = true, RawText = "HELO client.intern.hshl.de", PacketType = PacketCategory.Control, Description = "Client identifiziert sich gegenüber dem Server mit seinem Fully Qualified Domain Name (FQDN)." });
+            Steps.Add(new SmtpStep { IsClient = false, RawText = "250 mail.hshl.de Hello client.intern.hshl.de, pleased to meet you", PacketType = PacketCategory.Control, Description = "Server bestätigt Identität des Clients mit Status 250 (OK)." });
+            Steps.Add(new SmtpStep { IsClient = true, RawText = "MAIL FROM:<alice@hshl.de>", PacketType = PacketCategory.Sender, Description = "1. TCP-Paket: Umschlag-Sender (Envelope-From). Wird separat übertragen und geprüft." });
+            Steps.Add(new SmtpStep { IsClient = false, RawText = "250 2.1.0 Ok: sender <alice@hshl.de> accepted", PacketType = PacketCategory.Control, Description = "Server bestätigt die Gültigkeit des Absenders." });
+            Steps.Add(new SmtpStep { IsClient = true, RawText = "RCPT TO:<bob@hshl.de>", PacketType = PacketCategory.Recipient, Description = "2. TCP-Paket: Umschlag-Empfänger (Envelope-To). Eigene Übertragung zur Mailbox-Prüfung." });
+            Steps.Add(new SmtpStep { IsClient = false, RawText = "250 2.1.5 Ok: recipient <bob@hshl.de> accepted", PacketType = PacketCategory.Control, Description = "Server prüft lokale Mailbox oder Relay-Erlaubnis und akzeptiert den Empfänger." });
+            Steps.Add(new SmtpStep { IsClient = true, RawText = "DATA", PacketType = PacketCategory.Control, Description = "Client kündigt die Übertragung der Maildaten an." });
+            Steps.Add(new SmtpStep { IsClient = false, RawText = "354 End data with <CR><LF>.<CR><LF>", PacketType = PacketCategory.Control, Description = "Server fordert zur Eingabe der Maildaten auf und gibt das Abbruchkriterium (Punkt auf leerer Zeile) an." });
+            Steps.Add(new SmtpStep { IsClient = true, RawText = "From: Alice <alice@hshl.de>\nTo: Bob <bob@hshl.de>\nSubject: Klausurtermin Rechnernetze 2026\nDate: Fri, 11 Sep 2026 18:00:00 +0200\n\nHallo Bob,\ndie Klausur Rechnernetze findet am 24. September statt.\nViele Grüße, Alice\n.", PacketType = PacketCategory.MailData, Description = "3. TCP-Paket: Maildaten (Header + Body). Abgeschlossen durch eine Zeile mit einzelnem Punkt." });
+            Steps.Add(new SmtpStep { IsClient = false, RawText = "250 2.0.0 Ok: queued as 4X8B9Q208Zz19aK", PacketType = PacketCategory.Control, Description = "Server hat die Maildaten vollständig empfangen und in die Warteschlange eingereiht." });
+            Steps.Add(new SmtpStep { IsClient = true, RawText = "QUIT", PacketType = PacketCategory.Control, Description = "Client meldet sich ordnungsgemäß ab." });
+            Steps.Add(new SmtpStep { IsClient = false, RawText = "221 2.0.0 Bye: mail.hshl.de closing connection", PacketType = PacketCategory.Control, Description = "Server verabschiedet sich und initiiert den TCP-Verbindungsabbau (FIN)." });
+        }
+        else if (index == 1) // Projekt-Abgabe
+        {
+            Steps.Add(new SmtpStep { IsClient = false, RawText = "220 smtp.stud.hshl.de ESMTP Service ready", PacketType = PacketCategory.Control, Description = "SMTP Service Bereit." });
+            Steps.Add(new SmtpStep { IsClient = true, RawText = "EHLO laptop-max.stud.hshl.de", PacketType = PacketCategory.Control, Description = "Extended SMTP Begrüßung." });
+            Steps.Add(new SmtpStep { IsClient = false, RawText = "250-smtp.stud.hshl.de\n250-SIZE 35882570\n250-8BITMIME\n250 HELP", PacketType = PacketCategory.Control, Description = "Server meldet ESMTP Fähigkeiten." });
+            Steps.Add(new SmtpStep { IsClient = true, RawText = "MAIL FROM:<max.mustermann@stud.hshl.de>", PacketType = PacketCategory.Sender, Description = "1. TCP-Paket: Absenderadresse im Envelope." });
+            Steps.Add(new SmtpStep { IsClient = false, RawText = "250 2.1.0 Sender ok", PacketType = PacketCategory.Control, Description = "Absender akzeptiert." });
+            Steps.Add(new SmtpStep { IsClient = true, RawText = "RCPT TO:<prof.nunkesser@hshl.de>", PacketType = PacketCategory.Recipient, Description = "2. TCP-Paket: Empfängeradresse im Envelope." });
+            Steps.Add(new SmtpStep { IsClient = false, RawText = "250 2.1.5 Recipient ok", PacketType = PacketCategory.Control, Description = "Empfänger akzeptiert." });
+            Steps.Add(new SmtpStep { IsClient = true, RawText = "DATA", PacketType = PacketCategory.Control, Description = "Daten-Startbefehl." });
+            Steps.Add(new SmtpStep { IsClient = false, RawText = "354 Start mail input; end with <CRLF>.<CRLF>", PacketType = PacketCategory.Control, Description = "Bereit für Daten." });
+            Steps.Add(new SmtpStep { IsClient = true, RawText = "From: Max <max.mustermann@stud.hshl.de>\nTo: Prof. Nunkesser <prof.nunkesser@hshl.de>\nSubject: Abgabe Meilenstein 3\n\nSehr geehrter Herr Prof. Nunkesser,\nanbei sende ich die Projektergebnisse für Meilenstein 3.\nMit freundlichen Grüßen,\nMax Mustermann\n.", PacketType = PacketCategory.MailData, Description = "3. TCP-Paket: Maildaten (Headers + Text)." });
+            Steps.Add(new SmtpStep { IsClient = false, RawText = "250 2.0.0 Message accepted for delivery", PacketType = PacketCategory.Control, Description = "Nachricht angenommen." });
+            Steps.Add(new SmtpStep { IsClient = true, RawText = "QUIT", PacketType = PacketCategory.Control, Description = "Sitzung beenden." });
+            Steps.Add(new SmtpStep { IsClient = false, RawText = "221 2.0.0 Service closing transmission channel", PacketType = PacketCategory.Control, Description = "Verbindung geschlossen." });
+        }
+        else // Server-Relay
+        {
+            Steps.Add(new SmtpStep { IsClient = false, RawText = "220 relay.uni-bonn.de ESMTP ready", PacketType = PacketCategory.Control, Description = "MTA-Relay-Begrüßung." });
+            Steps.Add(new SmtpStep { IsClient = true, RawText = "HELO mail.hshl.de", PacketType = PacketCategory.Control, Description = "MTA-Server meldet sich als Client beim nächsten Hop." });
+            Steps.Add(new SmtpStep { IsClient = false, RawText = "250 relay.uni-bonn.de Hello mail.hshl.de", PacketType = PacketCategory.Control, Description = "Relay akzeptiert Verbindung." });
+            Steps.Add(new SmtpStep { IsClient = true, RawText = "MAIL FROM:<postmaster@hshl.de>", PacketType = PacketCategory.Sender, Description = "1. TCP-Paket: Relay-Sender." });
+            Steps.Add(new SmtpStep { IsClient = false, RawText = "250 2.1.0 Ok", PacketType = PacketCategory.Control, Description = "Sender bestätigt." });
+            Steps.Add(new SmtpStep { IsClient = true, RawText = "RCPT TO:<colleague@uni-bonn.de>", PacketType = PacketCategory.Recipient, Description = "2. TCP-Paket: Relay-Empfänger." });
+            Steps.Add(new SmtpStep { IsClient = false, RawText = "250 2.1.5 Ok", PacketType = PacketCategory.Control, Description = "Empfänger bestätigt." });
+            Steps.Add(new SmtpStep { IsClient = true, RawText = "DATA", PacketType = PacketCategory.Control, Description = "DATA Befehl." });
+            Steps.Add(new SmtpStep { IsClient = false, RawText = "354 Enter mail", PacketType = PacketCategory.Control, Description = "Eingabeaufforderung." });
+            Steps.Add(new SmtpStep { IsClient = true, RawText = "From: Postmaster <postmaster@hshl.de>\nTo: Colleague <colleague@uni-bonn.de>\nSubject: Inter-Uni Research Exchange\n\nMeeting confirmed for Friday 10am.\n.", PacketType = PacketCategory.MailData, Description = "3. TCP-Paket: Maildaten." });
+            Steps.Add(new SmtpStep { IsClient = false, RawText = "250 2.0.0 Ok: queued", PacketType = PacketCategory.Control, Description = "Relay abgeschlossen." });
+            Steps.Add(new SmtpStep { IsClient = true, RawText = "QUIT", PacketType = PacketCategory.Control, Description = "Sitzung beenden." });
+            Steps.Add(new SmtpStep { IsClient = false, RawText = "221 Goodbye", PacketType = PacketCategory.Control, Description = "Kanal geschlossen." });
+        }
+    }
+
+    private void NextStep()
+    {
+        if (CurrentStepIndex < Steps.Count - 1)
+        {
+            CurrentStepIndex++;
+        }
+    }
+
+    private void PrevStep()
+    {
+        if (CurrentStepIndex > 0)
+        {
+            CurrentStepIndex--;
+        }
+    }
+
+    private void ResetSimulation()
+    {
+        CurrentStepIndex = 0;
+    }
+
+    private string GetPacketTypeClass(PacketCategory cat) => cat switch
+    {
+        PacketCategory.Sender => "type-sender",
+        PacketCategory.Recipient => "type-recipient",
+        PacketCategory.MailData => "type-maildata",
+        _ => "type-ctrl"
+    };
+
+    private string GetPacketTypeName(PacketCategory cat) => cat switch
+    {
+        PacketCategory.Sender => "Paket 1: SENDER",
+        PacketCategory.Recipient => "Paket 2: EMPFÄNGER",
+        PacketCategory.MailData => "Paket 3: MAILDATEN",
+        _ => "Protokoll-Steuerung"
+    };
+
+    private string GetKlausurBadgeName(PacketCategory cat) => cat switch
+    {
+        PacketCategory.Sender => "Klausur: SENDER",
+        PacketCategory.Recipient => "Klausur: EMPFÄNGER",
+        PacketCategory.MailData => "Klausur: MAILDATEN",
+        _ => ""
+    };
+
+    private string GetKlausurBadgeClass(PacketCategory cat) => cat switch
+    {
+        PacketCategory.Sender => "badge-sender",
+        PacketCategory.Recipient => "badge-recipient",
+        PacketCategory.MailData => "badge-maildata",
+        _ => ""
+    };
+
+    private string GetPacketHighlightClass(PacketCategory cat) => cat switch
+    {
+        PacketCategory.Sender => "highlight-sender",
+        PacketCategory.Recipient => "highlight-recipient",
+        PacketCategory.MailData => "highlight-maildata",
+        _ => "highlight-ctrl"
+    };
+
+    private string GetExamRelevanceNote(PacketCategory cat) => cat switch
+    {
+        PacketCategory.Sender => "In der Klausur als 'Sender' zu nennen: Dieses TCP-Paket enthält den Befehl MAIL FROM:<absender@domain> und übergibt die Absenderadresse des Umschlags.",
+        PacketCategory.Recipient => "In der Klausur als 'Empfänger' zu nennen: Dieses TCP-Paket enthält den Befehl RCPT TO:<empfaenger@domain> zur Überprüfung der Ziel-Mailbox.",
+        PacketCategory.MailData => "In der Klausur als 'Maildaten' zu nennen: Nach DATA werden in diesem TCP-Paket alle Header (From, To, Subject) und der Mailtext samt Anhängen übertragen.",
+        _ => "Steuerbefehl für Verbindungsaufbau, Bestätigungen (250 OK) oder Abmeldung (QUIT)."
+    };
+
+    private void ToggleSolution()
+    {
+        ShowSolution = !ShowSolution;
+    }
+
+    private void ToggleTrainerSolution()
+    {
+        ShowTrainerSolution = !ShowTrainerSolution;
+    }
+
+    private async Task TriggerPrint()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+}
