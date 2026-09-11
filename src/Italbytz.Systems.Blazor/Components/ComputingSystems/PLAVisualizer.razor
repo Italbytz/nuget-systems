@@ -1,0 +1,742 @@
+@using Microsoft.AspNetCore.Components
+@using Microsoft.JSInterop
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<div class="pla-container @(IsEmbed ? "is-embedded" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-mode" : "simulator-mode")">
+    @if (!IsEmbed)
+    {
+        <header class="component-header">
+            <div class="header-titles">
+                <span class="kicker">Grundlagen der Informatik &bull; Technische Informatik</span>
+                <h2>Programmierbare Logikbausteine (PLA)</h2>
+                <p class="subtitle">Disjunktive Normalform, Berkeley-Espresso-Format &amp; Leitungsmatrix mit Konjunktions- und Disjunktionsmatrix</p>
+            </div>
+            <div class="view-switcher no-print">
+                <button class="btn-toggle @(ActiveView == ViewMode.StepByStep ? "active" : "")" @onclick="() => SetView(ViewMode.StepByStep)">
+                    ▶️ Interaktiver Simulator
+                </button>
+                <button class="btn-toggle @(ActiveView == ViewMode.Worksheet ? "active" : "")" @onclick="() => SetView(ViewMode.Worksheet)">
+                    📄 Klausur-Übungsblatt
+                </button>
+            </div>
+        </header>
+    }
+
+    @if (ActiveView == ViewMode.StepByStep)
+    {
+        <!-- SIMULATOR CONTROLS -->
+        <div class="card toolbar-card no-print">
+            <div class="toolbar-section">
+                <span class="tool-label">Preset:</span>
+                <div class="btn-group">
+                    <button class="btn-preset @(SelectedPreset == 0 ? "active" : "")" @onclick="() => LoadPreset(0)">
+                        Klausur (TIPLA)
+                    </button>
+                    <button class="btn-preset @(SelectedPreset == 1 ? "active" : "")" @onclick="() => LoadPreset(1)">
+                        Vorlesung (Folien)
+                    </button>
+                </div>
+            </div>
+
+            <div class="toolbar-section">
+                <span class="tool-label">Trace:</span>
+                <div class="player-controls">
+                    <button class="btn-ctrl" @onclick="GoToStart" disabled="@(CurrentStep == 0)" title="Anfang">⏮</button>
+                    <button class="btn-ctrl" @onclick="PrevStep" disabled="@(CurrentStep == 0)" title="Schritt zurück">◀</button>
+                    <span class="step-indicator">Schritt @(CurrentStep + 1) / @TotalSteps</span>
+                    <button class="btn-ctrl" @onclick="NextStep" disabled="@(CurrentStep >= TotalSteps - 1)" title="Nächster Schritt">▶</button>
+                    <button class="btn-ctrl" @onclick="GoToEnd" disabled="@(CurrentStep >= TotalSteps - 1)" title="Ende">⏭</button>
+                </div>
+            </div>
+
+            <div class="toolbar-section">
+                <button class="btn-random" @onclick="RandomizeInputs" title="Zufällige Eingangswerte">
+                    🎲 Eingänge würfeln
+                </button>
+            </div>
+        </div>
+
+        <!-- NARRATOR BANNER -->
+        <div class="card narrator-card">
+            <div class="narrator-icon">💡</div>
+            <div class="narrator-content">
+                <div class="narrator-title">@GetStepTitle()</div>
+                <div class="narrator-body">@GetStepDescription()</div>
+            </div>
+        </div>
+
+        <div class="simulator-layout">
+            <!-- LEFT: PLA CODE & TERMS & TRUTH TABLE -->
+            <div class="left-panel">
+                <!-- PLA SPEC CARD -->
+                <div class="card pla-spec-card">
+                    <div class="card-header">
+                        <h3>PLA-Spezifikation (Espresso)</h3>
+                        <span class="badge badge-accent">.pla Format</span>
+                    </div>
+                    <pre class="pla-code-block"><code>@PlaCode</code></pre>
+
+                    <div class="decoded-terms-box">
+                        <div class="terms-title">Decodierte Monome (AND-Gatter):</div>
+                        <div class="terms-list">
+                            @for (int i = 0; i < ProductTerms.Count; i++)
+                            {
+                                var term = ProductTerms[i];
+                                var isActive = IsTermActive(term);
+                                <div class="term-badge @(isActive ? "term-active" : "")">
+                                    <span class="term-id">P@(i):</span>
+                                    <span class="term-expr">@GetTermFormula(term)</span>
+                                    <span class="term-status">@(isActive ? "= 1" : "= 0")</span>
+                                </div>
+                            }
+                        </div>
+                        <div class="overall-formula">
+                            <strong>Gesamtfunktion (DNF):</strong>
+                            <span class="formula-str">y = @GetCompleteFormula()</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TRUTH TABLE -->
+                <div class="card table-card">
+                    <div class="card-header">
+                        <h3>Wahrheitstabelle</h3>
+                        <span class="badge">16 Zeilen (2⁴)</span>
+                    </div>
+                    <div class="table-scroll-wrap">
+                        <table class="sim-truth-table">
+                            <thead>
+                                <tr>
+                                    <th>x₁</th>
+                                    <th>x₂</th>
+                                    <th>x₃</th>
+                                    <th>x₄</th>
+                                    <th>Minterm</th>
+                                    <th>y</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int r = 0; r < 16; r++)
+                                {
+                                    var x1 = (r >> 3) & 1;
+                                    var x2 = (r >> 2) & 1;
+                                    var x3 = (r >> 1) & 1;
+                                    var x4 = r & 1;
+                                    var isCurrentInput = (InputX1 == x1 && InputX2 == x2 && InputX3 == x3 && InputX4 == x4);
+                                    var yVal = EvaluatePla(x1, x2, x3, x4);
+
+                                    <tr class="@(isCurrentInput ? "active-input-row" : "")">
+                                        <td>@x1</td>
+                                        <td>@x2</td>
+                                        <td>@x3</td>
+                                        <td>@x4</td>
+                                        <td class="mono">m@(r)</td>
+                                        <td class="y-col @(yVal == 1 ? "y-high" : "y-low")">
+                                            <strong>@yVal</strong>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT: CIRCUIT MATRIX (SVG) -->
+            <div class="right-panel">
+                <div class="card circuit-card">
+                    <div class="circuit-header">
+                        <div class="circuit-title-wrap">
+                            <h3>Schaltungsmatrix: Konjunktion &amp; Disjunktion</h3>
+                            <span class="sub-caption">Schalter x₁..x₄ bedienen &bull; Signalfluss live beobachten</span>
+                        </div>
+                        <div class="live-status-pill @(EvaluateCurrent() == 1 ? "out-high" : "out-low")">
+                            Ausgang y = @EvaluateCurrent()
+                        </div>
+                    </div>
+
+                    <!-- INTERACTIVE INPUT TOGGLES -->
+                    <div class="interactive-switch-bar">
+                        <span class="bar-label">Eingangsschalter:</span>
+                        <div class="toggle-btn-row">
+                            <button class="switch-toggle @(InputX1 == 1 ? "is-one" : "is-zero")" @onclick="() => ToggleInput(1)">
+                                <span class="sw-name">x₁:</span>
+                                <span class="sw-val">@InputX1</span>
+                            </button>
+                            <button class="switch-toggle @(InputX2 == 1 ? "is-one" : "is-zero")" @onclick="() => ToggleInput(2)">
+                                <span class="sw-name">x₂:</span>
+                                <span class="sw-val">@InputX2</span>
+                            </button>
+                            <button class="switch-toggle @(InputX3 == 1 ? "is-one" : "is-zero")" @onclick="() => ToggleInput(3)">
+                                <span class="sw-name">x₃:</span>
+                                <span class="sw-val">@InputX3</span>
+                            </button>
+                            <button class="switch-toggle @(InputX4 == 1 ? "is-one" : "is-zero")" @onclick="() => ToggleInput(4)">
+                                <span class="sw-name">x₄:</span>
+                                <span class="sw-val">@InputX4</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- SVG SCHEMATIC -->
+                    <div class="svg-container">
+                        @RenderPlaSvg(isInteractive: true, showSolutions: true)
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- WORKSHEET VIEW (1:1 EXAM EQUIVALENT) -->
+        <div class="worksheet-paper">
+            <div class="ws-header-row no-print">
+                <div class="ws-controls">
+                    <button class="btn-ws-primary" @onclick="ToggleSolution">
+                        @(ShowSolution ? "👁️ Lösung verbergen" : "👁️ Lösung anzeigen")
+                    </button>
+                    <button class="btn-ws-secondary" @onclick="TriggerPrint">
+                        🖨️ Drucken / PDF Export
+                    </button>
+                </div>
+            </div>
+
+            <!-- PAGE 1: INTRO & TEILAUFGABE 1 -->
+            <div class="exam-page-1">
+                <div class="exam-title-block">
+                    <div class="exam-kicker">Grundlagen der Informatik &bull; Übungsaufgabe</div>
+                    <h1 class="exam-h1">Aufgabe: Programmierbarer Logikbaustein (PLA)</h1>
+                    <div class="exam-points">Erreichbare Punkte: 10 Punkte</div>
+                </div>
+
+                <div class="exam-intro-box">
+                    <p>
+                        In einen programmierbaren Logikbaustein (PLA) lassen sich Funktionen in <strong>Disjunktiver Normalform (DNF)</strong> einprogrammieren.
+                        Dazu werden Knotenpunkte in einer Leitungsmatrix verbunden, die aus einer Konjunktionsmatrix (AND-Gatter für die Monome)
+                        und einer Disjunktionsmatrix (OR-Gatter für die ODER-Verknüpfung der Monome) besteht.
+                    </p>
+                </div>
+
+                <!-- TEILAUFGABE 1 -->
+                <div class="exam-part">
+                    <div class="part-title">Teilaufgabe 1 (4 Punkte)</div>
+                    <p class="part-desc">Gegeben sei folgende PLA-Beschreibung im Berkeley-Espresso-Format:</p>
+
+                    <div class="pla-verbatim-box">
+                        <pre><code>.i 4
+.o 1
+.ilb x1 x2 x3 x4
+.ob y
+.p 4
+000- 1
+01-1 1
+1--0 1
+.e</code></pre>
+                    </div>
+
+                    <p class="part-prompt">Ermitteln Sie daraus eine vollständige Wahrheitstafel für alle 16 Belegungen der Variablen x₁, x₂, x₃, x₄:</p>
+
+                    <div class="ws-truth-table-wrap">
+                        <table class="exam-truth-table">
+                            <thead>
+                                <tr>
+                                    <th>x₁</th>
+                                    <th>x₂</th>
+                                    <th>x₃</th>
+                                    <th>x₄</th>
+                                    <th>y</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int r = 0; r < 16; r++)
+                                {
+                                    var x1 = (r >> 3) & 1;
+                                    var x2 = (r >> 2) & 1;
+                                    var x3 = (r >> 1) & 1;
+                                    var x4 = r & 1;
+                                    var ySol = EvaluatePlaForPreset0(x1, x2, x3, x4);
+
+                                    <tr>
+                                        <td>@x1</td>
+                                        <td>@x2</td>
+                                        <td>@x3</td>
+                                        <td>@x4</td>
+                                        <td class="exam-slot @(ShowSolution ? "sol-val" : "blank-slot")">
+                                            @(ShowSolution ? ySol.ToString() : "")
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    @if (ShowSolution)
+                    {
+                        <div class="ws-solution-explanation">
+                            <strong>Musterlösung Teilaufgabe 1:</strong>
+                            <div class="sol-grid-2col">
+                                <div>&bull; <code>000- 1</code> &rArr; &not;x₁ &and; &not;x₂ &and; &not;x₃ (0000, 0001) &rarr; y = 1</div>
+                                <div>&bull; <code>01-1 1</code> &rArr; &not;x₁ &and; x₂ &and; x₄ (0101, 0111) &rarr; y = 1</div>
+                                <div>&bull; <code>1--0 1</code> &rArr; x₁ &and; &not;x₄ (1000, 1010, 1100, 1110) &rarr; y = 1</div>
+                                <div>&bull; Alle übrigen 8 Zeilen der Tabelle ergeben y = 0.</div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- PAGE 2: TEILAUFGABE 2 -->
+            <div class="exam-page-2 page-break-before">
+                <div class="exam-part">
+                    <div class="part-title">Teilaufgabe 2 (6 Punkte)</div>
+                    <p class="part-prompt">
+                        Setzen Sie die gegebene Funktion im folgenden PLA um. Zeichnen Sie dazu alle erforderlichen
+                        Koppelpunkte (Verbindungspunkte &bull;) in die Konjunktionsmatrix (zu den AND-Gattern)
+                        sowie in die Disjunktionsmatrix (zum OR-Gatter) ein:
+                    </p>
+
+                    <div class="exam-circuit-canvas">
+                        @RenderPlaSvg(isInteractive: false, showSolutions: ShowSolution)
+                    </div>
+
+                    @if (ShowSolution)
+                    {
+                        <div class="ws-solution-explanation">
+                            <strong>Musterlösung Teilaufgabe 2:</strong>
+                            <p>
+                                An den Kreuzungspunkten der horizontalen Schienen mit den vertikalen Eingängen der AND-Gatter werden Koppelpunkte gesetzt:
+                            </p>
+                            <ul>
+                                <li><strong>AND-Gatter P₀ (<code>000-</code>):</strong> Verbunden mit &not;x₁, &not;x₂ und &not;x₃.</li>
+                                <li><strong>AND-Gatter P₁ (<code>01-1</code>):</strong> Verbunden mit &not;x₁, x₂ und x₄.</li>
+                                <li><strong>AND-Gatter P₂ (<code>1--0</code>):</strong> Verbunden mit x₁ und &not;x₄.</li>
+                                <li><strong>OR-Gatter:</strong> Alle 3 Ausgänge der AND-Gatter werden mit dem OR-Gatter verknüpft.</li>
+                            </ul>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    public enum ViewMode
+    {
+        StepByStep,
+        Worksheet
+    }
+
+    public class PlaTerm
+    {
+        public string Pattern { get; set; } = "----";
+        public int Output { get; set; } = 1;
+
+        public PlaTerm(string pat, int outVal = 1)
+        {
+            Pattern = pat;
+            Output = outVal;
+        }
+    }
+
+    private ViewMode ActiveView = ViewMode.StepByStep;
+    private bool ShowSolution = false;
+    private bool IsEmbed = false;
+
+    private int SelectedPreset = 0;
+    private int CurrentStep = 0;
+    private const int TotalSteps = 5;
+
+    private int InputX1 = 0;
+    private int InputX2 = 1;
+    private int InputX3 = 0;
+    private int InputX4 = 1;
+
+    private List<PlaTerm> ProductTerms = new();
+    private string PlaCode = "";
+
+    protected override void OnInitialized()
+    {
+        ReadQueryParameters();
+        LoadPreset(0);
+    }
+
+    protected override void OnParametersSet()
+    {
+        ReadQueryParameters();
+    }
+
+    private void ReadQueryParameters()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query;
+            if (!string.IsNullOrEmpty(query))
+            {
+                if (query.Contains("view=worksheet", StringComparison.OrdinalIgnoreCase))
+                {
+                    ActiveView = ViewMode.Worksheet;
+                }
+                if (query.Contains("solution=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    ShowSolution = true;
+                }
+                if (query.Contains("embed=true", StringComparison.OrdinalIgnoreCase) || query.Contains("embedded=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsEmbed = true;
+                }
+            }
+        }
+        catch { }
+    }
+
+    private void SetView(ViewMode mode) => ActiveView = mode;
+    private void ToggleSolution() => ShowSolution = !ShowSolution;
+    private async Task TriggerPrint() => await JSRuntime.InvokeVoidAsync("window.print");
+
+    private void LoadPreset(int preset)
+    {
+        SelectedPreset = preset;
+        CurrentStep = 0;
+        ProductTerms.Clear();
+
+        if (preset == 0)
+        {
+            ProductTerms.Add(new PlaTerm("000-", 1));
+            ProductTerms.Add(new PlaTerm("01-1", 1));
+            ProductTerms.Add(new PlaTerm("1--0", 1));
+
+            PlaCode = ".i 4\n.o 1\n.ilb x1 x2 x3 x4\n.ob y\n.p 3\n000- 1\n01-1 1\n1--0 1\n.e";
+            InputX1 = 0;
+            InputX2 = 1;
+            InputX3 = 0;
+            InputX4 = 1;
+        }
+        else
+        {
+            ProductTerms.Add(new PlaTerm("100-", 1));
+            ProductTerms.Add(new PlaTerm("010-", 1));
+            ProductTerms.Add(new PlaTerm("001-", 1));
+            ProductTerms.Add(new PlaTerm("111-", 1));
+
+            PlaCode = ".i 4\n.o 1\n.ilb x1 x2 x3 x4\n.ob y\n.p 4\n100- 1\n010- 1\n001- 1\n111- 1\n.e";
+            InputX1 = 1;
+            InputX2 = 0;
+            InputX3 = 0;
+            InputX4 = 0;
+        }
+    }
+
+    private void ToggleInput(int index)
+    {
+        switch (index)
+        {
+            case 1: InputX1 = 1 - InputX1; break;
+            case 2: InputX2 = 1 - InputX2; break;
+            case 3: InputX3 = 1 - InputX3; break;
+            case 4: InputX4 = 1 - InputX4; break;
+        }
+    }
+
+    private void RandomizeInputs()
+    {
+        var rnd = new Random();
+        InputX1 = rnd.Next(2);
+        InputX2 = rnd.Next(2);
+        InputX3 = rnd.Next(2);
+        InputX4 = rnd.Next(2);
+    }
+
+    private void NextStep() { if (CurrentStep < TotalSteps - 1) CurrentStep++; }
+    private void PrevStep() { if (CurrentStep > 0) CurrentStep--; }
+    private void GoToStart() => CurrentStep = 0;
+    private void GoToEnd() => CurrentStep = TotalSteps - 1;
+
+    private string GetStepTitle() => CurrentStep switch
+    {
+        0 => "Schritt 1: Berkeley-Espresso-Spezifikation (.pla)",
+        1 => "Schritt 2: Monome & Produktterme in DNF decodieren",
+        2 => "Schritt 3: Leitungsmatrix & Koppelpunkte verdrahten",
+        3 => "Schritt 4: Wahrheitstabelle & Signalabdeckung prüfen",
+        4 => "Schritt 5: Live-Signalsimulation & Schalterbedienung",
+        _ => "PLA Simulation"
+    };
+
+    private string GetStepDescription() => CurrentStep switch
+    {
+        0 => "Die PLA-Datei definiert die Dimensionen (.i 4 Eingänge x₁..x₄, .o 1 Ausgang y) und die Anzahl der programmierten Produktterme (.p). Jede Zeile stellt eine Konjunktion dar.",
+        1 => "Jede Stelle im Muster steht für eine Variable: '0' = negierte Variable (¬x), '1' = unnegierte Variable (x), '-' = Variable wird ignoriert (Don't-Care).",
+        2 => "In der Leitungsmatrix werden an den Schnittpunkten zwischen den 8 Eingangsschienen (x_i und ¬x_i) und den AND-Gattern Koppelpunkte gesetzt.",
+        3 => "Jeder Produktterm deckt bestimmte Minterme ab. Wenn mindestens ein Produktterm auf 1 schaltet, liefert das OR-Gatter am Ausgang y = 1.",
+        4 => "Klicken Sie oben auf die Schalter x₁, x₂, x₃, x₄, um verschiedene Belegungen durchzuschalten und die Signalpfade in Echtzeit aufleuchten zu sehen.",
+        _ => ""
+    };
+
+    private string GetTermFormula(PlaTerm term)
+    {
+        var parts = new List<string>();
+        for (int i = 0; i < term.Pattern.Length; i++)
+        {
+            char c = term.Pattern[i];
+            int varNum = i + 1;
+            if (c == '0') parts.Add($"¬x{varNum}");
+            else if (c == '1') parts.Add($"x{varNum}");
+        }
+        if (parts.Count == 0) return "1";
+        return string.Join(" ∧ ", parts);
+    }
+
+    private string GetCompleteFormula()
+    {
+        var terms = ProductTerms.Select(t => $"({GetTermFormula(t)})");
+        return string.Join(" ∨ ", terms);
+    }
+
+    private bool IsTermActive(PlaTerm term)
+    {
+        int[] curInputs = new int[] { InputX1, InputX2, InputX3, InputX4 };
+        for (int i = 0; i < term.Pattern.Length; i++)
+        {
+            char c = term.Pattern[i];
+            if (c == '0' && curInputs[i] != 0) return false;
+            if (c == '1' && curInputs[i] != 1) return false;
+        }
+        return true;
+    }
+
+    private int EvaluateCurrent()
+    {
+        return ProductTerms.Any(t => IsTermActive(t)) ? 1 : 0;
+    }
+
+    private int EvaluatePla(int x1, int x2, int x3, int x4)
+    {
+        int[] inputs = new int[] { x1, x2, x3, x4 };
+        foreach (var t in ProductTerms)
+        {
+            bool match = true;
+            for (int i = 0; i < t.Pattern.Length; i++)
+            {
+                if (t.Pattern[i] == '0' && inputs[i] != 0) { match = false; break; }
+                if (t.Pattern[i] == '1' && inputs[i] != 1) { match = false; break; }
+            }
+            if (match) return 1;
+        }
+        return 0;
+    }
+
+    private int EvaluatePlaForPreset0(int x1, int x2, int x3, int x4)
+    {
+        if (x1 == 0 && x2 == 0 && x3 == 0) return 1;
+        if (x1 == 0 && x2 == 1 && x4 == 1) return 1;
+        if (x1 == 1 && x4 == 0) return 1;
+        return 0;
+    }
+
+    private RenderFragment RenderPlaSvg(bool isInteractive, bool showSolutions) => builder =>
+    {
+        int numInputs = 4;
+        int numTerms = ProductTerms.Count;
+
+        double svgWidth = 840;
+        double svgHeight = 620;
+
+        double railStartX = 330;
+        double railEndX = 760;
+        double railSpacing = 36;
+        double firstRailY = 40;
+
+        int[] inputs = new int[] { InputX1, InputX2, InputX3, InputX4 };
+
+        // Color definitions based on mode
+        string baseWireColor = isInteractive ? "#64748b" : "#000000";
+        string activeWireColor = isInteractive ? "#10b981" : "#000000";
+        string dropLineColor = isInteractive ? "#94a3b8" : "#000000";
+        string gateStroke = isInteractive ? "#38bdf8" : "#000000";
+        string gateFill = isInteractive ? "#1e293b" : "#ffffff";
+        string activeGateFill = isInteractive ? "#064e3b" : "#ffffff";
+        string activeGateStroke = isInteractive ? "#10b981" : "#000000";
+        string textColor = isInteractive ? "#ffffff" : "#000000";
+        string subTextColor = isInteractive ? "#94a3b8" : "#000000";
+        string boxFill = isInteractive ? "#1e293b" : "#ffffff";
+        string boxStroke = isInteractive ? "#38bdf8" : "#000000";
+
+        builder.OpenElement(0, "svg");
+        builder.AddAttribute(1, "viewBox", $"0 0 {svgWidth} {svgHeight}");
+        builder.AddAttribute(2, "class", "pla-circuit-svg");
+
+        // 1. INPUT SWITCHES & NOT GATES (LEFT)
+        for (int i = 0; i < numInputs; i++)
+        {
+            int varNum = i + 1;
+            int inVal = inputs[i];
+            double varCenterY = firstRailY + (i * 2 * railSpacing) + (railSpacing / 2.0);
+            double railNotY = firstRailY + (i * 2 * railSpacing);
+            double railDirectY = railNotY + railSpacing;
+
+            bool isDirectActive = isInteractive && (inVal == 1);
+            bool isNotActive = isInteractive && (inVal == 0);
+
+            // Input selector box (0 / 1)
+            builder.AddContent(3, (MarkupString)$"<rect x=\"24\" y=\"{varCenterY - 20}\" width=\"40\" height=\"40\" rx=\"6\" fill=\"{boxFill}\" stroke=\"{boxStroke}\" stroke-width=\"2\" />");
+            builder.AddContent(4, (MarkupString)$"<text x=\"44\" y=\"{varCenterY + 6}\" text-anchor=\"middle\" fill=\"{textColor}\" font-family=\"monospace\" font-size=\"18\" font-weight=\"bold\">{(isInteractive ? inVal.ToString() : $"x{varNum}")}</text>");
+
+            // Switch wire to pole
+            builder.AddContent(5, (MarkupString)$"<path d=\"M 64 {varCenterY} L 105 {varCenterY}\" fill=\"none\" stroke=\"{baseWireColor}\" stroke-width=\"2\" />");
+
+            // Variable text next to switch
+            builder.AddContent(6, (MarkupString)$"<text x=\"122\" y=\"{varCenterY - 12}\" text-anchor=\"middle\" fill=\"{subTextColor}\" font-family=\"sans-serif\" font-size=\"13\" font-weight=\"bold\">x{varNum}</text>");
+
+            // Knife switch pole & blade
+            builder.AddContent(7, (MarkupString)$"<circle cx=\"105\" cy=\"{varCenterY}\" r=\"3.5\" fill=\"{boxStroke}\" stroke=\"none\" />");
+            string knifeColor = (isInteractive && inVal == 1) ? activeWireColor : baseWireColor;
+            builder.AddContent(8, (MarkupString)$"<line x1=\"105\" y1=\"{varCenterY}\" x2=\"140\" y2=\"{varCenterY}\" stroke=\"{knifeColor}\" stroke-width=\"3\" stroke-linecap=\"round\" />");
+            builder.AddContent(9, (MarkupString)$"<circle cx=\"140\" cy=\"{varCenterY}\" r=\"3.5\" fill=\"{boxStroke}\" stroke=\"none\" />");
+
+            // Splitter to NOT gate & Direct line
+            builder.AddContent(10, (MarkupString)$"<path d=\"M 140 {varCenterY} L 165 {varCenterY}\" fill=\"none\" stroke=\"{knifeColor}\" stroke-width=\"2\" />");
+            builder.AddContent(11, (MarkupString)$"<circle cx=\"165\" cy=\"{varCenterY}\" r=\"3\" fill=\"{boxStroke}\" stroke=\"none\" />");
+
+            // Upper branch: into NOT gate (inverter) -> railNotY
+            builder.AddContent(12, (MarkupString)$"<path d=\"M 165 {varCenterY} L 165 {railNotY} L 195 {railNotY}\" fill=\"none\" stroke=\"{knifeColor}\" stroke-width=\"2\" />");
+
+            // Inverter Triangle
+            builder.AddContent(13, (MarkupString)$"<polygon points=\"195,{railNotY - 12} 195,{railNotY + 12} 220,{railNotY}\" fill=\"{gateFill}\" stroke=\"{gateStroke}\" stroke-width=\"2\" />");
+            // Bubble at tip
+            builder.AddContent(14, (MarkupString)$"<circle cx=\"224\" cy=\"{railNotY}\" r=\"4\" fill=\"{gateFill}\" stroke=\"{gateStroke}\" stroke-width=\"2\" />");
+
+            // Wire from Inverter out to horizontal rail
+            string notWireColor = isNotActive ? activeWireColor : baseWireColor;
+            builder.AddContent(15, (MarkupString)$"<line x1=\"228\" y1=\"{railNotY}\" x2=\"{railStartX}\" y2=\"{railNotY}\" stroke=\"{notWireColor}\" stroke-width=\"2\" />");
+
+            // Lower branch: Direct wire -> railDirectY
+            string dirWireColor = isDirectActive ? activeWireColor : baseWireColor;
+            builder.AddContent(16, (MarkupString)$"<path d=\"M 165 {varCenterY} L 165 {railDirectY} L {railStartX} {railDirectY}\" fill=\"none\" stroke=\"{dirWireColor}\" stroke-width=\"2\" />");
+
+            // Rail lines across matrix
+            double notRailWidth = isNotActive ? 3.5 : 2;
+            double dirRailWidth = isDirectActive ? 3.5 : 2;
+            builder.AddContent(17, (MarkupString)$"<line x1=\"{railStartX}\" y1=\"{railNotY}\" x2=\"{railEndX}\" y2=\"{railNotY}\" stroke=\"{notWireColor}\" stroke-width=\"{notRailWidth}\" />");
+            builder.AddContent(18, (MarkupString)$"<line x1=\"{railStartX}\" y1=\"{railDirectY}\" x2=\"{railEndX}\" y2=\"{railDirectY}\" stroke=\"{dirWireColor}\" stroke-width=\"{dirRailWidth}\" />");
+
+            builder.AddContent(19, (MarkupString)$"<text x=\"{railEndX + 10}\" y=\"{railNotY + 4}\" fill=\"{textColor}\" font-family=\"monospace\" font-size=\"12\" font-weight=\"bold\">¬x{varNum}</text>");
+            builder.AddContent(20, (MarkupString)$"<text x=\"{railEndX + 10}\" y=\"{railDirectY + 4}\" fill=\"{textColor}\" font-family=\"monospace\" font-size=\"12\" font-weight=\"bold\">x{varNum}</text>");
+        }
+
+        // 2. PRODUCT TERMS / AND GATES (BOTTOM OF MATRIX)
+        double andGateY = firstRailY + (numInputs * 2 * railSpacing) + 50;
+        double andGateSpacing = 105;
+        double andGateStartX = railStartX + 55;
+
+        List<double> andOutputXList = new();
+        List<bool> andOutputValList = new();
+
+        for (int p = 0; p < numTerms; p++)
+        {
+            var term = ProductTerms[p];
+            double andCenterX = andGateStartX + (p * andGateSpacing);
+            andOutputXList.Add(andCenterX);
+
+            bool isTermOn = isInteractive && IsTermActive(term);
+            andOutputValList.Add(isTermOn);
+
+            // 4 vertical drop-lines from rails into AND gate
+            double[] dropLinesX = new double[] { andCenterX - 18, andCenterX - 6, andCenterX + 6, andCenterX + 18 };
+
+            for (int v = 0; v < 4; v++)
+            {
+                double lineX = dropLinesX[v];
+                char cond = term.Pattern[v]; // '0', '1', or '-'
+
+                builder.AddContent(21, (MarkupString)$"<line x1=\"{lineX}\" y1=\"{firstRailY - 10}\" x2=\"{lineX}\" y2=\"{andGateY}\" stroke=\"{dropLineColor}\" stroke-width=\"1.5\" stroke-dasharray=\"3,3\" />");
+
+                if (showSolutions)
+                {
+                    if (cond == '0')
+                    {
+                        double dotY = firstRailY + (v * 2 * railSpacing);
+                        bool dotActive = isInteractive && (inputs[v] == 0);
+                        string dotColor = isInteractive ? (dotActive ? "#10b981" : "#ef4444") : "#000000";
+                        builder.AddContent(22, (MarkupString)$"<circle cx=\"{lineX}\" cy=\"{dotY}\" r=\"5.5\" fill=\"{dotColor}\" stroke=\"{(isInteractive ? "#ffffff" : "#000000")}\" stroke-width=\"1.5\" />");
+                    }
+                    else if (cond == '1')
+                    {
+                        double dotY = firstRailY + (v * 2 * railSpacing) + railSpacing;
+                        bool dotActive = isInteractive && (inputs[v] == 1);
+                        string dotColor = isInteractive ? (dotActive ? "#10b981" : "#ef4444") : "#000000";
+                        builder.AddContent(23, (MarkupString)$"<circle cx=\"{lineX}\" cy=\"{dotY}\" r=\"5.5\" fill=\"{dotColor}\" stroke=\"{(isInteractive ? "#ffffff" : "#000000")}\" stroke-width=\"1.5\" />");
+                    }
+                }
+            }
+
+            // AND gate symbol
+            double gw = 50;
+            double gh = 42;
+            double gx = andCenterX - (gw / 2.0);
+            double gy = andGateY;
+
+            string curGateFill = isTermOn ? activeGateFill : gateFill;
+            string curGateStroke = isTermOn ? activeGateStroke : gateStroke;
+
+            string andPath = $"M {gx} {gy} L {gx + gw} {gy} L {gx + gw} {gy + (gh / 2)} A {gw / 2} {gw / 2} 0 0 1 {gx} {gy + (gh / 2)} Z";
+            builder.AddContent(24, (MarkupString)$"<path d=\"{andPath}\" fill=\"{curGateFill}\" stroke=\"{curGateStroke}\" stroke-width=\"2.5\" />");
+            builder.AddContent(25, (MarkupString)$"<text x=\"{andCenterX}\" y=\"{gy + 24}\" text-anchor=\"middle\" fill=\"{textColor}\" font-family=\"sans-serif\" font-size=\"16\" font-weight=\"bold\">&amp;</text>");
+
+            // Output line from AND gate downwards
+            double andOutY = gy + gh + 14;
+            string outLineColor = isTermOn ? activeWireColor : baseWireColor;
+            builder.AddContent(26, (MarkupString)$"<line x1=\"{andCenterX}\" y1=\"{gy + gh}\" x2=\"{andCenterX}\" y2=\"{andOutY}\" stroke=\"{outLineColor}\" stroke-width=\"2.5\" />");
+
+            // Term label
+            builder.AddContent(27, (MarkupString)$"<text x=\"{andCenterX}\" y=\"{gy - 6}\" text-anchor=\"middle\" fill=\"{(isInteractive ? "#38bdf8" : "#000000")}\" font-family=\"monospace\" font-size=\"13\" font-weight=\"bold\">P{p}</text>");
+        }
+
+        // 3. DISJUNCTION MATRIX (OR GATE AT BOTTOM)
+        double orGateY = andGateY + 95;
+        double orGateCenterX = andOutputXList.Average();
+        double orWidth = 76;
+        double orHeight = 48;
+
+        for (int p = 0; p < numTerms; p++)
+        {
+            double fromX = andOutputXList[p];
+            double fromY = andGateY + 42 + 14;
+            bool isTermOn = andOutputValList[p];
+
+            double targetX = orGateCenterX - 22 + (p * (44.0 / Math.Max(1, numTerms - 1)));
+            double targetY = orGateY + 6;
+            string orInLineColor = isTermOn ? activeWireColor : baseWireColor;
+
+            builder.AddContent(28, (MarkupString)$"<path d=\"M {fromX} {fromY} L {fromX} {orGateY - 12} L {targetX} {orGateY - 12} L {targetX} {targetY}\" fill=\"none\" stroke=\"{orInLineColor}\" stroke-width=\"2\" />");
+        }
+
+        double ox = orGateCenterX - (orWidth / 2.0);
+        double oy = orGateY;
+        bool isOrActive = isInteractive && andOutputValList.Any(v => v);
+
+        string curOrFill = isOrActive ? activeGateFill : gateFill;
+        string curOrStroke = isOrActive ? activeGateStroke : gateStroke;
+
+        string orPath = $"M {ox} {oy} Q {orGateCenterX} {oy + 14} {ox + orWidth} {oy} Q {orGateCenterX + 16} {oy + orHeight} {orGateCenterX} {oy + orHeight + 14} Q {orGateCenterX - 16} {oy + orHeight} {ox} {oy} Z";
+        builder.AddContent(29, (MarkupString)$"<path d=\"{orPath}\" fill=\"{curOrFill}\" stroke=\"{curOrStroke}\" stroke-width=\"2.5\" />");
+        builder.AddContent(30, (MarkupString)$"<text x=\"{orGateCenterX}\" y=\"{oy + 24}\" text-anchor=\"middle\" fill=\"{textColor}\" font-family=\"sans-serif\" font-size=\"16\" font-weight=\"bold\">≥</text>");
+
+        // Output wire & box
+        double finalWireY = oy + orHeight + 14;
+        double outBoxY = finalWireY + 24;
+        int currentYVal = isOrActive ? 1 : 0;
+        string finalWireColor = isOrActive ? activeWireColor : baseWireColor;
+
+        builder.AddContent(31, (MarkupString)$"<line x1=\"{orGateCenterX}\" y1=\"{finalWireY}\" x2=\"{orGateCenterX}\" y2=\"{outBoxY}\" stroke=\"{finalWireColor}\" stroke-width=\"2.5\" />");
+
+        string curOutBoxFill = isOrActive ? activeWireColor : boxFill;
+        string curOutBoxStroke = isOrActive ? "#ffffff" : boxStroke;
+        builder.AddContent(32, (MarkupString)$"<rect x=\"{orGateCenterX - 24}\" y=\"{outBoxY}\" width=\"48\" height=\"40\" rx=\"6\" fill=\"{curOutBoxFill}\" stroke=\"{curOutBoxStroke}\" stroke-width=\"2.5\" />");
+        builder.AddContent(33, (MarkupString)$"<text x=\"{orGateCenterX}\" y=\"{outBoxY + 26}\" text-anchor=\"middle\" fill=\"{textColor}\" font-family=\"monospace\" font-size=\"20\" font-weight=\"bold\">{(isInteractive ? currentYVal.ToString() : "y")}</text>");
+        builder.AddContent(34, (MarkupString)$"<text x=\"{orGateCenterX + 36}\" y=\"{outBoxY + 26}\" fill=\"{subTextColor}\" font-family=\"sans-serif\" font-size=\"13\" font-weight=\"bold\">Ausgang y</text>");
+
+        builder.CloseElement();
+    };
+}

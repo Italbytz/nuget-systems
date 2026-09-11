@@ -1,0 +1,940 @@
+/* PLA Visualizer Styles */
+
+.pla-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #1e293b;
+}
+
+/* Header */
+.component-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.header-titles .kicker {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #0284c7;
+    margin-bottom: 0.25rem;
+    display: block;
+}
+
+.header-titles h2 {
+    margin: 0 0 0.25rem 0;
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.header-titles .subtitle {
+    margin: 0;
+    font-size: 0.95rem;
+    color: #64748b;
+}
+
+.view-switcher {
+    display: flex;
+    gap: 0.5rem;
+    background: #f1f5f9;
+    padding: 0.25rem;
+    border-radius: 8px;
+}
+
+.btn-toggle {
+    padding: 0.5rem 1rem;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-toggle.active {
+    background: #ffffff;
+    color: #0284c7;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Cards */
+.card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Toolbar */
+.toolbar-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 0.85rem 1.25rem;
+}
+
+.toolbar-section {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.tool-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #475569;
+}
+
+.btn-group {
+    display: flex;
+    gap: 0.35rem;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 0.2rem;
+}
+
+.btn-preset {
+    border: none;
+    background: transparent;
+    padding: 0.35rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.825rem;
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+}
+
+.btn-preset.active {
+    background: #0284c7;
+    color: #ffffff;
+}
+
+.player-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.btn-ctrl {
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 0.4rem 0.7rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-ctrl:hover:not(:disabled) {
+    background: #e2e8f0;
+}
+
+.btn-ctrl:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.step-indicator {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #0284c7;
+    padding: 0 0.5rem;
+}
+
+.btn-random {
+    background: #f0fdf4;
+    border: 1px solid #86efac;
+    color: #15803d;
+    padding: 0.45rem 0.9rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.btn-random:hover {
+    background: #dcfce7;
+}
+
+/* Narrator */
+.narrator-card {
+    display: flex;
+    gap: 1rem;
+    background: #f0f9ff;
+    border-color: #bae6fd;
+    padding: 0.85rem 1.25rem;
+    align-items: center;
+}
+
+.narrator-icon {
+    font-size: 1.5rem;
+}
+
+.narrator-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #0369a1;
+    margin-bottom: 0.15rem;
+}
+
+.narrator-body {
+    font-size: 0.875rem;
+    color: #0c4a6e;
+    line-height: 1.4;
+}
+
+/* Layout */
+.simulator-layout {
+    display: grid;
+    grid-template-columns: 310px 1fr;
+    gap: 1.25rem;
+}
+
+@media (max-width: 1024px) {
+    .simulator-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+.left-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.card-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.badge {
+    background: #f1f5f9;
+    color: #475569;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.badge-accent {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
+.pla-code-block {
+    background: #0f172a;
+    color: #38bdf8;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    margin: 0 0 1rem 0;
+    overflow-x: auto;
+}
+
+.decoded-terms-box {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.terms-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+}
+
+.terms-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.term-badge {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.825rem;
+}
+
+.term-badge.term-active {
+    background: #f0fdf4;
+    border-color: #86efac;
+    color: #15803d;
+    font-weight: 700;
+}
+
+.term-id {
+    font-family: monospace;
+    font-weight: 700;
+    color: #0284c7;
+}
+
+.term-expr {
+    font-family: monospace;
+}
+
+.term-status {
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.overall-formula {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px dashed #cbd5e1;
+    font-size: 0.85rem;
+}
+
+.formula-str {
+    font-family: monospace;
+    color: #0369a1;
+    display: block;
+    margin-top: 0.25rem;
+}
+
+/* Truth Table */
+.table-scroll-wrap {
+    max-height: 380px;
+    overflow-y: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+}
+
+.sim-truth-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.825rem;
+    text-align: center;
+}
+
+.sim-truth-table th {
+    position: sticky;
+    top: 0;
+    background: #0f172a;
+    color: #ffffff;
+    padding: 0.45rem 0.3rem;
+    font-size: 0.775rem;
+    font-weight: 600;
+}
+
+.sim-truth-table td {
+    padding: 0.35rem 0.3rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.active-input-row {
+    background: #fef08a !important;
+    font-weight: 700;
+}
+
+.y-col {
+    font-weight: 700;
+}
+
+.y-high {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.y-low {
+    color: #94a3b8;
+}
+
+/* Circuit Card */
+.circuit-card {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    overflow: hidden;
+}
+
+.circuit-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.circuit-title-wrap h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.sub-caption {
+    font-size: 0.8rem;
+    color: #64748b;
+}
+
+.live-status-pill {
+    padding: 0.4rem 0.9rem;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    font-weight: 700;
+    font-family: monospace;
+}
+
+.live-status-pill.out-high {
+    background: #22c55e;
+    color: #ffffff;
+    box-shadow: 0 0 12px rgba(34, 197, 94, 0.4);
+}
+
+.live-status-pill.out-low {
+    background: #64748b;
+    color: #ffffff;
+}
+
+/* Interactive Switch Bar */
+.interactive-switch-bar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.6rem 1rem;
+}
+
+.bar-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #334155;
+}
+
+.toggle-btn-row {
+    display: flex;
+    gap: 0.6rem;
+}
+
+.switch-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    cursor: pointer;
+    font-family: monospace;
+    font-weight: 700;
+    font-size: 0.9rem;
+    transition: all 0.15s ease;
+}
+
+.switch-toggle.is-one {
+    background: #10b981;
+    border-color: #059669;
+    color: #ffffff;
+    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.25);
+}
+
+.switch-toggle.is-zero {
+    background: #e2e8f0;
+    border-color: #94a3b8;
+    color: #475569;
+}
+
+/* SVG Schematic */
+.svg-container {
+    width: 100%;
+    background: #0b0f19;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    padding: 1rem;
+    overflow-x: auto;
+}
+
+.pla-circuit-svg {
+    width: 100%;
+    height: auto;
+    min-width: 740px;
+    display: block;
+}
+
+/* SVG Elements in Simulator / Standalone Mode */
+.pla-sw-box {
+    fill: #1e293b;
+    stroke: #38bdf8;
+    stroke-width: 2;
+}
+
+.pla-sw-label {
+    fill: #ffffff;
+    font-family: monospace;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.pla-var-tag {
+    fill: #94a3b8;
+    font-family: sans-serif;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.pla-contact {
+    fill: #38bdf8;
+}
+
+.pla-knife {
+    stroke: #38bdf8;
+    stroke-width: 3;
+    stroke-linecap: round;
+}
+
+.pla-dot {
+    fill: #38bdf8;
+}
+
+.pla-wire {
+    stroke: #64748b;
+    stroke-width: 2;
+}
+
+.pla-wire.wire-on {
+    stroke: #10b981;
+    stroke-width: 3;
+    filter: drop-shadow(0 0 4px #10b981);
+}
+
+.pla-wire.wire-off {
+    stroke: #64748b;
+    stroke-width: 2;
+}
+
+.pla-gate-not {
+    fill: #1e293b;
+    stroke: #38bdf8;
+    stroke-width: 2;
+}
+
+.pla-bubble {
+    fill: #0b0f19;
+    stroke: #38bdf8;
+    stroke-width: 2;
+}
+
+.pla-rail {
+    stroke: #64748b;
+    stroke-width: 2;
+}
+
+.pla-rail.rail-on {
+    stroke: #10b981;
+    stroke-width: 3.5;
+    filter: drop-shadow(0 0 5px #10b981);
+}
+
+.pla-rail.rail-off {
+    stroke: #64748b;
+    stroke-width: 2;
+}
+
+.pla-rail-tag {
+    fill: #e2e8f0;
+    font-family: monospace;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.pla-drop-line {
+    stroke: #94a3b8;
+    stroke-width: 1.5;
+    stroke-dasharray: 2, 2;
+}
+
+.pla-dot-connection {
+    fill: #ef4444;
+    stroke: #ffffff;
+    stroke-width: 1.5;
+    transition: all 0.2s ease;
+}
+
+.pla-dot-connection.dot-active {
+    fill: #10b981;
+    stroke: #ffffff;
+    filter: drop-shadow(0 0 6px #10b981);
+}
+
+.pla-gate-and {
+    fill: #1e293b;
+    stroke: #38bdf8;
+    stroke-width: 2.5;
+}
+
+.pla-gate-and.gate-on {
+    fill: #064e3b;
+    stroke: #10b981;
+    filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.5));
+}
+
+.gate-label {
+    fill: #ffffff;
+    font-family: sans-serif;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.term-col-label {
+    fill: #38bdf8;
+    font-family: monospace;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.pla-gate-or {
+    fill: #1e293b;
+    stroke: #38bdf8;
+    stroke-width: 2.5;
+}
+
+.pla-gate-or.gate-on {
+    fill: #064e3b;
+    stroke: #10b981;
+    filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.6));
+}
+
+.pla-out-box {
+    fill: #1e293b;
+    stroke: #64748b;
+    stroke-width: 2.5;
+}
+
+.pla-out-box.out-box-high {
+    fill: #10b981;
+    stroke: #ffffff;
+    filter: drop-shadow(0 0 10px #10b981);
+}
+
+.pla-out-text {
+    fill: #ffffff;
+    font-family: monospace;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.pla-out-label {
+    fill: #94a3b8;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+/* Reveal.js Embedded Mode */
+.is-embedded {
+    background: transparent;
+    color: #f8fafc;
+}
+
+.is-embedded .card {
+    background: #0f172a;
+    border-color: #1e293b;
+    color: #f8fafc;
+}
+
+.is-embedded .card-header h3 {
+    color: #f8fafc;
+}
+
+.is-embedded .narrator-card {
+    background: #082f49;
+    border-color: #0284c7;
+}
+
+.is-embedded .narrator-title {
+    color: #38bdf8;
+}
+
+.is-embedded .narrator-body {
+    color: #e0f2fe;
+}
+
+.is-embedded .interactive-switch-bar {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+.is-embedded .bar-label {
+    color: #cbd5e1;
+}
+
+/* ==========================================================================
+   WORKSHEET VIEW (1:1 EXAM EQUIVALENT)
+   ========================================================================== */
+.worksheet-paper {
+    background: #ffffff;
+    padding: 1.6rem 2.5rem;
+    max-width: 860px;
+    margin: 0 auto;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    border-radius: 4px;
+    color: #000000;
+    font-family: "Latin Modern Roman", "Computer Modern", Georgia, serif;
+    line-height: 1.4;
+}
+
+.ws-header-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 0.75rem;
+}
+
+.ws-controls {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.btn-ws-primary {
+    background: #0284c7;
+    color: #ffffff;
+    border: none;
+    padding: 0.45rem 0.9rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.btn-ws-secondary {
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+    padding: 0.45rem 0.9rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.exam-title-block {
+    border-bottom: 2px solid #000000;
+    padding-bottom: 0.35rem;
+    margin-bottom: 0.6rem;
+}
+
+.exam-kicker {
+    font-size: 0.85rem;
+    font-variant: small-caps;
+    letter-spacing: 0.05em;
+    color: #475569;
+}
+
+.exam-h1 {
+    font-size: 1.5rem;
+    margin: 0.15rem 0 0.3rem 0;
+    font-weight: 700;
+}
+
+.exam-points {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #0284c7;
+}
+
+.exam-intro-box {
+    margin-bottom: 0.6rem;
+    font-size: 0.925rem;
+    text-align: justify;
+}
+
+.exam-part {
+    margin-bottom: 1rem;
+}
+
+.part-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-bottom: 0.35rem;
+    border-bottom: 1px solid #cbd5e1;
+    padding-bottom: 0.2rem;
+}
+
+.part-desc, .part-prompt {
+    font-size: 0.9rem;
+    margin-bottom: 0.4rem;
+}
+
+.pla-verbatim-box {
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-size: 0.825rem;
+    margin-bottom: 0.6rem;
+}
+
+.pla-verbatim-box pre {
+    margin: 0;
+}
+
+.ws-truth-table-wrap {
+    display: flex;
+    justify-content: center;
+    margin: 0.4rem 0;
+}
+
+.exam-truth-table {
+    border-collapse: collapse;
+    font-family: sans-serif;
+    font-size: 0.78rem;
+    text-align: center;
+    min-width: 240px;
+}
+
+.exam-truth-table th {
+    background: #0284c7;
+    color: #ffffff;
+    padding: 0.2rem 0.55rem;
+    border: 1px solid #0284c7;
+}
+
+.exam-truth-table td {
+    padding: 0.16rem 0.55rem;
+    border: 1px solid #cbd5e1;
+}
+
+.blank-slot {
+    background: #f8fafc;
+    min-width: 28px;
+}
+
+.sol-val {
+    background: #dcfce7;
+    color: #166534;
+    font-weight: bold;
+}
+
+.ws-solution-explanation {
+    background: #f0fdf4;
+    border-left: 4px solid #16a34a;
+    padding: 0.5rem 0.85rem;
+    margin-top: 0.6rem;
+    font-size: 0.825rem;
+    color: #166534;
+}
+
+.sol-grid-2col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.2rem 0.8rem;
+    margin-top: 0.25rem;
+}
+
+.exam-circuit-canvas {
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    background: #ffffff;
+    padding: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+/* Crisp Black & White Line-Art for Worksheet Mode */
+.worksheet-mode .exam-circuit-canvas {
+    background: #ffffff !important;
+}
+
+.worksheet-mode .exam-circuit-canvas .pla-circuit-svg {
+    filter: none !important;
+}
+
+.worksheet-mode .exam-circuit-canvas .pla-sw-box {
+    fill: #ffffff !important;
+    stroke: #000000 !important;
+    stroke-width: 1.5;
+}
+
+.worksheet-mode .exam-circuit-canvas .pla-sw-label,
+.worksheet-mode .exam-circuit-canvas .pla-var-tag,
+.worksheet-mode .exam-circuit-canvas .pla-rail-tag,
+.worksheet-mode .exam-circuit-canvas .gate-label,
+.worksheet-mode .exam-circuit-canvas .term-col-label,
+.worksheet-mode .exam-circuit-canvas .pla-out-text,
+.worksheet-mode .exam-circuit-canvas .pla-out-label {
+    fill: #000000 !important;
+}
+
+.worksheet-mode .exam-circuit-canvas .pla-contact,
+.worksheet-mode .exam-circuit-canvas .pla-knife,
+.worksheet-mode .exam-circuit-canvas .pla-dot,
+.worksheet-mode .exam-circuit-canvas .pla-wire,
+.worksheet-mode .exam-circuit-canvas .pla-rail {
+    stroke: #000000 !important;
+    fill: none !important;
+    stroke-width: 1.5;
+}
+
+.worksheet-mode .exam-circuit-canvas .pla-drop-line {
+    stroke: #000000 !important;
+    stroke-width: 1.2;
+    stroke-dasharray: 2, 2;
+}
+
+.worksheet-mode .exam-circuit-canvas .pla-gate-not,
+.worksheet-mode .exam-circuit-canvas .pla-bubble,
+.worksheet-mode .exam-circuit-canvas .pla-gate-and,
+.worksheet-mode .exam-circuit-canvas .pla-gate-or,
+.worksheet-mode .exam-circuit-canvas .pla-out-box {
+    fill: #ffffff !important;
+    stroke: #000000 !important;
+    stroke-width: 1.5;
+}
+
+.worksheet-mode .exam-circuit-canvas .pla-dot-connection {
+    fill: #000000 !important;
+    stroke: #000000 !important;
+    stroke-width: 1.5;
+}
+
+/* Print Styles */
+@media print {
+    .no-print {
+        display: none !important;
+    }
+
+    body, html {
+        background: #ffffff !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    .worksheet-paper {
+        box-shadow: none !important;
+        padding: 0 !important;
+        max-width: 100% !important;
+    }
+
+    .page-break-before {
+        page-break-before: always;
+        break-before: page;
+    }
+}
