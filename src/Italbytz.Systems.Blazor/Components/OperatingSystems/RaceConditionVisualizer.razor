@@ -1,0 +1,1091 @@
+@namespace Italbytz.Systems.Blazor.Components.OperatingSystems
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+<article class="race-container @(IsEmbed ? "embed-mode" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
+
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
+    {
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Betriebssysteme &bull; Interprozesskommunikation</p>
+            <h2>Race Conditions &amp; Kritische Abschnitte</h2>
+            <p class="feature-intro">
+                Wettlaufsituationen entstehen, wenn mehrere Threads unkoordiniert auf gemeinsame Ressourcen zugreifen.
+                Erforschen Sie schrittweise, wie ungeschütztes Interleaving zu Datenkorrumpierung (Lost Updates, fehlerhafte IDs) führt 
+                und wie Mutex/Locks den wechselseitigen Ausschluss (Mutual Exclusion) garantieren.
+            </p>
+        </div>
+    }
+
+    <!-- View Switcher -->
+    @if (!IsEmbed)
+    {
+        <div class="view-switch no-print">
+            <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Simulator)">
+                🚀 Interaktiver Thread-Simulator &amp; Interleaving
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Worksheet)">
+                🖨️ Klausur-Arbeitsblatt (Druckansicht 1:1)
+            </button>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- SIMULATOR VIEW                                                            -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Controls & Presets Panel -->
+        <div class="controls-panel no-print">
+            <div class="toolbar-grid">
+                <div class="btn-group">
+                    <button class="action-btn" @onclick="GoToStart" disabled="@(CurrentStepIndex == 0)" title="An den Anfang">
+                        ⏮️ Anfang
+                    </button>
+                    <button class="action-btn" @onclick="StepBack" disabled="@(CurrentStepIndex == 0)" title="Schritt zurück">
+                        ◀️ Zurück
+                    </button>
+                    <button class="action-btn primary" @onclick="ToggleAutoPlay">
+                        @(IsPlaying ? "⏸️ Pause" : "▶️ Auto-Play")
+                    </button>
+                    <button class="action-btn primary" @onclick="StepForward" disabled="@(CurrentStepIndex >= ActiveSchedule.Count)" title="Nächster Schritt">
+                        Nächster Schritt (@(CurrentStepIndex)/@ActiveSchedule.Count) ⏭️
+                    </button>
+                    <button class="action-btn" @onclick="ResetSimulation" title="Simulation zurücksetzen">
+                        🔄 Reset
+                    </button>
+                </div>
+
+                <div class="sync-mode-group">
+                    <span class="preset-label">Synchronisation:</span>
+                    <button class="sync-toggle-btn @(!IsProtected ? "active-danger" : "")" @onclick="() => SetProtection(false)">
+                        🔴 Ungeschützt (Race Condition)
+                    </button>
+                    <button class="sync-toggle-btn @(IsProtected ? "active-success" : "")" @onclick="() => SetProtection(true)">
+                        🟢 Geschützt (Mutex / lock)
+                    </button>
+                </div>
+
+                <div class="preset-group">
+                    <span class="preset-label">Szenarien:</span>
+                    <button class="preset-btn @(SelectedPreset == "Exam" ? "active" : "")" @onclick='() => LoadPreset("Exam")'>Klausuraufgabe (Shared ID)</button>
+                    <button class="preset-btn @(SelectedPreset == "Bank" ? "active" : "")" @onclick='() => LoadPreset("Bank")'>Bankkonto (Lost Update)</button>
+                    <button class="preset-btn @(SelectedPreset == "Counter" ? "active" : "")" @onclick='() => LoadPreset("Counter")'>Shared Counter (++ / --)</button>
+                </div>
+
+                <div class="speed-control">
+                    <span class="preset-label">Tempo:</span>
+                    <select class="speed-select" @bind="PlaySpeedMs">
+                        <option value="1500">Normal (1.5s)</option>
+                        <option value="800">Schnell (0.8s)</option>
+                        <option value="2500">Gemächlich (2.5s)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status & Collision Alert Banner -->
+        @if (HasCollisionOccurred)
+        {
+            <div class="alert-banner race-danger-banner">
+                <span class="alert-icon">💥</span>
+                <div class="alert-content">
+                    <strong class="alert-title">RACE CONDITION AUFGETRETEN!</strong>
+                    <span class="alert-desc">@CollisionMessage</span>
+                </div>
+            </div>
+        }
+        else if (IsProtected && CurrentStepIndex >= ActiveSchedule.Count)
+        {
+            <div class="alert-banner sync-success-banner">
+                <span class="alert-icon">🛡️</span>
+                <div class="alert-content">
+                    <strong class="alert-title">KORREKT SYNCHRONISIERT!</strong>
+                    <span class="alert-desc">Dank Mutex/Lock wurde der kritische Abschnitt serialisiert. Kein Datenverlust aufgetreten.</span>
+                </div>
+            </div>
+        }
+
+        <!-- Simulation Grid -->
+        <div class="sim-dashboard-grid">
+            
+            <!-- Left: Thread 1 Swimlane -->
+            <div class="panel-card thread-card thread-one-card">
+                <div class="panel-header">
+                    <span class="panel-title thread-title thread-one-title">🧵 Thread 1 (T1)</span>
+                    <span class="thread-status-badge @GetThreadStatusClass(1)">@GetThreadStatusText(1)</span>
+                </div>
+                <div class="thread-code-body">
+                    <div class="code-flow">
+                        @for (int i = 0; i < Thread1Instructions.Count; i++)
+                        {
+                            var idx = i;
+                            var instr = Thread1Instructions[idx];
+                            var isCurrent = (CurrentStepIndex > 0 && CurrentStepIndex <= ActiveSchedule.Count && 
+                                            ActiveSchedule[CurrentStepIndex - 1].ThreadId == 1 && 
+                                            ActiveSchedule[CurrentStepIndex - 1].InstructionIndex == idx);
+                            var isPast = (GetThreadProgress(1) > idx);
+                            var isCrit = instr.IsCriticalSection;
+
+                            <div class="instr-row @(isCurrent ? "current-step" : "") @(isPast ? "past-step" : "") @(isCrit ? "crit-section" : "")">
+                                <span class="step-num">@(idx + 1)</span>
+                                <span class="instr-code mono">@instr.CodeText</span>
+                                @if (isCrit)
+                                {
+                                    <span class="crit-tag" title="Kritischer Abschnitt">KRITISCH</span>
+                                }
+                            </div>
+                        }
+                    </div>
+                    <div class="thread-local-vars mono">
+                        <span class="var-lbl">Lokale Variable:</span>
+                        <span class="var-val">@Thread1LocalVarDisplay</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Center: Shared Memory & Lock State -->
+            <div class="panel-card shared-state-card">
+                <div class="panel-header">
+                    <span class="panel-title">💾 Geteilter Speicher (Shared Memory)</span>
+                    @if (IsProtected)
+                    {
+                        <span class="lock-pill @(LockHolder == 0 ? "lock-free" : "lock-held")">
+                            @(LockHolder == 0 ? "🔓 Mutex frei" : $"🔒 Gesperrt von T{LockHolder}")
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="lock-pill lock-none">⚠️ Keine Sperre</span>
+                    }
+                </div>
+
+                <div class="shared-mem-content">
+                    <div class="shared-var-box">
+                        <span class="shared-var-name mono">@SharedVariableName</span>
+                        <div class="shared-var-display @(HasCollisionOccurred ? "var-corrupted" : "")">
+                            <span class="shared-var-val mono">@SharedVariableValue</span>
+                        </div>
+                        <span class="shared-var-sub">
+                            @(LastWriter == 0 ? "Initialer Wert" : $"Zuletzt geschrieben von Thread {LastWriter}")
+                        </span>
+                    </div>
+
+                    <!-- Step Explanation Box -->
+                    <div class="step-explainer-box">
+                        <div class="explainer-header">
+                            <span class="explainer-badge">Schritt @(CurrentStepIndex) von @ActiveSchedule.Count</span>
+                            @if (CurrentStepIndex > 0 && CurrentStepIndex <= ActiveSchedule.Count)
+                            {
+                                var cur = ActiveSchedule[CurrentStepIndex - 1];
+                                <span class="thread-tag tag-t@(cur.ThreadId)">Thread @cur.ThreadId</span>
+                            }
+                        </div>
+                        <p class="explainer-desc">
+                            @CurrentStepExplanation
+                        </p>
+                    </div>
+
+                    <!-- Expected vs Actual Result -->
+                    @if (CurrentStepIndex >= ActiveSchedule.Count)
+                    {
+                        <div class="final-result-card @(HasCollisionOccurred ? "res-failed" : "res-passed")">
+                            <div class="res-row">
+                                <span>Erwarteter Sollwert:</span>
+                                <strong class="mono">@ExpectedFinalValue</strong>
+                            </div>
+                            <div class="res-row">
+                                <span>Tatsächlicher Endwert:</span>
+                                <strong class="mono @(HasCollisionOccurred ? "val-error" : "val-ok")">@SharedVariableValue</strong>
+                            </div>
+                            <div class="res-summary">
+                                @(HasCollisionOccurred 
+                                    ? "❌ Fehlerhafter Zustand durch Race Condition!" 
+                                    : "✅ Korrekter Zustand erreicht.")
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Right: Thread 2 Swimlane -->
+            <div class="panel-card thread-card thread-two-card">
+                <div class="panel-header">
+                    <span class="panel-title thread-title thread-two-title">🧵 Thread 2 (T2)</span>
+                    <span class="thread-status-badge @GetThreadStatusClass(2)">@GetThreadStatusText(2)</span>
+                </div>
+                <div class="thread-code-body">
+                    <div class="code-flow">
+                        @for (int i = 0; i < Thread2Instructions.Count; i++)
+                        {
+                            var idx = i;
+                            var instr = Thread2Instructions[idx];
+                            var isCurrent = (CurrentStepIndex > 0 && CurrentStepIndex <= ActiveSchedule.Count && 
+                                            ActiveSchedule[CurrentStepIndex - 1].ThreadId == 2 && 
+                                            ActiveSchedule[CurrentStepIndex - 1].InstructionIndex == idx);
+                            var isPast = (GetThreadProgress(2) > idx);
+                            var isCrit = instr.IsCriticalSection;
+
+                            <div class="instr-row @(isCurrent ? "current-step" : "") @(isPast ? "past-step" : "") @(isCrit ? "crit-section" : "")">
+                                <span class="step-num">@(idx + 1)</span>
+                                <span class="instr-code mono">@instr.CodeText</span>
+                                @if (isCrit)
+                                {
+                                    <span class="crit-tag" title="Kritischer Abschnitt">KRITISCH</span>
+                                }
+                            </div>
+                        }
+                    </div>
+                    <div class="thread-local-vars mono">
+                        <span class="var-lbl">Lokale Variable:</span>
+                        <span class="var-val">@Thread2LocalVarDisplay</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Terminal Console Output & Execution Trace -->
+        <div class="panel-card console-card">
+            <div class="panel-header">
+                <span class="panel-title">🖥️ Programmausgabe (Standard Output / Console)</span>
+                <span class="console-hint">Protokolliert alle Console.WriteLine Ausgaben der nebenläufigen Threads</span>
+            </div>
+            <div class="console-body mono">
+                @if (!ConsoleLines.Any())
+                {
+                    <span class="console-empty">Noch keine Programmausgaben vorhanden. Starten Sie die Simulation...</span>
+                }
+                else
+                {
+                    @foreach (var line in ConsoleLines)
+                    {
+                        <div class="console-row @(line.IsError ? "console-error" : "")">
+                            <span class="console-ts">[@line.StepNum]</span>
+                            <span class="console-src tag-t@(line.ThreadId)">Thread @line.ThreadId:</span>
+                            <span class="console-msg">@line.Message</span>
+                            @if (line.IsError)
+                            {
+                                <span class="console-err-badge">FEHLER</span>
+                            }
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- WORKSHEET VIEW (1:1 EXAM REPLICA MATCHING BSSynchronisationRaceConditionCS)-->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Worksheet)
+    {
+        <div class="worksheet-paper">
+            
+            <!-- Official Exam Header -->
+            <div class="exam-header">
+                <div class="exam-title-group">
+                    <span class="exam-sub">Betriebssysteme</span>
+                    <h1 class="exam-main-title">Race Condition @(ShowSolution ? "- Lösung" : "")</h1>
+                    <span class="exam-task-label">Aufgabe 1 (Kritische Abschnitte)</span>
+                </div>
+                <div class="exam-meta-box no-print">
+                    <button class="toggle-sol-btn @(ShowSolution ? "active" : "")" @onclick="ToggleSolution">
+                        @(ShowSolution ? "👁️ Musterlösung ausblenden" : "💡 Musterlösung einblenden")
+                    </button>
+                    <button class="print-btn" @onclick="TriggerPrint">
+                        🖨️ Drucken / PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Student Info Fields -->
+            <div class="student-info-strip">
+                <div class="info-field">
+                    <span class="info-label">Name, Vorname:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field">
+                    <span class="info-label">Matrikelnummer:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field points-field">
+                    <span class="info-label">Punkte:</span>
+                    <div class="points-box">/ 5 P.</div>
+                </div>
+            </div>
+
+            <!-- Task Lead Text -->
+            <div class="task-intro-box">
+                <p class="task-lead-text">
+                    In der Vorlesung haben wir folgendes Beispiel behandelt:
+                </p>
+            </div>
+
+            <!-- C# Code Listing of Threads.tex -->
+            <div class="ws-code-box">
+                <pre class="ws-code mono"><code><span class="kw">using</span> System;
+<span class="kw">using</span> System.Threading;
+
+<span class="kw">namespace</span> Threads
+{
+    <span class="kw">class</span> <span class="tp">Program</span>
+    {
+        <span class="kw">private const int</span> NumberOfThreads = <span class="num">10</span>;
+
+        <span class="kw">static void</span> <span class="fn">StaticMethod</span>(<span class="kw">object</span> threadId)
+        {
+            Console.WriteLine(<span class="str">$"Hello World. Greetings from thread {threadId}"</span>);    
+        }
+
+        <span class="kw">private static void</span> <span class="fn">Main</span>(<span class="kw">string</span>[] args)
+        {
+            <span class="kw">for</span> (<span class="kw">var</span> i = <span class="num">0</span>; i &lt; NumberOfThreads; i++)
+            {
+                Console.WriteLine(<span class="str">$"Main here. Creating thread {i}"</span>);
+                <span class="kw">var</span> newThread = <span class="kw">new</span> Thread(StaticMethod);
+                newThread.Start(i);
+            }
+        }
+    }
+}</code></pre>
+            </div>
+
+            <!-- Task Question -->
+            <div class="task-prompt-box">
+                <p class="task-text">
+                    Wie müssten Sie das Programm erweitern, so dass ein kritischer Abschnitt entsteht und in der Programmausgabe zumindest ab und zu der Fehler deutlich wird?
+                </p>
+            </div>
+
+            <!-- Answer Section -->
+            @if (!ShowSolution)
+            {
+                <div class="ws-answer-lines">
+                    <div class="answer-line"></div>
+                    <div class="answer-line"></div>
+                    <div class="answer-line"></div>
+                    <div class="answer-line"></div>
+                    <div class="answer-line"></div>
+                    <div class="answer-line"></div>
+                </div>
+            }
+            else
+            {
+                <div class="ws-solution-box">
+                    <div class="sol-hdr bold">Musterlösung:</div>
+                    <p class="sol-text">
+                        Gemeinsame Variable definieren. Variable z.B. auf Thread ID setzen und zur Sicherheit noch eine Pause ergänzen.
+                    </p>
+                    <div class="sol-code-explanation">
+                        <span class="sol-code-title">Beispielhafte fehlerhafte Erweiterung (C#):</span>
+                        <pre class="sol-code mono"><code><span class="kw">private static int</span> _sharedId = <span class="num">0</span>; <span class="com">// Gemeinsame statische Variable</span>
+
+<span class="kw">static void</span> <span class="fn">StaticMethod</span>(<span class="kw">object</span> threadId)
+{
+    _sharedId = (<span class="kw">int</span>)threadId;  <span class="com">// 1. Schreiben: Eigene ID ablegen</span>
+    Thread.Sleep(<span class="num">10</span>);           <span class="com">// 2. Pause: Erzwingt Context Switch zu anderem Thread</span>
+    Console.WriteLine(<span class="str">$"Thread {threadId} liest Variable: {_sharedId}"</span>); <span class="com">// 3. Fehler: Liest fremde ID!</span>
+}</code></pre>
+                        <p class="sol-didactic-note">
+                            <strong>Erklärung des Fehlers:</strong> Während Thread A in <code>Thread.Sleep(10)</code> pausiert, 
+                            wird Thread B aktiv und überschreibt <code>_sharedId</code> mit seiner eigenen ID. 
+                            Wacht Thread A auf, liest er nicht mehr seine eigene ID, sondern die von Thread B. 
+                            Die Ausgabe zeigt eine Inkonsistenz (z.B. <em>„Thread 1 liest Variable: 2“</em>).
+                        </p>
+                    </div>
+                </div>
+            }
+
+            <div class="exam-footer">
+                <span class="exam-footer-note">Intelligent Systems Design &bull; Hochschule Hamm-Lippstadt &bull; Betriebssysteme</span>
+            </div>
+
+        </div>
+    }
+
+</article>
+
+@code {
+    public enum ViewMode { Simulator, Worksheet }
+
+    [Parameter] public ViewMode ActiveView { get; set; } = ViewMode.Simulator;
+    [Parameter] public bool IsEmbed { get; set; } = false;
+    [Parameter] public bool ShowSolution { get; set; } = false;
+    [Parameter] public string SelectedPreset { get; set; } = "Exam";
+
+    public bool IsProtected { get; set; } = false;
+    public int CurrentStepIndex { get; set; } = 0;
+    public bool IsPlaying { get; set; } = false;
+    public int PlaySpeedMs { get; set; } = 1500;
+
+    // Simulation Data Models
+    public class InstructionDef
+    {
+        public string CodeText { get; set; } = "";
+        public bool IsCriticalSection { get; set; }
+    }
+
+    public class ScheduleStep
+    {
+        public int ThreadId { get; set; }
+        public int InstructionIndex { get; set; }
+        public string ActionType { get; set; } = ""; // "write", "sleep", "read", "lock", "unlock"
+        public string Explanation { get; set; } = "";
+        public int SharedValAfter { get; set; }
+        public int LocalValT1 { get; set; }
+        public int LocalValT2 { get; set; }
+        public int LockHolderAfter { get; set; } // 0 = free, 1 = T1, 2 = T2
+        public bool TriggersCollision { get; set; }
+        public string? ConsoleOutput { get; set; }
+        public bool IsConsoleError { get; set; }
+    }
+
+    public class ConsoleLine
+    {
+        public int StepNum { get; set; }
+        public int ThreadId { get; set; }
+        public string Message { get; set; } = "";
+        public bool IsError { get; set; }
+    }
+
+    // State Variables
+    public string SharedVariableName { get; set; } = "shared_id";
+    public int SharedVariableValue { get; set; } = 0;
+    public int ExpectedFinalValue { get; set; } = 2;
+    public int LastWriter { get; set; } = 0;
+    public int LockHolder { get; set; } = 0; // 0 = free
+
+    public int Thread1LocalVar { get; set; } = 0;
+    public int Thread2LocalVar { get; set; } = 0;
+    public string Thread1LocalVarDisplay => (SelectedPreset == "Bank") ? $"{Thread1LocalVar} €" : $"{Thread1LocalVar}";
+    public string Thread2LocalVarDisplay => (SelectedPreset == "Bank") ? $"{Thread2LocalVar} €" : $"{Thread2LocalVar}";
+
+    public bool HasCollisionOccurred { get; set; } = false;
+    public string CollisionMessage { get; set; } = "";
+    public string CurrentStepExplanation { get; set; } = "Bereit. Klicken Sie auf „Nächster Schritt“ oder „Auto-Play“.";
+
+    public List<InstructionDef> Thread1Instructions { get; set; } = new();
+    public List<InstructionDef> Thread2Instructions { get; set; } = new();
+    public List<ScheduleStep> ActiveSchedule { get; set; } = new();
+    public List<ConsoleLine> ConsoleLines { get; set; } = new();
+
+    private CancellationTokenSource? _playCts;
+
+    protected override void OnInitialized()
+    {
+        ReadQueryParameters();
+        LoadPreset(SelectedPreset);
+    }
+
+    protected override void OnParametersSet()
+    {
+        ReadQueryParameters();
+    }
+
+    private void ReadQueryParameters()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query;
+            if (!string.IsNullOrEmpty(query))
+            {
+                if (query.Contains("view=worksheet", StringComparison.OrdinalIgnoreCase))
+                {
+                    ActiveView = ViewMode.Worksheet;
+                }
+                if (query.Contains("solution=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    ShowSolution = true;
+                }
+                if (query.Contains("embed=true", StringComparison.OrdinalIgnoreCase) || query.Contains("embedded=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsEmbed = true;
+                }
+                if (query.Contains("preset=bank", StringComparison.OrdinalIgnoreCase))
+                {
+                    SelectedPreset = "Bank";
+                }
+                else if (query.Contains("preset=counter", StringComparison.OrdinalIgnoreCase))
+                {
+                    SelectedPreset = "Counter";
+                }
+                if (query.Contains("protected=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsProtected = true;
+                }
+            }
+        }
+        catch { }
+    }
+
+    private void SetView(ViewMode mode)
+    {
+        StopAutoPlay();
+        ActiveView = mode;
+    }
+
+    private void ToggleSolution()
+    {
+        ShowSolution = !ShowSolution;
+    }
+
+    private async Task TriggerPrint()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+
+    private void SetProtection(bool protect)
+    {
+        StopAutoPlay();
+        IsProtected = protect;
+        BuildScenario();
+        ResetSimulation();
+    }
+
+    private void LoadPreset(string preset)
+    {
+        StopAutoPlay();
+        SelectedPreset = preset;
+        BuildScenario();
+        ResetSimulation();
+    }
+
+    private void BuildScenario()
+    {
+        Thread1Instructions.Clear();
+        Thread2Instructions.Clear();
+        ActiveSchedule.Clear();
+
+        if (SelectedPreset == "Exam")
+        {
+            SharedVariableName = "shared_id";
+            ExpectedFinalValue = 2;
+
+            if (!IsProtected)
+            {
+                // Unprotected Exam Task Scenario:
+                // T1: write 1 -> sleep 10ms -> read/print
+                // T2: write 2 -> sleep 10ms -> read/print
+                Thread1Instructions.Add(new InstructionDef { CodeText = "shared_id = 1;", IsCriticalSection = true });
+                Thread1Instructions.Add(new InstructionDef { CodeText = "Thread.Sleep(10);", IsCriticalSection = true });
+                Thread1Instructions.Add(new InstructionDef { CodeText = "Console.WriteLine($\"T1: {shared_id}\");", IsCriticalSection = true });
+
+                Thread2Instructions.Add(new InstructionDef { CodeText = "shared_id = 2;", IsCriticalSection = true });
+                Thread2Instructions.Add(new InstructionDef { CodeText = "Thread.Sleep(10);", IsCriticalSection = true });
+                Thread2Instructions.Add(new InstructionDef { CodeText = "Console.WriteLine($\"T2: {shared_id}\");", IsCriticalSection = true });
+
+                // Interleaving schedule: T1 writes 1 -> T1 sleeps -> T2 writes 2 -> T2 sleeps -> T1 wakes & reads 2! (Race!) -> T2 wakes & reads 2
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 1, InstructionIndex = 0, ActionType = "write",
+                    SharedValAfter = 1, LocalValT1 = 1, LocalValT2 = 0, LockHolderAfter = 0,
+                    Explanation = "Thread 1 betritt den ungeschützten Bereich und schreibt shared_id = 1."
+                });
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 1, InstructionIndex = 1, ActionType = "sleep",
+                    SharedValAfter = 1, LocalValT1 = 1, LocalValT2 = 0, LockHolderAfter = 0,
+                    Explanation = "Thread 1 legt sich für 10ms schlafen (Thread.Sleep). Das Betriebssystem führt einen Context Switch durch."
+                });
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 2, InstructionIndex = 0, ActionType = "write",
+                    SharedValAfter = 2, LocalValT1 = 1, LocalValT2 = 2, LockHolderAfter = 0,
+                    Explanation = "Thread 2 wird aktiv und überschreibt shared_id = 2, während Thread 1 noch schläft!"
+                });
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 2, InstructionIndex = 1, ActionType = "sleep",
+                    SharedValAfter = 2, LocalValT1 = 1, LocalValT2 = 2, LockHolderAfter = 0,
+                    Explanation = "Thread 2 legt sich ebenfalls für 10ms schlafen. Context Switch zurück zu Thread 1."
+                });
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 1, InstructionIndex = 2, ActionType = "read",
+                    SharedValAfter = 2, LocalValT1 = 2, LocalValT2 = 2, LockHolderAfter = 0,
+                    TriggersCollision = true,
+                    ConsoleOutput = "Thread 1 liest shared_id: 2 (ERWARTET: 1)",
+                    IsConsoleError = true,
+                    Explanation = "Thread 1 erwacht und liest shared_id aus: Der Wert ist 2 statt 1! Race Condition aufgetreten!"
+                });
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 2, InstructionIndex = 2, ActionType = "read",
+                    SharedValAfter = 2, LocalValT1 = 2, LocalValT2 = 2, LockHolderAfter = 0,
+                    ConsoleOutput = "Thread 2 liest shared_id: 2",
+                    IsConsoleError = false,
+                    Explanation = "Thread 2 erwacht und liest shared_id aus (Wert 2)."
+                });
+            }
+            else
+            {
+                // Protected with lock
+                Thread1Instructions.Add(new InstructionDef { CodeText = "lock (_syncRoot) {", IsCriticalSection = false });
+                Thread1Instructions.Add(new InstructionDef { CodeText = "  shared_id = 1;", IsCriticalSection = true });
+                Thread1Instructions.Add(new InstructionDef { CodeText = "  Thread.Sleep(10);", IsCriticalSection = true });
+                Thread1Instructions.Add(new InstructionDef { CodeText = "  Console.WriteLine($\"T1: {shared_id}\");", IsCriticalSection = true });
+                Thread1Instructions.Add(new InstructionDef { CodeText = "}", IsCriticalSection = false });
+
+                Thread2Instructions.Add(new InstructionDef { CodeText = "lock (_syncRoot) {", IsCriticalSection = false });
+                Thread2Instructions.Add(new InstructionDef { CodeText = "  shared_id = 2;", IsCriticalSection = true });
+                Thread2Instructions.Add(new InstructionDef { CodeText = "  Thread.Sleep(10);", IsCriticalSection = true });
+                Thread2Instructions.Add(new InstructionDef { CodeText = "  Console.WriteLine($\"T2: {shared_id}\");", IsCriticalSection = true });
+                Thread2Instructions.Add(new InstructionDef { CodeText = "}", IsCriticalSection = false });
+
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 1, InstructionIndex = 0, ActionType = "lock",
+                    SharedValAfter = 0, LocalValT1 = 0, LocalValT2 = 0, LockHolderAfter = 1,
+                    Explanation = "Thread 1 fordert das Lock an und erhält die exklusive Sperre (Mutex gesperrt)."
+                });
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 1, InstructionIndex = 1, ActionType = "write",
+                    SharedValAfter = 1, LocalValT1 = 1, LocalValT2 = 0, LockHolderAfter = 1,
+                    Explanation = "Thread 1 ist im geschützten kritischen Abschnitt und schreibt shared_id = 1."
+                });
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 1, InstructionIndex = 2, ActionType = "sleep",
+                    SharedValAfter = 1, LocalValT1 = 1, LocalValT2 = 0, LockHolderAfter = 1,
+                    Explanation = "Thread 1 schläft für 10ms, HÄLT jedoch weiterhin die Sperre."
+                });
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 2, InstructionIndex = 0, ActionType = "lock",
+                    SharedValAfter = 1, LocalValT1 = 1, LocalValT2 = 0, LockHolderAfter = 1,
+                    Explanation = "Thread 2 versucht lock(_syncRoot) zu betreten, wird aber VOM BETRIEBSSYSTEM BLOCKIERT, da T1 die Sperre hält!"
+                });
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 1, InstructionIndex = 3, ActionType = "read",
+                    SharedValAfter = 1, LocalValT1 = 1, LocalValT2 = 0, LockHolderAfter = 1,
+                    ConsoleOutput = "Thread 1 liest shared_id: 1",
+                    IsConsoleError = false,
+                    Explanation = "Thread 1 wacht auf und liest sicher seinen eigenen Wert 1 aus."
+                });
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 1, InstructionIndex = 4, ActionType = "unlock",
+                    SharedValAfter = 1, LocalValT1 = 1, LocalValT2 = 0, LockHolderAfter = 0,
+                    Explanation = "Thread 1 verlässt den kritischen Abschnitt und gibt die Sperre frei. Thread 2 wird deblockiert!"
+                });
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 2, InstructionIndex = 1, ActionType = "write",
+                    SharedValAfter = 2, LocalValT1 = 1, LocalValT2 = 2, LockHolderAfter = 2,
+                    Explanation = "Thread 2 erhält nun die Sperre und schreibt shared_id = 2."
+                });
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 2, InstructionIndex = 2, ActionType = "sleep",
+                    SharedValAfter = 2, LocalValT1 = 1, LocalValT2 = 2, LockHolderAfter = 2,
+                    Explanation = "Thread 2 schläft für 10ms im geschützten Abschnitt."
+                });
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 2, InstructionIndex = 3, ActionType = "read",
+                    SharedValAfter = 2, LocalValT1 = 1, LocalValT2 = 2, LockHolderAfter = 2,
+                    ConsoleOutput = "Thread 2 liest shared_id: 2",
+                    IsConsoleError = false,
+                    Explanation = "Thread 2 liest sicher seinen eigenen Wert 2 aus."
+                });
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 2, InstructionIndex = 4, ActionType = "unlock",
+                    SharedValAfter = 2, LocalValT1 = 1, LocalValT2 = 2, LockHolderAfter = 0,
+                    Explanation = "Thread 2 gibt die Sperre frei. Beide Threads haben deterministisch und korrekt gearbeitet."
+                });
+            }
+        }
+        else if (SelectedPreset == "Bank")
+        {
+            SharedVariableName = "account_balance";
+            ExpectedFinalValue = 120; // 100 + 50 - 30 = 120
+
+            if (!IsProtected)
+            {
+                Thread1Instructions.Add(new InstructionDef { CodeText = "int temp1 = balance + 50;", IsCriticalSection = true });
+                Thread1Instructions.Add(new InstructionDef { CodeText = "Thread.Sleep(10);", IsCriticalSection = true });
+                Thread1Instructions.Add(new InstructionDef { CodeText = "balance = temp1; // Einzahlung +50€", IsCriticalSection = true });
+
+                Thread2Instructions.Add(new InstructionDef { CodeText = "int temp2 = balance - 30;", IsCriticalSection = true });
+                Thread2Instructions.Add(new InstructionDef { CodeText = "Thread.Sleep(10);", IsCriticalSection = true });
+                Thread2Instructions.Add(new InstructionDef { CodeText = "balance = temp2; // Abhebung -30€", IsCriticalSection = true });
+
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 1, InstructionIndex = 0, ActionType = "read",
+                    SharedValAfter = 100, LocalValT1 = 150, LocalValT2 = 0, LockHolderAfter = 0,
+                    Explanation = "Thread 1 liest Kontostand (100 €) und berechnet temp1 = 100 + 50 = 150 €."
+                });
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 2, InstructionIndex = 0, ActionType = "read",
+                    SharedValAfter = 100, LocalValT1 = 150, LocalValT2 = 70, LockHolderAfter = 0,
+                    Explanation = "Context Switch: Thread 2 liest NOCH DEN ALTEN Kontostand (100 €) und berechnet temp2 = 100 - 30 = 70 €!"
+                });
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 1, InstructionIndex = 1, ActionType = "sleep",
+                    SharedValAfter = 100, LocalValT1 = 150, LocalValT2 = 70, LockHolderAfter = 0,
+                    Explanation = "Thread 1 pausiert."
+                });
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 2, InstructionIndex = 2, ActionType = "write",
+                    SharedValAfter = 70, LocalValT1 = 150, LocalValT2 = 70, LockHolderAfter = 0,
+                    ConsoleOutput = "Thread 2 bucht ab: Neuer Saldo = 70 €",
+                    Explanation = "Thread 2 schreibt balance = 70 € auf das Konto."
+                });
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 1, InstructionIndex = 2, ActionType = "write",
+                    SharedValAfter = 150, LocalValT1 = 150, LocalValT2 = 70, LockHolderAfter = 0,
+                    TriggersCollision = true,
+                    ConsoleOutput = "Thread 1 zahlt ein: Neuer Saldo = 150 € (FEHLER! -30€ verloren)",
+                    IsConsoleError = true,
+                    Explanation = "Thread 1 schreibt balance = 150 € und ÜBERSCHREIBT die Abhebung von Thread 2! Lost Update Fehler!"
+                });
+            }
+            else
+            {
+                // Protected Bank Scenario
+                Thread1Instructions.Add(new InstructionDef { CodeText = "lock (bankLock) {", IsCriticalSection = false });
+                Thread1Instructions.Add(new InstructionDef { CodeText = "  int temp1 = balance + 50;", IsCriticalSection = true });
+                Thread1Instructions.Add(new InstructionDef { CodeText = "  balance = temp1;", IsCriticalSection = true });
+                Thread1Instructions.Add(new InstructionDef { CodeText = "}", IsCriticalSection = false });
+
+                Thread2Instructions.Add(new InstructionDef { CodeText = "lock (bankLock) {", IsCriticalSection = false });
+                Thread2Instructions.Add(new InstructionDef { CodeText = "  int temp2 = balance - 30;", IsCriticalSection = true });
+                Thread2Instructions.Add(new InstructionDef { CodeText = "  balance = temp2;", IsCriticalSection = true });
+                Thread2Instructions.Add(new InstructionDef { CodeText = "}", IsCriticalSection = false });
+
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 1, InstructionIndex = 0, ActionType = "lock",
+                    SharedValAfter = 100, LocalValT1 = 0, LocalValT2 = 0, LockHolderAfter = 1,
+                    Explanation = "Thread 1 sperrt das Konto für Einzahlung."
+                });
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 1, InstructionIndex = 1, ActionType = "read",
+                    SharedValAfter = 100, LocalValT1 = 150, LocalValT2 = 0, LockHolderAfter = 1,
+                    Explanation = "Thread 1 liest 100 € und berechnet temp1 = 150 €."
+                });
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 1, InstructionIndex = 2, ActionType = "write",
+                    SharedValAfter = 150, LocalValT1 = 150, LocalValT2 = 0, LockHolderAfter = 1,
+                    ConsoleOutput = "Thread 1: 50 € eingezahlt. Neuer Saldo = 150 €",
+                    Explanation = "Thread 1 schreibt Kontostand = 150 €."
+                });
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 1, InstructionIndex = 3, ActionType = "unlock",
+                    SharedValAfter = 150, LocalValT1 = 150, LocalValT2 = 0, LockHolderAfter = 0,
+                    Explanation = "Thread 1 gibt Kontosperre frei."
+                });
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 2, InstructionIndex = 0, ActionType = "lock",
+                    SharedValAfter = 150, LocalValT1 = 150, LocalValT2 = 0, LockHolderAfter = 2,
+                    Explanation = "Thread 2 sperrt das Konto für Abhebung."
+                });
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 2, InstructionIndex = 1, ActionType = "read",
+                    SharedValAfter = 150, LocalValT1 = 150, LocalValT2 = 120, LockHolderAfter = 2,
+                    Explanation = "Thread 2 liest den KORREKTEN Zwischensaldo 150 € und berechnet temp2 = 150 - 30 = 120 €."
+                });
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 2, InstructionIndex = 2, ActionType = "write",
+                    SharedValAfter = 120, LocalValT1 = 150, LocalValT2 = 120, LockHolderAfter = 2,
+                    ConsoleOutput = "Thread 2: 30 € abgehoben. Neuer Saldo = 120 €",
+                    Explanation = "Thread 2 schreibt balance = 120 €."
+                });
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 2, InstructionIndex = 3, ActionType = "unlock",
+                    SharedValAfter = 120, LocalValT1 = 150, LocalValT2 = 120, LockHolderAfter = 0,
+                    Explanation = "Thread 2 gibt die Sperre frei. Endstand exakt 120 €."
+                });
+            }
+        }
+        else // Counter
+        {
+            SharedVariableName = "counter";
+            ExpectedFinalValue = 2;
+
+            if (!IsProtected)
+            {
+                Thread1Instructions.Add(new InstructionDef { CodeText = "int reg1 = counter; // Lesen", IsCriticalSection = true });
+                Thread1Instructions.Add(new InstructionDef { CodeText = "reg1 = reg1 + 1;    // Inkrement", IsCriticalSection = true });
+                Thread1Instructions.Add(new InstructionDef { CodeText = "counter = reg1;     // Schreiben", IsCriticalSection = true });
+
+                Thread2Instructions.Add(new InstructionDef { CodeText = "int reg2 = counter; // Lesen", IsCriticalSection = true });
+                Thread2Instructions.Add(new InstructionDef { CodeText = "reg2 = reg2 + 1;    // Inkrement", IsCriticalSection = true });
+                Thread2Instructions.Add(new InstructionDef { CodeText = "counter = reg2;     // Schreiben", IsCriticalSection = true });
+
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 1, InstructionIndex = 0, ActionType = "read",
+                    SharedValAfter = 0, LocalValT1 = 0, LocalValT2 = 0, LockHolderAfter = 0,
+                    Explanation = "Thread 1 liest counter (0) in Register reg1."
+                });
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 2, InstructionIndex = 0, ActionType = "read",
+                    SharedValAfter = 0, LocalValT1 = 0, LocalValT2 = 0, LockHolderAfter = 0,
+                    Explanation = "Context Switch: Thread 2 liest EBENFALLS counter (0) in reg2."
+                });
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 1, InstructionIndex = 1, ActionType = "inc",
+                    SharedValAfter = 0, LocalValT1 = 1, LocalValT2 = 0, LockHolderAfter = 0,
+                    Explanation = "Thread 1 inkrementiert reg1 = 1."
+                });
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 2, InstructionIndex = 1, ActionType = "inc",
+                    SharedValAfter = 0, LocalValT1 = 1, LocalValT2 = 1, LockHolderAfter = 0,
+                    Explanation = "Thread 2 inkrementiert reg2 = 1."
+                });
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 1, InstructionIndex = 2, ActionType = "write",
+                    SharedValAfter = 1, LocalValT1 = 1, LocalValT2 = 1, LockHolderAfter = 0,
+                    ConsoleOutput = "Thread 1: counter = 1",
+                    Explanation = "Thread 1 schreibt counter = 1."
+                });
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 2, InstructionIndex = 2, ActionType = "write",
+                    SharedValAfter = 1, LocalValT1 = 1, LocalValT2 = 1, LockHolderAfter = 0,
+                    TriggersCollision = true,
+                    ConsoleOutput = "Thread 2: counter = 1 (VERLORENES UPDATE! Sollte 2 sein)",
+                    IsConsoleError = true,
+                    Explanation = "Thread 2 schreibt counter = 1 und überschreibt das Inkrement! Endwert ist 1 statt 2!"
+                });
+            }
+            else
+            {
+                Thread1Instructions.Add(new InstructionDef { CodeText = "Interlocked.Increment(ref counter);", IsCriticalSection = false });
+                Thread2Instructions.Add(new InstructionDef { CodeText = "Interlocked.Increment(ref counter);", IsCriticalSection = false });
+
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 1, InstructionIndex = 0, ActionType = "write",
+                    SharedValAfter = 1, LocalValT1 = 1, LocalValT2 = 0, LockHolderAfter = 0,
+                    ConsoleOutput = "Thread 1 atomar: counter = 1",
+                    Explanation = "Thread 1 führt atomaren Inkrement aus (Lock/Bus-Sperre auf Hardware-Ebene): counter = 1."
+                });
+                ActiveSchedule.Add(new ScheduleStep
+                {
+                    ThreadId = 2, InstructionIndex = 0, ActionType = "write",
+                    SharedValAfter = 2, LocalValT1 = 1, LocalValT2 = 2, LockHolderAfter = 0,
+                    ConsoleOutput = "Thread 2 atomar: counter = 2",
+                    Explanation = "Thread 2 führt atomaren Inkrement aus: counter = 2. Kein Update verloren!"
+                });
+            }
+        }
+    }
+
+    private void ResetSimulation()
+    {
+        StopAutoPlay();
+        CurrentStepIndex = 0;
+        SharedVariableValue = (SelectedPreset == "Bank") ? 100 : 0;
+        LastWriter = 0;
+        LockHolder = 0;
+        Thread1LocalVar = 0;
+        Thread2LocalVar = 0;
+        HasCollisionOccurred = false;
+        CollisionMessage = "";
+        CurrentStepExplanation = "Bereit. Klicken Sie auf „Nächster Schritt“ oder „Auto-Play“.";
+        ConsoleLines.Clear();
+    }
+
+    private void StepForward()
+    {
+        if (CurrentStepIndex < ActiveSchedule.Count)
+        {
+            CurrentStepIndex++;
+            ApplyStep(CurrentStepIndex - 1);
+        }
+        else
+        {
+            StopAutoPlay();
+        }
+    }
+
+    private void StepBack()
+    {
+        if (CurrentStepIndex > 0)
+        {
+            CurrentStepIndex--;
+            ReplayUpToStep(CurrentStepIndex);
+        }
+    }
+
+    private void GoToStart()
+    {
+        ResetSimulation();
+    }
+
+    private void ReplayUpToStep(int targetStep)
+    {
+        SharedVariableValue = (SelectedPreset == "Bank") ? 100 : 0;
+        LastWriter = 0;
+        LockHolder = 0;
+        Thread1LocalVar = 0;
+        Thread2LocalVar = 0;
+        HasCollisionOccurred = false;
+        CollisionMessage = "";
+        ConsoleLines.Clear();
+
+        if (targetStep == 0)
+        {
+            CurrentStepExplanation = "Initialzustand geladen.";
+            return;
+        }
+
+        for (int i = 0; i < targetStep; i++)
+        {
+            ApplyStep(i);
+        }
+    }
+
+    private void ApplyStep(int stepIndex)
+    {
+        var step = ActiveSchedule[stepIndex];
+        SharedVariableValue = step.SharedValAfter;
+        LastWriter = (step.ActionType == "write") ? step.ThreadId : LastWriter;
+        LockHolder = step.LockHolderAfter;
+        Thread1LocalVar = step.LocalValT1;
+        Thread2LocalVar = step.LocalValT2;
+        CurrentStepExplanation = step.Explanation;
+
+        if (step.TriggersCollision)
+        {
+            HasCollisionOccurred = true;
+            CollisionMessage = (SelectedPreset == "Exam")
+                ? "Thread 1 liest unerwartet die von Thread 2 gesetzte ID (Wert 2 statt 1)!"
+                : (SelectedPreset == "Bank")
+                    ? "Lost Update! Einzahlung von 50 € überschreibt die Abhebung von 30 €. 30 € sind verloren gegangen!"
+                    : "Lost Update! Beide Threads haben 0 gelesen und 1 geschrieben. Ein Inkrement ist verloren!";
+        }
+
+        if (!string.IsNullOrEmpty(step.ConsoleOutput))
+        {
+            ConsoleLines.Add(new ConsoleLine
+            {
+                StepNum = stepIndex + 1,
+                ThreadId = step.ThreadId,
+                Message = step.ConsoleOutput,
+                IsError = step.IsConsoleError
+            });
+        }
+    }
+
+    private int GetThreadProgress(int threadId)
+    {
+        int count = 0;
+        for (int i = 0; i < CurrentStepIndex; i++)
+        {
+            if (ActiveSchedule[i].ThreadId == threadId) count++;
+        }
+        return count;
+    }
+
+    private string GetThreadStatusText(int threadId)
+    {
+        if (CurrentStepIndex == 0) return "Bereit";
+        if (CurrentStepIndex >= ActiveSchedule.Count) return "Beendet";
+
+        var cur = ActiveSchedule[CurrentStepIndex - 1];
+        if (cur.ThreadId == threadId)
+        {
+            if (cur.ActionType == "sleep") return "Schlafend (Sleep)";
+            if (cur.ActionType == "lock" && LockHolder == threadId) return "Im Lock";
+            return "Rechnend";
+        }
+        else
+        {
+            // The other thread
+            if (IsProtected && LockHolder != 0 && LockHolder != threadId)
+            {
+                return "Blockiert (Wartet auf Lock)";
+            }
+            return "Wartend / Bereit";
+        }
+    }
+
+    private string GetThreadStatusClass(int threadId)
+    {
+        var text = GetThreadStatusText(threadId);
+        if (text.Contains("Blockiert")) return "status-blocked";
+        if (text.Contains("Schlafend")) return "status-sleep";
+        if (text.Contains("Rechnend") || text.Contains("Im Lock")) return "status-active";
+        if (text.Contains("Beendet")) return "status-done";
+        return "status-ready";
+    }
+
+    private void ToggleAutoPlay()
+    {
+        if (IsPlaying) StopAutoPlay();
+        else StartAutoPlay();
+    }
+
+    private void StartAutoPlay()
+    {
+        StopAutoPlay();
+        if (CurrentStepIndex >= ActiveSchedule.Count)
+        {
+            ResetSimulation();
+        }
+
+        IsPlaying = true;
+        _playCts = new CancellationTokenSource();
+        _ = PlayLoopAsync(_playCts.Token);
+    }
+
+    private void StopAutoPlay()
+    {
+        IsPlaying = false;
+        _playCts?.Cancel();
+        _playCts = null;
+    }
+
+    private async Task PlayLoopAsync(CancellationToken token)
+    {
+        try
+        {
+            while (!token.IsCancellationRequested && CurrentStepIndex < ActiveSchedule.Count)
+            {
+                await Task.Delay(PlaySpeedMs, token);
+                if (token.IsCancellationRequested) break;
+
+                StepForward();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (TaskCanceledException) { }
+        finally
+        {
+            IsPlaying = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public void Dispose()
+    {
+        StopAutoPlay();
+    }
+}

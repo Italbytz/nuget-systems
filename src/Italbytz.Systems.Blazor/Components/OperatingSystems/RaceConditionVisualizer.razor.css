@@ -1,0 +1,1055 @@
+/* ========================================================================= */
+/* RaceConditionVisualizer Scoped Styles                                     */
+/* ========================================================================= */
+
+.race-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--text-color, #1e293b);
+    width: 100%;
+    max-width: 1240px;
+    margin: 0 auto;
+}
+
+.mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Card Heading                                                              */
+/* ------------------------------------------------------------------------- */
+.card-heading {
+    border-bottom: 1px solid var(--border-color, #e2e8f0);
+    padding-bottom: 0.85rem;
+}
+
+.feature-kicker {
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #ef4444;
+    margin: 0 0 0.25rem 0;
+}
+
+.card-heading h2 {
+    font-size: 1.5rem;
+    font-weight: 800;
+    margin: 0 0 0.4rem 0;
+    color: var(--heading-color, #0f172a);
+}
+
+.feature-intro {
+    font-size: 0.92rem;
+    color: var(--muted-color, #64748b);
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* ------------------------------------------------------------------------- */
+/* View Switcher                                                             */
+/* ------------------------------------------------------------------------- */
+.view-switch {
+    display: flex;
+    gap: 0.5rem;
+    background: var(--bg-surface-subtle, #f1f5f9);
+    padding: 0.35rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-color, #e2e8f0);
+    width: fit-content;
+}
+
+.view-btn {
+    background: transparent;
+    border: none;
+    padding: 0.5rem 1rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    border-radius: 0.375rem;
+    color: var(--muted-color, #64748b);
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+}
+
+.view-btn:hover {
+    color: var(--text-color, #0f172a);
+}
+
+.view-btn.active {
+    background: #ffffff;
+    color: #0284c7;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* ------------------------------------------------------------------------- */
+/* Controls Panel & Toolbar                                                  */
+/* ------------------------------------------------------------------------- */
+.controls-panel {
+    background: var(--bg-surface, #ffffff);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 0.75rem;
+    padding: 1rem 1.25rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.toolbar-grid {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.btn-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.85rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: 0.375rem;
+    border: 1px solid var(--border-color, #cbd5e1);
+    background: var(--bg-surface, #ffffff);
+    color: var(--text-color, #334155);
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+}
+
+.action-btn:hover:not(:disabled) {
+    background: #f8fafc;
+    border-color: #94a3b8;
+}
+
+.action-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.action-btn.primary {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #0284c7;
+}
+
+.action-btn.primary:hover:not(:disabled) {
+    background: #0369a1;
+}
+
+.preset-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--muted-color, #64748b);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-right: 0.35rem;
+}
+
+.sync-mode-group, .preset-group, .speed-control {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+}
+
+.sync-toggle-btn {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    border-radius: 0.375rem;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+}
+
+.sync-toggle-btn:hover {
+    background: #f1f5f9;
+}
+
+.sync-toggle-btn.active-danger {
+    background: #fef2f2;
+    border-color: #ef4444;
+    color: #dc2626;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15);
+}
+
+.sync-toggle-btn.active-success {
+    background: #f0fdf4;
+    border-color: #16a34a;
+    color: #15803d;
+    box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.15);
+}
+
+.preset-btn {
+    padding: 0.4rem 0.65rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: 0.375rem;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+}
+
+.preset-btn:hover {
+    background: #f8fafc;
+}
+
+.preset-btn.active {
+    background: #e0f2fe;
+    border-color: #0284c7;
+    color: #0369a1;
+}
+
+.speed-select {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.82rem;
+    border-radius: 0.375rem;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #334155;
+    outline: none;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Alert Banners                                                             */
+/* ------------------------------------------------------------------------- */
+.alert-banner {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.85rem 1.25rem;
+    border-radius: 0.625rem;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.alert-icon {
+    font-size: 1.8rem;
+}
+
+.alert-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.alert-title {
+    font-size: 0.95rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+}
+
+.alert-desc {
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+.race-danger-banner {
+    background: #fef2f2;
+    border: 1px solid #f87171;
+    color: #991b1b;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.2);
+}
+
+.sync-success-banner {
+    background: #f0fdf4;
+    border: 1px solid #4ade80;
+    color: #166534;
+    box-shadow: 0 0 12px rgba(34, 197, 94, 0.15);
+}
+
+/* ------------------------------------------------------------------------- */
+/* Simulation Dashboard Grid                                                 */
+/* ------------------------------------------------------------------------- */
+.sim-dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.25fr 1fr;
+    gap: 1rem;
+    align-items: stretch;
+}
+
+@media (max-width: 960px) {
+    .sim-dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.panel-card {
+    background: var(--bg-surface, #ffffff);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 0.75rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-color, #e2e8f0);
+    background: #f8fafc;
+}
+
+.panel-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--heading-color, #0f172a);
+}
+
+/* Thread Cards */
+.thread-one-card {
+    border-top: 4px solid #0284c7;
+}
+
+.thread-two-card {
+    border-top: 4px solid #9333ea;
+}
+
+.thread-one-title {
+    color: #0369a1;
+}
+
+.thread-two-title {
+    color: #7e22ce;
+}
+
+.thread-status-badge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.2rem 0.55rem;
+    border-radius: 9999px;
+    letter-spacing: 0.02em;
+}
+
+.status-active {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.status-sleeping {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.status-waiting {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.status-done {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.thread-code-body {
+    padding: 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    flex: 1;
+}
+
+.code-flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    flex: 1;
+}
+
+.instr-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.55rem;
+    border-radius: 0.375rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    font-size: 0.82rem;
+    transition: all 0.2s ease-in-out;
+}
+
+.instr-row.past-step {
+    opacity: 0.6;
+    background: #f1f5f9;
+}
+
+.instr-row.current-step {
+    opacity: 1;
+    background: #eff6ff;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+    font-weight: 600;
+}
+
+.thread-two-card .instr-row.current-step {
+    background: #faf5ff;
+    border-color: #a855f7;
+    box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.3);
+}
+
+.instr-row.crit-section {
+    border-left: 3px solid #ef4444;
+}
+
+.step-num {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #94a3b8;
+    min-width: 1.1rem;
+}
+
+.instr-code {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #1e293b;
+}
+
+.crit-tag {
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 0.15rem 0.35rem;
+    border-radius: 0.25rem;
+    background: #fee2e2;
+    color: #dc2626;
+    letter-spacing: 0.04em;
+}
+
+.thread-local-vars {
+    padding: 0.5rem 0.75rem;
+    background: #f1f5f9;
+    border-radius: 0.375rem;
+    font-size: 0.8rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid #e2e8f0;
+}
+
+.var-lbl {
+    color: #64748b;
+}
+
+.var-val {
+    font-weight: 700;
+    color: #0f172a;
+}
+
+/* Center: Shared Memory Card */
+.shared-state-card {
+    border-top: 4px solid #059669;
+}
+
+.lock-pill {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.2rem 0.55rem;
+    border-radius: 9999px;
+}
+
+.lock-free {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.lock-held {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.lock-none {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.shared-mem-content {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    flex: 1;
+}
+
+.shared-var-box {
+    text-align: center;
+    padding: 1.1rem;
+    background: #f8fafc;
+    border: 2px dashed #cbd5e1;
+    border-radius: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.shared-var-name {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #047857;
+    background: #ecfdf5;
+    padding: 0.2rem 0.6rem;
+    border-radius: 0.25rem;
+}
+
+.shared-var-display {
+    padding: 0.4rem 1.5rem;
+    border-radius: 0.375rem;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    transition: all 0.25s ease-in-out;
+}
+
+.shared-var-display.var-corrupted {
+    background: #fef2f2;
+    border-color: #ef4444;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+}
+
+.shared-var-val {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.var-corrupted .shared-var-val {
+    color: #dc2626;
+}
+
+.shared-var-sub {
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+.step-explainer-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.explainer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.explainer-badge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+}
+
+.thread-tag {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.15rem 0.45rem;
+    border-radius: 0.25rem;
+}
+
+.tag-t1 {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
+.tag-t2 {
+    background: #f3e8ff;
+    color: #7e22ce;
+}
+
+.explainer-desc {
+    font-size: 0.85rem;
+    line-height: 1.45;
+    color: #334155;
+    margin: 0;
+}
+
+.final-result-card {
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    font-size: 0.82rem;
+}
+
+.res-failed {
+    background: #fef2f2;
+    border: 1px solid #f87171;
+}
+
+.res-passed {
+    background: #f0fdf4;
+    border: 1px solid #86efac;
+}
+
+.res-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.val-error {
+    color: #dc2626;
+}
+
+.val-ok {
+    color: #16a34a;
+}
+
+.res-summary {
+    margin-top: 0.35rem;
+    padding-top: 0.35rem;
+    border-top: 1px dashed rgba(0, 0, 0, 0.1);
+    font-weight: 700;
+    text-align: center;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Console Card                                                              */
+/* ------------------------------------------------------------------------- */
+.console-card {
+    margin-top: 0.25rem;
+}
+
+.console-hint {
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+.console-body {
+    background: #0f172a;
+    color: #f8fafc;
+    padding: 0.75rem 1rem;
+    min-height: 110px;
+    max-height: 180px;
+    overflow-y: auto;
+    font-size: 0.82rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.console-empty {
+    color: #64748b;
+    font-style: italic;
+}
+
+.console-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    line-height: 1.4;
+}
+
+.console-ts {
+    color: #64748b;
+    font-size: 0.75rem;
+}
+
+.console-src {
+    font-weight: 700;
+}
+
+.console-msg {
+    color: #f1f5f9;
+}
+
+.console-error {
+    background: rgba(239, 68, 68, 0.15);
+    padding: 0.15rem 0.35rem;
+    border-radius: 0.25rem;
+}
+
+.console-error .console-msg {
+    color: #fca5a5;
+    font-weight: 600;
+}
+
+.console-err-badge {
+    font-size: 0.65rem;
+    background: #dc2626;
+    color: #ffffff;
+    padding: 0.1rem 0.3rem;
+    border-radius: 0.2rem;
+    font-weight: 800;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Embed Mode (?embed=true) for Reveal.js Slides                             */
+/* ------------------------------------------------------------------------- */
+.embed-mode {
+    max-width: 100%;
+    padding: 0.25rem;
+    background: transparent;
+    gap: 0.75rem;
+}
+
+.embed-mode .controls-panel {
+    padding: 0.5rem 0.75rem;
+}
+
+.embed-mode .sim-dashboard-grid {
+    gap: 0.6rem;
+}
+
+.embed-mode .panel-card {
+    border-radius: 0.5rem;
+}
+
+.embed-mode .panel-header {
+    padding: 0.4rem 0.6rem;
+}
+
+.embed-mode .thread-code-body {
+    padding: 0.5rem;
+    gap: 0.5rem;
+}
+
+.embed-mode .instr-row {
+    padding: 0.25rem 0.45rem;
+    font-size: 0.75rem;
+}
+
+.embed-mode .shared-mem-content {
+    padding: 0.6rem;
+    gap: 0.6rem;
+}
+
+.embed-mode .shared-var-box {
+    padding: 0.5rem;
+}
+
+.embed-mode .shared-var-val {
+    font-size: 1.4rem;
+}
+
+.embed-mode .console-body {
+    min-height: 80px;
+    max-height: 110px;
+    font-size: 0.75rem;
+    padding: 0.5rem 0.75rem;
+}
+
+/* ------------------------------------------------------------------------- */
+/* WORKSHEET VIEW (1:1 EXAM REPLICA)                                         */
+/* ------------------------------------------------------------------------- */
+.worksheet-paper {
+    background: #ffffff;
+    color: #000000;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 1.5rem 2rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    border-radius: 4px;
+    font-family: "Latin Modern Roman", "Computer Modern", "Times New Roman", Times, serif;
+}
+
+.exam-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 2px solid #000000;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.exam-title-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.exam-sub {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-family: system-ui, sans-serif;
+    color: #4b5563;
+}
+
+.exam-main-title {
+    font-size: 1.6rem;
+    font-weight: 700;
+    margin: 0.15rem 0;
+    color: #000000;
+}
+
+.exam-task-label {
+    font-size: 0.95rem;
+    font-weight: 600;
+    font-family: system-ui, sans-serif;
+    color: #1f2937;
+}
+
+.exam-meta-box {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.toggle-sol-btn, .print-btn {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8rem;
+    font-family: system-ui, sans-serif;
+    font-weight: 600;
+    border-radius: 4px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    cursor: pointer;
+}
+
+.toggle-sol-btn.active {
+    background: #dcfce7;
+    border-color: #16a34a;
+    color: #15803d;
+}
+
+.print-btn {
+    background: #f1f5f9;
+}
+
+.student-info-strip {
+    display: flex;
+    align-items: flex-end;
+    gap: 1.5rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.info-field {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.5rem;
+    flex: 1;
+}
+
+.info-label {
+    font-size: 0.85rem;
+    font-family: system-ui, sans-serif;
+    color: #374151;
+    white-space: nowrap;
+}
+
+.info-line {
+    flex: 1;
+    border-bottom: 1px dotted #9ca3af;
+    height: 1.2rem;
+}
+
+.points-field {
+    flex: 0 0 100px;
+}
+
+.points-box {
+    border: 1px solid #000000;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    font-family: system-ui, sans-serif;
+    text-align: right;
+    min-width: 70px;
+}
+
+.task-intro-box {
+    margin-bottom: 0.75rem;
+}
+
+.task-lead-text {
+    font-size: 0.95rem;
+    line-height: 1.4;
+    margin: 0;
+}
+
+.ws-code-box {
+    background: #f9fafb;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    padding: 0.65rem 0.85rem;
+    margin-bottom: 1rem;
+}
+
+.ws-code {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.35;
+    color: #111827;
+}
+
+/* Syntax Highlighting */
+.kw { color: #0000ff; font-weight: 600; }
+.tp { color: #2b91af; }
+.fn { color: #795e26; }
+.num { color: #098658; }
+.str { color: #a31515; }
+.com { color: #008000; font-style: italic; }
+
+.task-prompt-box {
+    margin-bottom: 1rem;
+}
+
+.task-text {
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.45;
+    margin: 0;
+}
+
+.ws-answer-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    margin: 1.25rem 0 2rem 0;
+}
+
+.answer-line {
+    border-bottom: 1px dotted #6b7280;
+    height: 1.2rem;
+}
+
+.ws-solution-box {
+    background: #f0fdf4;
+    border: 1px solid #86efac;
+    border-radius: 4px;
+    padding: 0.85rem 1rem;
+    margin: 1rem 0 1.5rem 0;
+}
+
+.sol-hdr {
+    font-size: 0.95rem;
+    color: #166534;
+    font-family: system-ui, sans-serif;
+    margin-bottom: 0.4rem;
+}
+
+.bold {
+    font-weight: 700;
+}
+
+.sol-text {
+    font-size: 0.9rem;
+    line-height: 1.4;
+    color: #14532d;
+    margin: 0 0 0.6rem 0;
+}
+
+.sol-code-explanation {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.sol-code-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #166534;
+    font-family: system-ui, sans-serif;
+}
+
+.sol-code {
+    background: #ffffff;
+    border: 1px solid #bbf7d0;
+    border-radius: 4px;
+    padding: 0.5rem 0.75rem;
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.35;
+}
+
+.sol-didactic-note {
+    font-size: 0.82rem;
+    line-height: 1.4;
+    color: #166534;
+    margin: 0.35rem 0 0 0;
+}
+
+.exam-footer {
+    border-top: 1px solid #e5e7eb;
+    padding-top: 0.5rem;
+    margin-top: 1.5rem;
+    text-align: center;
+}
+
+.exam-footer-note {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    font-family: system-ui, sans-serif;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Print Styles for 1-Page A4 Precision                                      */
+/* ------------------------------------------------------------------------- */
+@media print {
+    @page {
+        size: A4 portrait;
+        margin: 8mm 12mm;
+    }
+
+    body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        font-size: 10pt;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+
+    .worksheet-paper {
+        box-shadow: none !important;
+        padding: 0 !important;
+        max-width: 100% !important;
+        page-break-inside: avoid;
+    }
+
+    .ws-code-box {
+        background: #ffffff !important;
+        border: 1px solid #999999 !important;
+        padding: 4mm 6mm !important;
+        margin-bottom: 5mm !important;
+    }
+
+    .ws-code {
+        font-size: 8.5pt !important;
+        line-height: 1.25 !important;
+    }
+
+    .ws-solution-box {
+        background: #ffffff !important;
+        border: 1px solid #000000 !important;
+        padding: 4mm 6mm !important;
+    }
+
+    .sol-code {
+        background: #ffffff !important;
+        border: 1px solid #cccccc !important;
+        font-size: 8.5pt !important;
+    }
+
+    .ws-answer-lines {
+        gap: 1.5rem !important;
+        margin: 1.5rem 0 !important;
+    }
+}
