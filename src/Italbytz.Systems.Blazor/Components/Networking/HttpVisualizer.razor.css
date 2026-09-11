@@ -1,0 +1,838 @@
+/* ==========================================================================
+   HTTP VISUALIZER STYLES (Task 39: HTTP Request/Response & MIME-Types)
+   ========================================================================== */
+
+.http-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #e2e8f0;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem;
+    box-sizing: border-box;
+}
+
+.embed-mode {
+    padding: 0.5rem;
+    max-width: 100%;
+    gap: 0.75rem;
+    background: #0b0f19;
+}
+
+/* Card Heading */
+.card-heading {
+    border-bottom: 1px solid #1e293b;
+    padding-bottom: 1rem;
+}
+
+.feature-kicker {
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #38bdf8;
+    margin: 0 0 0.25rem 0;
+}
+
+.card-heading h2 {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #f8fafc;
+    margin: 0 0 0.5rem 0;
+}
+
+.feature-intro {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: #94a3b8;
+    margin: 0;
+}
+
+/* View Switcher */
+.view-switch {
+    display: flex;
+    gap: 0.5rem;
+    border-bottom: 1px solid #334155;
+    padding-bottom: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.view-btn {
+    background: #1e293b;
+    color: #cbd5e1;
+    border: 1px solid #475569;
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.view-btn:hover {
+    background: #334155;
+    color: #f8fafc;
+}
+
+.view-btn.active {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #38bdf8;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+}
+
+/* Controls Card */
+.controls-card {
+    background: #111827;
+    border: 1px solid #1f2937;
+    border-radius: 8px;
+    padding: 0.85rem 1.15rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.ctrl-group {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.ctrl-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.resource-selector-wrap {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.res-btn {
+    background: #1e293b;
+    border: 1px solid #334155;
+    color: #cbd5e1;
+    border-radius: 6px;
+    padding: 0.4rem 0.65rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+    font-size: 0.82rem;
+    transition: all 0.15s ease;
+}
+
+.res-btn:hover {
+    background: #334155;
+    color: #ffffff;
+}
+
+.res-btn.active {
+    background: #0369a1;
+    color: #ffffff;
+    border-color: #38bdf8;
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.35);
+}
+
+.res-mime {
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-size: 0.72rem;
+    background: #0f172a;
+    padding: 1px 4px;
+    border-radius: 3px;
+    color: #7dd3fc;
+}
+
+.status-selector {
+    display: flex;
+    gap: 0.35rem;
+}
+
+.btn-sm {
+    background: #1e293b;
+    color: #cbd5e1;
+    border: 1px solid #334155;
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 0.78rem;
+    cursor: pointer;
+}
+
+.btn-sm:hover {
+    background: #334155;
+    color: #ffffff;
+}
+
+.btn-code-200 { background: #064e3b; color: #d1fae5; border-color: #059669; }
+.btn-code-300 { background: #78350f; color: #fef3c7; border-color: #d97706; }
+.btn-code-400 { background: #7f1d1d; color: #fee2e2; border-color: #dc2626; }
+.btn-code-500 { background: #581c87; color: #f3e8ff; border-color: #9333ea; }
+
+/* HTTP Stage Grid */
+.http-stage-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+}
+
+@media (max-width: 900px) {
+    .http-stage-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.http-card {
+    background: #111827;
+    border: 1px solid #1f2937;
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #1e293b;
+    padding-bottom: 0.5rem;
+}
+
+.card-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #f8fafc;
+}
+
+.badge-method {
+    background: #0284c7;
+    color: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+}
+
+.badge-status {
+    font-size: 0.75rem;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.badge-200 { background: #065f46; color: #a7f3d0; border: 1px solid #059669; }
+.badge-300 { background: #92400e; color: #fde68a; border: 1px solid #d97706; }
+.badge-400 { background: #991b1b; color: #fecaca; border: 1px solid #ef4444; }
+.badge-500 { background: #6b21a8; color: #e9d5ff; border: 1px solid #a855f7; }
+
+/* Code Terminal */
+.code-terminal {
+    background: #080d1a;
+    border: 1px solid #1e293b;
+    border-radius: 6px;
+    padding: 0.85rem 1rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    overflow-x: auto;
+}
+
+.term-line {
+    display: flex;
+    gap: 0.5rem;
+    white-space: pre;
+}
+
+.method-line {
+    font-weight: 800;
+    color: #ffffff;
+    border-bottom: 1px dashed #334155;
+    padding-bottom: 0.35rem;
+    margin-bottom: 0.25rem;
+}
+
+.status-line {
+    font-weight: 800;
+    border-bottom: 1px dashed #334155;
+    padding-bottom: 0.35rem;
+    margin-bottom: 0.25rem;
+}
+
+.tok-keyword { color: #38bdf8; }
+.tok-path { color: #fde047; }
+.tok-proto { color: #94a3b8; }
+.tok-header { color: #cbd5e1; font-weight: 600; min-width: 110px; }
+.tok-val { color: #93c5fd; }
+.tok-highlight { color: #34d399; font-weight: 700; background: rgba(16, 185, 129, 0.12); padding: 1px 4px; border-radius: 3px; }
+.empty-line { height: 6px; }
+.term-comment { color: #64748b; font-size: 0.78rem; font-style: italic; }
+
+/* Payload Preview */
+.payload-preview-box {
+    margin-top: 0.5rem;
+    border: 1px solid #1e293b;
+    border-radius: 6px;
+    background: #0a1120;
+    overflow: hidden;
+}
+
+.payload-header {
+    background: #1e293b;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #cbd5e1;
+}
+
+.payload-body {
+    padding: 0.75rem;
+}
+
+.payload-code {
+    margin: 0;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    white-space: pre-wrap;
+}
+
+.text-cyan { color: #38bdf8; }
+.text-amber { color: #f59e0b; }
+.text-purple { color: #c084fc; }
+.text-red { color: #f87171; }
+
+.img-preview-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.img-meta {
+    font-size: 0.75rem;
+    color: #94a3b8;
+}
+
+.pdf-preview-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem;
+}
+
+.doc-icon {
+    font-size: 2rem;
+}
+
+.doc-details {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.82rem;
+}
+
+.doc-details span {
+    color: #94a3b8;
+    font-size: 0.75rem;
+}
+
+.error-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.85rem;
+}
+
+/* Klausur Highlight Box */
+.klausur-highlight-box {
+    background: #062118;
+    border: 1.5px solid #059669;
+    border-radius: 6px;
+    padding: 0.85rem 1.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.kh-badge {
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #34d399;
+}
+
+.kh-text {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    color: #ecfdf5;
+}
+
+/* ==========================================================================
+   VIEW 2: MIME-TYPE SYSTEMATICS & CATALOG
+   ========================================================================== */
+.mime-card {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 1px solid #1e293b;
+    padding-bottom: 0.75rem;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.panel-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #f8fafc;
+}
+
+.panel-subtitle {
+    margin: 0.25rem 0 0 0;
+    font-size: 0.85rem;
+    color: #94a3b8;
+}
+
+.mime-categories-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+}
+
+@media (max-width: 800px) {
+    .mime-categories-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.mime-cat-box {
+    background: #080d1a;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.cat-header {
+    padding: 0.6rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.cat-text { background: rgba(56, 189, 248, 0.15); border-bottom: 1px solid #0284c7; }
+.cat-app { background: rgba(168, 85, 247, 0.15); border-bottom: 1px solid #9333ea; }
+.cat-img { background: rgba(245, 158, 11, 0.15); border-bottom: 1px solid #d97706; }
+.cat-media { background: rgba(16, 185, 129, 0.15); border-bottom: 1px solid #059669; }
+
+.cat-title {
+    font-weight: 800;
+    font-size: 0.95rem;
+    color: #ffffff;
+    font-family: ui-monospace, monospace;
+}
+
+.cat-desc {
+    font-size: 0.75rem;
+    color: #cbd5e1;
+}
+
+.cat-list {
+    margin: 0;
+    padding: 0.75rem 1.25rem;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    color: #cbd5e1;
+}
+
+.cat-list code {
+    color: #38bdf8;
+    background: #0f172a;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-weight: 600;
+}
+
+.syntax-info-box {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-left: 4px solid #0284c7;
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    font-size: 0.88rem;
+    color: #f1f5f9;
+}
+
+.syntax-info-box code {
+    color: #34d399;
+}
+
+/* ==========================================================================
+   VIEW 3: TRAINER VIEW
+   ========================================================================== */
+.trainer-card {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.exam-rule-tag {
+    font-size: 0.78rem;
+    color: #38bdf8;
+    font-weight: 600;
+}
+
+.prompt-quote {
+    background: #1e293b;
+    border-left: 4px solid #0284c7;
+    border-radius: 4px;
+    padding: 0.85rem 1.15rem;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: #f1f5f9;
+    margin-bottom: 1rem;
+}
+
+.trainer-qa-box {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.qa-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.qa-textarea {
+    background: #080d1a;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 0.75rem;
+    color: #f8fafc;
+    font-family: inherit;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    resize: vertical;
+}
+
+.qa-textarea:focus {
+    outline: none;
+    border-color: #38bdf8;
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.3);
+}
+
+.solution-reveal-box {
+    background: #062118;
+    border: 1.5px solid #059669;
+    border-radius: 6px;
+    padding: 1rem 1.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.sol-badge {
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #34d399;
+}
+
+.official-sol-text {
+    margin: 0;
+    padding: 0.5rem 0.85rem;
+    background: rgba(16, 185, 129, 0.1);
+    border-left: 3px solid #10b981;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: #ecfdf5;
+    font-weight: 600;
+}
+
+.evaluation-checklist {
+    font-size: 0.85rem;
+    color: #cbd5e1;
+}
+
+.evaluation-checklist ul {
+    margin: 0.35rem 0 0 0;
+    padding-left: 1.25rem;
+    line-height: 1.45;
+}
+
+.check-icon {
+    color: #10b981;
+    font-weight: 800;
+    margin-right: 4px;
+}
+
+/* ==========================================================================
+   VIEW 4: WORKSHEET VIEW (1:1 EXAM REPLICA MATCHING LATEX)
+   ========================================================================== */
+.worksheet-container {
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 0 !important;
+    margin: 0 auto;
+    max-width: 800px;
+}
+
+.worksheet-paper {
+    background: #ffffff;
+    color: #000000;
+    font-family: "Liberation Sans", "Helvetica Neue", Arial, sans-serif;
+    padding: 24px 32px;
+    box-sizing: border-box;
+}
+
+.exam-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 2px solid #000000;
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+}
+
+.exam-title-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.exam-sub {
+    font-size: 10pt;
+    color: #4b5563;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.exam-main-title {
+    font-size: 18pt;
+    font-weight: 800;
+    margin: 2px 0 0 0;
+    color: #000000;
+}
+
+.exam-task-label {
+    font-size: 10pt;
+    font-weight: 700;
+    color: #1f2937;
+    margin-top: 2px;
+}
+
+.exam-meta-box {
+    display: flex;
+    gap: 8px;
+}
+
+.toggle-sol-btn {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: #334155;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 8.5pt;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.toggle-sol-btn.active {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #0284c7;
+}
+
+.print-btn {
+    background: #0f172a;
+    color: #ffffff;
+    border: none;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 8.5pt;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* Student Info Strip */
+.student-info-strip {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 0.6fr;
+    gap: 16px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin-bottom: 16px;
+}
+
+.info-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.info-label {
+    font-size: 9pt;
+    font-weight: 600;
+    color: #334155;
+    white-space: nowrap;
+}
+
+.info-line {
+    flex: 1;
+    border-bottom: 1px solid #94a3b8;
+    height: 14px;
+}
+
+.points-field {
+    justify-content: flex-end;
+}
+
+.points-box {
+    font-size: 10pt;
+    font-weight: 700;
+    color: #000000;
+    border: 1px solid #000000;
+    padding: 2px 8px;
+    border-radius: 3px;
+    background: #ffffff;
+}
+
+/* Task Prompt Box */
+.task-prompt-box {
+    margin-bottom: 18px;
+}
+
+.task-text {
+    font-size: 11pt;
+    line-height: 1.5;
+    color: #000000;
+    margin: 0;
+}
+
+/* Answer Area */
+.ws-answer-area {
+    margin-bottom: 24px;
+}
+
+.ws-text-field-box {
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    padding: 16px;
+    background: #fbfcfd;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    min-height: 140px;
+}
+
+.answer-line {
+    border-bottom: 1px dotted #94a3b8;
+    height: 1px;
+}
+
+.ws-solution-box {
+    background: #f0fdf4;
+    border: 1.5px solid #059669;
+    border-radius: 4px;
+    padding: 16px 20px;
+    min-height: 120px;
+}
+
+.ws-solution-text {
+    margin: 0;
+    font-size: 11pt;
+    line-height: 1.5;
+    color: #064e3b;
+    font-weight: 600;
+}
+
+.worksheet-footer {
+    margin-top: 36px;
+    border-top: 1px solid #cbd5e1;
+    padding-top: 6px;
+    font-size: 8pt;
+    color: #64748b;
+    text-align: center;
+}
+
+/* ==========================================================================
+   PRINT MEDIA - SINGLE PAGE A4 GUARANTEE
+   ========================================================================== */
+@media print {
+    @page {
+        size: A4 portrait;
+        margin: 10mm 15mm;
+    }
+
+    html, body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+
+    .http-container {
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+    }
+
+    .worksheet-paper {
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+        box-shadow: none !important;
+        page-break-inside: avoid !important;
+    }
+
+    .ws-text-field-box {
+        background: #ffffff !important;
+        min-height: 200px !important;
+        gap: 28px !important;
+    }
+
+    .ws-solution-box {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        min-height: 160px !important;
+    }
+
+    .worksheet-footer {
+        position: fixed;
+        bottom: 5mm;
+        left: 0;
+        right: 0;
+    }
+}

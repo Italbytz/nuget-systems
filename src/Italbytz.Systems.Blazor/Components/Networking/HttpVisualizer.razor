@@ -1,0 +1,582 @@
+@namespace Italbytz.Systems.Blazor.Components.Networking
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<article class="http-container @(IsEmbed ? "embed-mode" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
+
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
+    {
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Rechnernetze &bull; Anwendungsschicht (Layer 7)</p>
+            <h2>HTTP Request/Response &amp; MIME-Types</h2>
+            <p class="feature-intro">
+                Das <strong>Hypertext Transfer Protocol (HTTP)</strong> ist ein anwendungsneutrales Request-Response-Protokoll.
+                Entgegen der historischen Bezeichnung überträgt HTTP nicht nur Hypertext (HTML), sondern <strong>beliebige digitale Nutzdaten</strong>:
+                JSON-APIs, Bilder, PDFs, Audio, Video oder Binärströme. Welcher Datentyp übertragen wird, deklariert der Server transparent
+                über den <code>Content-Type</code>-Header anhand standardisierter <strong>MIME-Typen</strong> (Multipurpose Internet Mail Extensions).
+            </p>
+        </div>
+    }
+
+    <!-- View Switcher -->
+    @if (!IsEmbed)
+    {
+        <div class="view-switch no-print">
+            <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Simulator)">
+                📡 Interaktiver HTTP Request/Response Inspector
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.MimeExplorer ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.MimeExplorer)">
+                📂 MIME-Type Systematik &amp; Typenkatalog
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Trainer ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Trainer)">
+                📝 Klausur-Trainer
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Worksheet)">
+                🖨️ Klausur-Arbeitsblatt (Druckansicht 1:1)
+            </button>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 1: INTERACTIVE HTTP REQUEST/RESPONSE & MIME SIMULATOR                -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Resource & Status Selector -->
+        <div class="controls-card no-print">
+            <div class="ctrl-group">
+                <span class="ctrl-label">Ressource / MIME-Typ wählen:</span>
+                <div class="resource-selector-wrap">
+                    @foreach (var res in AvailableResources)
+                    {
+                        <button class="res-btn @(SelectedResource.Path == res.Path ? "active" : "")"
+                                @onclick="() => SelectResource(res)">
+                            <span class="res-icon">@res.Icon</span>
+                            <span class="res-name">@res.Name</span>
+                            <code class="res-mime">@res.MimeType</code>
+                        </button>
+                    }
+                </div>
+            </div>
+
+            <div class="ctrl-group">
+                <span class="ctrl-label">Server-Statuscode:</span>
+                <div class="status-selector">
+                    <button class="btn-sm @(StatusCode == 200 ? "btn-code-200" : "")" @onclick='() => SetStatus(200, "OK")'>200 OK</button>
+                    <button class="btn-sm @(StatusCode == 301 ? "btn-code-300" : "")" @onclick='() => SetStatus(301, "Moved Permanently")'>301 Moved</button>
+                    <button class="btn-sm @(StatusCode == 404 ? "btn-code-400" : "")" @onclick='() => SetStatus(404, "Not Found")'>404 Not Found</button>
+                    <button class="btn-sm @(StatusCode == 500 ? "btn-code-500" : "")" @onclick='() => SetStatus(500, "Internal Server Error")'>500 Error</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Two Column Inspector Stage: Request (Client) & Response (Server) -->
+        <div class="http-stage-grid">
+            <!-- Left: Client HTTP Request -->
+            <div class="http-card client-card">
+                <div class="card-header">
+                    <span class="card-title">💻 Client HTTP Request (Anfrage)</span>
+                    <span class="badge-method">GET</span>
+                </div>
+                <div class="code-terminal">
+                    <div class="term-line method-line">
+                        <span class="tok-keyword">GET</span>
+                        <span class="tok-path">@SelectedResource.Path</span>
+                        <span class="tok-proto">HTTP/1.1</span>
+                    </div>
+                    <div class="term-line"><span class="tok-header">Host:</span> <span class="tok-val">www.hshl.de</span></div>
+                    <div class="term-line"><span class="tok-header">User-Agent:</span> <span class="tok-val">Mozilla/5.0 (Macintosh; Intel Mac OS X)</span></div>
+                    <div class="term-line">
+                        <span class="tok-header">Accept:</span> 
+                        <span class="tok-val tok-highlight">@SelectedResource.MimeType, */*;q=0.8</span>
+                    </div>
+                    <div class="term-line"><span class="tok-header">Accept-Language:</span> <span class="tok-val">de-DE,de;q=0.9,en;q=0.8</span></div>
+                    <div class="term-line"><span class="tok-header">Connection:</span> <span class="tok-val">keep-alive</span></div>
+                    <div class="term-line empty-line"></div>
+                    <div class="term-comment"># Request-Header beendet durch Leerzeile (CRLF)</div>
+                </div>
+            </div>
+
+            <!-- Right: Server HTTP Response -->
+            <div class="http-card server-card">
+                <div class="card-header">
+                    <span class="card-title">🏢 Server HTTP Response (Antwort)</span>
+                    <span class="badge-status @GetStatusBadgeClass()">@StatusCode @StatusText</span>
+                </div>
+                <div class="code-terminal">
+                    <div class="term-line status-line">
+                        <span class="tok-proto">HTTP/1.1</span>
+                        <span class="tok-status @GetStatusBadgeClass()">@StatusCode @StatusText</span>
+                    </div>
+                    <div class="term-line"><span class="tok-header">Date:</span> <span class="tok-val">@DateTime.UtcNow.ToString("r")</span></div>
+                    <div class="term-line"><span class="tok-header">Server:</span> <span class="tok-val">Apache/2.4.52 (Unix) OpenSSL/1.1.1</span></div>
+                    <div class="term-line">
+                        <span class="tok-header">Content-Type:</span> 
+                        <span class="tok-val tok-highlight">@(StatusCode == 200 ? SelectedResource.MimeType : "text/html; charset=iso-8859-1")</span>
+                    </div>
+                    <div class="term-line">
+                        <span class="tok-header">Content-Length:</span> 
+                        <span class="tok-val">@(StatusCode == 200 ? SelectedResource.ContentLength : "198")</span>
+                    </div>
+                    <div class="term-line"><span class="tok-header">Connection:</span> <span class="tok-val">keep-alive</span></div>
+                    <div class="term-line empty-line"></div>
+                    <!-- Body Preview -->
+                    <div class="payload-preview-box">
+                        <div class="payload-header">
+                            <span>📦 Body-Payload (Inhalt entsprechend MIME-Typ)</span>
+                        </div>
+                        <div class="payload-body">
+                            @if (StatusCode == 200)
+                            {
+                                @if (SelectedResource.Format == PayloadFormat.Html)
+                                {
+                                    <pre class="payload-code text-cyan">@SelectedResource.PayloadPreview</pre>
+                                }
+                                else if (SelectedResource.Format == PayloadFormat.Json)
+                                {
+                                    <pre class="payload-code text-amber">@SelectedResource.PayloadPreview</pre>
+                                }
+                                else if (SelectedResource.Format == PayloadFormat.Image)
+                                {
+                                    <div class="img-preview-wrap">
+                                        <svg width="220" height="80" viewBox="0 0 220 80" class="svg-sample">
+                                            <rect width="220" height="80" rx="8" fill="#0369a1" />
+                                            <circle cx="40" cy="40" r="24" fill="#38bdf8" />
+                                            <text x="130" y="45" fill="#ffffff" font-weight="800" font-size="16" text-anchor="middle">HSHL LOGO</text>
+                                        </svg>
+                                        <span class="img-meta">image/png &bull; 220x80px &bull; Rohdaten übertragen</span>
+                                    </div>
+                                }
+                                else if (SelectedResource.Format == PayloadFormat.Pdf)
+                                {
+                                    <div class="pdf-preview-wrap">
+                                        <span class="doc-icon">📄</span>
+                                        <div class="doc-details">
+                                            <strong>klausur_tipps.pdf</strong>
+                                            <span>MIME: application/pdf &bull; Binärformat (Adobe PDF 1.7)</span>
+                                        </div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <pre class="payload-code text-purple">@SelectedResource.PayloadPreview</pre>
+                                }
+                            }
+                            else
+                            {
+                                <div class="error-body">
+                                    <strong class="text-red">Error @StatusCode: @StatusText</strong>
+                                    <span>Die angeforderte Ressource konnte vom Server nicht ausgeliefert werden.</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Takeaway & Exam Criteria Box -->
+        <div class="klausur-highlight-box">
+            <span class="kh-badge">Klausur-Merksatz: Beschränkungen von HTTP?</span>
+            <p class="kh-text">
+                <strong>Gibt es Beschränkungen für auszutauschende Daten?</strong><br />
+                <strong>Nein!</strong> HTTP ist völlig transparent und datentyptolerant. Die Natur der auszutauschenden Daten wird 
+                durch <strong>MIME-Typen</strong> beschrieben. Neben klassischem HTML (<code>text/html</code>) existieren zahllose weitere MIME-Typen 
+                wie <code>application/json</code>, <code>image/png</code>, <code>application/pdf</code> oder <code>application/octet-stream</code> für beliebige Binärdaten.
+            </p>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 2: MIME-TYPE CATALOG & CLASSIFICATION EXPLORER                       -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.MimeExplorer)
+    {
+        <div class="panel-card mime-card">
+            <div class="panel-header">
+                <div>
+                    <span class="panel-title">📂 MIME-Type Systematik &amp; Typenkatalog</span>
+                    <p class="panel-subtitle">
+                        MIME-Typen (RFC 2046) bestehen immer aus einem <strong>Haupttyp</strong> (Top-Level Media Type) und einem <strong>Untertyp</strong> (Subtype).
+                    </p>
+                </div>
+            </div>
+
+            <!-- MIME Categories Grid -->
+            <div class="mime-categories-grid">
+                <div class="mime-cat-box">
+                    <div class="cat-header cat-text">
+                        <span class="cat-title">text/*</span>
+                        <span class="cat-desc">Für menschenlesbare Textformate</span>
+                    </div>
+                    <ul class="cat-list">
+                        <li><code>text/html</code> &ndash; HTML-Dokumente</li>
+                        <li><code>text/plain</code> &ndash; Reiner Text</li>
+                        <li><code>text/css</code> &ndash; Cascading Style Sheets</li>
+                        <li><code>text/javascript</code> &ndash; JavaScript-Code</li>
+                    </ul>
+                </div>
+
+                <div class="mime-cat-box">
+                    <div class="cat-header cat-app">
+                        <span class="cat-title">application/*</span>
+                        <span class="cat-desc">Anwendungsspezifische Binär- &amp; Strukturdaten</span>
+                    </div>
+                    <ul class="cat-list">
+                        <li><code>application/json</code> &ndash; JSON-Datenstrukturen (REST APIs)</li>
+                        <li><code>application/pdf</code> &ndash; Adobe PDF-Dokumente</li>
+                        <li><code>application/xml</code> &ndash; XML-Datenformate</li>
+                        <li><code>application/octet-stream</code> &ndash; Beliebige Binärdaten</li>
+                    </ul>
+                </div>
+
+                <div class="mime-cat-box">
+                    <div class="cat-header cat-img">
+                        <span class="cat-title">image/*</span>
+                        <span class="cat-desc">Grafiken und Raster-/Vektorbilder</span>
+                    </div>
+                    <ul class="cat-list">
+                        <li><code>image/png</code> &ndash; Portable Network Graphics</li>
+                        <li><code>image/jpeg</code> &ndash; JPEG-Fotografien</li>
+                        <li><code>image/svg+xml</code> &ndash; Skalierbare Vektorgrafiken</li>
+                        <li><code>image/webp</code> &ndash; Modernes komprimiertes Bildformat</li>
+                    </ul>
+                </div>
+
+                <div class="mime-cat-box">
+                    <div class="cat-header cat-media">
+                        <span class="cat-title">audio/* &amp; video/*</span>
+                        <span class="cat-desc">Multimedia-Streaming</span>
+                    </div>
+                    <ul class="cat-list">
+                        <li><code>audio/mpeg</code> &ndash; MP3-Audiodateien</li>
+                        <li><code>video/mp4</code> &ndash; MP4-Videodateien</li>
+                        <li><code>video/webm</code> &ndash; WebM-Videostream</li>
+                        <li><code>multipart/form-data</code> &ndash; Formulare mit Datei-Upload</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="syntax-info-box">
+                <strong>Struktur eines MIME-Typs:</strong>
+                <code>typ / untertyp [; parameter=wert]</code> &mdash; Beispiel: <code>text/html; charset=UTF-8</code>
+            </div>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 3: EXAM TRAINER                                                      -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Trainer)
+    {
+        <div class="panel-card trainer-card">
+            <div class="panel-header">
+                <div>
+                    <span class="panel-title">Klausur-Trainer: CNAnwendungsschichtHTTP</span>
+                    <span class="exam-rule-tag">Aufgabe: 5 Punkte &bull; Vorlage: assignments/CNAnwendungsschichtHTTP.tex</span>
+                </div>
+                <button class="action-btn primary" @onclick="ToggleTrainerSolution">
+                    @(ShowTrainerSolution ? "👁️ Musterlösung verbergen" : "💡 Musterlösung aufdecken")
+                </button>
+            </div>
+
+            <div class="trainer-body">
+                <div class="prompt-quote">
+                    <em>„Können Sie über HTTP auch andere Daten als HTML-Seiten austauschen? Gibt es dafür Beschränkungen?“</em>
+                </div>
+
+                <div class="trainer-qa-box">
+                    <label class="qa-label">Ihre formulierte Lösung:</label>
+                    <textarea class="qa-textarea" placeholder="Beantworten Sie beide Teilfragen: 1. Austausch anderer Daten? 2. Beschränkungen und MIME-Typen..."
+                              @bind="UserAnswer" rows="4"></textarea>
+
+                    @if (ShowTrainerSolution)
+                    {
+                        <div class="solution-reveal-box">
+                            <span class="sol-badge">Offizielle Musterlösung:</span>
+                            <blockquote class="official-sol-text">
+                                Die austauschbaren Daten werden durch MIME-Typen beschrieben. Es gibt noch einige weitere MIME-Typen neben HTML.
+                            </blockquote>
+
+                            <div class="evaluation-checklist">
+                                <strong>Kernkriterien für die volle Punktzahl (5 Punkte):</strong>
+                                <ul>
+                                    <li><span class="check-icon">✓</span> <strong>Ja, andere Daten austauschbar:</strong> HTTP ist nicht auf HTML limitiert.</li>
+                                    <li><span class="check-icon">✓</span> <strong>MIME-Typen:</strong> Benennung des Konzepts (MIME-Types / <code>Content-Type</code>) zur Beschreibung der Inhalte.</li>
+                                    <li><span class="check-icon">✓</span> <strong>Keine Beschränkungen:</strong> Beliebige Datenformate (JSON, Bilder, PDFs, Binärdaten) können übertragen werden.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 4: WORKSHEET VIEW (1:1 EXAM REPLICA MATCHING LATEX)                  -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Worksheet)
+    {
+        <div class="worksheet-paper">
+            
+            <!-- Exam Header -->
+            <div class="exam-header">
+                <div class="exam-title-group">
+                    <span class="exam-sub">Grundlagen der Informatik</span>
+                    <h1 class="exam-main-title">HTTP @(ShowSolution ? "- Lösung" : "")</h1>
+                    <span class="exam-task-label">Aufgabe 1 (Anwendungsschicht)</span>
+                </div>
+                <div class="exam-meta-box no-print">
+                    <button class="toggle-sol-btn @(ShowSolution ? "active" : "")" @onclick="ToggleSolution">
+                        @(ShowSolution ? "👁️ Musterlösung ausblenden" : "💡 Musterlösung einblenden")
+                    </button>
+                    <button class="print-btn" @onclick="TriggerPrint">
+                        🖨️ Drucken / PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Student Info Strip -->
+            <div class="student-info-strip">
+                <div class="info-field">
+                    <span class="info-label">Name, Vorname:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field">
+                    <span class="info-label">Matrikelnummer:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field points-field">
+                    <span class="info-label">Punkte:</span>
+                    <div class="points-box">/ 5 P.</div>
+                </div>
+            </div>
+
+            <!-- Main Prompt matching CNAnwendungsschichtHTTP.tex -->
+            <div class="task-prompt-box">
+                <p class="task-text">
+                    Können Sie über HTTP auch andere Daten als HTML-Seiten austauschen? Gibt es dafür Beschränkungen?
+                </p>
+            </div>
+
+            <!-- Answer Field or Solution Box matching LaTeX \TextField / \begin{wBox} -->
+            <div class="ws-answer-area">
+                @if (ShowSolution)
+                {
+                    <div class="ws-solution-box">
+                        <p class="ws-solution-text">
+                            Die austauschbaren Daten werden durch MIME-Typen beschrieben. Es gibt noch einige weitere MIME-Typen neben HTML.
+                        </p>
+                    </div>
+                }
+                else
+                {
+                    <div class="ws-text-field-box">
+                        <div class="answer-line"></div>
+                        <div class="answer-line"></div>
+                        <div class="answer-line"></div>
+                        <div class="answer-line"></div>
+                    </div>
+                }
+            </div>
+
+            <!-- Single-page Footer -->
+            <footer class="worksheet-footer">
+                <span>Intelligent Systems Design &bull; Hochschule Hamm-Lippstadt &bull; Rechnernetze</span>
+            </footer>
+
+        </div>
+    }
+
+</article>
+
+@code {
+    [Parameter]
+    public bool IsEmbed { get; set; } = false;
+
+    public enum ViewMode
+    {
+        Simulator,
+        MimeExplorer,
+        Trainer,
+        Worksheet
+    }
+
+    public enum PayloadFormat
+    {
+        Html,
+        Json,
+        Image,
+        Pdf,
+        Binary
+    }
+
+    public class HttpResource
+    {
+        public string Name { get; set; } = "";
+        public string Path { get; set; } = "";
+        public string MimeType { get; set; } = "";
+        public string Icon { get; set; } = "";
+        public PayloadFormat Format { get; set; }
+        public string ContentLength { get; set; } = "";
+        public string PayloadPreview { get; set; } = "";
+    }
+
+    private ViewMode ActiveView { get; set; } = ViewMode.Simulator;
+    private bool ShowSolution { get; set; } = false;
+    private bool ShowTrainerSolution { get; set; } = false;
+    private string UserAnswer { get; set; } = "";
+
+    // Simulator State
+    private int StatusCode { get; set; } = 200;
+    private string StatusText { get; set; } = "OK";
+
+    private List<HttpResource> AvailableResources = new()
+    {
+        new HttpResource
+        {
+            Name = "Webseite",
+            Path = "/index.html",
+            MimeType = "text/html; charset=utf-8",
+            Icon = "🌐",
+            Format = PayloadFormat.Html,
+            ContentLength = "438",
+            PayloadPreview = "<!DOCTYPE html>\n<html>\n<head><title>HSHL Portal</title></head>\n<body>\n  <h1>Willkommen an der HSHL</h1>\n  <p>Rechnernetze Vorlesung 2026</p>\n</body>\n</html>"
+        },
+        new HttpResource
+        {
+            Name = "REST API",
+            Path = "/api/v1/students/42",
+            MimeType = "application/json",
+            Icon = "⚙️",
+            Format = PayloadFormat.Json,
+            ContentLength = "124",
+            PayloadPreview = "{\n  \"matrikelnummer\": 7012345,\n  \"name\": \"Erika Mustermann\",\n  \"course\": \"Computersysteme\",\n  \"status\": \"active\"\n}"
+        },
+        new HttpResource
+        {
+            Name = "Grafik",
+            Path = "/assets/logo.png",
+            MimeType = "image/png",
+            Icon = "🖼️",
+            Format = PayloadFormat.Image,
+            ContentLength = "18432",
+            PayloadPreview = "[Binary PNG Data]"
+        },
+        new HttpResource
+        {
+            Name = "Dokument",
+            Path = "/downloads/script.pdf",
+            MimeType = "application/pdf",
+            Icon = "📄",
+            Format = PayloadFormat.Pdf,
+            ContentLength = "249810",
+            PayloadPreview = "[Binary PDF Stream]"
+        },
+        new HttpResource
+        {
+            Name = "Binärdaten",
+            Path = "/firmware/update.bin",
+            MimeType = "application/octet-stream",
+            Icon = "💾",
+            Format = PayloadFormat.Binary,
+            ContentLength = "65536",
+            PayloadPreview = "00000000: 7f 45 4c 46 02 01 01 00  00 00 00 00 00 00 00 00  .ELF............\n00000010: 03 00 3e 00 01 00 00 00  a0 10 00 00 00 00 00 00  ..>............."
+        }
+    };
+
+    private HttpResource SelectedResource { get; set; } = null!;
+
+    protected override void OnInitialized()
+    {
+        SelectedResource = AvailableResources[0];
+        CheckUrlParameters();
+    }
+
+    protected override void OnParametersSet()
+    {
+        CheckUrlParameters();
+    }
+
+    private void CheckUrlParameters()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query.ToLowerInvariant();
+
+            if (query.Contains("embed=true") || query.Contains("embedded=true") || query.Contains("embed=1"))
+            {
+                IsEmbed = true;
+            }
+
+            if (query.Contains("view=worksheet") || query.Contains("view=sheet"))
+            {
+                ActiveView = ViewMode.Worksheet;
+            }
+            else if (query.Contains("view=mime") || query.Contains("view=explorer"))
+            {
+                ActiveView = ViewMode.MimeExplorer;
+            }
+            else if (query.Contains("view=trainer"))
+            {
+                ActiveView = ViewMode.Trainer;
+            }
+
+            if (query.Contains("solution=true") || query.Contains("sol=true") || query.Contains("loesung=true"))
+            {
+                ShowSolution = true;
+            }
+        }
+        catch
+        {
+            // Default fallback
+        }
+    }
+
+    private void SetView(ViewMode mode)
+    {
+        ActiveView = mode;
+    }
+
+    private void SelectResource(HttpResource res)
+    {
+        SelectedResource = res;
+        StatusCode = 200;
+        StatusText = "OK";
+    }
+
+    private void SetStatus(int code, string text)
+    {
+        StatusCode = code;
+        StatusText = text;
+    }
+
+    private string GetStatusBadgeClass() => StatusCode switch
+    {
+        >= 200 and < 300 => "badge-200",
+        >= 300 and < 400 => "badge-300",
+        >= 400 and < 500 => "badge-400",
+        _ => "badge-500"
+    };
+
+    private void ToggleSolution()
+    {
+        ShowSolution = !ShowSolution;
+    }
+
+    private void ToggleTrainerSolution()
+    {
+        ShowTrainerSolution = !ShowTrainerSolution;
+    }
+
+    private async Task TriggerPrint()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+}
