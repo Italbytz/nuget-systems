@@ -1,0 +1,1230 @@
+@namespace Italbytz.Systems.Blazor.Components.ComputingSystems
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+<article class="assembler-container @(IsEmbed ? "embed-mode" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
+
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
+    {
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Grundlagen der Informatik &bull; Rechnerarchitektur</p>
+            <h2>MIPS-Assembler &amp; Register-Trace Simulator</h2>
+            <p class="feature-intro">
+                Schrittweise Simulation und Verfolgung von MIPS-Befehlen (Arithmetik, Logik, Schiebeoperationen und Registerzugriffe).
+                Beobachten Sie die Veränderungen in der Registerbank (<code class="mono bold">r0..r31</code>, <code class="mono bold">lo</code>, <code class="mono bold">hi</code>) 
+                sowie die automatische Erstellung der Klausur-Trace-Tabelle in Dezimal-, Binär- und Hexadezimal-Darstellung.
+            </p>
+        </div>
+    }
+
+    <!-- View Switcher -->
+    @if (!IsEmbed)
+    {
+        <div class="view-switch no-print">
+            <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Simulator)">
+                🚀 Interaktiver Simulator &amp; Register-Trace
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Worksheet)">
+                🖨️ Klausur-Arbeitsblatt (Druckansicht 1:1)
+            </button>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- SIMULATOR VIEW                                                            -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Controls & Presets Panel -->
+        <div class="controls-panel no-print">
+            <div class="toolbar-grid">
+                <div class="btn-group">
+                    <button class="action-btn" @onclick="GoToStart" disabled="@(CurrentStepIndex == 0)" title="An den Anfang">
+                        ⏮️ Anfang
+                    </button>
+                    <button class="action-btn" @onclick="StepBack" disabled="@(CurrentStepIndex == 0)" title="Einen Schritt zurück">
+                        ◀️ Zurück
+                    </button>
+                    <button class="action-btn primary" @onclick="ToggleAutoPlay">
+                        @(IsPlaying ? "⏸️ Pause" : "▶️ Auto-Play")
+                    </button>
+                    <button class="action-btn primary" @onclick="StepForward" disabled="@(CurrentStepIndex >= Instructions.Count)" title="Nächster Befehl">
+                        Nächster Schritt (@(CurrentStepIndex)/@Instructions.Count) ⏭️
+                    </button>
+                    <button class="action-btn" @onclick="ResetSimulation" title="Simulation zurücksetzen">
+                        🔄 Reset
+                    </button>
+                </div>
+
+                <div class="preset-group">
+                    <span class="preset-label">Presets:</span>
+                    <button class="preset-btn @(SelectedPreset == "Exam1" ? "active" : "")" @onclick='() => LoadPreset("Exam1")'>Klausur 1 (TIMIPS_01)</button>
+                    <button class="preset-btn @(SelectedPreset == "Exam2" ? "active" : "")" @onclick='() => LoadPreset("Exam2")'>Klausur 2 (TIMIPS_02)</button>
+                    <button class="preset-btn @(SelectedPreset == "Lecture" ? "active" : "")" @onclick='() => LoadPreset("Lecture")'>Vorlesung (Software.qmd)</button>
+                    <button class="preset-btn @(SelectedPreset == "Custom" ? "active" : "")" @onclick='() => LoadPreset("Custom")'>✏️ Eigener Code</button>
+                </div>
+
+                <div class="speed-control">
+                    <span class="preset-label">Tempo:</span>
+                    <select class="speed-select" @bind="PlaySpeedMs">
+                        <option value="1500">Normal (1.5s)</option>
+                        <option value="800">Schnell (0.8s)</option>
+                        <option value="2500">Gemächlich (2.5s)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Custom Code Editor Drawer -->
+            @if (SelectedPreset == "Custom")
+            {
+                <div class="custom-code-box">
+                    <div class="custom-hdr">
+                        <span>Eigene MIPS-Befehlsfolge (eine Instruktion pro Zeile):</span>
+                        <button class="action-btn small" @onclick="ApplyCustomCode">Übernehmen &amp; Ausführen</button>
+                    </div>
+                    <textarea class="code-textarea mono" rows="6" @bind="CustomCodeText" placeholder="addi r2, r0, 9&#10;ori r3, r0, 4&#10;mult r3, r2&#10;mflo r4"></textarea>
+                    <p class="custom-hint">
+                        Unterstützte Befehle: <code>ADD</code>, <code>ADDI</code>, <code>SUB</code>, <code>MULT</code>, <code>DIV</code>, <code>MFLO</code>, <code>MFHI</code>, <code>AND</code>, <code>OR</code>, <code>XOR</code>, <code>ANDI</code>, <code>ORI</code>, <code>XORI</code>, <code>SLL</code>, <code>SRL</code>, <code>SLT</code>. Register: <code>r0..r31</code>, <code>lo</code>, <code>hi</code>. Konstanten dezimal oder <code>0x...</code>.
+                    </p>
+                </div>
+            }
+        </div>
+
+        <!-- Simulation Grid: Left = Code Stream, Right = Register File & Explainer -->
+        <div class="sim-dashboard-grid">
+            
+            <!-- Left: Instruction Memory / Program Stream -->
+            <div class="panel-card code-stream-panel">
+                <div class="panel-header">
+                    <span class="panel-title">📜 MIPS Befehlsspeicher (PC: 0x@(CurrentPc.ToString("X4")))</span>
+                    <span class="badge-count">@Instructions.Count Befehle</span>
+                </div>
+                <div class="code-list">
+                    @for (int i = 0; i < Instructions.Count; i++)
+                    {
+                        var idx = i;
+                        var instr = Instructions[idx];
+                        var isCurrent = (idx == CurrentStepIndex - 1);
+                        var isNext = (idx == CurrentStepIndex);
+                        var isPast = (idx < CurrentStepIndex - 1);
+
+                        <div class="code-line @(isCurrent ? "active-line" : "") @(isNext ? "next-line" : "") @(isPast ? "past-line" : "")"
+                             @onclick="() => JumpToStep(idx + 1)">
+                            <span class="line-marker">
+                                @if (isCurrent)
+                                {
+                                    <span class="pc-arrow">▶</span>
+                                }
+                                else if (isNext)
+                                {
+                                    <span class="pc-next">▷</span>
+                                }
+                            </span>
+                            <span class="pc-addr mono">0x@((idx * 4).ToString("X4"))</span>
+                            <span class="line-num">@(idx + 1)</span>
+                            <span class="instr-raw mono">
+                                <span class="op-token bold">@instr.Opcode.ToLowerInvariant()</span>
+                                <span class="args-token">@instr.ArgsString</span>
+                            </span>
+                            @if (isCurrent)
+                            {
+                                <span class="badge-step-now">AKTUELL</span>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Right Column: Register Bank & Live ALU Explainer -->
+            <div class="sim-right-col">
+                
+                <!-- Live Operation & ALU Explainer -->
+                <div class="panel-card explainer-card @(CurrentStepIndex > 0 ? "has-step" : "ready-step")">
+                    <div class="panel-header">
+                        <span class="panel-title">⚡ ALU- &amp; Register-Operation</span>
+                        @if (CurrentStepIndex > 0 && CurrentStepIndex <= StepRecords.Count)
+                        {
+                            var curRec = StepRecords[CurrentStepIndex - 1];
+                            <span class="badge-reg-mod">Geändert: <strong>@curRec.ModifiedReg</strong></span>
+                        }
+                    </div>
+
+                    @if (CurrentStepIndex > 0 && CurrentStepIndex <= StepRecords.Count)
+                    {
+                        var rec = StepRecords[CurrentStepIndex - 1];
+                        <div class="explainer-content">
+                            <div class="explainer-formula-box">
+                                <div class="formula-line mono">
+                                    <span class="instr-badge">Befehl #@CurrentStepIndex:</span>
+                                    <strong class="formula-code">@rec.InstructionText</strong>
+                                </div>
+                                <div class="formula-result mono">
+                                    <span class="target-name">@rec.ModifiedReg =</span>
+                                    <span class="val-dec">@rec.NewValue</span>
+                                    <span class="sep">|</span>
+                                    <span class="val-bin">0b@(Convert.ToString(rec.NewValue, 2).PadLeft(rec.NewValue > 255 ? 16 : 8, '0'))</span>
+                                    <span class="sep">|</span>
+                                    <span class="val-hex">0x@(rec.NewValue.ToString("X"))</span>
+                                </div>
+                            </div>
+
+                            <p class="explainer-text">
+                                @rec.Explanation
+                            </p>
+
+                            @if (rec.HasBitwiseDetail)
+                            {
+                                <div class="bitwise-breakdown-box">
+                                    <div class="bit-row mono">
+                                        <span class="bit-label">Op A (@rec.BitwiseOpA_Name):</span>
+                                        <span class="bit-val">@rec.BitwiseOpA_Bits</span>
+                                        <span class="bit-dec">(@rec.BitwiseOpA_Val)</span>
+                                    </div>
+                                    <div class="bit-row mono">
+                                        <span class="bit-label">Op B (@rec.BitwiseOpB_Name):</span>
+                                        <span class="bit-val">@rec.BitwiseOpB_Bits</span>
+                                        <span class="bit-dec">(@rec.BitwiseOpB_Val)</span>
+                                    </div>
+                                    <div class="bit-divider"></div>
+                                    <div class="bit-row mono result-bit-row">
+                                        <span class="bit-label">@rec.Opcode.ToUpperInvariant():</span>
+                                        <span class="bit-val bold emerald">@rec.BitwiseRes_Bits</span>
+                                        <span class="bit-dec bold emerald">(@rec.NewValue)</span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="ready-placeholder">
+                            <p class="ready-title">Simulation bereit (Initialzustand)</p>
+                            <p class="ready-desc">
+                                Alle Universalregister (<code class="mono">r0..r31</code>) sowie die Multiplikations-/Divisionsregister 
+                                (<code class="mono">lo</code>, <code class="mono">hi</code>) sind mit <strong>0</strong> initialisiert.
+                                Klicken Sie auf <strong>„Nächster Schritt“</strong> oder <strong>„Auto-Play“</strong>, um die Befehlsausführung zu starten.
+                            </p>
+                        </div>
+                    }
+                </div>
+
+                <!-- Register Bank View -->
+                <div class="panel-card register-bank-card">
+                    <div class="panel-header">
+                        <span class="panel-title">🗄️ Registerbank (Register File)</span>
+                        <span class="reg-tip">Klausur-Fokus: r0 (konstant 0), r2, r3, r4, lo, hi</span>
+                    </div>
+
+                    <div class="register-grid">
+                        @foreach (var regName in DisplayedRegisters)
+                        {
+                            var regVal = GetRegisterValueAtStep(CurrentStepIndex, regName);
+                            var isModifiedThisStep = (CurrentStepIndex > 0 && CurrentStepIndex <= StepRecords.Count && 
+                                                      string.Equals(StepRecords[CurrentStepIndex - 1].ModifiedReg, regName, StringComparison.OrdinalIgnoreCase));
+                            var isConstZero = (regName == "r0");
+
+                            <div class="register-card @(isModifiedThisStep ? "modified-card" : "") @(isConstZero ? "const-zero-card" : "")">
+                                <div class="reg-card-top">
+                                    <span class="reg-name mono bold">@regName</span>
+                                    @if (isConstZero)
+                                    {
+                                        <span class="reg-badge const">Konst. 0</span>
+                                    }
+                                    else if (isModifiedThisStep)
+                                    {
+                                        <span class="reg-badge modified">NEU</span>
+                                    }
+                                </div>
+                                <div class="reg-values mono">
+                                    <div class="reg-val-line">
+                                        <span class="val-lbl">Dez:</span>
+                                        <span class="val-num dec">@regVal</span>
+                                    </div>
+                                    <div class="reg-val-line">
+                                        <span class="val-lbl">Bin:</span>
+                                        <span class="val-num bin">@FormatBinary(regVal)</span>
+                                    </div>
+                                    <div class="reg-val-line">
+                                        <span class="val-lbl">Hex:</span>
+                                        <span class="val-num hex">@($"0x{regVal:X}")</span>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Interactive Trace Table -->
+        <div class="panel-card trace-panel">
+            <div class="panel-header">
+                <span class="panel-title">📋 Klausur-Trace-Tabelle (Live-Aufbau)</span>
+                <span class="panel-sub">Format: Dezimal = Binär = Hexadezimal (Nur verändertes Register wird eingetragen)</span>
+            </div>
+
+            <div class="trace-table-container">
+                <table class="sim-trace-table">
+                    <thead>
+                        <tr>
+                            <th class="th-instr">Befehl</th>
+                            @foreach (var col in ActiveTableColumns)
+                            {
+                                <th>@col</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int i = 0; i < Instructions.Count; i++)
+                        {
+                            var stepIdx = i + 1;
+                            var instr = Instructions[i];
+                            var hasBeenExecuted = (stepIdx <= CurrentStepIndex);
+                            var isCurrentStep = (stepIdx == CurrentStepIndex);
+                            var rec = (i < StepRecords.Count) ? StepRecords[i] : null;
+
+                            <tr class="@(isCurrentStep ? "active-trace-row" : "") @(!hasBeenExecuted ? "unexecuted-row" : "")">
+                                <td class="mono bold td-instr">
+                                    <span class="instr-num">@stepIdx.</span>
+                                    @instr.RawText
+                                </td>
+                                @foreach (var col in ActiveTableColumns)
+                                {
+                                    var isCellModified = (rec != null && string.Equals(rec.ModifiedReg, col, StringComparison.OrdinalIgnoreCase));
+                                    <td class="trace-cell mono @(isCellModified && hasBeenExecuted ? "cell-modified" : "") @(!hasBeenExecuted ? "cell-pending" : "")">
+                                        @if (hasBeenExecuted && isCellModified && rec != null)
+                                        {
+                                            <span class="cell-val-full">@rec.FormattedValue</span>
+                                        }
+                                        else if (!hasBeenExecuted)
+                                        {
+                                            <span class="cell-placeholder">–</span>
+                                        }
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- WORKSHEET VIEW (1:1 EXAM REPLICA MATCHING TIMIPS_01 / TIMIPS_02)          -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Worksheet)
+    {
+        <div class="worksheet-paper">
+            
+            <!-- Official Header -->
+            <div class="exam-header">
+                <div class="exam-title-group">
+                    <span class="exam-sub">Grundlagen der Informatik</span>
+                    <h1 class="exam-main-title">Assembler @(ShowSolution ? "- Lösung" : "")</h1>
+                    <span class="exam-task-label">Aufgabe 1 (MIPS-Simulation)</span>
+                </div>
+                <div class="exam-meta-box no-print">
+                    <button class="toggle-sol-btn @(ShowSolution ? "active" : "")" @onclick="ToggleSolution">
+                        @(ShowSolution ? "👁️ Musterlösung ausblenden" : "💡 Musterlösung einblenden")
+                    </button>
+                    <button class="print-btn" @onclick="TriggerPrint">
+                        🖨️ Drucken / PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Student Info Fields -->
+            <div class="student-info-strip">
+                <div class="info-field">
+                    <span class="info-label">Name, Vorname:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field">
+                    <span class="info-label">Matrikelnummer:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field points-field">
+                    <span class="info-label">Punkte:</span>
+                    <div class="points-box">/ 8 P.</div>
+                </div>
+            </div>
+
+            <!-- Intro Text 1 -->
+            <div class="task-intro-box">
+                <p class="task-lead-text">
+                    Hier ist ein Ausschnitt der in der Vorlesung behandelten Befehle:
+                </p>
+            </div>
+
+            <!-- Official MIPS Command Reference Table matching TIMIPS_01.tex -->
+            <div class="ws-reference-table-container">
+                <table class="ws-mips-ref-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 25%;">Befehl</th>
+                            <th style="width: 25%;">Beispiel</th>
+                            <th style="width: 50%;">Bedeutung</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>ADD</td><td class="mono">ADD r1,r2,r3</td><td>r1 = r2 + r3</td></tr>
+                        <tr><td>ADDI</td><td class="mono">ADDI r1,r2,3</td><td>r1 = r2 + 3</td></tr>
+                        <tr><td>SUB</td><td class="mono">SUB r1,r2,r3</td><td>r1 = r2 − r3</td></tr>
+                        <tr><td>MULT</td><td class="mono">MULT r1,r2</td><td>lo|hi = r1 · r2</td></tr>
+                        <tr><td>MFLO, MFHI</td><td class="mono">MFLO r1</td><td>r1 = lo</td></tr>
+                        <tr><td>DIV</td><td class="mono">DIV r1,r2,r3</td><td>r1 = r2 / r3</td></tr>
+                        <tr><td>AND, OR, XOR</td><td class="mono">AND r1,r2,r3</td><td>r1 = r2 ∧ r3</td></tr>
+                        <tr><td>ANDI, ORI, XORI</td><td class="mono">ANDI r1,r2,3</td><td>r1 = r2 ∧ 0...011</td></tr>
+                        <tr><td>SLL, SRL</td><td class="mono">SLL r1,r2,3</td><td>r1 = r2 ≪ 3</td></tr>
+                        <tr><td>SLT</td><td class="mono">SLT r1,r2,r3</td><td>r1 = r2 &lt; r3 (Ergebnis 0 oder 1)</td></tr>
+                        <tr><td>LW</td><td class="mono">LW r1,4(r2)</td><td>Registerindirekte Adressierung mit Verschiebung. Adressiert wird die in r2 stehende Adresse +4. Gespeichert wird in r1.</td></tr>
+                        <tr><td>SW</td><td class="mono">SW r1,4(r2)</td><td>Analog LW</td></tr>
+                        <tr><td>ADDI mit r0</td><td class="mono">ADDI r1,r0,3</td><td>r1 = 3 (Registeradressierung)</td></tr>
+                        <tr><td>ADD mit r0</td><td class="mono">ADD r1,r0,r2</td><td>r1 = r2</td></tr>
+                        <tr><td>J</td><td class="mono">J main</td><td>Unbedingter Sprung zur Sprungmarke <code>main</code></td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Task Assignment Text -->
+            <div class="task-prompt-box">
+                <p class="task-text">
+                    Gegeben sei folgende Sequenz von MIPS-Befehlen. Füllen Sie jeweils die Zelle aus, die sich durch den Befehl verändert.
+                </p>
+            </div>
+
+            <!-- 1:1 Exam Trace Table -->
+            <div class="ws-trace-table-container">
+                <table class="ws-exam-trace-table">
+                    <thead>
+                        <tr>
+                            <th class="col-instr" style="width: 28%;">Befehl</th>
+                            @foreach (var col in ActiveTableColumns)
+                            {
+                                <th style="width: @(72.0 / ActiveTableColumns.Count)%">@col</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int i = 0; i < Instructions.Count; i++)
+                        {
+                            var instr = Instructions[i];
+                            var rec = (i < StepRecords.Count) ? StepRecords[i] : null;
+
+                            <tr>
+                                <td class="mono ws-instr-td">@instr.RawText</td>
+                                @foreach (var col in ActiveTableColumns)
+                                {
+                                    var isModified = (rec != null && string.Equals(rec.ModifiedReg, col, StringComparison.OrdinalIgnoreCase));
+                                    <td class="ws-trace-td @(isModified && ShowSolution ? "ws-sol-cell" : "")">
+                                        @if (ShowSolution && isModified && rec != null)
+                                        {
+                                            <span class="sol-text mono bold">@rec.FormattedValueCompact</span>
+                                        }
+                                        else
+                                        {
+                                            <div class="ws-empty-line"></div>
+                                        }
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="exam-footer">
+                <span class="exam-footer-note">Intelligent Systems Design &bull; Hochschule Hamm-Lippstadt &bull; Grundlagen der Informatik</span>
+            </div>
+
+        </div>
+    }
+
+</article>
+
+@code {
+    public enum ViewMode { Simulator, Worksheet }
+
+    [Parameter] public ViewMode ActiveView { get; set; } = ViewMode.Simulator;
+    [Parameter] public bool IsEmbed { get; set; } = false;
+    [Parameter] public bool ShowSolution { get; set; } = false;
+    [Parameter] public string SelectedPreset { get; set; } = "Exam1";
+
+    public int CurrentStepIndex { get; set; } = 0;
+    public int CurrentPc => CurrentStepIndex * 4;
+    public bool IsPlaying { get; set; } = false;
+    public int PlaySpeedMs { get; set; } = 1500;
+
+    public string CustomCodeText { get; set; } = "";
+
+    public List<InstructionModel> Instructions { get; set; } = new();
+    public List<StepRecordModel> StepRecords { get; set; } = new();
+    public List<string> ActiveTableColumns { get; set; } = new();
+    public List<string> DisplayedRegisters { get; set; } = new() { "r0", "r2", "r3", "r4", "lo", "hi" };
+
+    private CancellationTokenSource? _playCts;
+
+    public class InstructionModel
+    {
+        public string RawText { get; set; } = "";
+        public string Opcode { get; set; } = "";
+        public string ArgsString { get; set; } = "";
+        public string Dest { get; set; } = "";
+        public string Src1 { get; set; } = "";
+        public string Src2 { get; set; } = "";
+        public uint Imm { get; set; } = 0;
+        public int Shamt { get; set; } = 0;
+    }
+
+    public class StepRecordModel
+    {
+        public int StepIndex { get; set; }
+        public string InstructionText { get; set; } = "";
+        public string Opcode { get; set; } = "";
+        public string ModifiedReg { get; set; } = "";
+        public uint OldValue { get; set; }
+        public uint NewValue { get; set; }
+        public string Explanation { get; set; } = "";
+        public string FormattedValue => $"{NewValue} = {Convert.ToString(NewValue, 2)} = 0x{NewValue:X}";
+        public string FormattedValueCompact => $"{NewValue}={Convert.ToString(NewValue, 2)}=0x{NewValue:X}";
+
+        public Dictionary<string, uint> RegistersAfter { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+        // Bitwise Breakdown details
+        public bool HasBitwiseDetail { get; set; }
+        public string BitwiseOpA_Name { get; set; } = "";
+        public uint BitwiseOpA_Val { get; set; }
+        public string BitwiseOpA_Bits { get; set; } = "";
+        public string BitwiseOpB_Name { get; set; } = "";
+        public uint BitwiseOpB_Val { get; set; }
+        public string BitwiseOpB_Bits { get; set; } = "";
+        public string BitwiseRes_Bits { get; set; } = "";
+    }
+
+    protected override void OnInitialized()
+    {
+        ReadQueryParameters();
+        LoadPreset(SelectedPreset);
+    }
+
+    protected override void OnParametersSet()
+    {
+        ReadQueryParameters();
+    }
+
+    private void ReadQueryParameters()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query;
+            if (!string.IsNullOrEmpty(query))
+            {
+                if (query.Contains("view=worksheet", StringComparison.OrdinalIgnoreCase))
+                {
+                    ActiveView = ViewMode.Worksheet;
+                }
+                if (query.Contains("solution=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    ShowSolution = true;
+                }
+                if (query.Contains("embed=true", StringComparison.OrdinalIgnoreCase) || query.Contains("embedded=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsEmbed = true;
+                }
+                if (query.Contains("preset=exam2", StringComparison.OrdinalIgnoreCase) || query.Contains("preset=2", StringComparison.OrdinalIgnoreCase))
+                {
+                    SelectedPreset = "Exam2";
+                }
+                else if (query.Contains("preset=lecture", StringComparison.OrdinalIgnoreCase) || query.Contains("preset=3", StringComparison.OrdinalIgnoreCase))
+                {
+                    SelectedPreset = "Lecture";
+                }
+            }
+        }
+        catch { }
+    }
+
+    private void SetView(ViewMode mode)
+    {
+        StopAutoPlay();
+        ActiveView = mode;
+    }
+
+    private void ToggleSolution()
+    {
+        ShowSolution = !ShowSolution;
+    }
+
+    private async Task TriggerPrint()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+
+    private void LoadPreset(string preset)
+    {
+        StopAutoPlay();
+        SelectedPreset = preset;
+
+        string code = "";
+        if (preset == "Exam1")
+        {
+            code = @"addi r2, r0, 9
+ori  r3, r0, 4
+mult r3, r2
+mflo r4
+mult r3, r4
+mflo r2
+andi r4, r2, 0xABBA";
+            ActiveTableColumns = new List<string> { "r2", "r3", "r4", "lo" };
+            DisplayedRegisters = new List<string> { "r0", "r2", "r3", "r4", "lo", "hi" };
+        }
+        else if (preset == "Exam2")
+        {
+            code = @"ori  r2, r0, 42
+xori r3, r0, 1
+srl  r4, r2, 1
+addi r3, r4, 0x2A15
+and  r4, r2, r3";
+            ActiveTableColumns = new List<string> { "r2", "r3", "r4" };
+            DisplayedRegisters = new List<string> { "r0", "r2", "r3", "r4", "lo", "hi" };
+        }
+        else if (preset == "Lecture")
+        {
+            code = @"addi r1, r0, 1
+addi r2, r0, 8
+add  r5, r1, r2
+sub  r6, r2, r1
+mult r5, r6
+mflo r7
+div  r7, r6
+mflo r8
+and  r9, r5, r6
+or   r10, r5, r6
+xor  r11, r5, r6
+sll  r12, r6, 2";
+            ActiveTableColumns = new List<string> { "r1", "r2", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lo" };
+            DisplayedRegisters = new List<string> { "r0", "r1", "r2", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lo", "hi" };
+        }
+        else // Custom
+        {
+            if (string.IsNullOrWhiteSpace(CustomCodeText))
+            {
+                CustomCodeText = @"addi r2, r0, 9
+ori r3, r0, 4
+mult r3, r2
+mflo r4";
+            }
+            code = CustomCodeText;
+        }
+
+        ParseAndSimulateProgram(code);
+    }
+
+    private void ApplyCustomCode()
+    {
+        SelectedPreset = "Custom";
+        ParseAndSimulateProgram(CustomCodeText);
+    }
+
+    private void ParseAndSimulateProgram(string code)
+    {
+        CurrentStepIndex = 0;
+        Instructions = ParseInstructions(code);
+
+        // Pre-simulate the entire program to have all step records and solutions ready
+        StepRecords = PrecomputeSimulation(Instructions);
+
+        // If Custom, adjust ActiveTableColumns to modified registers
+        if (SelectedPreset == "Custom")
+        {
+            var modified = StepRecords.Select(r => r.ModifiedReg).Where(r => !string.IsNullOrEmpty(r)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (!modified.Any()) modified.Add("r2");
+            ActiveTableColumns = modified;
+            
+            var allRegs = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "r0" };
+            foreach (var col in ActiveTableColumns) allRegs.Add(col);
+            allRegs.Add("lo");
+            allRegs.Add("hi");
+            DisplayedRegisters = allRegs.ToList();
+        }
+    }
+
+    private List<InstructionModel> ParseInstructions(string code)
+    {
+        var list = new List<InstructionModel>();
+        var lines = code.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+        foreach (var rawLine in lines)
+        {
+            var line = rawLine.Trim();
+            if (string.IsNullOrWhiteSpace(line) || line.StartsWith(";") || line.StartsWith("#")) continue;
+
+            // Remove trailing comment
+            var commentIdx = line.IndexOf(';');
+            if (commentIdx >= 0) line = line.Substring(0, commentIdx).Trim();
+            commentIdx = line.IndexOf('#');
+            if (commentIdx >= 0) line = line.Substring(0, commentIdx).Trim();
+
+            // Split opcode and arguments
+            var firstSpace = line.IndexOf(' ');
+            if (firstSpace < 0) firstSpace = line.IndexOf('\t');
+
+            if (firstSpace < 0)
+            {
+                list.Add(new InstructionModel { RawText = line, Opcode = line.ToLowerInvariant() });
+                continue;
+            }
+
+            var opcode = line.Substring(0, firstSpace).Trim().ToLowerInvariant();
+            var argsStr = line.Substring(firstSpace).Trim();
+
+            var parts = argsStr.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                               .Select(p => p.Trim())
+                               .ToArray();
+
+            var instr = new InstructionModel
+            {
+                RawText = line,
+                Opcode = opcode,
+                ArgsString = argsStr
+            };
+
+            if (parts.Length >= 1) instr.Dest = NormalizeReg(parts[0]);
+            if (parts.Length >= 2) instr.Src1 = NormalizeReg(parts[1]);
+            if (parts.Length >= 3)
+            {
+                if (IsRegister(parts[2]))
+                {
+                    instr.Src2 = NormalizeReg(parts[2]);
+                }
+                else
+                {
+                    instr.Imm = ParseNumber(parts[2]);
+                    if (int.TryParse(parts[2], out int sh)) instr.Shamt = sh;
+                }
+            }
+            else if (parts.Length == 2 && !IsRegister(parts[1]))
+            {
+                instr.Imm = ParseNumber(parts[1]);
+            }
+
+            list.Add(instr);
+        }
+
+        return list;
+    }
+
+    private List<StepRecordModel> PrecomputeSimulation(List<InstructionModel> instrs)
+    {
+        var records = new List<StepRecordModel>();
+        var regs = new Dictionary<string, uint>(StringComparer.OrdinalIgnoreCase);
+
+        // Init registers 0..31, lo, hi
+        for (int i = 0; i <= 31; i++) regs[$"r{i}"] = 0;
+        regs["lo"] = 0;
+        regs["hi"] = 0;
+
+        for (int i = 0; i < instrs.Count; i++)
+        {
+            var instr = instrs[i];
+            var stepNum = i + 1;
+            var rec = new StepRecordModel
+            {
+                StepIndex = stepNum,
+                InstructionText = instr.RawText,
+                Opcode = instr.Opcode
+            };
+
+            uint ReadReg(string r) => regs.TryGetValue(r, out var val) ? val : 0u;
+
+            switch (instr.Opcode)
+            {
+                case "addi":
+                {
+                    var rsVal = ReadReg(instr.Src1);
+                    var res = (uint)((int)rsVal + (int)instr.Imm);
+                    rec.ModifiedReg = instr.Dest;
+                    rec.OldValue = ReadReg(instr.Dest);
+                    rec.NewValue = res;
+                    if (instr.Dest != "r0") regs[instr.Dest] = res;
+
+                    if (instr.Src1 == "r0")
+                    {
+                        rec.Explanation = $"Immediate-Zuweisung: {instr.Dest} = r0 + {instr.Imm}. Da r0 stets 0 ist, wird der Wert {instr.Imm} (0x{instr.Imm:X}) direkt in Register {instr.Dest} geladen.";
+                    }
+                    else
+                    {
+                        rec.Explanation = $"Immediate Addition: {instr.Dest} = {instr.Src1} + {instr.Imm} ({rsVal} + {instr.Imm} = {res}).";
+                    }
+                    break;
+                }
+
+                case "add":
+                {
+                    var rsVal = ReadReg(instr.Src1);
+                    var rtVal = ReadReg(instr.Src2);
+                    var res = rsVal + rtVal;
+                    rec.ModifiedReg = instr.Dest;
+                    rec.OldValue = ReadReg(instr.Dest);
+                    rec.NewValue = res;
+                    if (instr.Dest != "r0") regs[instr.Dest] = res;
+
+                    rec.Explanation = $"Register Addition: {instr.Dest} = {instr.Src1} + {instr.Src2} ({rsVal} + {rtVal} = {res}).";
+                    break;
+                }
+
+                case "sub":
+                {
+                    var rsVal = ReadReg(instr.Src1);
+                    var rtVal = ReadReg(instr.Src2);
+                    var res = (uint)((int)rsVal - (int)rtVal);
+                    rec.ModifiedReg = instr.Dest;
+                    rec.OldValue = ReadReg(instr.Dest);
+                    rec.NewValue = res;
+                    if (instr.Dest != "r0") regs[instr.Dest] = res;
+
+                    rec.Explanation = $"Register Subtraktion: {instr.Dest} = {instr.Src1} - {instr.Src2} ({rsVal} - {rtVal} = {res}).";
+                    break;
+                }
+
+                case "mult":
+                {
+                    // MULT rs, rt -> lo|hi = rs * rt
+                    var rsVal = ReadReg(instr.Dest); // In "mult r3, r2", dest is parts[0]="r3", src1 is parts[1]="r2"
+                    var rtVal = ReadReg(instr.Src1);
+                    ulong prod = (ulong)rsVal * (ulong)rtVal;
+                    uint lo = (uint)(prod & 0xFFFFFFFF);
+                    uint hi = (uint)(prod >> 32);
+
+                    rec.ModifiedReg = "lo";
+                    rec.OldValue = ReadReg("lo");
+                    rec.NewValue = lo;
+                    regs["lo"] = lo;
+                    regs["hi"] = hi;
+
+                    rec.Explanation = $"Multiplikation: lo|hi = {instr.Dest} * {instr.Src1} ({rsVal} * {rtVal} = {prod}). Das 32-Bit-Ergebnis {lo} (0x{lo:X}) wird im Register lo abgelegt.";
+                    break;
+                }
+
+                case "div":
+                {
+                    var rsVal = ReadReg(instr.Dest);
+                    var rtVal = ReadReg(instr.Src1);
+                    uint lo = (rtVal != 0) ? rsVal / rtVal : 0;
+                    uint hi = (rtVal != 0) ? rsVal % rtVal : 0;
+
+                    rec.ModifiedReg = "lo";
+                    rec.OldValue = ReadReg("lo");
+                    rec.NewValue = lo;
+                    regs["lo"] = lo;
+                    regs["hi"] = hi;
+
+                    rec.Explanation = $"Division: {instr.Dest} / {instr.Src1} ({rsVal} / {rtVal} = Quotient {lo}, Rest {hi}). Quotient landet in lo, Rest in hi.";
+                    break;
+                }
+
+                case "mflo":
+                {
+                    var loVal = ReadReg("lo");
+                    rec.ModifiedReg = instr.Dest;
+                    rec.OldValue = ReadReg(instr.Dest);
+                    rec.NewValue = loVal;
+                    if (instr.Dest != "r0") regs[instr.Dest] = loVal;
+
+                    rec.Explanation = $"Move From LO: {instr.Dest} = lo. Kopiert den Inhalt des Spezialregisters lo ({loVal}, 0x{loVal:X}) in Register {instr.Dest}.";
+                    break;
+                }
+
+                case "mfhi":
+                {
+                    var hiVal = ReadReg("hi");
+                    rec.ModifiedReg = instr.Dest;
+                    rec.OldValue = ReadReg(instr.Dest);
+                    rec.NewValue = hiVal;
+                    if (instr.Dest != "r0") regs[instr.Dest] = hiVal;
+
+                    rec.Explanation = $"Move From HI: {instr.Dest} = hi. Kopiert den Inhalt von hi ({hiVal}) in {instr.Dest}.";
+                    break;
+                }
+
+                case "ori":
+                {
+                    var rsVal = ReadReg(instr.Src1);
+                    var imm = instr.Imm;
+                    var res = rsVal | imm;
+                    rec.ModifiedReg = instr.Dest;
+                    rec.OldValue = ReadReg(instr.Dest);
+                    rec.NewValue = res;
+                    if (instr.Dest != "r0") regs[instr.Dest] = res;
+
+                    rec.HasBitwiseDetail = true;
+                    rec.BitwiseOpA_Name = instr.Src1;
+                    rec.BitwiseOpA_Val = rsVal;
+                    rec.BitwiseOpA_Bits = FormatBinary(rsVal);
+                    rec.BitwiseOpB_Name = $"0x{imm:X}";
+                    rec.BitwiseOpB_Val = imm;
+                    rec.BitwiseOpB_Bits = FormatBinary(imm);
+                    rec.BitwiseRes_Bits = FormatBinary(res);
+
+                    if (instr.Src1 == "r0")
+                    {
+                        rec.Explanation = $"Bitweises ODER mit r0: {instr.Dest} = r0 | {imm}. Lädt die Konstante {imm} (0x{imm:X}) in {instr.Dest}.";
+                    }
+                    else
+                    {
+                        rec.Explanation = $"Bitweises ODER mit Immediate: {instr.Dest} = {instr.Src1} | 0x{imm:X} ({rsVal} | {imm} = {res}).";
+                    }
+                    break;
+                }
+
+                case "or":
+                {
+                    var rsVal = ReadReg(instr.Src1);
+                    var rtVal = ReadReg(instr.Src2);
+                    var res = rsVal | rtVal;
+                    rec.ModifiedReg = instr.Dest;
+                    rec.OldValue = ReadReg(instr.Dest);
+                    rec.NewValue = res;
+                    if (instr.Dest != "r0") regs[instr.Dest] = res;
+
+                    rec.HasBitwiseDetail = true;
+                    rec.BitwiseOpA_Name = instr.Src1;
+                    rec.BitwiseOpA_Val = rsVal;
+                    rec.BitwiseOpA_Bits = FormatBinary(rsVal);
+                    rec.BitwiseOpB_Name = instr.Src2;
+                    rec.BitwiseOpB_Val = rtVal;
+                    rec.BitwiseOpB_Bits = FormatBinary(rtVal);
+                    rec.BitwiseRes_Bits = FormatBinary(res);
+
+                    rec.Explanation = $"Bitweises ODER: {instr.Dest} = {instr.Src1} | {instr.Src2} ({rsVal} | {rtVal} = {res}).";
+                    break;
+                }
+
+                case "andi":
+                {
+                    var rsVal = ReadReg(instr.Src1);
+                    var imm = instr.Imm;
+                    var res = rsVal & imm;
+                    rec.ModifiedReg = instr.Dest;
+                    rec.OldValue = ReadReg(instr.Dest);
+                    rec.NewValue = res;
+                    if (instr.Dest != "r0") regs[instr.Dest] = res;
+
+                    rec.HasBitwiseDetail = true;
+                    rec.BitwiseOpA_Name = instr.Src1;
+                    rec.BitwiseOpA_Val = rsVal;
+                    rec.BitwiseOpA_Bits = FormatBinary(rsVal);
+                    rec.BitwiseOpB_Name = $"0x{imm:X}";
+                    rec.BitwiseOpB_Val = imm;
+                    rec.BitwiseOpB_Bits = FormatBinary(imm);
+                    rec.BitwiseRes_Bits = FormatBinary(res);
+
+                    rec.Explanation = $"Bitweises UND mit Maske 0x{imm:X}: {instr.Dest} = {instr.Src1} & 0x{imm:X} ({rsVal} & {imm} = {res}).";
+                    break;
+                }
+
+                case "and":
+                {
+                    var rsVal = ReadReg(instr.Src1);
+                    var rtVal = ReadReg(instr.Src2);
+                    var res = rsVal & rtVal;
+                    rec.ModifiedReg = instr.Dest;
+                    rec.OldValue = ReadReg(instr.Dest);
+                    rec.NewValue = res;
+                    if (instr.Dest != "r0") regs[instr.Dest] = res;
+
+                    rec.HasBitwiseDetail = true;
+                    rec.BitwiseOpA_Name = instr.Src1;
+                    rec.BitwiseOpA_Val = rsVal;
+                    rec.BitwiseOpA_Bits = FormatBinary(rsVal);
+                    rec.BitwiseOpB_Name = instr.Src2;
+                    rec.BitwiseOpB_Val = rtVal;
+                    rec.BitwiseOpB_Bits = FormatBinary(rtVal);
+                    rec.BitwiseRes_Bits = FormatBinary(res);
+
+                    rec.Explanation = $"Bitweises UND: {instr.Dest} = {instr.Src1} & {instr.Src2} ({rsVal} & {rtVal} = {res}).";
+                    break;
+                }
+
+                case "xori":
+                {
+                    var rsVal = ReadReg(instr.Src1);
+                    var imm = instr.Imm;
+                    var res = rsVal ^ imm;
+                    rec.ModifiedReg = instr.Dest;
+                    rec.OldValue = ReadReg(instr.Dest);
+                    rec.NewValue = res;
+                    if (instr.Dest != "r0") regs[instr.Dest] = res;
+
+                    rec.HasBitwiseDetail = true;
+                    rec.BitwiseOpA_Name = instr.Src1;
+                    rec.BitwiseOpA_Val = rsVal;
+                    rec.BitwiseOpA_Bits = FormatBinary(rsVal);
+                    rec.BitwiseOpB_Name = $"0x{imm:X}";
+                    rec.BitwiseOpB_Val = imm;
+                    rec.BitwiseOpB_Bits = FormatBinary(imm);
+                    rec.BitwiseRes_Bits = FormatBinary(res);
+
+                    rec.Explanation = $"Bitweises Exklusiv-ODER (XOR) mit Immediate: {instr.Dest} = {instr.Src1} ^ {imm} ({rsVal} ^ {imm} = {res}).";
+                    break;
+                }
+
+                case "xor":
+                {
+                    var rsVal = ReadReg(instr.Src1);
+                    var rtVal = ReadReg(instr.Src2);
+                    var res = rsVal ^ rtVal;
+                    rec.ModifiedReg = instr.Dest;
+                    rec.OldValue = ReadReg(instr.Dest);
+                    rec.NewValue = res;
+                    if (instr.Dest != "r0") regs[instr.Dest] = res;
+
+                    rec.HasBitwiseDetail = true;
+                    rec.BitwiseOpA_Name = instr.Src1;
+                    rec.BitwiseOpA_Val = rsVal;
+                    rec.BitwiseOpA_Bits = FormatBinary(rsVal);
+                    rec.BitwiseOpB_Name = instr.Src2;
+                    rec.BitwiseOpB_Val = rtVal;
+                    rec.BitwiseOpB_Bits = FormatBinary(rtVal);
+                    rec.BitwiseRes_Bits = FormatBinary(res);
+
+                    rec.Explanation = $"Bitweises Exklusiv-ODER: {instr.Dest} = {instr.Src1} ^ {instr.Src2} ({rsVal} ^ {rtVal} = {res}).";
+                    break;
+                }
+
+                case "sll":
+                {
+                    var rtVal = ReadReg(instr.Src1);
+                    var shamt = instr.Shamt;
+                    var res = rtVal << shamt;
+                    rec.ModifiedReg = instr.Dest;
+                    rec.OldValue = ReadReg(instr.Dest);
+                    rec.NewValue = res;
+                    if (instr.Dest != "r0") regs[instr.Dest] = res;
+
+                    rec.HasBitwiseDetail = true;
+                    rec.BitwiseOpA_Name = instr.Src1;
+                    rec.BitwiseOpA_Val = rtVal;
+                    rec.BitwiseOpA_Bits = FormatBinary(rtVal);
+                    rec.BitwiseOpB_Name = $"Shift << {shamt}";
+                    rec.BitwiseOpB_Val = (uint)shamt;
+                    rec.BitwiseOpB_Bits = $"Verschiebung um {shamt} Bits nach links";
+                    rec.BitwiseRes_Bits = FormatBinary(res);
+
+                    rec.Explanation = $"Shift Left Logical: {instr.Dest} = {instr.Src1} << {shamt} ({rtVal} << {shamt} = {res}). Entspricht Multiplikation mit 2^{shamt}.";
+                    break;
+                }
+
+                case "srl":
+                {
+                    var rtVal = ReadReg(instr.Src1);
+                    var shamt = instr.Shamt;
+                    var res = rtVal >> shamt;
+                    rec.ModifiedReg = instr.Dest;
+                    rec.OldValue = ReadReg(instr.Dest);
+                    rec.NewValue = res;
+                    if (instr.Dest != "r0") regs[instr.Dest] = res;
+
+                    rec.HasBitwiseDetail = true;
+                    rec.BitwiseOpA_Name = instr.Src1;
+                    rec.BitwiseOpA_Val = rtVal;
+                    rec.BitwiseOpA_Bits = FormatBinary(rtVal);
+                    rec.BitwiseOpB_Name = $"Shift >> {shamt}";
+                    rec.BitwiseOpB_Val = (uint)shamt;
+                    rec.BitwiseOpB_Bits = $"Verschiebung um {shamt} Bits nach rechts";
+                    rec.BitwiseRes_Bits = FormatBinary(res);
+
+                    rec.Explanation = $"Shift Right Logical: {instr.Dest} = {instr.Src1} >> {shamt} ({rtVal} >> {shamt} = {res}). Entspricht Division durch 2^{shamt}.";
+                    break;
+                }
+
+                case "slt":
+                {
+                    var rsVal = ReadReg(instr.Src1);
+                    var rtVal = ReadReg(instr.Src2);
+                    uint res = (rsVal < rtVal) ? 1u : 0u;
+                    rec.ModifiedReg = instr.Dest;
+                    rec.OldValue = ReadReg(instr.Dest);
+                    rec.NewValue = res;
+                    if (instr.Dest != "r0") regs[instr.Dest] = res;
+
+                    rec.Explanation = $"Set on Less Than: {instr.Dest} = ({instr.Src1} < {instr.Src2}) ? 1 : 0 ({rsVal} < {rtVal} => {res}).";
+                    break;
+                }
+
+                default:
+                {
+                    rec.Explanation = $"Befehl {instr.Opcode} ausgeführt.";
+                    break;
+                }
+            }
+
+            // Save snapshot
+            rec.RegistersAfter = new Dictionary<string, uint>(regs, StringComparer.OrdinalIgnoreCase);
+            records.Add(rec);
+        }
+
+        return records;
+    }
+
+    private uint GetRegisterValueAtStep(int stepIndex, string regName)
+    {
+        if (regName == "r0") return 0;
+        if (stepIndex <= 0 || !StepRecords.Any()) return 0;
+        var clampIdx = Math.Min(stepIndex - 1, StepRecords.Count - 1);
+        var snapshot = StepRecords[clampIdx].RegistersAfter;
+        return snapshot.TryGetValue(regName, out var v) ? v : 0u;
+    }
+
+    private static string FormatBinary(uint val)
+    {
+        string b = Convert.ToString(val, 2);
+        // Pad to multiple of 4 or 8
+        int pad = (b.Length <= 4) ? 4 : (b.Length <= 8) ? 8 : (b.Length <= 16) ? 16 : 32;
+        b = b.PadLeft(pad, '0');
+        // Group by 4
+        var chunks = new List<string>();
+        for (int i = 0; i < b.Length; i += 4)
+        {
+            chunks.Add(b.Substring(i, Math.Min(4, b.Length - i)));
+        }
+        return string.Join(" ", chunks);
+    }
+
+    private static string NormalizeReg(string r)
+    {
+        r = r.Trim().TrimStart('$').ToLowerInvariant();
+        if (r == "0") return "r0";
+        if (char.IsDigit(r[0])) return "r" + r;
+        return r;
+    }
+
+    private static bool IsRegister(string s)
+    {
+        s = s.Trim().TrimStart('$').ToLowerInvariant();
+        if (s == "lo" || s == "hi" || s == "0") return true;
+        if (s.StartsWith("r") && int.TryParse(s.Substring(1), out _)) return true;
+        return false;
+    }
+
+    private static uint ParseNumber(string s)
+    {
+        s = s.Trim();
+        if (s.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        {
+            return Convert.ToUInt32(s.Substring(2), 16);
+        }
+        if (s.StartsWith("0b", StringComparison.OrdinalIgnoreCase))
+        {
+            return Convert.ToUInt32(s.Substring(2), 2);
+        }
+        if (int.TryParse(s, out int intVal))
+        {
+            return (uint)intVal;
+        }
+        return 0;
+    }
+
+    // Step player methods
+    private void StepForward()
+    {
+        if (CurrentStepIndex < Instructions.Count)
+        {
+            CurrentStepIndex++;
+        }
+        else
+        {
+            StopAutoPlay();
+        }
+    }
+
+    private void StepBack()
+    {
+        if (CurrentStepIndex > 0)
+        {
+            CurrentStepIndex--;
+        }
+    }
+
+    private void GoToStart()
+    {
+        StopAutoPlay();
+        CurrentStepIndex = 0;
+    }
+
+    private void JumpToStep(int step)
+    {
+        StopAutoPlay();
+        CurrentStepIndex = Math.Clamp(step, 0, Instructions.Count);
+    }
+
+    private void ResetSimulation()
+    {
+        StopAutoPlay();
+        CurrentStepIndex = 0;
+    }
+
+    private void ToggleAutoPlay()
+    {
+        if (IsPlaying)
+        {
+            StopAutoPlay();
+        }
+        else
+        {
+            StartAutoPlay();
+        }
+    }
+
+    private void StartAutoPlay()
+    {
+        StopAutoPlay();
+        if (CurrentStepIndex >= Instructions.Count)
+        {
+            CurrentStepIndex = 0;
+        }
+
+        IsPlaying = true;
+        _playCts = new CancellationTokenSource();
+        _ = PlayLoopAsync(_playCts.Token);
+    }
+
+    private void StopAutoPlay()
+    {
+        IsPlaying = false;
+        _playCts?.Cancel();
+        _playCts = null;
+    }
+
+    private async Task PlayLoopAsync(CancellationToken token)
+    {
+        try
+        {
+            while (!token.IsCancellationRequested && CurrentStepIndex < Instructions.Count)
+            {
+                await Task.Delay(PlaySpeedMs, token);
+                if (token.IsCancellationRequested) break;
+
+                CurrentStepIndex++;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (TaskCanceledException) { }
+        finally
+        {
+            IsPlaying = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public void Dispose()
+    {
+        StopAutoPlay();
+    }
+}
