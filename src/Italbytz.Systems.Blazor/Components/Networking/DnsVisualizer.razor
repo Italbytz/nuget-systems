@@ -1,0 +1,674 @@
+@namespace Italbytz.Systems.Blazor.Components.Networking
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<article class="dns-container @(IsEmbed ? "embed-mode" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
+
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
+    {
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Rechnernetze &bull; Anwendungsschicht (Layer 7) &amp; Transport (Layer 4)</p>
+            <h2>Domain Name System (DNS) &amp; UDP-Idempotenz</h2>
+            <p class="feature-intro">
+                Das <strong>Domain Name System (DNS)</strong> löst lesbare Hostnamen (wie <code>www.hshl.de</code>) hierarchisch in IP-Adressen auf.
+                DNS-Anfragen nutzen <strong>UDP</strong> auf Port 53 statt TCP: Da keine Verbindungsaufbau-Phase (3-Wege-Handshake) nötig ist,
+                erfolgt die Auflösung mit minimaler Latenz. Da DNS-Abfragen <strong>idempotent</strong> (seiteneffektfrei) sind,
+                können verloren gegangene Pakete problemlos per Timeout auf Anwendungsebene erneut angefordert werden.
+            </p>
+        </div>
+    }
+
+    <!-- View Switcher -->
+    @if (!IsEmbed)
+    {
+        <div class="view-switch no-print">
+            <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Simulator)">
+                🌐 Interaktiver DNS-Auflösungs-Simulator
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.UdpIdempotence ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.UdpIdempotence)">
+                ⚡ UDP vs. TCP &amp; Idempotenz-Demo
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Trainer ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Trainer)">
+                📝 Klausur-Trainer
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Worksheet)">
+                🖨️ Klausur-Arbeitsblatt (Druckansicht 1:1)
+            </button>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 1: INTERACTIVE DNS RESOLUTION TREE & FLOW SIMULATOR                  -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Controls & Domain Selection -->
+        <div class="controls-card no-print">
+            <div class="ctrl-group">
+                <span class="ctrl-label">Domain abfragen:</span>
+                <div class="domain-input-wrap">
+                    <input type="text" class="domain-input" @bind="TargetDomain" placeholder="z. B. www.hshl.de" />
+                    <button class="action-btn primary" @onclick="StartResolution">
+                        🚀 Auflösen starten
+                    </button>
+                </div>
+                <div class="preset-domains">
+                    <button class="btn-sm" @onclick='() => SetPresetDomain("www.hshl.de")'>hshl.de</button>
+                    <button class="btn-sm" @onclick='() => SetPresetDomain("www.google.de")'>google.de</button>
+                    <button class="btn-sm" @onclick='() => SetPresetDomain("en.wikipedia.org")'>wikipedia.org</button>
+                </div>
+            </div>
+
+            <div class="ctrl-group">
+                <span class="ctrl-label">Auflösungsmodus:</span>
+                <div class="mode-toggles">
+                    <button class="toggle-btn @(IsIterative ? "active" : "")" @onclick="() => SetResolutionMode(true)">
+                        Iterativ (Standard im Web)
+                    </button>
+                    <button class="toggle-btn @(!IsIterative ? "active" : "")" @onclick="() => SetResolutionMode(false)">
+                        Voll rekursiv
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resolution Hierarchy Stage -->
+        <div class="tree-stage-card">
+            <div class="card-header">
+                <div class="card-title-wrap">
+                    <span class="card-title">DNS-Namensraum-Hierarchie &amp; Server-Abfragen</span>
+                    <span class="card-hint">
+                        Schritt @CurrentStep von @MaxSteps: @StepDescription
+                    </span>
+                </div>
+                <div class="stepper-actions no-print">
+                    <button class="action-btn secondary" @onclick="PrevStep" disabled="@(CurrentStep <= 0)">
+                        ◀ Zurück
+                    </button>
+                    <button class="action-btn primary" @onclick="NextStep" disabled="@(CurrentStep >= MaxSteps)">
+                        Weiter ▶
+                    </button>
+                    <button class="action-btn secondary" @onclick="ResetResolution">
+                        🔄 Neu
+                    </button>
+                </div>
+            </div>
+
+            <!-- Visual Flow Layout: Client -> Local DNS -> Root -> TLD -> Auth -->
+            <div class="dns-nodes-grid">
+                <!-- 1. Client -->
+                <div class="dns-node-card @(ActiveNodeIndex == 0 ? "node-active" : "")">
+                    <div class="node-icon">💻</div>
+                    <div class="node-title">Client / Browser</div>
+                    <div class="node-sub">Stub Resolver</div>
+                    <div class="node-badge">192.168.1.50</div>
+                </div>
+
+                <div class="flow-arrow @(CurrentStep >= 1 ? "arrow-active" : "")">
+                    <span class="flow-label">1. Rekursiv</span>
+                    &rarr;
+                </div>
+
+                <!-- 2. Local DNS Resolver -->
+                <div class="dns-node-card @(ActiveNodeIndex == 1 ? "node-active" : "")">
+                    <div class="node-icon">🏢</div>
+                    <div class="node-title">Lokaler DNS-Server</div>
+                    <div class="node-sub">ISP / Router Cache</div>
+                    <div class="node-badge">193.174.75.154</div>
+                </div>
+
+                <div class="hierarchy-tree-branch">
+                    <!-- 3. Root DNS Server -->
+                    <div class="server-branch-item">
+                        <div class="flow-arrow vertical @(CurrentStep == 2 || CurrentStep == 3 ? "arrow-active" : "")">
+                            <span class="flow-label">2. Root Refer</span>
+                        </div>
+                        <div class="dns-node-card server-node @(ActiveNodeIndex == 2 ? "node-active" : "")">
+                            <div class="node-icon">🌍</div>
+                            <div class="node-title">Root-Server (<code>.</code>)</div>
+                            <div class="node-sub">13 Anycast-Cluster (a-m.root-servers.net)</div>
+                            <div class="node-answer">Verweist auf TLD-Server <code>@GetTld()</code></div>
+                        </div>
+                    </div>
+
+                    <!-- 4. TLD DNS Server -->
+                    <div class="server-branch-item">
+                        <div class="flow-arrow vertical @(CurrentStep == 4 || CurrentStep == 5 ? "arrow-active" : "")">
+                            <span class="flow-label">3. TLD Refer</span>
+                        </div>
+                        <div class="dns-node-card server-node @(ActiveNodeIndex == 3 ? "node-active" : "")">
+                            <div class="node-icon">🏛️</div>
+                            <div class="node-title">TLD-Server (<code>.@GetTld()</code>)</div>
+                            <div class="node-sub">z. B. DENIC (f.nic.de)</div>
+                            <div class="node-answer">Verweist auf autoritativ <code>@GetDomainZone()</code></div>
+                        </div>
+                    </div>
+
+                    <!-- 5. Authoritative DNS Server -->
+                    <div class="server-branch-item">
+                        <div class="flow-arrow vertical @(CurrentStep == 6 || CurrentStep == 7 ? "arrow-active" : "")">
+                            <span class="flow-label">4. Auth Antwort</span>
+                        </div>
+                        <div class="dns-node-card server-node auth-node @(ActiveNodeIndex == 4 ? "node-active" : "")">
+                            <div class="node-icon">🎯</div>
+                            <div class="node-title">Autoritativer Server</div>
+                            <div class="node-sub">Zonendatei <code>@GetDomainZone()</code></div>
+                            <div class="node-answer final-ip">A-Record: <strong>@ResolvedIp</strong></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Current Transaction Log -->
+            <div class="transaction-box">
+                <div class="trans-header">
+                    <span class="trans-title">Protokoll-Mitschnitt (UDP Port 53)</span>
+                    <span class="trans-meta">Transaction-ID: <code>0x7428</code> &bull; Query: <code>@TargetDomain</code> (Typ A)</span>
+                </div>
+                <div class="log-entries">
+                    @for (int i = 0; i < ResolutionLogs.Count; i++)
+                    {
+                        var isLatest = i == ResolutionLogs.Count - 1;
+                        <div class="log-entry @(isLatest ? "log-latest" : "")">
+                            <span class="log-time">Step @(i + 1)</span>
+                            <span class="log-msg">@ResolutionLogs[i]</span>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 2: UDP VS TCP & IDEMPOTENCE SIMULATOR                                -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.UdpIdempotence)
+    {
+        <div class="panel-card udp-card">
+            <div class="panel-header">
+                <div>
+                    <span class="panel-title">⚡ UDP vs. TCP: Warum UDP und was bedeutet Idempotenz?</span>
+                    <p class="panel-subtitle">
+                        DNS-Anfragen passen meist in ein einzelnes Datagramm (&lt; 512 Byte). TCP würde einen 3-Wege-Handshake erzwingen.
+                    </p>
+                </div>
+                <div class="loss-actions no-print">
+                    <button class="action-btn warn @(SimulateLoss ? "btn-active" : "")" @onclick="ToggleSimulateLoss">
+                        @(SimulateLoss ? "⚠️ Paketverlust aktiv!" : "💥 Paketverlust provozieren")
+                    </button>
+                    <button class="action-btn primary" @onclick="RunUdpRequest" disabled="@IsRequestRunning">
+                        @(IsRequestRunning ? "⏳ Sende Anfrage..." : "▶️ DNS-Anfrage abschicken")
+                    </button>
+                </div>
+            </div>
+
+            <!-- Side by Side: Protocol Comparison -->
+            <div class="comparison-grid">
+                <!-- UDP Box -->
+                <div class="proto-box udp-box">
+                    <div class="proto-header">
+                        <span class="proto-name">UDP (User Datagram Protocol) &bull; Port 53</span>
+                        <span class="tag-rec">Für Standard-DNS gewählt</span>
+                    </div>
+                    <ul class="proto-facts">
+                        <li><strong>Verbindungslos (0 RTT):</strong> Die Anfrage wird sofort gesendet &ndash; keine Handshake-Verzögerung.</li>
+                        <li><strong>Minimaler Header:</strong> Nur 8 Byte Overhead (Port, Länge, Prüfsumme).</li>
+                        <li><strong>Kein automatischer Retransmit:</strong> Geht ein Paket verloren, bemerkt es UDP nicht.</li>
+                        <li><strong>Lösung:</strong> Die <em>Anwendung</em> setzt einen Timer und fragt bei Timeout einfach erneut an.</li>
+                    </ul>
+                </div>
+
+                <!-- TCP Box -->
+                <div class="proto-box tcp-box">
+                    <div class="proto-header">
+                        <span class="proto-name">TCP (Transmission Control Protocol)</span>
+                        <span class="tag-sec">Nur für DNSSEC / Zonentransfers</span>
+                    </div>
+                    <ul class="proto-facts">
+                        <li><strong>Verbindungsorientiert (1.5 RTT):</strong> Benötigt SYN &rarr; SYN-ACK &rarr; ACK vor der ersten DNS-Anfrage.</li>
+                        <li><strong>Größerer Header:</strong> Mindestens 20 Byte Overhead pro Segment.</li>
+                        <li><strong>Verbindungsabbau:</strong> FIN / ACK nach Erhalt der Antwort.</li>
+                        <li><strong>Nachteil:</strong> Verdoppelt bis verdreifacht die Latenz beim Websurfen spürbar!</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Live Idempotence Simulation Stage -->
+            <div class="idempotence-stage">
+                <div class="sub-heading">Live-Ablauf: Paketübertragung &amp; Timeout-Wiederholung</div>
+
+                <div class="anim-track">
+                    <div class="anim-endpoint">💻 Client</div>
+                    <div class="wire-container">
+                        @if (RequestState == PacketState.InFlight)
+                        {
+                            <div class="packet-traveling query-packet">
+                                📩 DNS-Query: @TargetDomain
+                            </div>
+                        }
+                        @if (RequestState == PacketState.Lost)
+                        {
+                            <div class="packet-lost">
+                                💥 Paket im Netz verworfen (Timeout läuft: @(RemainingTimeoutMs)ms)
+                            </div>
+                        }
+                        @if (RequestState == PacketState.Retransmitted)
+                        {
+                            <div class="packet-traveling retry-packet">
+                                🔁 Retransmit (Query identisch wiederholt!)
+                            </div>
+                        }
+                        @if (RequestState == PacketState.Answered)
+                        {
+                            <div class="packet-traveling answer-packet">
+                                ✅ Antwort: @TargetDomain = @ResolvedIp
+                            </div>
+                        }
+                    </div>
+                    <div class="anim-endpoint">🏢 DNS-Server</div>
+                </div>
+
+                <!-- Idempotence Explanation Box -->
+                <div class="klausur-highlight-box">
+                    <span class="kh-badge">Klausur-Merksatz: Was ist Idempotenz?</span>
+                    <p class="kh-text">
+                        <strong>DNS-Anfragen sind idempotent:</strong> Das bedeutet, dass eine mehrfache Ausführung derselben Anfrage
+                        keinerlei unerwünschte Zustandsänderungen auf dem Server bewirkt (rein lesende Operation $f(f(x)) = f(x)$).
+                        Bleibt eine Antwort nach einer definierten Zeitspanne aus, kann die Anfrage bedenkenlos noch einmal gesendet werden!
+                    </p>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 3: EXAM TRAINER                                                      -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Trainer)
+    {
+        <div class="panel-card trainer-card">
+            <div class="panel-header">
+                <div>
+                    <span class="panel-title">Klausur-Trainer: CNAnwendungsschichtDNS</span>
+                    <span class="exam-rule-tag">Aufgabe: 5 Punkte &bull; Vorlage: assignments/CNAnwendungsschichtDNS.tex</span>
+                </div>
+                <button class="action-btn primary" @onclick="ToggleTrainerSolution">
+                    @(ShowTrainerSolution ? "👁️ Musterlösung verbergen" : "💡 Musterlösung aufdecken")
+                </button>
+            </div>
+
+            <div class="trainer-body">
+                <div class="prompt-quote">
+                    <em>„DNS Anfragen werden über UDP übertragen und nicht über TCP. Das heißt verlorene Pakete werden nicht automatisch neu verschickt. Ist dies ein Problem und falls ja, wie wird es gelöst?“</em>
+                </div>
+
+                <div class="trainer-qa-box">
+                    <label class="qa-label">Ihre formulierte Lösung:</label>
+                    <textarea class="qa-textarea" placeholder="Erklären Sie, warum der Paketverlust kein Problem darstellt (Idempotenz, Timer, Timeout, wiederholte Anfrage)..."
+                              @bind="UserAnswer" rows="4"></textarea>
+
+                    @if (ShowTrainerSolution)
+                    {
+                        <div class="solution-reveal-box">
+                            <span class="sol-badge">Offizielle Musterlösung:</span>
+                            <blockquote class="official-sol-text">
+                                DNS Anfragen sind idempotent, eine wiederholte Ausführung ergibt keine Probleme. Gibt es nach einer bestimmten Zeit keine Antwort, kann die Anfrage einfach nochmal gestellt werden.
+                            </blockquote>
+
+                            <div class="evaluation-checklist">
+                                <strong>Kernkriterien für die volle Punktzahl (5 Punkte):</strong>
+                                <ul>
+                                    <li><span class="check-icon">✓</span> <strong>Idempotenz:</strong> Mehrfache identische Anfragen führen zu keinen Problemen/Seiteneffekten.</li>
+                                    <li><span class="check-icon">✓</span> <strong>Timeout-Mechanismus:</strong> Der Client wartet eine festgelegte Zeitspanne auf die UDP-Antwort.</li>
+                                    <li><span class="check-icon">✓</span> <strong>Erneutes Senden (Retransmit):</strong> Nach Timeout wird die Anfrage einfach noch einmal gesendet.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 4: WORKSHEET VIEW (1:1 EXAM REPLICA MATCHING LATEX)                  -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Worksheet)
+    {
+        <div class="worksheet-paper">
+            
+            <!-- Exam Header -->
+            <div class="exam-header">
+                <div class="exam-title-group">
+                    <span class="exam-sub">Grundlagen der Informatik</span>
+                    <h1 class="exam-main-title">DNS @(ShowSolution ? "- Lösung" : "")</h1>
+                    <span class="exam-task-label">Aufgabe 1 (Anwendungsschicht)</span>
+                </div>
+                <div class="exam-meta-box no-print">
+                    <button class="toggle-sol-btn @(ShowSolution ? "active" : "")" @onclick="ToggleSolution">
+                        @(ShowSolution ? "👁️ Musterlösung ausblenden" : "💡 Musterlösung einblenden")
+                    </button>
+                    <button class="print-btn" @onclick="TriggerPrint">
+                        🖨️ Drucken / PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Student Info Strip -->
+            <div class="student-info-strip">
+                <div class="info-field">
+                    <span class="info-label">Name, Vorname:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field">
+                    <span class="info-label">Matrikelnummer:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field points-field">
+                    <span class="info-label">Punkte:</span>
+                    <div class="points-box">/ 5 P.</div>
+                </div>
+            </div>
+
+            <!-- Main Prompt matching CNAnwendungsschichtDNS.tex -->
+            <div class="task-prompt-box">
+                <p class="task-text">
+                    DNS Anfragen werden über UDP übertragen und nicht über TCP. Das heißt verlorene Pakete werden nicht automatisch neu verschickt. Ist dies ein Problem und falls ja, wie wird es gelöst?
+                </p>
+            </div>
+
+            <!-- Answer Field or Solution Box matching LaTeX \TextField / \begin{wBox} -->
+            <div class="ws-answer-area">
+                @if (ShowSolution)
+                {
+                    <div class="ws-solution-box">
+                        <p class="ws-solution-text">
+                            DNS Anfragen sind idempotent, eine wiederholte Ausführung ergibt keine Probleme. Gibt es nach einer bestimmten Zeit keine Antwort, kann die Anfrage einfach nochmal gestellt werden.
+                        </p>
+                    </div>
+                }
+                else
+                {
+                    <div class="ws-text-field-box">
+                        <div class="answer-line"></div>
+                        <div class="answer-line"></div>
+                        <div class="answer-line"></div>
+                        <div class="answer-line"></div>
+                    </div>
+                }
+            </div>
+
+            <!-- Single-page Footer -->
+            <footer class="worksheet-footer">
+                <span>Intelligent Systems Design &bull; Hochschule Hamm-Lippstadt &bull; Rechnernetze</span>
+            </footer>
+
+        </div>
+    }
+
+</article>
+
+@code {
+    [Parameter]
+    public bool IsEmbed { get; set; } = false;
+
+    public enum ViewMode
+    {
+        Simulator,
+        UdpIdempotence,
+        Trainer,
+        Worksheet
+    }
+
+    public enum PacketState
+    {
+        Idle,
+        InFlight,
+        Lost,
+        Retransmitted,
+        Answered
+    }
+
+    private ViewMode ActiveView { get; set; } = ViewMode.Simulator;
+    private bool ShowSolution { get; set; } = false;
+    private bool ShowTrainerSolution { get; set; } = false;
+    private string UserAnswer { get; set; } = "";
+
+    // Simulator State
+    private string TargetDomain { get; set; } = "www.hshl.de";
+    private string ResolvedIp { get; set; } = "193.174.75.154";
+    private bool IsIterative { get; set; } = true;
+    private int CurrentStep { get; set; } = 0;
+    private const int MaxSteps = 7;
+    private int ActiveNodeIndex { get; set; } = 0;
+    private List<string> ResolutionLogs { get; } = new();
+
+    // Idempotence & Loss Demo State
+    private bool SimulateLoss { get; set; } = false;
+    private bool IsRequestRunning { get; set; } = false;
+    private PacketState RequestState { get; set; } = PacketState.Idle;
+    private int RemainingTimeoutMs { get; set; } = 0;
+
+    protected override void OnInitialized()
+    {
+        CheckUrlParameters();
+        ResetResolution();
+    }
+
+    protected override void OnParametersSet()
+    {
+        CheckUrlParameters();
+    }
+
+    private void CheckUrlParameters()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query.ToLowerInvariant();
+
+            if (query.Contains("embed=true") || query.Contains("embedded=true") || query.Contains("embed=1"))
+            {
+                IsEmbed = true;
+            }
+
+            if (query.Contains("view=worksheet") || query.Contains("view=sheet"))
+            {
+                ActiveView = ViewMode.Worksheet;
+            }
+            else if (query.Contains("view=idempotence") || query.Contains("view=udp"))
+            {
+                ActiveView = ViewMode.UdpIdempotence;
+            }
+            else if (query.Contains("view=trainer"))
+            {
+                ActiveView = ViewMode.Trainer;
+            }
+
+            if (query.Contains("solution=true") || query.Contains("sol=true") || query.Contains("loesung=true"))
+            {
+                ShowSolution = true;
+            }
+        }
+        catch
+        {
+            // Default fallback
+        }
+    }
+
+    private void SetView(ViewMode mode)
+    {
+        ActiveView = mode;
+    }
+
+    private void SetPresetDomain(string domain)
+    {
+        TargetDomain = domain;
+        if (domain.Contains("google")) ResolvedIp = "142.250.185.195";
+        else if (domain.Contains("wikipedia")) ResolvedIp = "185.15.59.224";
+        else ResolvedIp = "193.174.75.154";
+        ResetResolution();
+    }
+
+    private void SetResolutionMode(bool iterative)
+    {
+        IsIterative = iterative;
+        ResetResolution();
+    }
+
+    private string GetTld()
+    {
+        var parts = TargetDomain.Split('.');
+        return parts.Length > 0 ? parts[^1] : "de";
+    }
+
+    private string GetDomainZone()
+    {
+        var parts = TargetDomain.Split('.');
+        if (parts.Length >= 2) return $"{parts[^2]}.{parts[^1]}";
+        return TargetDomain;
+    }
+
+    private void StartResolution()
+    {
+        CurrentStep = 1;
+        UpdateStep();
+    }
+
+    private void NextStep()
+    {
+        if (CurrentStep < MaxSteps)
+        {
+            CurrentStep++;
+            UpdateStep();
+        }
+    }
+
+    private void PrevStep()
+    {
+        if (CurrentStep > 0)
+        {
+            CurrentStep--;
+            UpdateStep();
+        }
+    }
+
+    private void ResetResolution()
+    {
+        CurrentStep = 0;
+        ActiveNodeIndex = 0;
+        ResolutionLogs.Clear();
+        ResolutionLogs.Add($"Bereit zur Auflösung von {TargetDomain}. Klicken Sie auf „Auflösen starten“ oder „Weiter ▶“.");
+    }
+
+    private void UpdateStep()
+    {
+        switch (CurrentStep)
+        {
+            case 0:
+                ActiveNodeIndex = 0;
+                break;
+            case 1:
+                ActiveNodeIndex = 1;
+                ResolutionLogs.Add($"Client fragt lokalen DNS-Resolver (193.174.75.154) per UDP Port 53 nach {TargetDomain} (A-Record).");
+                break;
+            case 2:
+                ActiveNodeIndex = 2;
+                ResolutionLogs.Add($"Lokaler Resolver fragt Root-Nameserver (.) nach {TargetDomain}.");
+                break;
+            case 3:
+                ActiveNodeIndex = 1;
+                ResolutionLogs.Add($"Root-Server verweist mit Referral auf die TLD-Nameserver für .{GetTld()} (z. B. f.nic.de).");
+                break;
+            case 4:
+                ActiveNodeIndex = 3;
+                ResolutionLogs.Add($"Lokaler Resolver fragt TLD-Nameserver für .{GetTld()} nach {TargetDomain}.");
+                break;
+            case 5:
+                ActiveNodeIndex = 1;
+                ResolutionLogs.Add($"TLD-Server verweist mit NS-Record auf den autoritativen Server von {GetDomainZone()}.");
+                break;
+            case 6:
+                ActiveNodeIndex = 4;
+                ResolutionLogs.Add($"Lokaler Resolver fragt autoritativen Server von {GetDomainZone()} nach {TargetDomain}.");
+                break;
+            case 7:
+                ActiveNodeIndex = 0;
+                ResolutionLogs.Add($"Autoritativer Server liefert A-Record ({ResolvedIp}) an Resolver &rarr; Client erhält die fertige IP-Adresse!");
+                break;
+        }
+    }
+
+    private string StepDescription => CurrentStep switch
+    {
+        0 => "Initialzustand: Client möchte Domain auflösen.",
+        1 => "1. Client sendet rekursiven Query an lokalen DNS-Resolver.",
+        2 => "2. Lokaler Resolver fragt einen Root-Nameserver (.) nach der TLD.",
+        3 => "3. Root-Nameserver liefert Referral für die TLD .de.",
+        4 => "4. Lokaler Resolver fragt den TLD-Nameserver .de ab.",
+        5 => "5. TLD-Nameserver verweist auf die Nameserver der Zone.",
+        6 => "6. Lokaler Resolver fragt autoritativen Nameserver ab.",
+        7 => $"7. Autoritativer Server antwortet mit IP ({ResolvedIp}). Auflösung abgeschlossen!",
+        _ => ""
+    };
+
+    private void ToggleSimulateLoss()
+    {
+        SimulateLoss = !SimulateLoss;
+    }
+
+    private async Task RunUdpRequest()
+    {
+        if (IsRequestRunning) return;
+        IsRequestRunning = true;
+
+        RequestState = PacketState.InFlight;
+        StateHasChanged();
+        await Task.Delay(700);
+
+        if (SimulateLoss)
+        {
+            RequestState = PacketState.Lost;
+            RemainingTimeoutMs = 1500;
+            StateHasChanged();
+
+            while (RemainingTimeoutMs > 0)
+            {
+                await Task.Delay(300);
+                RemainingTimeoutMs -= 300;
+                StateHasChanged();
+            }
+
+            // Timeout triggered, retransmit!
+            RequestState = PacketState.Retransmitted;
+            StateHasChanged();
+            await Task.Delay(800);
+        }
+
+        RequestState = PacketState.Answered;
+        StateHasChanged();
+        await Task.Delay(600);
+
+        IsRequestRunning = false;
+        StateHasChanged();
+    }
+
+    private void ToggleSolution()
+    {
+        ShowSolution = !ShowSolution;
+    }
+
+    private void ToggleTrainerSolution()
+    {
+        ShowTrainerSolution = !ShowTrainerSolution;
+    }
+
+    private async Task TriggerPrint()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+}
