@@ -1,0 +1,760 @@
+@namespace Italbytz.Systems.Blazor.Components.OperatingSystems
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<article class="virt-container @(IsEmbed ? "embed-mode" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
+
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
+    {
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Betriebssysteme &bull; Virtualisierung</p>
+            <h2>Virtualisierungstechniken &amp; Schichtenmodelle</h2>
+            <p class="feature-intro">
+                Virtualisierung schafft eine logische Abstraktionsschicht über physischen Hardwareressourcen.
+                Erkunden Sie interaktiv die Schichtenarchitekturen der 7 Kerntechniken aus der Vorlesung:
+                von der Hardware-Partitionierung auf Großrechnern über Hypervisoren (Typ 1 &amp; 2) bis hin zu 
+                modernen Linux-Containern und virtuellen Laufzeitumgebungen (JVM/CoreCLR).
+            </p>
+        </div>
+    }
+
+    <!-- View Switcher -->
+    @if (!IsEmbed)
+    {
+        <div class="view-switch no-print">
+            <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Simulator)">
+                🚀 Interaktiver Schichten-Explorer &amp; Architekturvergleich
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Worksheet)">
+                🖨️ Klausur-Arbeitsblatt (Druckansicht 1:1)
+            </button>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- SIMULATOR VIEW                                                            -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Technique Selector Tabs -->
+        <div class="controls-panel no-print">
+            <div class="technique-selector">
+                <span class="selector-label">Virtualisierungstechnik wählen:</span>
+                <div class="technique-tabs">
+                    @foreach (var tech in Techniques)
+                    {
+                        <button class="tech-tab-btn @(SelectedTechId == tech.Id ? "active" : "") @(tech.IsExamFocus ? "exam-highlight" : "")"
+                                @onclick="() => SelectTechnique(tech.Id)">
+                            <span class="tab-icon">@tech.Icon</span>
+                            <span class="tab-title">@tech.Name</span>
+                            @if (tech.IsExamFocus)
+                            {
+                                <span class="exam-tag">★ Klausur</span>
+                            }
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Technique Overview Banner -->
+        <div class="tech-banner" style="border-left-color: @CurrentTech.AccentColor;">
+            <div class="banner-icon" style="color: @CurrentTech.AccentColor;">@CurrentTech.Icon</div>
+            <div class="banner-content">
+                <div class="banner-title-line">
+                    <h3 class="banner-title">@CurrentTech.Name</h3>
+                    <span class="hypervisor-pill">@CurrentTech.Category</span>
+                    <span class="perf-pill">Overhead: @CurrentTech.OverheadLevel</span>
+                    <span class="iso-pill">Isolation: @CurrentTech.IsolationLevel</span>
+                </div>
+                <p class="banner-desc">@CurrentTech.Description</p>
+                <div class="banner-examples">
+                    <strong>Typische Vertreter / Beispiele:</strong>
+                    <span class="examples-tag">@CurrentTech.Examples</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Interactive Architecture & Stack Stage -->
+        <div class="architecture-stage">
+
+            <!-- Left: Interactive Layer Stack (Visual Vertical Stack) -->
+            <div class="stack-card">
+                <div class="stack-header">
+                    <span class="stack-title">Schichtenarchitektur (Bottom-Up)</span>
+                    <span class="stack-hint">Klicken Sie auf eine Schicht für technische Details</span>
+                </div>
+
+                <div class="layer-stack">
+                    @for (int i = CurrentTech.Layers.Count - 1; i >= 0; i--)
+                    {
+                        var layer = CurrentTech.Layers[i];
+                        int layerIdx = i;
+                        bool isSelected = (SelectedLayerIndex == layerIdx);
+
+                        <div class="layer-block @(isSelected ? "layer-active" : "") @(layer.SpecialClass)"
+                             style="border-color: @(isSelected ? CurrentTech.AccentColor : layer.BorderColor); background: @layer.BgColor;"
+                             @onclick="() => SelectLayer(layerIdx)">
+                            <div class="layer-info">
+                                <span class="layer-level">#@layerIdx</span>
+                                <span class="layer-name">@layer.Name</span>
+                            </div>
+                            <span class="layer-role">@layer.RoleTag</span>
+                        </div>
+                    }
+                </div>
+
+                <div class="stack-footer-legend">
+                    <span class="legend-hw">Physische Hardware</span> &rarr;
+                    <span class="legend-hyp">Abstraktion / Host</span> &rarr;
+                    <span class="legend-app">Gast / Applikation</span>
+                </div>
+            </div>
+
+            <!-- Right: Layer Details & Mechanism Inspector -->
+            <div class="inspector-card">
+                <div class="inspector-header">
+                    <span class="inspector-title">Schichten-Inspektor: @CurrentSelectedLayer.Name</span>
+                    <span class="inspector-ring">@CurrentSelectedLayer.PrivilegeLevel</span>
+                </div>
+
+                <div class="inspector-body">
+                    <div class="detail-box">
+                        <span class="detail-label">Funktion &amp; Aufgabe:</span>
+                        <p class="detail-text">@CurrentSelectedLayer.FunctionDescription</p>
+                    </div>
+
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <span class="detail-label">Schnittstelle / API:</span>
+                            <span class="detail-val mono">@CurrentSelectedLayer.InterfaceType</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">CPU-Modus:</span>
+                            <span class="detail-val">@CurrentSelectedLayer.CpuMode</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Vorteil dieser Schicht:</span>
+                            <span class="detail-val text-green">@CurrentSelectedLayer.Advantage</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Grenzen / Flaschenhals:</span>
+                            <span class="detail-val text-amber">@CurrentSelectedLayer.Limitation</span>
+                        </div>
+                    </div>
+
+                    <!-- Exam Context Box if layer touches exam questions -->
+                    @if (!string.IsNullOrEmpty(CurrentSelectedLayer.ExamNote))
+                    {
+                        <div class="exam-note-box">
+                            <span class="exam-note-icon">💡</span>
+                            <div>
+                                <strong>Klausurrelevanter Hinweis:</strong>
+                                <span>@CurrentSelectedLayer.ExamNote</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Comparison Matrix (System Taxonomy) -->
+        <div class="panel-card taxonomy-card">
+            <div class="panel-header">
+                <span class="panel-title">📊 Große Vergleichsmatrix aller 7 Virtualisierungstechniken</span>
+                <button class="toggle-btn" @onclick="ToggleTaxonomy">
+                    @(ShowTaxonomy ? "▲ Tabelle einklappen" : "▼ Tabelle ausklappen")
+                </button>
+            </div>
+
+            @if (ShowTaxonomy)
+            {
+                <div class="table-responsive">
+                    <table class="virt-table">
+                        <thead>
+                            <tr>
+                                <th>Technik</th>
+                                <th>Abstraktionsebene</th>
+                                <th>Gast-Betriebssystem</th>
+                                <th>Fremde CPU-Architektur?</th>
+                                <th>Virtualisierungs-Software</th>
+                                <th>Performance / Overhead</th>
+                                <th>Beispiele</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="@(SelectedTechId == "partition" ? "row-selected" : "")">
+                                <td><strong>Partitionierung</strong></td>
+                                <td>Physische Hardware (Sub-Systeme)</td>
+                                <td>Unverändert, nativ</td>
+                                <td>Nein</td>
+                                <td>Nicht nötig (Hardware-Lösung)</td>
+                                <td><span class="perf-native">Nativ (0% Overhead)</span></td>
+                                <td>IBM Z, IBM Power Systems</td>
+                            </tr>
+                            <tr class="@(SelectedTechId == "emulation" ? "row-selected" : "")">
+                                <td><strong>Hardware-Emulation</strong></td>
+                                <td>CPU-Befehlssatz &amp; Peripherie</td>
+                                <td>Beliebig (auch fremde Architektur)</td>
+                                <td><span class="text-green bold">Ja (Kernvorteil)</span></td>
+                                <td>Emulator (QEMU, Rosetta)</td>
+                                <td><span class="perf-slow">Sehr hoch (Interpretation/JIT)</span></td>
+                                <td>QEMU, Apple Rosetta, Bochs</td>
+                            </tr>
+                            <tr class="@(SelectedTechId == "app" ? "row-selected" : "")">
+                                <td><strong>Anwendungsvirtualisierung</strong></td>
+                                <td>Laufzeitumgebung / Bytecode</td>
+                                <td>Kein Gast-OS (nur Runtime)</td>
+                                <td>Nein (Bytecode-Abstraktion)</td>
+                                <td>Virtuelle Maschine (JVM, CLR)</td>
+                                <td><span class="perf-fast">Sehr schnell (JIT-Kompilierung)</span></td>
+                                <td>Java JVM, .NET CoreCLR, LLVM lli</td>
+                            </tr>
+                            <tr class="@(SelectedTechId == "full" ? "row-selected" : "")">
+                                <td><strong>Vollständige Virtualisierung</strong></td>
+                                <td>PC-Hardware &amp; BIOS (Typ 2)</td>
+                                <td>Unverändert (gleiche ISA)</td>
+                                <td>Nein</td>
+                                <td>Hypervisor auf Host-OS</td>
+                                <td><span class="perf-mid">Mäßig (Trap-and-Emulate)</span></td>
+                                <td>VirtualBox, VMware Workstation</td>
+                            </tr>
+                            <tr class="@(SelectedTechId == "para" ? "row-selected" : "")">
+                                <td><strong>Paravirtualisierung</strong></td>
+                                <td>Hypercall-Schnittstelle</td>
+                                <td>Modifiziertes Gast-OS</td>
+                                <td>Nein</td>
+                                <td>Hypervisor (Typ 1)</td>
+                                <td><span class="perf-fast">Sehr schnell (Hypercalls)</span></td>
+                                <td>Xen, ESXi, Virtual Iron</td>
+                            </tr>
+                            <tr class="@(SelectedTechId == "hardware" ? "row-selected" : "")">
+                                <td><strong>Hardware-Virtualisierung</strong></td>
+                                <td>CPU-Erweiterungen (VT-x/AMD-V)</td>
+                                <td>Unverändert (Ring -1 / Root-Mode)</td>
+                                <td>Nein</td>
+                                <td>Typ-1 Hypervisor</td>
+                                <td><span class="perf-fast">Nahezu nativ</span></td>
+                                <td>Hyper-V, KVM, bhyve</td>
+                            </tr>
+                            <tr class="@(SelectedTechId == "os" ? "row-selected" : "")">
+                                <td><strong>Betriebssystem-Virtualisierung</strong></td>
+                                <td>Kernel-Namespaces &amp; Cgroups</td>
+                                <td>Gemeinsamer Host-Kernel (kein fremdes OS!)</td>
+                                <td>Nein</td>
+                                <td>Container Engine (Docker/Podman)</td>
+                                <td><span class="perf-native">Nativ (kein Hypervisor)</span></td>
+                                <td>Docker, Podman, LXC, OpenVZ</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+
+        <!-- Exam Self-Check Card (Covering BSVirtualisierung.tex subtasks a-d) -->
+        <div class="panel-card exam-card">
+            <div class="panel-header">
+                <span class="panel-title">📝 Klausur-Wissenscheck (4 Teilaufgaben aus BSVirtualisierung.tex)</span>
+                <span class="exam-pill">Offizielle Klausuraufgaben</span>
+            </div>
+
+            <div class="exam-body">
+                <!-- Question A -->
+                <div class="subtask-card">
+                    <div class="subtask-header">
+                        <span class="subtask-badge">Teilaufgabe a</span>
+                        <strong class="subtask-title">Unterschied zwischen Emulation und Virtualisierung:</strong>
+                    </div>
+                    <p class="subtask-q">Was ist der fundamentale Unterschied zwischen Emulation und Virtualisierung?</p>
+                    <div class="answer-wrapper">
+                        @if (ShowAnswers[0])
+                        {
+                            <div class="sol-reveal-box">
+                                <strong>Musterlösung:</strong> Emulation bildet die komplette Hardware eines Rechnersystems nach, 
+                                um ein unverändertes Betriebssystem, das für eine andere Hardwarearchitektur (CPU) ausgelegt ist, zu betreiben. 
+                                Virtualisierung hingegen teilt die existierende Hardware der gleichen Architektur auf.
+                            </div>
+                        }
+                        else
+                        {
+                            <button class="reveal-btn" @onclick="() => ToggleAnswer(0)">💡 Antwort aufdecken</button>
+                        }
+                    </div>
+                </div>
+
+                <!-- Question B -->
+                <div class="subtask-card">
+                    <div class="subtask-header">
+                        <span class="subtask-badge">Teilaufgabe b</span>
+                        <strong class="subtask-title">Beispiel für Anwendungsvirtualisierung:</strong>
+                    </div>
+                    <p class="subtask-q">Nennen Sie mindestens ein praxisrelevantes Beispiel für Anwendungsvirtualisierung.</p>
+                    <div class="answer-wrapper">
+                        @if (ShowAnswers[1])
+                        {
+                            <div class="sol-reveal-box">
+                                <strong>Musterlösung:</strong> JVM (Java Virtual Machine), CoreCLR (.NET Runtime), LLVM lli.
+                            </div>
+                        }
+                        else
+                        {
+                            <button class="reveal-btn" @onclick="() => ToggleAnswer(1)">💡 Antwort aufdecken</button>
+                        }
+                    </div>
+                </div>
+
+                <!-- Question C -->
+                <div class="subtask-card">
+                    <div class="subtask-header">
+                        <span class="subtask-badge">Teilaufgabe c</span>
+                        <strong class="subtask-title">Nachteil von Containern (OS-Virtualisierung):</strong>
+                    </div>
+                    <p class="subtask-q">Nennen Sie einen zentralen Nachteil der Betriebssystem-Virtualisierung durch Container.</p>
+                    <div class="answer-wrapper">
+                        @if (ShowAnswers[2])
+                        {
+                            <div class="sol-reveal-box">
+                                <strong>Musterlösung:</strong> Alle virtuellen Umgebungen (Container) nutzen den gleichen Kernel. 
+                                Es werden nur unabhängige Instanzen eines Betriebssystems gestartet. 
+                                Verschiedene Betriebssysteme (z.B. Windows-Gast auf Linux-Host) können nicht gleichzeitig verwendet werden.
+                            </div>
+                        }
+                        else
+                        {
+                            <button class="reveal-btn" @onclick="() => ToggleAnswer(2)">💡 Antwort aufdecken</button>
+                        }
+                    </div>
+                </div>
+
+                <!-- Question D -->
+                <div class="subtask-card">
+                    <div class="subtask-header">
+                        <span class="subtask-badge">Teilaufgabe d</span>
+                        <strong class="subtask-title">Einsatzbereich der Partitionierung:</strong>
+                    </div>
+                    <p class="subtask-q">Welche Art von Computer-Systemen (Großrechner, Server, PC, Mobile, Embedded) verwendet üblicherweise Partitionierung?</p>
+                    <div class="answer-wrapper">
+                        @if (ShowAnswers[3])
+                        {
+                            <div class="sol-reveal-box">
+                                <strong>Musterlösung:</strong> Großrechner (Mainframes wie IBM Z oder IBM Power Systems).
+                            </div>
+                        }
+                        else
+                        {
+                            <button class="reveal-btn" @onclick="() => ToggleAnswer(3)">💡 Antwort aufdecken</button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- WORKSHEET VIEW (1:1 EXAM REPLICA MATCHING BSVirtualisierung.tex)        -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Worksheet)
+    {
+        <div class="worksheet-paper">
+            
+            <!-- Exam Header -->
+            <div class="exam-header">
+                <div class="exam-title-group">
+                    <span class="exam-sub">Grundlagen der Informatik</span>
+                    <h1 class="exam-main-title">Virtualisation @(ShowSolution ? "- Lösung" : "")</h1>
+                    <span class="exam-task-label">Aufgabe 1 (Virtualisierung)</span>
+                </div>
+                <div class="exam-meta-box no-print">
+                    <button class="toggle-sol-btn @(ShowSolution ? "active" : "")" @onclick="ToggleSolution">
+                        @(ShowSolution ? "👁️ Musterlösung ausblenden" : "💡 Musterlösung einblenden")
+                    </button>
+                    <button class="print-btn" @onclick="TriggerPrint">
+                        🖨️ Drucken / PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Student Info Fields -->
+            <div class="student-info-strip">
+                <div class="info-field">
+                    <span class="info-label">Name, Vorname:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field">
+                    <span class="info-label">Matrikelnummer:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field points-field">
+                    <span class="info-label">Punkte:</span>
+                    <div class="points-box">/ 8 P.</div>
+                </div>
+            </div>
+
+            <!-- Intro Text matching BSVirtualisierung.tex line 1 -->
+            <div class="task-intro-box">
+                <p class="intro-text">
+                    In der Vorlesung haben wir Partitionierung, Hardware-Emulation, Anwendungsvirtualisierung, 
+                    vollständige Virtualisierung, Paravirtualisierung, Hardware-Virtualisierung und 
+                    Betriebssystem-Virtualisierung kennengelernt.
+                </p>
+            </div>
+
+            <!-- Teilaufgabe a -->
+            <div class="ws-subtask">
+                <div class="ws-subtask-title">a) Was ist der Unterschied zwischen Emulation und Virtualisierung?</div>
+                @if (!ShowSolution)
+                {
+                    <div class="ws-answer-lines lines-3">
+                        <div class="answer-line"></div>
+                        <div class="answer-line"></div>
+                    </div>
+                }
+                else
+                {
+                    <div class="ws-solution-box">
+                        Emulation bildet die komplette Hardware eines Rechnersystems nach, um ein unverändertes 
+                        Betriebssystem, das für eine andere Hardwarearchitektur (CPU) ausgelegt ist, zu betreiben.
+                    </div>
+                }
+            </div>
+
+            <!-- Teilaufgabe b -->
+            <div class="ws-subtask">
+                <div class="ws-subtask-title">b) Nennen Sie ein Beispiel für Anwendungsvirtualisierung.</div>
+                @if (!ShowSolution)
+                {
+                    <div class="ws-answer-lines lines-2">
+                        <div class="answer-line"></div>
+                    </div>
+                }
+                else
+                {
+                    <div class="ws-solution-box">
+                        JVM, CoreCLR, LLVM lli
+                    </div>
+                }
+            </div>
+
+            <!-- Teilaufgabe c -->
+            <div class="ws-subtask">
+                <div class="ws-subtask-title">c) Nennen Sie einen Nachteil der Betriebssystem-Virtualisierung durch Container.</div>
+                @if (!ShowSolution)
+                {
+                    <div class="ws-answer-lines lines-3">
+                        <div class="answer-line"></div>
+                        <div class="answer-line"></div>
+                    </div>
+                }
+                else
+                {
+                    <div class="ws-solution-box">
+                        Alle virtuellen Umgebungen nutzen den gleichen Kernel. Es werden nur unabhängige Instanzen 
+                        eines Betriebssystems gestartet. Verschiedene Betriebssysteme können nicht gleichzeitig verwendet werden.
+                    </div>
+                }
+            </div>
+
+            <!-- Teilaufgabe d -->
+            <div class="ws-subtask">
+                <div class="ws-subtask-title">
+                    d) Betriebssysteme lassen sich nach Art der Endgeräte für die sie gemacht sind in Systeme für 
+                    Großrechner, Server, Personal Computer, Mobile Computer und Eingebettete Systeme kategorisieren. 
+                    Welche Art von Computer-Systemen verwendet üblicherweise Partitionierung?
+                </div>
+                @if (!ShowSolution)
+                {
+                    <div class="ws-answer-lines lines-2">
+                        <div class="answer-line"></div>
+                    </div>
+                }
+                else
+                {
+                    <div class="ws-solution-box">
+                        Großrechner
+                    </div>
+                }
+            </div>
+
+            <!-- Footer for Worksheet -->
+            <div class="worksheet-footer">
+                <span>Intelligent Systems Design &bull; Hochschule Hamm-Lippstadt &bull; Betriebssysteme</span>
+            </div>
+
+        </div>
+    }
+
+</article>
+
+@code {
+    public enum ViewMode { Simulator, Worksheet }
+
+    [Parameter] public bool IsEmbed { get; set; }
+
+    private ViewMode ActiveView { get; set; } = ViewMode.Simulator;
+    private bool ShowSolution { get; set; } = false;
+    private bool ShowTaxonomy { get; set; } = true;
+    private string SelectedTechId { get; set; } = "partition";
+    private int SelectedLayerIndex { get; set; } = 0;
+
+    private bool[] ShowAnswers { get; set; } = new bool[4] { false, false, false, false };
+
+    // Models for Layers and Techniques
+    public record TechLayer(
+        string Name,
+        string RoleTag,
+        string PrivilegeLevel,
+        string CpuMode,
+        string InterfaceType,
+        string FunctionDescription,
+        string Advantage,
+        string Limitation,
+        string ExamNote,
+        string BgColor,
+        string BorderColor,
+        string SpecialClass = ""
+    );
+
+    public record VirtualTechnique(
+        string Id,
+        string Name,
+        string Icon,
+        string Category,
+        string OverheadLevel,
+        string IsolationLevel,
+        string Description,
+        string Examples,
+        string AccentColor,
+        bool IsExamFocus,
+        List<TechLayer> Layers
+    );
+
+    private List<VirtualTechnique> Techniques { get; set; } = new();
+
+    private VirtualTechnique CurrentTech => Techniques.FirstOrDefault(t => t.Id == SelectedTechId) ?? Techniques[0];
+    private TechLayer CurrentSelectedLayer => (SelectedLayerIndex >= 0 && SelectedLayerIndex < CurrentTech.Layers.Count)
+        ? CurrentTech.Layers[SelectedLayerIndex]
+        : CurrentTech.Layers[0];
+
+    protected override void OnInitialized()
+    {
+        InitializeTechniques();
+        ReadQueryParameters();
+        SelectTechnique("partition");
+    }
+
+    protected override void OnParametersSet()
+    {
+        ReadQueryParameters();
+    }
+
+    private void ReadQueryParameters()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query;
+            if (!string.IsNullOrEmpty(query))
+            {
+                if (query.Contains("view=worksheet", StringComparison.OrdinalIgnoreCase))
+                {
+                    ActiveView = ViewMode.Worksheet;
+                }
+                if (query.Contains("solution=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    ShowSolution = true;
+                }
+                if (query.Contains("embed=true", StringComparison.OrdinalIgnoreCase) || query.Contains("embedded=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsEmbed = true;
+                    ShowTaxonomy = false;
+                }
+            }
+        }
+        catch { }
+    }
+
+    private void SetView(ViewMode mode)
+    {
+        ActiveView = mode;
+    }
+
+    private void ToggleSolution()
+    {
+        ShowSolution = !ShowSolution;
+    }
+
+    private void ToggleTaxonomy()
+    {
+        ShowTaxonomy = !ShowTaxonomy;
+    }
+
+    private void ToggleAnswer(int idx)
+    {
+        if (idx >= 0 && idx < ShowAnswers.Length)
+        {
+            ShowAnswers[idx] = !ShowAnswers[idx];
+        }
+    }
+
+    private async Task TriggerPrint()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("window.print");
+        }
+        catch { }
+    }
+
+    private void SelectTechnique(string id)
+    {
+        SelectedTechId = id;
+        SelectedLayerIndex = 0; // Select base/bottom layer initially
+    }
+
+    private void SelectLayer(int index)
+    {
+        SelectedLayerIndex = index;
+    }
+
+    private void InitializeTechniques()
+    {
+        Techniques = new List<VirtualTechnique>
+        {
+            // 1. Partitionierung
+            new VirtualTechnique(
+                "partition", "1. Partitionierung", "🏛️", "Hardware-Ebene (Großrechner)", "Kein (0%)", "Physisch absolut",
+                "Feste Aufteilung physischer Ressourcen (CPUs, Speicher, Busse) in getrennte Teilsysteme (LPAR). Keine Virtualisierungssoftware nötig!",
+                "IBM Z, IBM Power Systems, Großrechner (Mainframes)", "#0284c7", true,
+                new List<TechLayer>
+                {
+                    new("Physische Hardware (CPUs, RAM, I/O)", "Hardware-Ebene", "Natives Silizium", "Hardware-Schaltkreise", "Bus-Partitionierung",
+                        "Großrechner-Hardware wird durch Hardware-Controller in logische Partitionen (LPARs) segmentiert.", "Vollkommene Isolation, keinerlei Performance-Einbußen", "Sehr teure Spezialhardware erforderlich", "Klausur: Großrechner nutzen üblicherweise Partitionierung!", "#0f172a", "#334155"),
+                    new("Partition A (Eigenständiges OS A)", "Logische Partition 1", "Ring 0 (Supervisor)", "Privilegiert", "Direkte Hardware",
+                        "Führt ein vollwertiges Betriebssystem (z.B. z/OS oder Linux on Z) ohne Zwischenschicht aus.", "Kein Hypervisor-Overhead", "Feste Ressourcenbindung", "", "#1e293b", "#0284c7"),
+                    new("Partition B (Eigenständiges OS B)", "Logische Partition 2", "Ring 0 (Supervisor)", "Privilegiert", "Direkte Hardware",
+                        "Parallel laufendes zweites System, komplett hardware-isoliert von Partition A.", "Unabhängiger Crash-Schutz", "Keine dynamische Überbuchung", "", "#1e293b", "#0284c7"),
+                    new("Anwendungen / Workloads", "Applikationsebene", "Ring 3 (User Space)", "Unprivilegiert", "POSIX / z/OS APIs",
+                        "Geschäftskritische Bank- und Transaktionsanwendungen.", "Maximale Verfügbarkeit", "Keine", "", "#0d1b2a", "#38bdf8")
+                }
+            ),
+
+            // 2. Hardware-Emulation
+            new VirtualTechnique(
+                "emulation", "2. Hardware-Emulation", "🕹️", "Befehlssatz-Übersetzung", "Sehr hoch (50-90%)", "Vollständig virtuell",
+                "Bildet die komplette Hardware eines fremden Rechnersystems (inkl. CPU-Befehlssatz) in Software nach. Erlaubt OS für fremde CPU auf Host-CPU.",
+                "Android Emulator (QEMU), Apple Rosetta, Bochs", "#f59e0b", true,
+                new List<TechLayer>
+                {
+                    new("Host-Hardware (z.B. x86_64 oder Apple ARM)", "Physische Host-CPU", "Host-Silizium", "Hardware", "Host-ISA",
+                        "Die tatsächlich vorhandene physische Rechnerarchitektur.", "Schnell", "Feste Hardware-Architektur", "", "#0f172a", "#334155"),
+                    new("Host-Betriebssystem", "Host-Plattform", "Host Ring 0", "Privilegiert", "Host-Kernel",
+                        "Das reguläre Betriebssystem des Entwicklers (z.B. macOS, Linux, Windows).", "Verwaltet Host-Geräte", "Zusätzliche Schicht", "", "#1e293b", "#475569"),
+                    new("Emulator (Software CPU Engine)", "Interpreter & JIT", "Host Ring 3", "Unprivilegiert", "Binary Translation",
+                        "Interpretiert und übersetzt fremde Maschinenbefehle (z.B. ARM auf x86) Instruktion für Instruktion.", "Macht fremde Software lauffähig", "Extremer Performance-Overhead", "Klausur: Emulation bildet die komplette Hardware/CPU für fremde Architekturen nach!", "#291b00", "#f59e0b"),
+                    new("Gast-OS (für Ziel-Architektur)", "Unverändertes Gast-OS", "Emulierter Ring 0", "Simuliert", "Emulierte Hardware",
+                        "Ein unverändertes Betriebssystem für eine völlig fremde CPU-Architektur.", "Keine Anpassung des Gast-OS nötig", "Langsame Ausführung", "", "#1e293b", "#fbbf24"),
+                    new("Gast-Anwendungen", "Ziel-Anwendung", "Emulierter Ring 3", "Simuliert", "Gast-APIs",
+                        "Anwendungen, die für die emulierte Zielarchitektur kompiliert wurden.", "Portabel", "Langsamere Ausführung", "", "#0d1b2a", "#fde68a")
+                }
+            ),
+
+            // 3. Anwendungsvirtualisierung
+            new VirtualTechnique(
+                "app", "3. Anwendungsvirtualisierung", "☕", "Laufzeitumgebung (Runtime)", "Sehr gering (JIT)", "Prozess-Ebene",
+                "Einzelne Anwendungen laufen in einer virtuellen Maschine zwischen Anwendung und OS. Plattformunabhängiger Bytecode.",
+                "JVM (Java), CoreCLR (.NET C#), LLVM lli", "#10b981", true,
+                new List<TechLayer>
+                {
+                    new("Physische Hardware & Host-OS", "Basis-Plattform", "Ring 0 / Host", "Nativ", "Systemaufrufe",
+                        "Beliebige Hardware mit passendem Host-Betriebssystem (Windows, Linux, macOS).", "Breite Unterstützung", "Keine", "", "#0f172a", "#334155"),
+                    new("Virtuelle Maschine (JVM / CoreCLR)", "Runtime Execution Engine", "Host Ring 3", "Unprivilegiert", "Bytecode-Interpreter & JIT",
+                        "Kapselt die Ausführungsumgebung, Garbage Collection und Speicherverwaltung der Anwendung.", "Write once, run anywhere. Sehr schnelle JIT-Kompilierung", "Kein vollständiges Gast-Betriebssystem", "Klausur: Paradebeispiele sind JVM, CoreCLR und LLVM lli!", "#022c22", "#10b981"),
+                    new("Bytecode / Zwischencode (.class / IL)", "Plattformunabhängiger Code", "Virtuelle ISA", "Abstrakt", "Intermediate Language",
+                        "Kompilierter Zwischencode, der unabhängig von CPU und OS ist.", "Maximale Portabilität", "Benötigt installierte Runtime", "", "#064e3b", "#34d399"),
+                    new("Anwendung (Java/.NET Applikation)", "User App", "Runtime Kontext", "Managed Code", "Class Libraries",
+                        "Die eigentliche geschriebene Anwendung (z.B. Web-Service, UI-Programm).", "Sicher gegen Memory-Leaks (GC)", "Abhängig von VM-Performance", "", "#0d1b2a", "#6ee7b7")
+                }
+            ),
+
+            // 4. Vollständige Virtualisierung
+            new VirtualTechnique(
+                "full", "4. Vollständige Virtualisierung", "📦", "Typ-2 Hypervisor (Hosted)", "Mäßig (Trap & Emulate)", "Starke VM-Isolation",
+                "Vollständige virtuelle PC-Umgebung inklusive virtuellem BIOS, Chipsatz und Geräten. Läuft als Anwendung auf einem Host-OS.",
+                "Oracle VirtualBox, VMware Workstation, Parallels", "#8b5cf6", false,
+                new List<TechLayer>
+                {
+                    new("Physische Hardware", "Host-Hardware", "Silizium", "Hardware", "x86_64 / ARM",
+                        "Host-Rechner des Benutzers.", "Physische Basis", "Keine", "", "#0f172a", "#334155"),
+                    new("Host-Betriebssystem", "Basis-OS", "Host Ring 0", "Privilegiert", "Host-Kernel",
+                        "Gewohntes Desktop-OS des Nutzers (z.B. Windows 11 oder Ubuntu).", "Einfache Installation als App", "Doppelter Kernel-Overhead", "", "#1e293b", "#475569"),
+                    new("Typ-2 Hypervisor (VMM)", "Hosted Virtual Machine Monitor", "Host Ring 3 / Kernel-Treiber", "Mixed", "Virtuelles BIOS & Geräte",
+                        "Simuliert virtuellen PC mit virtuellem BIOS, IDE/SATA-Controllern und Netzwerkkarten.", "Einfache Handhabung, Desktop-freundlich", "I/O muss durch Host-OS geschleift werden", "", "#2e1065", "#8b5cf6"),
+                    new("Unverändertes Gast-OS", "Gast-Betriebssystem", "Virtueller Ring 0", "Abgefangen (Trap)", "Virtuelle Hardware",
+                        "Standardmäßiges Betriebssystem (z.B. Windows in VirtualBox auf Linux).", "Völlig unverändertes Gast-OS nutzbar", "Trap-and-Emulate verursacht Latenzen", "", "#1e293b", "#a78bfa"),
+                    new("Gast-Anwendungen", "Gast-Applikationen", "Virtueller Ring 3", "Unprivilegiert", "Gast-APIs",
+                        "Anwendungen, die isoliert innerhalb der VM ausgeführt werden.", "Vollständige Desktop-Umgebung", "Höherer RAM-Bedarf", "", "#0d1b2a", "#c4b5fd")
+                }
+            ),
+
+            // 5. Paravirtualisierung
+            new VirtualTechnique(
+                "para", "5. Paravirtualisierung", "⚡", "Hypercall-Schnittstelle", "Gering (1-3%)", "Starke VM-Isolation",
+                "Hypervisor bildet keine Hardware nach, sondern bietet Hypercall-API. Gast-OS muss modifiziert werden, arbeitet dadurch hocheffizient!",
+                "Xen, Citrix XenServer, VMware ESXi", "#06b6d4", false,
+                new List<TechLayer>
+                {
+                    new("Physische Hardware", "Bare Metal", "Silizium", "Hardware", "Nativ",
+                        "Dedizierter Server-Hardware ohne Host-OS.", "Volle Server-Ressourcen", "Keine", "", "#0f172a", "#334155"),
+                    new("Typ-1 Hypervisor (z.B. Xen Microkernel)", "Bare-Metal Hypervisor", "Ring 0 (Root)", "Höchst-privilegiert", "Hypercall-API",
+                        "Schlanker Hypervisor direkt auf dem Bare Metal. Verwaltet CPU und Memory-Slicing.", "Hervorragende Performance, minimale Angriffsfläche", "Keine vollwertigen Gerätetreiber", "", "#083344", "#06b6d4"),
+                    new("Modifiziertes Gast-OS (Paravirtualisiert)", "Enlightened Gast-Kernel", "Ring 1 (oder Non-Root)", "Kooperativ", "Hypercalls (semantisch)",
+                        "Gast-Kernel weiß, dass er virtualisiert ist, und ruft Hypercalls statt privilegierter CPU-Instruktionen auf.", "Kein teures Trap-and-Emulate", "Proprietäre OS ohne Quellcode-Anpassung schwer nutzbar", "", "#1e293b", "#22d3ee"),
+                    new("Gast-Anwendungen", "Nutzer-Prozesse", "Ring 3", "Unprivilegiert", "Standard POSIX",
+                        "Reguläre Anwendungen ohne jede Modifikation.", "Volle Kompatibilität für Apps", "Keine", "", "#0d1b2a", "#67e8f9")
+                }
+            ),
+
+            // 6. Hardware-Virtualisierung
+            new VirtualTechnique(
+                "hardware", "6. Hardware-Virtualisierung", "🛡️", "CPU-Erweiterungen (Typ 1)", "Sehr gering (1-2%)", "Hardware-erzwungen",
+                "Nutzt Prozessorerweiterungen (Intel VT-x, AMD-V) mit Ring -1 (Root Mode). Erlaubt unveränderte Gast-OS mit nativer Geschwindigkeit.",
+                "Microsoft Hyper-V, Linux KVM, bhyve", "#ec4899", false,
+                new List<TechLayer>
+                {
+                    new("CPU mit Virtualisierungs-Erweiterungen", "Intel VT-x / AMD-V", "Silizium + VMX Root", "Hardware-assisted", "VMCS / VMCB",
+                        "Prozessor unterstützt VMX Root (Hypervisor) und VMX Non-Root (Gast-OS).", "Hardware fängt privilegierte Operationen automatisch ab", "Benötigt moderne CPU", "", "#0f172a", "#334155"),
+                    new("Hardware-naher Hypervisor (Hyper-V/KVM)", "Typ-1 Hypervisor", "Ring -1 (VMX Root)", "Root Operation", "Hardware-Virtualisierung",
+                        "Verwaltet virtuelle Maschinen hardwaregestützt über VM Control Structures (VMCS).", "Nahezu native Geschwindigkeit", "Komplexere Konfiguration", "", "#500724", "#ec4899"),
+                    new("Unverändertes Gast-OS", "Standard Gast-Kernel", "VMX Non-Root Ring 0", "Non-Root", "Nativer CPU-Befehlssatz",
+                        "Vollständig unmodifiziertes Betriebssystem (Windows, Linux, BSD).", "Kein Modifikationsaufwand, sichere Trennung", "Erfordert VT-x im BIOS", "", "#1e293b", "#f472b6"),
+                    new("Gast-Anwendungen", "Gast-Prozesse", "VMX Non-Root Ring 3", "Unprivilegiert", "Gast-APIs",
+                        "Unveränderte Anwendungen.", "Natives Tempo", "Keine", "", "#0d1b2a", "#fbcfe8")
+                }
+            ),
+
+            // 7. Betriebssystem-Virtualisierung
+            new VirtualTechnique(
+                "os", "7. Betriebssystem-Virtualisierung", "🐳", "Container (Gemeinsamer Kernel)", "Praktisch 0% (Nativ)", "Prozess-Isolation (Namespaces)",
+                "Abgeschottete identische Systemumgebungen (Container). Alle Container teilen sich denselben Host-Kernel! Geringster Ressourcenbedarf.",
+                "Docker, Podman, containerd, LXC", "#3b82f6", true,
+                new List<TechLayer>
+                {
+                    new("Physische Hardware", "Server / PC Hardware", "Silizium", "Hardware", "Nativ",
+                        "Physische Server- oder Desktop-Hardware.", "Voll ausgenutzt", "Keine", "", "#0f172a", "#334155"),
+                    new("Gemeinsamer Host-Betriebssystem-Kernel", "Geteilter Linux-Kernel", "Ring 0 (Host)", "Privilegiert", "cgroups, namespaces, seccomp",
+                        "Ein einziger Betriebssystem-Kernel bedient das gesamte System und isoliert Container logisch.", "Extrem leichtgewichtig, blitzschneller Start (Millisekunden)", "Klausur: Alle Container nutzen denselben Kernel! Kein fremdes OS möglich!", "Klausur: Nachteil: Verschiedene Betriebssysteme können nicht gleichzeitig verwendet werden!", "#172554", "#3b82f6"),
+                    new("Container-Engine / Daemon", "Docker / Podman Engine", "Host Ring 3", "Unprivilegiert", "OCI Runtime (runc)",
+                        "Konfiguriert Namespaces (PID, Net, Mnt) und Cgroups für Ressourcenlimits (RAM, CPU).", "Einfache Orchestrierung, standardisierte Images", "Keine Hardware-Emulation", "", "#1e3a8a", "#60a5fa"),
+                    new("Container A (App + Libs)", "Isolierte Umgebung 1", "Eigene Namespaces", "Logisch isoliert", "Shared Kernel Syscalls",
+                        "Enthält nur Anwendung und Abhängigkeiten (z.B. Alpine Linux Rootfs mit Node.js).", "Minimaler Speicherplatz (MB statt GB)", "Kernel-Exploits gefährden alle Container", "", "#1e293b", "#93c5fd"),
+                    new("Container B (App + Libs)", "Isolierte Umgebung 2", "Eigene Namespaces", "Logisch isoliert", "Shared Kernel Syscalls",
+                        "Zweiter unabhängiger Container (z.B. PostgreSQL-Datenbank).", "Portabel und reproduzierbar", "Muss mit Host-Kernel-Architektur kompatibel sein", "", "#1e293b", "#bfdbfe")
+                }
+            )
+        };
+    }
+}

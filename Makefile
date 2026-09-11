@@ -119,7 +119,7 @@ pages-prepare: docs demo-publish
 	cp -R $(DOCFX_OUT_DIR)/. $(PAGES_DIR)
 	cp -R $(DEMO_PUBLISH_DIR)/wwwroot/. $(PAGES_DIR)/demos
 	cp $(DEMO_PUBLISH_DIR)/wwwroot/index.html $(PAGES_DIR)/404.html
-	@for route in binary-conversion number-conversion binary-arithmetic binary-addition twos-complement decimal-to-binary dezimal-zu-binaer binary-to-decimal binaer-zu-dezimal computing-systems operating-systems networking cpu-simulator logic-simulator logic-circuits pla programmable-logic-array hazards glitches moore-machine moore assembler mips napier-bones normal-forms quine-mccluskey karnaugh-veitch addressing line-coding bitencoding crc subnetting cpu-scheduling realtime-scheduling buddy-memory page-replacement spanning-tree shortest-path tcp process-state race-condition race peterson peterson-algorithm pipes pipe ipc interprozesskommunikation; do \
+	@for route in binary-conversion number-conversion binary-arithmetic binary-addition twos-complement decimal-to-binary dezimal-zu-binaer binary-to-decimal binaer-zu-dezimal computing-systems operating-systems networking cpu-simulator logic-simulator logic-circuits pla programmable-logic-array hazards glitches moore-machine moore assembler mips napier-bones normal-forms quine-mccluskey karnaugh-veitch addressing line-coding bitencoding crc subnetting cpu-scheduling realtime-scheduling buddy-memory page-replacement spanning-tree shortest-path tcp process-state race-condition race peterson peterson-algorithm pipes pipe ipc interprozesskommunikation virtualisation virtualisierung; do \
 		mkdir -p $(PAGES_DIR)/demos/$$route; \
 		cp $(DEMO_PUBLISH_DIR)/wwwroot/index.html $(PAGES_DIR)/demos/$$route/index.html; \
 	done
