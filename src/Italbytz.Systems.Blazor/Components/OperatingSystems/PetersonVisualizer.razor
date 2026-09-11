@@ -1,0 +1,1146 @@
+@namespace Italbytz.Systems.Blazor.Components.OperatingSystems
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+<article class="peterson-container @(IsEmbed ? "embed-mode" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
+
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
+    {
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Betriebssysteme &bull; Interprozesskommunikation</p>
+            <h2>Petersons Algorithmus (Wechselseitiger Ausschluss)</h2>
+            <p class="feature-intro">
+                Petersons Algorithmus garantiert wechselseitigen Ausschluss (Mutual Exclusion) für zwei nebenläufige Prozesse 
+                durch eine geschickte Kombination aus Interessens-Flags (<code>Interested[2]</code>) und einer Höflichkeits-Variable (<code>_turn</code>). 
+                Erforschen Sie schrittweise, wie aktives Warten funktioniert und wie Wettläufe symmetriebrechend aufgelöst werden.
+            </p>
+        </div>
+    }
+
+    <!-- View Switcher -->
+    @if (!IsEmbed)
+    {
+        <div class="view-switch no-print">
+            <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Simulator)">
+                🚀 Interaktiver Peterson-Simulator &amp; Interleaving
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Worksheet)">
+                🖨️ Klausur-Arbeitsblatt (Druckansicht 1:1)
+            </button>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- SIMULATOR VIEW                                                            -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Controls & Presets Panel -->
+        <div class="controls-panel no-print">
+            <div class="toolbar-grid">
+                <div class="btn-group">
+                    <button class="action-btn" @onclick="GoToStart" disabled="@(CurrentStepIndex == 0)" title="An den Anfang">
+                        ⏮️ Anfang
+                    </button>
+                    <button class="action-btn" @onclick="StepBack" disabled="@(CurrentStepIndex == 0)" title="Schritt zurück">
+                        ◀️ Zurück
+                    </button>
+                    <button class="action-btn primary" @onclick="ToggleAutoPlay">
+                        @(IsPlaying ? "⏸️ Pause" : "▶️ Auto-Play")
+                    </button>
+                    <button class="action-btn primary" @onclick="StepForward" disabled="@(CurrentStepIndex >= ActiveSchedule.Count)" title="Nächster Schritt">
+                        Nächster Schritt (@(CurrentStepIndex)/@ActiveSchedule.Count) ⏭️
+                    </button>
+                    <button class="action-btn" @onclick="ResetSimulation" title="Simulation zurücksetzen">
+                        🔄 Reset
+                    </button>
+                </div>
+
+                <div class="preset-group">
+                    <span class="preset-label">Szenarien:</span>
+                    <button class="preset-btn @(SelectedPreset == "Standard" ? "active" : "")" @onclick='() => LoadPreset("Standard")'>
+                        1. Standard (Versetzter Start)
+                    </button>
+                    <button class="preset-btn @(SelectedPreset == "Contention" ? "active" : "")" @onclick='() => LoadPreset("Contention")'>
+                        2. Symmetriebruch (Zeitgleicher Start)
+                    </button>
+                    <button class="preset-btn @(SelectedPreset == "Solo" ? "active" : "")" @onclick='() => LoadPreset("Solo")'>
+                        3. Einzellauf (Keine Konkurrenz)
+                    </button>
+                    <button class="preset-btn @(SelectedPreset == "DeadlockDemo" ? "active" : "")" @onclick='() => LoadPreset("DeadlockDemo")'>
+                        4. Ohne Turn (Verklemmung)
+                    </button>
+                </div>
+
+                <div class="speed-control">
+                    <span class="preset-label">Tempo:</span>
+                    <select class="speed-select" @bind="PlaySpeedMs">
+                        <option value="1500">Normal (1.5s)</option>
+                        <option value="800">Schnell (0.8s)</option>
+                        <option value="2500">Gemächlich (2.5s)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status & Safety Banner -->
+        @if (IsDeadlockEncountered)
+        {
+            <div class="alert-banner deadlock-banner">
+                <span class="alert-icon">⚠️</span>
+                <div class="alert-content">
+                    <strong class="alert-title">VERKLEMMUNG / LIVELOCK DEMONSTRATION!</strong>
+                    <span class="alert-desc">Ohne die Höflichkeits-Variable <code>_turn</code> warten beide Threads endlos aufeinander.</span>
+                </div>
+            </div>
+        }
+        else if (InCriticalRegionCount > 1)
+        {
+            <div class="alert-banner violation-banner">
+                <span class="alert-icon">💥</span>
+                <div class="alert-content">
+                    <strong class="alert-title">MUTUAL EXCLUSION VERLETZT!</strong>
+                    <span class="alert-desc">Zwei Threads befinden sich gleichzeitig im kritischen Abschnitt!</span>
+                </div>
+            </div>
+        }
+        else if (InCriticalRegionCount == 1)
+        {
+            var activeId = InCriticalRegion[0] ? 0 : 1;
+            <div class="alert-banner cs-active-banner">
+                <span class="alert-icon">🔒</span>
+                <div class="alert-content">
+                    <strong class="alert-title">KRITISCHER ABSCHNITT BELEGT VON THREAD @activeId</strong>
+                    <span class="alert-desc">Thread @(1 - activeId) ist durch Petersons Algorithmus sicher ausgesperrt.</span>
+                </div>
+            </div>
+        }
+        else if (CurrentStepIndex >= ActiveSchedule.Count)
+        {
+            <div class="alert-banner completed-banner">
+                <span class="alert-icon">✅</span>
+                <div class="alert-content">
+                    <strong class="alert-title">ABLAUF ERFOLGREICH BEENDET!</strong>
+                    <span class="alert-desc">Beide Threads haben ihre kritischen Abschnitte serialisiert und kollisionsfrei durchlaufen.</span>
+                </div>
+            </div>
+        }
+
+        <!-- Simulation Grid: Thread 0 | Shared State | Thread 1 -->
+        <div class="sim-dashboard-grid">
+            
+            <!-- Left: Thread 0 Swimlane -->
+            <div class="panel-card thread-card thread-zero-card">
+                <div class="panel-header">
+                    <span class="panel-title thread-title thread-zero-title">🧵 Thread 0 (T0)</span>
+                    <span class="thread-status-badge @GetThreadStatusClass(0)">@GetThreadStatusText(0)</span>
+                </div>
+                <div class="thread-code-body">
+                    <div class="code-flow">
+                        @for (int i = 0; i < Thread0Instructions.Count; i++)
+                        {
+                            var idx = i;
+                            var instr = Thread0Instructions[idx];
+                            var isCurrent = (CurrentStepIndex > 0 && CurrentStepIndex <= ActiveSchedule.Count && 
+                                            ActiveSchedule[CurrentStepIndex - 1].ThreadId == 0 && 
+                                            ActiveSchedule[CurrentStepIndex - 1].InstructionIndex == idx);
+                            var isPast = (GetThreadProgress(0) > idx);
+                            var isCrit = instr.IsCriticalSection;
+
+                            <div class="instr-row @(isCurrent ? "current-step" : "") @(isPast ? "past-step" : "") @(isCrit ? "crit-section" : "")">
+                                <span class="step-num">@(idx + 1)</span>
+                                <span class="instr-code mono">@instr.CodeText</span>
+                                @if (isCrit)
+                                {
+                                    <span class="crit-tag" title="Kritischer Abschnitt">KRITISCH</span>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <!-- While-Condition Evaluator for T0 -->
+                    <div class="while-condition-box @(ThreadStatus[0] == ProcessStatus.BusyWaiting ? "cond-waiting" : "")">
+                        <span class="cond-title">Bedingung für aktives Warten:</span>
+                        <div class="cond-formula mono">
+                            <code>Interested[1] && _turn == 1</code>
+                        </div>
+                        <div class="cond-eval-breakdown">
+                            <span class="eval-part @(Interested[1] ? "part-true" : "part-false")">
+                                Interested[1]: <strong>@(Interested[1] ? "true" : "false")</strong>
+                            </span>
+                            <span class="eval-op">&amp;&amp;</span>
+                            <span class="eval-part @(Turn == 1 ? "part-true" : "part-false")">
+                                _turn == 1: <strong>@(Turn == 1 ? "true" : "false")</strong>
+                            </span>
+                            <span class="eval-res @(ShouldWait(0) ? "res-wait" : "res-pass")">
+                                ➔ @(ShouldWait(0) ? "⏳ WARTEN" : "🚀 FREI")
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Center: Shared State Card (Interested-Array + Turn) -->
+            <div class="panel-card shared-state-card">
+                <div class="panel-header">
+                    <span class="panel-title">💾 Geteilter Zustand (Shared State)</span>
+                    <span class="lock-pill @(InCriticalRegionCount > 0 ? "lock-held" : "lock-free")">
+                        @(InCriticalRegionCount > 0 ? $"🔒 KS belegt" : "🔓 KS frei")
+                    </span>
+                </div>
+
+                <div class="shared-mem-content">
+                    
+                    <!-- Interested Array Display -->
+                    <div class="state-group-box">
+                        <span class="group-title">Array <code>Interested[2]</code> (Interessensbekundung)</span>
+                        <div class="interested-grid">
+                            <div class="interested-pill @(Interested[0] ? "active-t0" : "inactive")">
+                                <span class="pill-label">Interested[0] (T0)</span>
+                                <span class="pill-val mono">@(Interested[0] ? "TRUE" : "FALSE")</span>
+                            </div>
+                            <div class="interested-pill @(Interested[1] ? "active-t1" : "inactive")">
+                                <span class="pill-label">Interested[1] (T1)</span>
+                                <span class="pill-val mono">@(Interested[1] ? "TRUE" : "FALSE")</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Turn Variable Display -->
+                    <div class="state-group-box turn-box">
+                        <span class="group-title">Variable <code>_turn</code> (Vortritt / Höflichkeit)</span>
+                        <div class="turn-display-wrap">
+                            <div class="turn-card @(Turn == 0 ? "turn-t0" : (Turn == 1 ? "turn-t1" : "turn-none"))">
+                                <span class="turn-val mono">@Turn</span>
+                                <span class="turn-desc">
+                                    @(Turn == 0 
+                                        ? "👈 Vortritt bei Thread 0 (T1 wartet)" 
+                                        : (Turn == 1 
+                                            ? "👉 Vortritt bei Thread 1 (T0 wartet)" 
+                                            : "Initialwert (-1)"))
+                                </span>
+                            </div>
+                        </div>
+                        <p class="turn-hint">
+                            Jeder Prozess setzt <code>_turn = other</code>. Derjenige, der <em>als Zweiter</em> schreibt, 
+                            überlässt dem Ersten den Vortritt!
+                        </p>
+                    </div>
+
+                    <!-- Critical Region Monitor -->
+                    <div class="state-group-box cs-box">
+                        <span class="group-title">Kritischer Abschnitt (Shared Variable: <code>_myself</code>)</span>
+                        <div class="cs-monitor @(InCriticalRegionCount > 1 ? "cs-conflict" : (InCriticalRegionCount == 1 ? "cs-occupied" : "cs-empty"))">
+                            @if (InCriticalRegionCount == 0)
+                            {
+                                <span class="cs-empty-text">Kein Thread im kritischen Bereich</span>
+                            }
+                            else
+                            {
+                                <div class="cs-active-info">
+                                    <span class="cs-thread-badge @(InCriticalRegion[0] ? "tag-t0" : "tag-t1")">
+                                        Thread @(InCriticalRegion[0] ? "0" : "1") aktiv
+                                    </span>
+                                    <span class="cs-val mono">_myself = @MyselfVal</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Step Explanation Box -->
+                    <div class="step-explainer-box">
+                        <div class="explainer-header">
+                            <span class="explainer-badge">Schritt @(CurrentStepIndex) von @ActiveSchedule.Count</span>
+                            @if (CurrentStepIndex > 0 && CurrentStepIndex <= ActiveSchedule.Count)
+                            {
+                                var cur = ActiveSchedule[CurrentStepIndex - 1];
+                                <span class="thread-tag tag-t@(cur.ThreadId)">Thread @cur.ThreadId</span>
+                            }
+                        </div>
+                        <p class="explainer-desc">
+                            @CurrentStepExplanation
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Right: Thread 1 Swimlane -->
+            <div class="panel-card thread-card thread-one-card">
+                <div class="panel-header">
+                    <span class="panel-title thread-title thread-one-title">🧵 Thread 1 (T1)</span>
+                    <span class="thread-status-badge @GetThreadStatusClass(1)">@GetThreadStatusText(1)</span>
+                </div>
+                <div class="thread-code-body">
+                    <div class="code-flow">
+                        @for (int i = 0; i < Thread1Instructions.Count; i++)
+                        {
+                            var idx = i;
+                            var instr = Thread1Instructions[idx];
+                            var isCurrent = (CurrentStepIndex > 0 && CurrentStepIndex <= ActiveSchedule.Count && 
+                                            ActiveSchedule[CurrentStepIndex - 1].ThreadId == 1 && 
+                                            ActiveSchedule[CurrentStepIndex - 1].InstructionIndex == idx);
+                            var isPast = (GetThreadProgress(1) > idx);
+                            var isCrit = instr.IsCriticalSection;
+
+                            <div class="instr-row @(isCurrent ? "current-step" : "") @(isPast ? "past-step" : "") @(isCrit ? "crit-section" : "")">
+                                <span class="step-num">@(idx + 1)</span>
+                                <span class="instr-code mono">@instr.CodeText</span>
+                                @if (isCrit)
+                                {
+                                    <span class="crit-tag" title="Kritischer Abschnitt">KRITISCH</span>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <!-- While-Condition Evaluator for T1 -->
+                    <div class="while-condition-box @(ThreadStatus[1] == ProcessStatus.BusyWaiting ? "cond-waiting" : "")">
+                        <span class="cond-title">Bedingung für aktives Warten:</span>
+                        <div class="cond-formula mono">
+                            <code>Interested[0] && _turn == 0</code>
+                        </div>
+                        <div class="cond-eval-breakdown">
+                            <span class="eval-part @(Interested[0] ? "part-true" : "part-false")">
+                                Interested[0]: <strong>@(Interested[0] ? "true" : "false")</strong>
+                            </span>
+                            <span class="eval-op">&amp;&amp;</span>
+                            <span class="eval-part @(Turn == 0 ? "part-true" : "part-false")">
+                                _turn == 0: <strong>@(Turn == 0 ? "true" : "false")</strong>
+                            </span>
+                            <span class="eval-res @(ShouldWait(1) ? "res-wait" : "res-pass")">
+                                ➔ @(ShouldWait(1) ? "⏳ WARTEN" : "🚀 FREI")
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Terminal Console Output -->
+        <div class="panel-card console-card">
+            <div class="panel-header">
+                <span class="panel-title">🖥️ Programmausgabe (Standard Output / Console)</span>
+                <span class="console-hint">Ausgaben von Enter_region, Leave_region und aktivem Warten (.0/.1)</span>
+            </div>
+            <div class="console-body mono">
+                @if (!ConsoleLines.Any())
+                {
+                    <span class="console-empty">Noch keine Programmausgaben vorhanden. Starten Sie die Simulation...</span>
+                }
+                else
+                {
+                    @foreach (var line in ConsoleLines)
+                    {
+                        <div class="console-row">
+                            <span class="console-ts">[@line.StepNum]</span>
+                            <span class="console-src tag-t@(line.ThreadId)">Thread @line.ThreadId:</span>
+                            <span class="console-msg">@line.Message</span>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- WORKSHEET VIEW (1:1 EXAM REPLICA MATCHING BSSynchronisationPetersonCS)    -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Worksheet)
+    {
+        <div class="worksheet-paper">
+            
+            <!-- Exam Header -->
+            <div class="exam-header">
+                <div class="exam-title-group">
+                    <span class="exam-sub">Betriebssysteme</span>
+                    <h1 class="exam-main-title">Peterson-Algorithmus @(ShowSolution ? "- Lösung" : "")</h1>
+                    <span class="exam-task-label">Aufgabe 1 (Wechselseitiger Ausschluss)</span>
+                </div>
+                <div class="exam-meta-box no-print">
+                    <button class="toggle-sol-btn @(ShowSolution ? "active" : "")" @onclick="ToggleSolution">
+                        @(ShowSolution ? "👁️ Musterlösung ausblenden" : "💡 Musterlösung einblenden")
+                    </button>
+                    <button class="print-btn" @onclick="TriggerPrint">
+                        🖨️ Drucken / PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Student Info Fields -->
+            <div class="student-info-strip">
+                <div class="info-field">
+                    <span class="info-label">Name, Vorname:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field">
+                    <span class="info-label">Matrikelnummer:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field points-field">
+                    <span class="info-label">Punkte:</span>
+                    <div class="points-box">/ 5 P.</div>
+                </div>
+            </div>
+
+            <!-- Task Lead Text -->
+            <div class="task-intro-box">
+                <p class="task-lead-text">
+                    Wir haben folgende Lösung zum korrekten aktiven Warten bei zwei Threads besprochen:
+                </p>
+            </div>
+
+            <!-- Code Listing matching Petersoncs.tex -->
+            <div class="ws-code-box">
+                <pre class="ws-code mono"><code><span class="kw">using</span> System;
+<span class="kw">using</span> System.Threading;
+
+<span class="kw">namespace</span> Peterson
+{
+    <span class="kw">class</span> <span class="tp">Program</span>
+    {
+        <span class="kw">private static int</span> _turn; <span class="com">// Gibt an, wer gerade an der Reihe ist</span>
+        <span class="kw">private static readonly bool</span>[] Interested = <span class="kw">new bool</span>[<span class="num">2</span>];
+        <span class="kw">private static int</span> _myself;
+
+        <span class="kw">private static void</span> <span class="fn">Enter_region</span>(<span class="kw">int</span> process)
+        {
+            Console.WriteLine(<span class="str">$"Thread {process} wants to enter critical region."</span>);
+            <span class="kw">var</span> other = <span class="num">1</span> - process; <span class="com">// Der andere Prozess</span>
+            Interested[process] = <span class="kw">true</span>; <span class="com">// Interesse zeigen</span>
+            _turn = other; <span class="com">// Flag setzen (Vortritt lassen!)</span>
+            <span class="kw">while</span> (Interested[other] &amp;&amp; _turn == other) {
+                Console.Write(<span class="str">$".{process}"</span>);
+            }; <span class="com">// Aktives Warten</span>
+            Console.WriteLine();
+        }
+
+        <span class="kw">private static void</span> <span class="fn">Leave_region</span>(<span class="kw">int</span> process) 
+        {
+            Interested[process] = <span class="kw">false</span>; <span class="com">// Ausstieg aus dem kritischen Bereich</span>
+        }
+
+        <span class="kw">private static void</span> <span class="fn">StaticMethod</span>(<span class="kw">object</span> threadId)
+        {
+            Enter_region((<span class="kw">int</span>)threadId);
+            Console.WriteLine(<span class="str">$"Thread {threadId} entered critical region."</span>);
+            _myself = (<span class="kw">int</span>)threadId;
+            Console.WriteLine(<span class="str">$"Variable should be {threadId}, is: {_myself}"</span>);
+            Leave_region((<span class="kw">int</span>)threadId);
+        }
+
+        <span class="kw">private static void</span> <span class="fn">Main</span>(<span class="kw">string</span>[] args)
+        {
+            <span class="kw">for</span> (<span class="kw">var</span> i = <span class="num">0</span>; i &lt; <span class="num">2</span>; i++)
+            {
+                <span class="kw">var</span> newThread = <span class="kw">new</span> Thread(StaticMethod);
+                newThread.Start(i);
+            }
+        }
+    }
+}</code></pre>
+            </div>
+
+            <!-- Task Question -->
+            <div class="task-prompt-box">
+                <p class="task-text">
+                    Geben Sie in eigenen Worten die Funktionsweise wieder.
+                </p>
+            </div>
+
+            <!-- Answer Section -->
+            @if (!ShowSolution)
+            {
+                <div class="ws-answer-lines">
+                    <div class="answer-line"></div>
+                    <div class="answer-line"></div>
+                    <div class="answer-line"></div>
+                    <div class="answer-line"></div>
+                    <div class="answer-line"></div>
+                    <div class="answer-line"></div>
+                    <div class="answer-line"></div>
+                </div>
+            }
+            else
+            {
+                <div class="ws-solution-box">
+                    <div class="sol-hdr bold">Musterlösung:</div>
+                    <p class="sol-text">
+                        Beide Threads starten damit, sich in das Interested-Array als interessiert einzutragen und die gemeinsame Variable <code>_turn</code> auf den anderen Prozess zu setzen. Solange der andere Prozess noch am Rechnen interessiert ist und in <code>_turn</code> eingetragen ist, wird gewartet. Nach erfolgreichem Bearbeiten des kritischen Abschnitts wird der Eintrag im Interested-Array auf <code>false</code> gesetzt. Das Verfahren funktioniert, da es ein Wettrennen darum gibt, wer zuerst dem anderen Prozess den Vortritt lässt.
+                    </p>
+                </div>
+            }
+
+            <div class="exam-footer">
+                <span class="exam-footer-note">Intelligent Systems Design &bull; Hochschule Hamm-Lippstadt &bull; Betriebssysteme</span>
+            </div>
+
+        </div>
+    }
+
+</article>
+
+@code {
+    public enum ViewMode { Simulator, Worksheet }
+    public enum ProcessStatus { Ready, InEntryProtocol, BusyWaiting, InCriticalSection, Exited }
+
+    [Parameter] public ViewMode ActiveView { get; set; } = ViewMode.Simulator;
+    [Parameter] public bool IsEmbed { get; set; } = false;
+    [Parameter] public bool ShowSolution { get; set; } = false;
+    [Parameter] public string SelectedPreset { get; set; } = "Standard";
+
+    public int CurrentStepIndex { get; set; } = 0;
+    public bool IsPlaying { get; set; } = false;
+    public int PlaySpeedMs { get; set; } = 1500;
+
+    // Simulation Data Models
+    public class InstructionDef
+    {
+        public string CodeText { get; set; } = "";
+        public bool IsCriticalSection { get; set; }
+    }
+
+    public class ScheduleStep
+    {
+        public int ThreadId { get; set; }
+        public int InstructionIndex { get; set; }
+        public string ActionType { get; set; } = "";
+        public string Explanation { get; set; } = "";
+        public bool Interested0After { get; set; }
+        public bool Interested1After { get; set; }
+        public int TurnAfter { get; set; }
+        public int MyselfAfter { get; set; }
+        public bool InCs0After { get; set; }
+        public bool InCs1After { get; set; }
+        public ProcessStatus Status0After { get; set; }
+        public ProcessStatus Status1After { get; set; }
+        public string? ConsoleOutput { get; set; }
+    }
+
+    public class ConsoleLine
+    {
+        public int StepNum { get; set; }
+        public int ThreadId { get; set; }
+        public string Message { get; set; } = "";
+    }
+
+    // Shared Simulation State
+    public bool[] Interested { get; set; } = new bool[2] { false, false };
+    public int Turn { get; set; } = -1;
+    public int MyselfVal { get; set; } = -1;
+    public bool[] InCriticalRegion { get; set; } = new bool[2] { false, false };
+    public ProcessStatus[] ThreadStatus { get; set; } = new ProcessStatus[2] { ProcessStatus.Ready, ProcessStatus.Ready };
+
+    public int InCriticalRegionCount => (InCriticalRegion[0] ? 1 : 0) + (InCriticalRegion[1] ? 1 : 0);
+    public bool IsDeadlockEncountered => (SelectedPreset == "DeadlockDemo" && CurrentStepIndex >= 4);
+
+    public string CurrentStepExplanation { get; set; } = "Bereit. Klicken Sie auf „Nächster Schritt“ oder „Auto-Play“.";
+
+    public List<InstructionDef> Thread0Instructions { get; set; } = new();
+    public List<InstructionDef> Thread1Instructions { get; set; } = new();
+    public List<ScheduleStep> ActiveSchedule { get; set; } = new();
+    public List<ConsoleLine> ConsoleLines { get; set; } = new();
+
+    private CancellationTokenSource? _playCts;
+
+    protected override void OnInitialized()
+    {
+        ReadQueryParameters();
+        LoadPreset(SelectedPreset);
+    }
+
+    protected override void OnParametersSet()
+    {
+        ReadQueryParameters();
+    }
+
+    private void ReadQueryParameters()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query;
+            if (!string.IsNullOrEmpty(query))
+            {
+                if (query.Contains("view=worksheet", StringComparison.OrdinalIgnoreCase))
+                {
+                    ActiveView = ViewMode.Worksheet;
+                }
+                if (query.Contains("solution=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    ShowSolution = true;
+                }
+                if (query.Contains("embed=true", StringComparison.OrdinalIgnoreCase) || query.Contains("embedded=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsEmbed = true;
+                }
+                if (query.Contains("preset=contention", StringComparison.OrdinalIgnoreCase))
+                {
+                    SelectedPreset = "Contention";
+                }
+                else if (query.Contains("preset=solo", StringComparison.OrdinalIgnoreCase))
+                {
+                    SelectedPreset = "Solo";
+                }
+                else if (query.Contains("preset=deadlock", StringComparison.OrdinalIgnoreCase))
+                {
+                    SelectedPreset = "DeadlockDemo";
+                }
+            }
+        }
+        catch { }
+    }
+
+    public void SetView(ViewMode mode)
+    {
+        ActiveView = mode;
+    }
+
+    public void ToggleSolution()
+    {
+        ShowSolution = !ShowSolution;
+    }
+
+    public async Task TriggerPrint()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+
+    public void LoadPreset(string preset)
+    {
+        StopAutoPlay();
+        SelectedPreset = preset;
+        CurrentStepIndex = 0;
+        ConsoleLines.Clear();
+
+        BuildCodeInstructions();
+        BuildSchedule(preset);
+        ApplySimulationState();
+    }
+
+    private void BuildCodeInstructions()
+    {
+        Thread0Instructions = new List<InstructionDef>
+        {
+            new() { CodeText = "Interested[0] = true;", IsCriticalSection = false },
+            new() { CodeText = "_turn = 1;", IsCriticalSection = false },
+            new() { CodeText = "while (Interested[1] && _turn == 1) ;", IsCriticalSection = false },
+            new() { CodeText = "_myself = 0;", IsCriticalSection = true },
+            new() { CodeText = "Console.WriteLine($\"Variable: {_myself}\");", IsCriticalSection = true },
+            new() { CodeText = "Interested[0] = false;", IsCriticalSection = false }
+        };
+
+        Thread1Instructions = new List<InstructionDef>
+        {
+            new() { CodeText = "Interested[1] = true;", IsCriticalSection = false },
+            new() { CodeText = "_turn = 0;", IsCriticalSection = false },
+            new() { CodeText = "while (Interested[0] && _turn == 0) ;", IsCriticalSection = false },
+            new() { CodeText = "_myself = 1;", IsCriticalSection = true },
+            new() { CodeText = "Console.WriteLine($\"Variable: {_myself}\");", IsCriticalSection = true },
+            new() { CodeText = "Interested[1] = false;", IsCriticalSection = false }
+        };
+    }
+
+    private void BuildSchedule(string preset)
+    {
+        ActiveSchedule.Clear();
+
+        if (preset == "Standard")
+        {
+            // Preset 1: Thread 0 starts first, enters CS, Thread 1 arrives and busy-waits, T0 leaves, T1 enters
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 0, InstructionIndex = 0, ActionType = "flag",
+                Explanation = "Thread 0 bekundet Eintrittsinteresse: Interested[0] = true.",
+                Interested0After = true, Interested1After = false, TurnAfter = -1, MyselfAfter = -1,
+                InCs0After = false, InCs1After = false,
+                Status0After = ProcessStatus.InEntryProtocol, Status1After = ProcessStatus.Ready,
+                ConsoleOutput = "Thread 0 wants to enter critical region."
+            });
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 0, InstructionIndex = 1, ActionType = "turn",
+                Explanation = "Thread 0 ist höflich und bietet Thread 1 den Vortritt an: _turn = 1.",
+                Interested0After = true, Interested1After = false, TurnAfter = 1, MyselfAfter = -1,
+                InCs0After = false, InCs1After = false,
+                Status0After = ProcessStatus.InEntryProtocol, Status1After = ProcessStatus.Ready
+            });
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 0, InstructionIndex = 2, ActionType = "check",
+                Explanation = "T0 prüft while(Interested[1] && _turn == 1). Da Interested[1] == false ist, bricht die Schleife ab ➔ T0 darf sofort eintreten!",
+                Interested0After = true, Interested1After = false, TurnAfter = 1, MyselfAfter = -1,
+                InCs0After = false, InCs1After = false,
+                Status0After = ProcessStatus.InEntryProtocol, Status1After = ProcessStatus.Ready
+            });
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 0, InstructionIndex = 3, ActionType = "cs",
+                Explanation = "Thread 0 betritt den kritischen Bereich und schreibt _myself = 0.",
+                Interested0After = true, Interested1After = false, TurnAfter = 1, MyselfAfter = 0,
+                InCs0After = true, InCs1After = false,
+                Status0After = ProcessStatus.InCriticalSection, Status1After = ProcessStatus.Ready,
+                ConsoleOutput = "Thread 0 entered critical region."
+            });
+            // Thread 1 now wants to enter while T0 is in CS
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 1, InstructionIndex = 0, ActionType = "flag",
+                Explanation = "Thread 1 möchte nun ebenfalls eintreten: Interested[1] = true.",
+                Interested0After = true, Interested1After = true, TurnAfter = 1, MyselfAfter = 0,
+                InCs0After = true, InCs1After = false,
+                Status0After = ProcessStatus.InCriticalSection, Status1After = ProcessStatus.InEntryProtocol,
+                ConsoleOutput = "Thread 1 wants to enter critical region."
+            });
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 1, InstructionIndex = 1, ActionType = "turn",
+                Explanation = "Thread 1 bietet Thread 0 den Vortritt an: _turn = 0.",
+                Interested0After = true, Interested1After = true, TurnAfter = 0, MyselfAfter = 0,
+                InCs0After = true, InCs1After = false,
+                Status0After = ProcessStatus.InCriticalSection, Status1After = ProcessStatus.InEntryProtocol
+            });
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 1, InstructionIndex = 2, ActionType = "check",
+                Explanation = "T1 prüft while(Interested[0] && _turn == 0). Da T0 noch interessiert ist und _turn==0 ist, muss T1 aktiv warten (.1)!",
+                Interested0After = true, Interested1After = true, TurnAfter = 0, MyselfAfter = 0,
+                InCs0After = true, InCs1After = false,
+                Status0After = ProcessStatus.InCriticalSection, Status1After = ProcessStatus.BusyWaiting,
+                ConsoleOutput = ".1 (aktives Warten...)"
+            });
+            // T0 finishes CS and leaves
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 0, InstructionIndex = 4, ActionType = "cs",
+                Explanation = "Thread 0 liest Variable: _myself == 0 (konsistent).",
+                Interested0After = true, Interested1After = true, TurnAfter = 0, MyselfAfter = 0,
+                InCs0After = true, InCs1After = false,
+                Status0After = ProcessStatus.InCriticalSection, Status1After = ProcessStatus.BusyWaiting,
+                ConsoleOutput = "Variable should be 0, is: 0"
+            });
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 0, InstructionIndex = 5, ActionType = "leave",
+                Explanation = "Thread 0 verlässt den kritischen Abschnitt: Interested[0] = false.",
+                Interested0After = false, Interested1After = true, TurnAfter = 0, MyselfAfter = 0,
+                InCs0After = false, InCs1After = false,
+                Status0After = ProcessStatus.Exited, Status1After = ProcessStatus.BusyWaiting
+            });
+            // T1 can now pass the while loop
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 1, InstructionIndex = 2, ActionType = "check",
+                Explanation = "T1 prüft erneut while(Interested[0] && _turn == 0). Da Interested[0] jetzt false ist, wird die Schleife beendet!",
+                Interested0After = false, Interested1After = true, TurnAfter = 0, MyselfAfter = 0,
+                InCs0After = false, InCs1After = false,
+                Status0After = ProcessStatus.Exited, Status1After = ProcessStatus.InEntryProtocol
+            });
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 1, InstructionIndex = 3, ActionType = "cs",
+                Explanation = "Thread 1 betritt den kritischen Abschnitt: _myself = 1.",
+                Interested0After = false, Interested1After = true, TurnAfter = 0, MyselfAfter = 1,
+                InCs0After = false, InCs1After = true,
+                Status0After = ProcessStatus.Exited, Status1After = ProcessStatus.InCriticalSection,
+                ConsoleOutput = "Thread 1 entered critical region."
+            });
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 1, InstructionIndex = 4, ActionType = "cs",
+                Explanation = "Thread 1 liest Variable: _myself == 1 (konsistent).",
+                Interested0After = false, Interested1After = true, TurnAfter = 0, MyselfAfter = 1,
+                InCs0After = false, InCs1After = true,
+                Status0After = ProcessStatus.Exited, Status1After = ProcessStatus.InCriticalSection,
+                ConsoleOutput = "Variable should be 1, is: 1"
+            });
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 1, InstructionIndex = 5, ActionType = "leave",
+                Explanation = "Thread 1 verlässt den kritischen Abschnitt: Interested[1] = false.",
+                Interested0After = false, Interested1After = false, TurnAfter = 0, MyselfAfter = 1,
+                InCs0After = false, InCs1After = false,
+                Status0After = ProcessStatus.Exited, Status1After = ProcessStatus.Exited
+            });
+        }
+        else if (preset == "Contention")
+        {
+            // Preset 2: Simultaneous Contention (Race to set _turn)
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 0, InstructionIndex = 0, ActionType = "flag",
+                Explanation = "Thread 0 bekundet Interesse: Interested[0] = true.",
+                Interested0After = true, Interested1After = false, TurnAfter = -1, MyselfAfter = -1,
+                InCs0After = false, InCs1After = false,
+                Status0After = ProcessStatus.InEntryProtocol, Status1After = ProcessStatus.Ready,
+                ConsoleOutput = "Thread 0 wants to enter critical region."
+            });
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 1, InstructionIndex = 0, ActionType = "flag",
+                Explanation = "Thread 1 bekundet zeitgleich Interesse: Interested[1] = true.",
+                Interested0After = true, Interested1After = true, TurnAfter = -1, MyselfAfter = -1,
+                InCs0After = false, InCs1After = false,
+                Status0After = ProcessStatus.InEntryProtocol, Status1After = ProcessStatus.InEntryProtocol,
+                ConsoleOutput = "Thread 1 wants to enter critical region."
+            });
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 0, InstructionIndex = 1, ActionType = "turn",
+                Explanation = "Thread 0 setzt zuerst _turn = 1 (gibt T1 den Vortritt).",
+                Interested0After = true, Interested1After = true, TurnAfter = 1, MyselfAfter = -1,
+                InCs0After = false, InCs1After = false,
+                Status0After = ProcessStatus.InEntryProtocol, Status1After = ProcessStatus.InEntryProtocol
+            });
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 1, InstructionIndex = 1, ActionType = "turn",
+                Explanation = "Thread 1 überschreibt kurz danach _turn = 0 (gibt T0 den Vortritt)! Da T1 zuletzt schrieb, bleibt _turn == 0.",
+                Interested0After = true, Interested1After = true, TurnAfter = 0, MyselfAfter = -1,
+                InCs0After = false, InCs1After = false,
+                Status0After = ProcessStatus.InEntryProtocol, Status1After = ProcessStatus.InEntryProtocol
+            });
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 0, InstructionIndex = 2, ActionType = "check",
+                Explanation = "T0 prüft: Interested[1]==true, ABER _turn==0 != 1! Die Bedingung ist FALSE ➔ T0 darf eintreten!",
+                Interested0After = true, Interested1After = true, TurnAfter = 0, MyselfAfter = -1,
+                InCs0After = false, InCs1After = false,
+                Status0After = ProcessStatus.InEntryProtocol, Status1After = ProcessStatus.InEntryProtocol
+            });
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 1, InstructionIndex = 2, ActionType = "check",
+                Explanation = "T1 prüft: Interested[0]==true UND _turn==0 == 0! Die Bedingung ist TRUE ➔ T1 muss aktiv warten (.1)!",
+                Interested0After = true, Interested1After = true, TurnAfter = 0, MyselfAfter = -1,
+                InCs0After = false, InCs1After = false,
+                Status0After = ProcessStatus.InEntryProtocol, Status1After = ProcessStatus.BusyWaiting,
+                ConsoleOutput = ".1 (aktives Warten...)"
+            });
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 0, InstructionIndex = 3, ActionType = "cs",
+                Explanation = "Thread 0 gewinnt das Rennen dank Symmetriebruch und betritt den KS: _myself = 0.",
+                Interested0After = true, Interested1After = true, TurnAfter = 0, MyselfAfter = 0,
+                InCs0After = true, InCs1After = false,
+                Status0After = ProcessStatus.InCriticalSection, Status1After = ProcessStatus.BusyWaiting,
+                ConsoleOutput = "Thread 0 entered critical region."
+            });
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 0, InstructionIndex = 5, ActionType = "leave",
+                Explanation = "Thread 0 beendet KS und setzt Interested[0] = false.",
+                Interested0After = false, Interested1After = true, TurnAfter = 0, MyselfAfter = 0,
+                InCs0After = false, InCs1After = false,
+                Status0After = ProcessStatus.Exited, Status1After = ProcessStatus.BusyWaiting
+            });
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 1, InstructionIndex = 3, ActionType = "cs",
+                Explanation = "Interested[0] ist nun false ➔ T1 verlässt die Warteschleife und betritt den KS!",
+                Interested0After = false, Interested1After = true, TurnAfter = 0, MyselfAfter = 1,
+                InCs0After = false, InCs1After = true,
+                Status0After = ProcessStatus.Exited, Status1After = ProcessStatus.InCriticalSection,
+                ConsoleOutput = "Thread 1 entered critical region."
+            });
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 1, InstructionIndex = 5, ActionType = "leave",
+                Explanation = "Thread 1 verlässt den KS: Interested[1] = false.",
+                Interested0After = false, Interested1After = false, TurnAfter = 0, MyselfAfter = 1,
+                InCs0After = false, InCs1After = false,
+                Status0After = ProcessStatus.Exited, Status1After = ProcessStatus.Exited
+            });
+        }
+        else if (preset == "Solo")
+        {
+            // Preset 3: Single process execution (No contention)
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 0, InstructionIndex = 0, ActionType = "flag",
+                Explanation = "Thread 0 setzt Interested[0] = true.",
+                Interested0After = true, Interested1After = false, TurnAfter = -1, MyselfAfter = -1,
+                InCs0After = false, InCs1After = false,
+                Status0After = ProcessStatus.InEntryProtocol, Status1After = ProcessStatus.Ready,
+                ConsoleOutput = "Thread 0 wants to enter critical region."
+            });
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 0, InstructionIndex = 1, ActionType = "turn",
+                Explanation = "Thread 0 setzt _turn = 1.",
+                Interested0After = true, Interested1After = false, TurnAfter = 1, MyselfAfter = -1,
+                InCs0After = false, InCs1After = false,
+                Status0After = ProcessStatus.InEntryProtocol, Status1After = ProcessStatus.Ready
+            });
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 0, InstructionIndex = 2, ActionType = "check",
+                Explanation = "Interested[1] ist false ➔ Schleife bricht sofort ab ohne Verzögerung!",
+                Interested0After = true, Interested1After = false, TurnAfter = 1, MyselfAfter = -1,
+                InCs0After = false, InCs1After = false,
+                Status0After = ProcessStatus.InEntryProtocol, Status1After = ProcessStatus.Ready
+            });
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 0, InstructionIndex = 3, ActionType = "cs",
+                Explanation = "Thread 0 im KS: _myself = 0.",
+                Interested0After = true, Interested1After = false, TurnAfter = 1, MyselfAfter = 0,
+                InCs0After = true, InCs1After = false,
+                Status0After = ProcessStatus.InCriticalSection, Status1After = ProcessStatus.Ready,
+                ConsoleOutput = "Thread 0 entered critical region."
+            });
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 0, InstructionIndex = 5, ActionType = "leave",
+                Explanation = "Thread 0 verlässt KS: Interested[0] = false.",
+                Interested0After = false, Interested1After = false, TurnAfter = 1, MyselfAfter = 0,
+                InCs0After = false, InCs1After = false,
+                Status0After = ProcessStatus.Exited, Status1After = ProcessStatus.Ready
+            });
+        }
+        else if (preset == "DeadlockDemo")
+        {
+            // Preset 4: Anti-Pattern (Omission of turn variable -> mutual blocking)
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 0, InstructionIndex = 0, ActionType = "flag",
+                Explanation = "Thread 0 setzt Interested[0] = true.",
+                Interested0After = true, Interested1After = false, TurnAfter = -1, MyselfAfter = -1,
+                InCs0After = false, InCs1After = false,
+                Status0After = ProcessStatus.InEntryProtocol, Status1After = ProcessStatus.Ready,
+                ConsoleOutput = "Thread 0 wants to enter critical region."
+            });
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 1, InstructionIndex = 0, ActionType = "flag",
+                Explanation = "Thread 1 setzt Interested[1] = true.",
+                Interested0After = true, Interested1After = true, TurnAfter = -1, MyselfAfter = -1,
+                InCs0After = false, InCs1After = false,
+                Status0After = ProcessStatus.InEntryProtocol, Status1After = ProcessStatus.InEntryProtocol,
+                ConsoleOutput = "Thread 1 wants to enter critical region."
+            });
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 0, InstructionIndex = 2, ActionType = "check",
+                Explanation = "OHNE _turn prüft T0 nur: while(Interested[1]). Da Interested[1]==true, wartet T0!",
+                Interested0After = true, Interested1After = true, TurnAfter = -1, MyselfAfter = -1,
+                InCs0After = false, InCs1After = false,
+                Status0After = ProcessStatus.BusyWaiting, Status1After = ProcessStatus.InEntryProtocol,
+                ConsoleOutput = ".0 (wartet...)"
+            });
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 1, InstructionIndex = 2, ActionType = "check",
+                Explanation = "OHNE _turn prüft T1 nur: while(Interested[0]). Da Interested[0]==true, wartet auch T1!",
+                Interested0After = true, Interested1After = true, TurnAfter = -1, MyselfAfter = -1,
+                InCs0After = false, InCs1After = false,
+                Status0After = ProcessStatus.BusyWaiting, Status1After = ProcessStatus.BusyWaiting,
+                ConsoleOutput = ".1 (wartet...)"
+            });
+            ActiveSchedule.Add(new ScheduleStep
+            {
+                ThreadId = 0, InstructionIndex = 2, ActionType = "check",
+                Explanation = "VERKLEMMUNG: Beide Threads warten endlos aufeinander! Dies beweist, warum Petersons _turn unverzichtbar ist.",
+                Interested0After = true, Interested1After = true, TurnAfter = -1, MyselfAfter = -1,
+                InCs0After = false, InCs1After = false,
+                Status0After = ProcessStatus.BusyWaiting, Status1After = ProcessStatus.BusyWaiting,
+                ConsoleOutput = "DEADLOCK: Beide Threads blockieren sich gegenseitig!"
+            });
+        }
+    }
+
+    private void ApplySimulationState()
+    {
+        if (CurrentStepIndex == 0)
+        {
+            Interested[0] = false;
+            Interested[1] = false;
+            Turn = -1;
+            MyselfVal = -1;
+            InCriticalRegion[0] = false;
+            InCriticalRegion[1] = false;
+            ThreadStatus[0] = ProcessStatus.Ready;
+            ThreadStatus[1] = ProcessStatus.Ready;
+            CurrentStepExplanation = "Bereit. Klicken Sie auf „Nächster Schritt“ oder „Auto-Play“.";
+            ConsoleLines.Clear();
+            return;
+        }
+
+        var step = ActiveSchedule[CurrentStepIndex - 1];
+        Interested[0] = step.Interested0After;
+        Interested[1] = step.Interested1After;
+        Turn = step.TurnAfter;
+        MyselfVal = step.MyselfAfter;
+        InCriticalRegion[0] = step.InCs0After;
+        InCriticalRegion[1] = step.InCs1After;
+        ThreadStatus[0] = step.Status0After;
+        ThreadStatus[1] = step.Status1After;
+        CurrentStepExplanation = step.Explanation;
+
+        // Rebuild console output up to CurrentStepIndex
+        ConsoleLines.Clear();
+        for (int i = 0; i < CurrentStepIndex; i++)
+        {
+            var s = ActiveSchedule[i];
+            if (!string.IsNullOrEmpty(s.ConsoleOutput))
+            {
+                ConsoleLines.Add(new ConsoleLine
+                {
+                    StepNum = i + 1,
+                    ThreadId = s.ThreadId,
+                    Message = s.ConsoleOutput
+                });
+            }
+        }
+    }
+
+    public void StepForward()
+    {
+        if (CurrentStepIndex < ActiveSchedule.Count)
+        {
+            CurrentStepIndex++;
+            ApplySimulationState();
+        }
+        else
+        {
+            StopAutoPlay();
+        }
+    }
+
+    public void StepBack()
+    {
+        StopAutoPlay();
+        if (CurrentStepIndex > 0)
+        {
+            CurrentStepIndex--;
+            ApplySimulationState();
+        }
+    }
+
+    public void GoToStart()
+    {
+        StopAutoPlay();
+        CurrentStepIndex = 0;
+        ApplySimulationState();
+    }
+
+    public void ResetSimulation()
+    {
+        LoadPreset(SelectedPreset);
+    }
+
+    public void ToggleAutoPlay()
+    {
+        if (IsPlaying)
+        {
+            StopAutoPlay();
+        }
+        else
+        {
+            StartAutoPlay();
+        }
+    }
+
+    private void StartAutoPlay()
+    {
+        if (CurrentStepIndex >= ActiveSchedule.Count)
+        {
+            CurrentStepIndex = 0;
+            ApplySimulationState();
+        }
+
+        IsPlaying = true;
+        _playCts = new CancellationTokenSource();
+        var token = _playCts.Token;
+
+        _ = Task.Run(async () =>
+        {
+            while (IsPlaying && !token.IsCancellationRequested)
+            {
+                await Task.Delay(PlaySpeedMs, token);
+                if (token.IsCancellationRequested) break;
+
+                await InvokeAsync(() =>
+                {
+                    if (CurrentStepIndex < ActiveSchedule.Count)
+                    {
+                        StepForward();
+                    }
+                    else
+                    {
+                        StopAutoPlay();
+                    }
+                    StateHasChanged();
+                });
+            }
+        }, token);
+    }
+
+    private void StopAutoPlay()
+    {
+        IsPlaying = false;
+        _playCts?.Cancel();
+        _playCts = null;
+    }
+
+    private int GetThreadProgress(int threadId)
+    {
+        int maxIndex = -1;
+        for (int i = 0; i < CurrentStepIndex; i++)
+        {
+            if (ActiveSchedule[i].ThreadId == threadId)
+            {
+                if (ActiveSchedule[i].InstructionIndex > maxIndex)
+                {
+                    maxIndex = ActiveSchedule[i].InstructionIndex;
+                }
+            }
+        }
+        return maxIndex;
+    }
+
+    private bool ShouldWait(int process)
+    {
+        int other = 1 - process;
+        if (SelectedPreset == "DeadlockDemo")
+        {
+            return Interested[other];
+        }
+        return (Interested[other] && Turn == other);
+    }
+
+    private string GetThreadStatusText(int threadId)
+    {
+        return ThreadStatus[threadId] switch
+        {
+            ProcessStatus.Ready => "Bereit",
+            ProcessStatus.InEntryProtocol => "Eintrittsprotokoll",
+            ProcessStatus.BusyWaiting => "Aktives Warten ⏳",
+            ProcessStatus.InCriticalSection => "Im kritischen Abschnitt 🔒",
+            ProcessStatus.Exited => "Beendet ✅",
+            _ => "Bereit"
+        };
+    }
+
+    private string GetThreadStatusClass(int threadId)
+    {
+        return ThreadStatus[threadId] switch
+        {
+            ProcessStatus.Ready => "status-ready",
+            ProcessStatus.InEntryProtocol => "status-entry",
+            ProcessStatus.BusyWaiting => "status-waiting",
+            ProcessStatus.InCriticalSection => "status-cs",
+            ProcessStatus.Exited => "status-done",
+            _ => "status-ready"
+        };
+    }
+
+    public void Dispose()
+    {
+        StopAutoPlay();
+    }
+}
