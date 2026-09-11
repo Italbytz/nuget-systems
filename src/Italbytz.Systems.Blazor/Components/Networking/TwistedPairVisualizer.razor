@@ -1,0 +1,751 @@
+@namespace Italbytz.Systems.Blazor.Components.Networking
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<article class="tp-container @(IsEmbed ? "embed-mode" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
+
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
+    {
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Rechnernetze &bull; Bitübertragungsschicht (Layer 1)</p>
+            <h2>Twisted-Pair-Kabel &amp; Differenzsignalübertragung</h2>
+            <p class="feature-intro">
+                Verdrillte Kupferadernpaare (Twisted Pair) nutzen <strong>Differenzsignalübertragung</strong> (Differential Signaling)
+                zur robusten Datenübertragung: Auf einer Ader läuft das Originalsignal, auf der Zwillingsader das invertierte Signal.
+                Da externe elektromagnetische Störungen (EMI) auf beide verdrillten Adern gleichermaßen wirken (Gleichtaktstörung),
+                löscht die <strong>Differenzbildung am Empfänger</strong> das Rauschen vollständig aus.
+            </p>
+        </div>
+    }
+
+    <!-- View Switcher -->
+    @if (!IsEmbed)
+    {
+        <div class="view-switch no-print">
+            <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Simulator)">
+                📡 Differenzsignal- &amp; Störungs-Simulator
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Pinout ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Pinout)">
+                🔌 T568A / T568B &amp; RJ45-Stecker
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Trainer ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Trainer)">
+                📝 Klausur-Trainer
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Worksheet)">
+                🖨️ Klausur-Arbeitsblatt (Druckansicht 1:1)
+            </button>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 1: DIFFERENTIAL SIGNALING & NOISE CANCELLATION SIMULATOR             -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Controls & Noise Injection Panel -->
+        <div class="controls-card no-print">
+            <div class="ctrl-group">
+                <span class="ctrl-label">Bitfolge:</span>
+                <div class="bit-input-wrap">
+                    @for (int i = 0; i < Bits.Length; i++)
+                    {
+                        var idx = i;
+                        <button class="bit-toggle-btn @(Bits[idx] == 1 ? "bit-one" : "bit-zero")"
+                                @onclick="() => ToggleBit(idx)">
+                            @Bits[idx]
+                        </button>
+                    }
+                </div>
+                <div class="preset-buttons">
+                    <button class="btn-sm" @onclick='() => SetBits("10110010")'>Muster 1</button>
+                    <button class="btn-sm" @onclick='() => SetBits("11001100")'>Muster 2</button>
+                    <button class="btn-sm" @onclick='() => SetBits("10101010")'>Wechselnd</button>
+                </div>
+            </div>
+
+            <div class="ctrl-group">
+                <span class="ctrl-label">Gleichtakt-Störung (EMI Noise):</span>
+                <div class="noise-controls">
+                    <div class="slider-wrap">
+                        <span>Rauschen: @((int)(NoiseLevel * 100))%</span>
+                        <input type="range" min="0" max="1" step="0.05" value="@NoiseLevel"
+                               @oninput="OnNoiseSliderChanged" class="slider-ctrl" />
+                    </div>
+                    <button class="action-btn warn @(HasNoiseSpike ? "spike-active" : "")"
+                            @onclick="InjectNoiseSpike">
+                        ⚡ Störimpuls einstreuen (+3V)
+                    </button>
+                    <button class="action-btn secondary" @onclick="ResetNoise">
+                        🔄 Störung zurücksetzen
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Waveforms Visualization Stage -->
+        <div class="waveforms-card">
+            <div class="card-header">
+                <div class="card-title-wrap">
+                    <span class="card-title">Live-Signalwellenformen auf dem Twisted-Pair-Kabel</span>
+                    <span class="card-hint">
+                        Beobachten Sie, wie das Störsignal durch die Differenzbildung am Empfänger eliminiert wird!
+                    </span>
+                </div>
+                <div class="legend-pills no-print">
+                    <span class="legend-pill pill-pos">Ader A: Original ($S_+$)</span>
+                    <span class="legend-pill pill-neg">Ader B: Invertiert ($S_-$)</span>
+                    <span class="legend-pill pill-diff">Differenz: $S_+ - S_-$</span>
+                    <span class="legend-pill pill-rec">Rekonstruiert (0V / 5V)</span>
+                </div>
+            </div>
+
+            <div class="svg-stage">
+                <svg viewBox="0 0 800 420" class="signals-svg">
+                    <defs>
+                        <pattern id="grid" width="40" height="20" patternUnits="userSpaceOnUse">
+                            <path d="M 40 0 L 0 0 0 20" fill="none" stroke="#1e293b" stroke-width="0.75"/>
+                        </pattern>
+                    </defs>
+
+                    <!-- Background Grid -->
+                    <rect width="800" height="420" fill="#080d1a" />
+                    <rect width="800" height="420" fill="url(#grid)" />
+
+                    <!-- Bit Boundary Lines -->
+                    @for (int i = 0; i <= Bits.Length; i++)
+                    {
+                        var x = 90 + i * BitWidth;
+                        <line x1="@x" y1="20" x2="@x" y2="400" stroke="#334155" stroke-dasharray="3 3" stroke-width="1" />
+                        @if (i < Bits.Length)
+                        {
+                            <g>
+                                <text x="@(x + BitWidth / 2)" y="16" fill="#94a3b8" font-size="12" font-weight="700" text-anchor="middle">
+                                    Bit @Bits[i]
+                                </text>
+                            </g>
+                        }
+                    }
+
+                    <!-- 1. Original Signal S+ (0V .. 5V) -->
+                    <g class="signal-group">
+                        <text x="80" y="55" fill="#38bdf8" font-size="11" font-weight="700" text-anchor="end">S+ (orig)</text>
+                        <text x="80" y="42" fill="#64748b" font-size="9" text-anchor="end">5V</text>
+                        <text x="80" y="75" fill="#64748b" font-size="9" text-anchor="end">0V</text>
+                        <line x1="85" y1="72" x2="770" y2="72" stroke="#1e293b" stroke-width="1"/>
+                        <path d="@GetOriginalSignalPath(40, 72)" fill="none" stroke="#38bdf8" stroke-width="2.5" />
+                        @if (NoiseLevel > 0 || HasNoiseSpike)
+                        {
+                            <path d="@GetNoisySignalPath(40, 72, true)" fill="none" stroke="#67e8f9" stroke-width="1.5" stroke-opacity="0.85" />
+                        }
+                    </g>
+
+                    <!-- 2. Inverted Signal S- (5V .. 0V) -->
+                    <g class="signal-group">
+                        <text x="80" y="145" fill="#f59e0b" font-size="11" font-weight="700" text-anchor="end">S- (inv)</text>
+                        <text x="80" y="132" fill="#64748b" font-size="9" text-anchor="end">5V</text>
+                        <text x="80" y="165" fill="#64748b" font-size="9" text-anchor="end">0V</text>
+                        <line x1="85" y1="162" x2="770" y2="162" stroke="#1e293b" stroke-width="1"/>
+                        <path d="@GetInvertedSignalPath(130, 162)" fill="none" stroke="#f59e0b" stroke-width="2.5" />
+                        @if (NoiseLevel > 0 || HasNoiseSpike)
+                        {
+                            <path d="@GetNoisySignalPath(130, 162, false)" fill="none" stroke="#fde68a" stroke-width="1.5" stroke-opacity="0.85" />
+                        }
+                    </g>
+
+                    <!-- Noise Spike Annotation -->
+                    @if (HasNoiseSpike)
+                    {
+                        var spikeX = 90 + 3.5 * BitWidth;
+                        <g>
+                            <rect x="@(spikeX - 45)" y="80" width="90" height="22" rx="4" fill="#7f1d1d" stroke="#ef4444" stroke-width="1" />
+                            <text x="@spikeX" y="95" fill="#fee2e2" font-size="10" font-weight="700" text-anchor="middle">
+                                ⚡ EMI +3V Spike
+                            </text>
+                            <line x1="@spikeX" y1="102" x2="@spikeX" y2="210" stroke="#ef4444" stroke-width="1" stroke-dasharray="2 2"/>
+                        </g>
+                    }
+
+                    <!-- 3. Difference Signal Sdiff = S+ - S- (-5V .. +5V) -->
+                    <g class="signal-group">
+                        <text x="80" y="245" fill="#a855f7" font-size="11" font-weight="700" text-anchor="end">S+ - S-</text>
+                        <text x="80" y="215" fill="#64748b" font-size="9" text-anchor="end">+5V</text>
+                        <text x="80" y="245" fill="#64748b" font-size="9" text-anchor="end">0V</text>
+                        <text x="80" y="275" fill="#64748b" font-size="9" text-anchor="end">-5V</text>
+                        <line x1="85" y1="245" x2="770" y2="245" stroke="#475569" stroke-width="1" stroke-dasharray="4 2"/>
+                        <path d="@GetDifferenceSignalPath(215, 245, 275)" fill="none" stroke="#c084fc" stroke-width="3" />
+                    </g>
+
+                    <!-- 4. Reconstructed Signal via Comparator (0V / 5V) -->
+                    <g class="signal-group">
+                        <text x="80" y="350" fill="#10b981" font-size="11" font-weight="700" text-anchor="end">Auswertung</text>
+                        <text x="80" y="337" fill="#64748b" font-size="9" text-anchor="end">5V (Bit 1)</text>
+                        <text x="80" y="370" fill="#64748b" font-size="9" text-anchor="end">0V (Bit 0)</text>
+                        <line x1="85" y1="367" x2="770" y2="367" stroke="#1e293b" stroke-width="1"/>
+                        <path d="@GetReconstructedSignalPath(335, 367)" fill="none" stroke="#10b981" stroke-width="3" />
+                        
+                        @for (int i = 0; i < Bits.Length; i++)
+                        {
+                            var x = 90 + i * BitWidth + BitWidth / 2;
+                            var y = Bits[i] == 1 ? 330 : 362;
+                            <circle cx="@x" cy="@y" r="4" fill="#34d399" />
+                            <g>
+                                <text x="@x" y="@(y - 8)" fill="#a7f3d0" font-size="11" font-weight="800" text-anchor="middle">
+                                    @(Bits[i] == 1 ? "5V" : "0V")
+                                </text>
+                            </g>
+                        }
+                    </g>
+                </svg>
+            </div>
+
+            <!-- Principle & Formula Card -->
+            <div class="formula-grid">
+                <div class="formula-box">
+                    <span class="f-title">Kabelübertragung (Verdrillung)</span>
+                    <p class="f-desc">
+                        Ader 1: $S_+(t) = V(t) + \text{Noise}(t)$<br />
+                        Ader 2: $S_-(t) = (5\,\text{V} - V(t)) + \text{Noise}(t)$
+                    </p>
+                    <span class="f-note">Störsignale koppeln wegen Verdrillung identisch in beide Adern ein.</span>
+                </div>
+
+                <div class="formula-box highlight-box">
+                    <span class="f-title">Empfänger: Differenzbildung</span>
+                    <p class="f-desc">
+                        $S_{\text{diff}}(t) = S_+(t) - S_-(t)$<br />
+                        $= [V(t) + \text{Noise}(t)] - [5\,\text{V} - V(t) + \text{Noise}(t)] = 2\cdot V(t) - 5\,\text{V}$
+                    </p>
+                    <span class="f-note text-green">
+                        &rArr; Der Rauschausdruck $\text{Noise}(t)$ entfällt vollständig!
+                    </span>
+                </div>
+
+                <div class="formula-box">
+                    <span class="f-title">Klausur-Entscheidungsregel</span>
+                    <p class="f-desc">
+                        Liegt $S_+ > S_- \implies$ Signal als <strong>5 V</strong> interpretiert.<br />
+                        Liegt $S_+ \le S_- \implies$ Signal als <strong>0 V</strong> interpretiert.
+                    </p>
+                    <span class="f-note">Exakt entsprechend offizieller Musterlösung!</span>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 2: PINOUT & CABLING STANDARDS (T568A vs. T568B)                      -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Pinout)
+    {
+        <div class="panel-card pinout-card">
+            <div class="panel-header">
+                <div>
+                    <span class="panel-title">🔌 Ethernet-Verkabelungsstandards T568A &amp; T568B</span>
+                    <p class="panel-subtitle">
+                        Ein Twisted-Pair-Kabel nach Cat 5/6/7 enthält 4 verdrillte Adernpaare (8 Adern) mit RJ45-Steckern.
+                    </p>
+                </div>
+                <div class="pinout-switch no-print">
+                    <button class="toggle-btn @(SelectedStandard == CablingStandard.T568B ? "active" : "")"
+                            @onclick="() => SetStandard(CablingStandard.T568B)">
+                        Standard T568B (Üblich in Europa)
+                    </button>
+                    <button class="toggle-btn @(SelectedStandard == CablingStandard.T568A ? "active" : "")"
+                            @onclick="() => SetStandard(CablingStandard.T568A)">
+                        Standard T568A (Behörden / USA)
+                    </button>
+                </div>
+            </div>
+
+            <!-- RJ45 Visualizer Graphic & Pin Table -->
+            <div class="pinout-grid">
+                <!-- Left: Interactive RJ45 Plug Graphic -->
+                <div class="rj45-box">
+                    <span class="sub-heading">RJ45-Stecker Belegung (@(SelectedStandard == CablingStandard.T568B ? "T568B" : "T568A"))</span>
+                    <div class="plug-graphic">
+                        <div class="plug-shell">
+                            <div class="clip-lever">Clip</div>
+                            <div class="pin-rows">
+                                @foreach (var pin in CurrentPins)
+                                {
+                                    <div class="pin-slot" title="Pin @pin.Number: @pin.ColorName (@pin.Signal)">
+                                        <span class="pin-num">@pin.Number</span>
+                                        <div class="wire-color" style="background: @pin.CssGradient;"></div>
+                                        <span class="pin-sig">@pin.Signal</span>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Detailed Pinout Table -->
+                <div class="pin-table-wrap">
+                    <span class="sub-heading">Adern-Zuordnung nach EIA/TIA</span>
+                    <table class="pin-table">
+                        <thead>
+                            <tr>
+                                <th>Pin</th>
+                                <th>Paar</th>
+                                <th>Farbe</th>
+                                <th>Signal (10/100Base-T)</th>
+                                <th>Funktion</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var pin in CurrentPins)
+                            {
+                                <tr>
+                                    <td><strong>@pin.Number</strong></td>
+                                    <td><span class="pair-tag">Paar @pin.Pair</span></td>
+                                    <td>
+                                        <span class="color-sample" style="background: @pin.CssGradient;"></span>
+                                        @pin.ColorName
+                                    </td>
+                                    <td><code>@pin.Signal</code></td>
+                                    <td>@pin.Role</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Straight-Through vs. Crossover Note -->
+            <div class="crossover-note-box">
+                <div class="cn-item">
+                    <strong>1:1 Patchkabel (Straight-Through):</strong>
+                    Beide Enden nach demselben Standard (z. B. T568B &harr; T568B). Verbindet Endgerät (PC) mit Switch/Router.
+                </div>
+                <div class="cn-item">
+                    <strong>Crossover-Kabel:</strong>
+                    Ein Ende T568A, das andere T568B (Sende- und Empfangspaare 1/2 und 3/6 gekreuzt).
+                    Historisch für PC-zu-PC Verbindungen; heute dank <em>Auto-MDI/MDI-X</em> automatisch von modernen Netzwerkkarten ausgeglichen.
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 3: EXAM TRAINER (KLAUSUR-TRAINER)                                    -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Trainer)
+    {
+        <div class="panel-card trainer-card">
+            <div class="panel-header">
+                <div>
+                    <span class="panel-title">Klausur-Trainer: CNBituebertragungsschichtTwistedPair</span>
+                    <span class="exam-rule-tag">Aufgabe: 5 Punkte &bull; Vorlage: assignments/CNBituebertragungsschichtTwistedPair.tex</span>
+                </div>
+                <button class="action-btn primary" @onclick="ToggleTrainerSolution">
+                    @(ShowTrainerSolution ? "👁️ Musterlösung verbergen" : "💡 Musterlösung aufdecken")
+                </button>
+            </div>
+
+            <div class="trainer-body">
+                <div class="prompt-quote">
+                    <em>„Ein Twisted-Pair Kabel ermöglicht robustere Signalübertragung, da auf einem Kupferkabel das Originalsignal übertragen wird, auf dem anderen das invertierte Originalsignal. Wie ermitteln Sie bei Empfang möglichst robust das Originalsignal?“</em>
+                </div>
+
+                <div class="trainer-qa-box">
+                    <label class="qa-label">Ihre formulierte Lösung:</label>
+                    <textarea class="qa-textarea" placeholder="Beschreiben Sie die Vorgehensweise des Empfängers (Differenzbildung, Pegelinterpretation, Schwellenwert)..."
+                              @bind="UserAnswer" rows="4"></textarea>
+
+                    @if (ShowTrainerSolution)
+                    {
+                        <div class="solution-reveal-box">
+                            <span class="sol-badge">Offizielle Musterlösung:</span>
+                            <blockquote class="official-sol-text">
+                                Es wird die Differenz der beiden Signale gebildet. Die angegebenen Codierungen wechseln zwischen 0 V und 5 V. Liegt das Originalsignal über dem invertierten Signal, so wird es als 5 V interpretiert, ansonsten als 0 V.
+                            </blockquote>
+
+                            <div class="evaluation-checklist">
+                                <strong>Kernkriterien für die volle Punktzahl (5 Punkte):</strong>
+                                <ul>
+                                    <li><span class="check-icon">✓</span> <strong>Differenzbildung:</strong> Subtraktion der beiden Adern ($S_+ - S_-$).</li>
+                                    <li><span class="check-icon">✓</span> <strong>Gleichtaktunterdrückung:</strong> Beseitigung von Störungen, die auf beide Adern wirken.</li>
+                                    <li><span class="check-icon">✓</span> <strong>Vergleich / Entscheidung:</strong> Liegt $S_+ > S_- \implies 5\,\text{V}$, sonst $0\,\text{V}$.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 4: WORKSHEET VIEW (1:1 EXAM REPLICA MATCHING LATEX)                  -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Worksheet)
+    {
+        <div class="worksheet-paper">
+            
+            <!-- Exam Header -->
+            <div class="exam-header">
+                <div class="exam-title-group">
+                    <span class="exam-sub">Grundlagen der Informatik</span>
+                    <h1 class="exam-main-title">Twisted Pair @(ShowSolution ? "- Lösung" : "")</h1>
+                    <span class="exam-task-label">Aufgabe 1 (Bitübertragungsschicht)</span>
+                </div>
+                <div class="exam-meta-box no-print">
+                    <button class="toggle-sol-btn @(ShowSolution ? "active" : "")" @onclick="ToggleSolution">
+                        @(ShowSolution ? "👁️ Musterlösung ausblenden" : "💡 Musterlösung einblenden")
+                    </button>
+                    <button class="print-btn" @onclick="TriggerPrint">
+                        🖨️ Drucken / PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Student Info Strip -->
+            <div class="student-info-strip">
+                <div class="info-field">
+                    <span class="info-label">Name, Vorname:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field">
+                    <span class="info-label">Matrikelnummer:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field points-field">
+                    <span class="info-label">Punkte:</span>
+                    <div class="points-box">/ 5 P.</div>
+                </div>
+            </div>
+
+            <!-- Main Prompt matching CNBituebertragungsschichtTwistedPair.tex -->
+            <div class="task-prompt-box">
+                <p class="task-text">
+                    Ein Twisted-Pair Kabel ermöglicht robustere Signalübertragung, da auf einem Kupferkabel das Originalsignal übertragen wird, auf dem anderen das invertierte Originalsignal. Wie ermitteln Sie bei Empfang möglichst robust das Originalsignal?
+                </p>
+            </div>
+
+            <!-- Answer Field or Solution Box matching LaTeX \TextField / \begin{wBox} -->
+            <div class="ws-answer-area">
+                @if (ShowSolution)
+                {
+                    <div class="ws-solution-box">
+                        <p class="ws-solution-text">
+                            Es wird die Differenz der beiden Signale gebildet. Die angegebenen Codierungen wechseln zwischen 0 V und 5 V. Liegt das Originalsignal über dem invertierten Signal, so wird es als 5 V interpretiert, ansonsten als 0 V.
+                        </p>
+                    </div>
+                }
+                else
+                {
+                    <div class="ws-text-field-box">
+                        <div class="answer-line"></div>
+                        <div class="answer-line"></div>
+                        <div class="answer-line"></div>
+                        <div class="answer-line"></div>
+                        <div class="answer-line"></div>
+                        <div class="answer-line"></div>
+                    </div>
+                }
+            </div>
+
+            <!-- Single-page Footer -->
+            <footer class="worksheet-footer">
+                <span>Intelligent Systems Design &bull; Hochschule Hamm-Lippstadt &bull; Rechnernetze</span>
+            </footer>
+
+        </div>
+    }
+
+</article>
+
+@code {
+    [Parameter]
+    public bool IsEmbed { get; set; }
+
+    public enum ViewMode
+    {
+        Simulator,
+        Pinout,
+        Trainer,
+        Worksheet
+    }
+
+    public enum CablingStandard
+    {
+        T568A,
+        T568B
+    }
+
+    private ViewMode ActiveView = ViewMode.Simulator;
+    private CablingStandard SelectedStandard = CablingStandard.T568B;
+    private bool ShowSolution = false;
+    private bool ShowTrainerSolution = false;
+    private string UserAnswer = "";
+
+    // Simulator State
+    private int[] Bits = new int[] { 1, 0, 1, 1, 0, 0, 1, 0 };
+    private const double BitWidth = 85.0;
+    private double NoiseLevel = 0.0;
+    private bool HasNoiseSpike = false;
+
+    // Pin Representation
+    public class Rj45Pin
+    {
+        public int Number { get; set; }
+        public int Pair { get; set; }
+        public string ColorName { get; set; } = "";
+        public string CssGradient { get; set; } = "";
+        public string Signal { get; set; } = "";
+        public string Role { get; set; } = "";
+    }
+
+    private List<Rj45Pin> PinsT568B = new()
+    {
+        new Rj45Pin { Number = 1, Pair = 2, ColorName = "Weiß-Orange", CssGradient = "repeating-linear-gradient(45deg, #f97316, #f97316 4px, #ffffff 4px, #ffffff 8px)", Signal = "Tx+ (Trans.)", Role = "Sendedaten +" },
+        new Rj45Pin { Number = 2, Pair = 2, ColorName = "Orange", CssGradient = "#f97316", Signal = "Tx- (Trans.)", Role = "Sendedaten -" },
+        new Rj45Pin { Number = 3, Pair = 3, ColorName = "Weiß-Grün", CssGradient = "repeating-linear-gradient(45deg, #22c55e, #22c55e 4px, #ffffff 4px, #ffffff 8px)", Signal = "Rx+ (Recv.)", Role = "Empfangsdaten +" },
+        new Rj45Pin { Number = 4, Pair = 1, ColorName = "Blau", CssGradient = "#3b82f6", Signal = "Nicht gen. / PoE", Role = "Telefon / PoE +" },
+        new Rj45Pin { Number = 5, Pair = 1, ColorName = "Weiß-Blau", CssGradient = "repeating-linear-gradient(45deg, #3b82f6, #3b82f6 4px, #ffffff 4px, #ffffff 8px)", Signal = "Nicht gen. / PoE", Role = "Telefon / PoE -" },
+        new Rj45Pin { Number = 6, Pair = 3, ColorName = "Grün", CssGradient = "#22c55e", Signal = "Rx- (Recv.)", Role = "Empfangsdaten -" },
+        new Rj45Pin { Number = 7, Pair = 4, ColorName = "Weiß-Braun", CssGradient = "repeating-linear-gradient(45deg, #a16207, #a16207 4px, #ffffff 4px, #ffffff 8px)", Signal = "Nicht gen. / PoE", Role = "Giga-Eth / PoE +" },
+        new Rj45Pin { Number = 8, Pair = 4, ColorName = "Braun", CssGradient = "#a16207", Signal = "Nicht gen. / PoE", Role = "Giga-Eth / PoE -" }
+    };
+
+    private List<Rj45Pin> PinsT568A = new()
+    {
+        new Rj45Pin { Number = 1, Pair = 3, ColorName = "Weiß-Grün", CssGradient = "repeating-linear-gradient(45deg, #22c55e, #22c55e 4px, #ffffff 4px, #ffffff 8px)", Signal = "Tx+ (Trans.)", Role = "Sendedaten +" },
+        new Rj45Pin { Number = 2, Pair = 3, ColorName = "Grün", CssGradient = "#22c55e", Signal = "Tx- (Trans.)", Role = "Sendedaten -" },
+        new Rj45Pin { Number = 3, Pair = 2, ColorName = "Weiß-Orange", CssGradient = "repeating-linear-gradient(45deg, #f97316, #f97316 4px, #ffffff 4px, #ffffff 8px)", Signal = "Rx+ (Recv.)", Role = "Empfangsdaten +" },
+        new Rj45Pin { Number = 4, Pair = 1, ColorName = "Blau", CssGradient = "#3b82f6", Signal = "Nicht gen. / PoE", Role = "Telefon / PoE +" },
+        new Rj45Pin { Number = 5, Pair = 1, ColorName = "Weiß-Blau", CssGradient = "repeating-linear-gradient(45deg, #3b82f6, #3b82f6 4px, #ffffff 4px, #ffffff 8px)", Signal = "Nicht gen. / PoE", Role = "Telefon / PoE -" },
+        new Rj45Pin { Number = 6, Pair = 2, ColorName = "Orange", CssGradient = "#f97316", Signal = "Rx- (Recv.)", Role = "Empfangsdaten -" },
+        new Rj45Pin { Number = 7, Pair = 4, ColorName = "Weiß-Braun", CssGradient = "repeating-linear-gradient(45deg, #a16207, #a16207 4px, #ffffff 4px, #ffffff 8px)", Signal = "Nicht gen. / PoE", Role = "Giga-Eth / PoE +" },
+        new Rj45Pin { Number = 8, Pair = 4, ColorName = "Braun", CssGradient = "#a16207", Signal = "Nicht gen. / PoE", Role = "Giga-Eth / PoE -" }
+    };
+
+    private List<Rj45Pin> CurrentPins => SelectedStandard == CablingStandard.T568B ? PinsT568B : PinsT568A;
+
+    protected override void OnInitialized()
+    {
+        CheckUrlParameters();
+    }
+
+    protected override void OnParametersSet()
+    {
+        CheckUrlParameters();
+    }
+
+    private void CheckUrlParameters()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query.ToLowerInvariant();
+
+            if (query.Contains("embed=true") || query.Contains("embedded=true") || query.Contains("embed=1"))
+            {
+                IsEmbed = true;
+            }
+
+            if (query.Contains("view=worksheet") || query.Contains("view=sheet"))
+            {
+                ActiveView = ViewMode.Worksheet;
+            }
+            else if (query.Contains("view=pinout") || query.Contains("view=t568"))
+            {
+                ActiveView = ViewMode.Pinout;
+            }
+            else if (query.Contains("view=trainer"))
+            {
+                ActiveView = ViewMode.Trainer;
+            }
+
+            if (query.Contains("solution=true") || query.Contains("sol=true") || query.Contains("loesung=true"))
+            {
+                ShowSolution = true;
+            }
+        }
+        catch
+        {
+            // Fallback to default state
+        }
+    }
+
+    private void SetView(ViewMode mode)
+    {
+        ActiveView = mode;
+    }
+
+    private void SetStandard(CablingStandard standard)
+    {
+        SelectedStandard = standard;
+    }
+
+    private void ToggleBit(int index)
+    {
+        Bits[index] = Bits[index] == 1 ? 0 : 1;
+    }
+
+    private void SetBits(string bitPattern)
+    {
+        for (int i = 0; i < Bits.Length && i < bitPattern.Length; i++)
+        {
+            Bits[i] = bitPattern[i] == '1' ? 1 : 0;
+        }
+    }
+
+    private void OnNoiseSliderChanged(ChangeEventArgs e)
+    {
+        if (double.TryParse(e.Value?.ToString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var val))
+        {
+            NoiseLevel = val;
+        }
+    }
+
+    private void InjectNoiseSpike()
+    {
+        HasNoiseSpike = !HasNoiseSpike;
+    }
+
+    private void ResetNoise()
+    {
+        NoiseLevel = 0.0;
+        HasNoiseSpike = false;
+    }
+
+    private void ToggleSolution()
+    {
+        ShowSolution = !ShowSolution;
+    }
+
+    private void ToggleTrainerSolution()
+    {
+        ShowTrainerSolution = !ShowTrainerSolution;
+    }
+
+    private async Task TriggerPrint()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+
+    // Path generation helpers for waveforms
+    private string GetOriginalSignalPath(double highY, double lowY)
+    {
+        var sb = new System.Text.StringBuilder();
+        double startX = 90;
+        double currentY = Bits[0] == 1 ? highY : lowY;
+        sb.Append(System.Globalization.CultureInfo.InvariantCulture, $"M {startX:F1} {currentY:F1}");
+
+        for (int i = 0; i < Bits.Length; i++)
+        {
+            double nextX = startX + (i + 1) * BitWidth;
+            double targetY = Bits[i] == 1 ? highY : lowY;
+
+            if (System.Math.Abs(currentY - targetY) > 0.1)
+            {
+                sb.Append(System.Globalization.CultureInfo.InvariantCulture, $" L {startX + i * BitWidth:F1} {targetY:F1}");
+                currentY = targetY;
+            }
+            sb.Append(System.Globalization.CultureInfo.InvariantCulture, $" L {nextX:F1} {currentY:F1}");
+        }
+        return sb.ToString();
+    }
+
+    private string GetInvertedSignalPath(double highY, double lowY)
+    {
+        var sb = new System.Text.StringBuilder();
+        double startX = 90;
+        double currentY = Bits[0] == 1 ? lowY : highY; // Inverted!
+        sb.Append(System.Globalization.CultureInfo.InvariantCulture, $"M {startX:F1} {currentY:F1}");
+
+        for (int i = 0; i < Bits.Length; i++)
+        {
+            double nextX = startX + (i + 1) * BitWidth;
+            double targetY = Bits[i] == 1 ? lowY : highY;
+
+            if (System.Math.Abs(currentY - targetY) > 0.1)
+            {
+                sb.Append(System.Globalization.CultureInfo.InvariantCulture, $" L {startX + i * BitWidth:F1} {targetY:F1}");
+                currentY = targetY;
+            }
+            sb.Append(System.Globalization.CultureInfo.InvariantCulture, $" L {nextX:F1} {currentY:F1}");
+        }
+        return sb.ToString();
+    }
+
+    private string GetNoisySignalPath(double highY, double lowY, bool isOriginal)
+    {
+        var sb = new System.Text.StringBuilder();
+        double startX = 90;
+        int steps = 160;
+        double totalWidth = Bits.Length * BitWidth;
+        double stepWidth = totalWidth / steps;
+
+        for (int s = 0; s <= steps; s++)
+        {
+            double currentX = startX + s * stepWidth;
+            int bitIdx = (int)((currentX - startX) / BitWidth);
+            if (bitIdx >= Bits.Length) bitIdx = Bits.Length - 1;
+
+            bool bitVal = Bits[bitIdx] == 1;
+            double baseY = isOriginal ? (bitVal ? highY : lowY) : (bitVal ? lowY : highY);
+
+            // Calculate noise
+            double noise = 0;
+            if (NoiseLevel > 0)
+            {
+                // Pseudo-random deterministic noise wave
+                noise = System.Math.Sin(s * 0.85) * (NoiseLevel * 10) + System.Math.Cos(s * 1.7) * (NoiseLevel * 6);
+            }
+
+            // Noise spike at bit 3 (x around 90 + 3.5 * BitWidth)
+            if (HasNoiseSpike && bitIdx == 3)
+            {
+                double spikeCenter = startX + 3.5 * BitWidth;
+                double dist = System.Math.Abs(currentX - spikeCenter);
+                if (dist < 25)
+                {
+                    double spikeFactor = (25 - dist) / 25.0;
+                    noise -= spikeFactor * 18.0; // Inverted Y-axis in SVG: -18 pixels = +3 Volts upward spike
+                }
+            }
+
+            double y = baseY + noise;
+            if (s == 0)
+                sb.Append(System.Globalization.CultureInfo.InvariantCulture, $"M {currentX:F1} {y:F1}");
+            else
+                sb.Append(System.Globalization.CultureInfo.InvariantCulture, $" L {currentX:F1} {y:F1}");
+        }
+
+        return sb.ToString();
+    }
+
+    private string GetDifferenceSignalPath(double pos5Y, double zeroY, double neg5Y)
+    {
+        var sb = new System.Text.StringBuilder();
+        double startX = 90;
+        double currentY = Bits[0] == 1 ? pos5Y : neg5Y;
+        sb.Append(System.Globalization.CultureInfo.InvariantCulture, $"M {startX:F1} {currentY:F1}");
+
+        for (int i = 0; i < Bits.Length; i++)
+        {
+            double nextX = startX + (i + 1) * BitWidth;
+            // Diff = S+ - S-. Bit 1: 5V - 0V = +5V (pos5Y). Bit 0: 0V - 5V = -5V (neg5Y).
+            double targetY = Bits[i] == 1 ? pos5Y : neg5Y;
+
+            if (System.Math.Abs(currentY - targetY) > 0.1)
+            {
+                sb.Append(System.Globalization.CultureInfo.InvariantCulture, $" L {startX + i * BitWidth:F1} {targetY:F1}");
+                currentY = targetY;
+            }
+            sb.Append(System.Globalization.CultureInfo.InvariantCulture, $" L {nextX:F1} {currentY:F1}");
+        }
+        return sb.ToString();
+    }
+
+    private string GetReconstructedSignalPath(double highY, double lowY)
+    {
+        return GetOriginalSignalPath(highY, lowY);
+    }
+}
