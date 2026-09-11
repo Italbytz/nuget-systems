@@ -1,0 +1,741 @@
+@using Microsoft.JSInterop
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+
+<article class="telnet-container @(IsEmbed ? "is-embed" : "")">
+
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
+    {
+        <header class="telnet-header">
+            <div class="header-content">
+                <span class="badge-cat">Rechnernetze &bull; Anwendungsschicht</span>
+                <h1 class="header-title">Telnet &amp; Zeichenorientierter Datenaustausch über TCP</h1>
+                <p class="header-desc">
+                    Interaktive Simulation von <strong>Telnet (Port 23)</strong> und der Familie
+                    zeichenorientierter Befehlszeilen-Protokolle: <strong>SMTP</strong>, <strong>POP3</strong>, <strong>IMAP</strong> und <strong>FTP</strong>.
+                </p>
+            </div>
+            <nav class="view-tabs">
+                <button class="tab-btn @(ActiveView == ViewMode.Simulator ? "active" : "")" @onclick="() => SetView(ViewMode.Simulator)">
+                    <span class="tab-icon">💻</span> Telnet-Terminal
+                </button>
+                <button class="tab-btn @(ActiveView == ViewMode.ProtocolMatrix ? "active" : "")" @onclick="() => SetView(ViewMode.ProtocolMatrix)">
+                    <span class="tab-icon">📋</span> Befehlszeilen-Protokolle
+                </button>
+                <button class="tab-btn @(ActiveView == ViewMode.SecurityAndNvt ? "active" : "")" @onclick="() => SetView(ViewMode.SecurityAndNvt)">
+                    <span class="tab-icon">🔒</span> Telnet vs. SSH &amp; NVT
+                </button>
+                <button class="tab-btn @(ActiveView == ViewMode.Trainer ? "active" : "")" @onclick="() => SetView(ViewMode.Trainer)">
+                    <span class="tab-icon">📝</span> Klausur-Trainer
+                </button>
+                <button class="tab-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")" @onclick="() => SetView(ViewMode.Worksheet)">
+                    <span class="tab-icon">📄</span> Aufgabenblatt
+                </button>
+            </nav>
+        </header>
+    }
+
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- S1: Interactive Telnet Terminal Simulator -->
+        <section class="simulator-section">
+            <div class="sim-toolbar">
+                <div class="target-service-selector">
+                    <span class="ctrl-label">Ziel-Dienst (TCP Port):</span>
+                    <div class="btn-group">
+                        <button class="btn-sm @(SelectedTarget == TargetService.TelnetShell ? "active" : "")" @onclick="() => ConnectTo(TargetService.TelnetShell)">
+                            Port 23 (Telnet Shell)
+                        </button>
+                        <button class="btn-sm @(SelectedTarget == TargetService.Smtp ? "active" : "")" @onclick="() => ConnectTo(TargetService.Smtp)">
+                            Port 25 (SMTP Mail)
+                        </button>
+                        <button class="btn-sm @(SelectedTarget == TargetService.Pop3 ? "active" : "")" @onclick="() => ConnectTo(TargetService.Pop3)">
+                            Port 110 (POP3)
+                        </button>
+                        <button class="btn-sm @(SelectedTarget == TargetService.Imap ? "active" : "")" @onclick="() => ConnectTo(TargetService.Imap)">
+                            Port 143 (IMAP)
+                        </button>
+                        <button class="btn-sm @(SelectedTarget == TargetService.Ftp ? "active" : "")" @onclick="() => ConnectTo(TargetService.Ftp)">
+                            Port 21 (FTP Control)
+                        </button>
+                    </div>
+                </div>
+                <div class="terminal-ctrls">
+                    <button class="btn-ctrl" @onclick="ClearTerminal">Terminal leeren</button>
+                    <button class="btn-ctrl btn-secondary" @onclick="ResetConnection">↺ Neu verbinden</button>
+                </div>
+            </div>
+
+            <!-- Terminal Window -->
+            <div class="terminal-card">
+                <div class="terminal-titlebar">
+                    <span class="terminal-dots">
+                        <span class="dot red"></span>
+                        <span class="dot yellow"></span>
+                        <span class="dot green"></span>
+                    </span>
+                    <span class="terminal-address">
+                        telnet @GetHostDisplay() @GetPortDisplay() &mdash; Zeichenorientierter TCP-Bytestrom
+                    </span>
+                    <span class="badge-status @(IsConnected ? "connected" : "closed")">
+                        @(IsConnected ? "CONNECTED" : "CLOSED")
+                    </span>
+                </div>
+
+                <div class="terminal-screen" id="telnet-screen">
+                    @foreach (var line in TerminalLines)
+                    {
+                        <div class="term-line @GetLineClass(line.Type)">
+                            <span class="term-time">@line.Timestamp</span>
+                            <span class="term-text">@line.Text</span>
+                        </div>
+                    }
+                </div>
+
+                <!-- Interactive Command Input Bar -->
+                <div class="terminal-inputbar">
+                    <span class="term-prompt">$</span>
+                    <input type="text" class="cmd-input" placeholder="Befehl eingeben und Enter drücken..."
+                           @bind="CurrentInput" @bind:event="oninput" @onkeydown="HandleKeyDown" />
+                    <button class="btn-send" @onclick="ExecuteCurrentInput">Senden</button>
+                </div>
+
+                <!-- Quick Command Suggestions (Chips) -->
+                <div class="command-chips-bar">
+                    <span class="chips-label">Befehle vorschlagen:</span>
+                    <div class="chips-list">
+                        @foreach (var cmd in AvailableQuickCommands)
+                        {
+                            <button class="chip-btn" @onclick="() => SendQuickCommand(cmd)">
+                                <code>@cmd</code>
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Protocol Explanation Callout -->
+            <div class="concept-callout-grid">
+                <div class="concept-card">
+                    <div class="concept-header">
+                        <span class="concept-icon">🔤</span>
+                        <h4>Zeichenorientierter Datenaustausch</h4>
+                    </div>
+                    <p class="concept-text">
+                        Das Telnet-Protokoll und Client-Programme senden reine Zeichenfolgen (ASCII / UTF-8) über TCP.
+                        Jeder Befehl wird durch <code>\r\n</code> (CRLF) abgeschlossen. Der Server parst die Zeile und antwortet ebenfalls in Textform.
+                    </p>
+                </div>
+
+                <div class="concept-card highlight-card">
+                    <div class="concept-header">
+                        <span class="concept-icon">💡</span>
+                        <h4>Klausur-Fokus: Welche anderen Protokolle?</h4>
+                    </div>
+                    <p class="concept-text">
+                        Weil <strong>SMTP</strong>, <strong>POP3</strong>, <strong>IMAP</strong> und <strong>FTP</strong> ebenfalls zeichen- und befehlszeilenorientiert über TCP arbeiten,
+                        kann man sich mit jedem normalen Telnet-Client direkt mit deren Ports (25, 110, 143, 21) verbinden und sie interaktiv von Hand steuern!
+                    </p>
+                </div>
+            </div>
+        </section>
+    }
+    else if (ActiveView == ViewMode.ProtocolMatrix)
+    {
+        <!-- S1.2: Protocol Matrix -->
+        <section class="matrix-section">
+            <h2 class="section-title">Befehlszeilenorientierte Protokolle der Anwendungsschicht</h2>
+            <p class="section-lead">
+                Diese Protokolle übertragen Befehle als lesbare ASCII-Textzeilen über TCP. Sie bilden die direkte Antwort auf die Klausurfrage:
+            </p>
+
+            <div class="protocol-grid">
+                <!-- 1. SMTP -->
+                <div class="proto-box smtp-box">
+                    <div class="proto-top">
+                        <span class="proto-badge">Klausurlösung 1</span>
+                        <h3 class="proto-name">SMTP</h3>
+                        <span class="proto-port">Port 25 / 587</span>
+                    </div>
+                    <div class="proto-desc">Simple Mail Transfer Protocol &ndash; Versand und Server-to-Server Relay von E-Mails.</div>
+                    <div class="proto-cmds">
+                        <div class="cmd-label">Typische Befehlszeilen:</div>
+                        <code>HELO mail.hshl.de</code>
+                        <code>MAIL FROM:&lt;alice&#64;hshl.de&gt;</code>
+                        <code>RCPT TO:&lt;bob&#64;hshl.de&gt;</code>
+                        <code>DATA</code>
+                        <code>QUIT</code>
+                    </div>
+                    <div class="proto-rsp"><strong>Antworten:</strong> 3-stellige Statuscodes (<code>250 OK</code>, <code>354 Start mail input</code>)</div>
+                </div>
+
+                <!-- 2. POP3 -->
+                <div class="proto-box pop3-box">
+                    <div class="proto-top">
+                        <span class="proto-badge">Klausurlösung 2</span>
+                        <h3 class="proto-name">POP3</h3>
+                        <span class="proto-port">Port 110 / 995</span>
+                    </div>
+                    <div class="proto-desc">Post Office Protocol 3 &ndash; Abholen von Nachrichten vom Server auf das lokale Endgerät.</div>
+                    <div class="proto-cmds">
+                        <div class="cmd-label">Typische Befehlszeilen:</div>
+                        <code>USER alice</code>
+                        <code>PASS geheim123</code>
+                        <code>STAT</code>
+                        <code>LIST</code>
+                        <code>RETR 1</code>
+                        <code>QUIT</code>
+                    </div>
+                    <div class="proto-rsp"><strong>Antworten:</strong> Text-Indikatoren (<code>+OK 2 1205</code> oder <code>-ERR invalid password</code>)</div>
+                </div>
+
+                <!-- 3. IMAP -->
+                <div class="proto-box imap-box">
+                    <div class="proto-top">
+                        <span class="proto-badge">Klausurlösung 3</span>
+                        <h3 class="proto-name">IMAP</h3>
+                        <span class="proto-port">Port 143 / 993</span>
+                    </div>
+                    <div class="proto-desc">Internet Message Access Protocol &ndash; Multi-Device-Synchronisation und Ordnerverwaltung auf dem Server.</div>
+                    <div class="proto-cmds">
+                        <div class="cmd-label">Typische Befehlszeilen (mit Tag):</div>
+                        <code>a001 LOGIN alice pass123</code>
+                        <code>a002 SELECT INBOX</code>
+                        <code>a003 FETCH 1 FULL</code>
+                        <code>a004 LOGOUT</code>
+                    </div>
+                    <div class="proto-rsp"><strong>Antworten:</strong> Getaggte Rückmeldungen (<code>a001 OK LOGIN completed</code>)</div>
+                </div>
+
+                <!-- 4. FTP -->
+                <div class="proto-box ftp-box">
+                    <div class="proto-top">
+                        <span class="proto-badge">Klausurlösung 4</span>
+                        <h3 class="proto-name">FTP</h3>
+                        <span class="proto-port">Port 21 (Control)</span>
+                    </div>
+                    <div class="proto-desc">File Transfer Protocol &ndash; Dateiübertragung mit separatem Steuerkanal (Port 21) und Datenkanal (Port 20).</div>
+                    <div class="proto-cmds">
+                        <div class="cmd-label">Typische Befehlszeilen:</div>
+                        <code>USER anonymous</code>
+                        <code>PASS guest&#64;hshl.de</code>
+                        <code>PWD</code>
+                        <code>PORT 192,168,1,5,19,136</code>
+                        <code>RETR script.pdf</code>
+                        <code>QUIT</code>
+                    </div>
+                    <div class="proto-rsp"><strong>Antworten:</strong> 3-stellige Statuscodes (<code>230 User logged in</code>, <code>226 Transfer complete</code>)</div>
+                </div>
+            </div>
+        </section>
+    }
+    else if (ActiveView == ViewMode.SecurityAndNvt)
+    {
+        <!-- S1.3: Telnet vs SSH & NVT -->
+        <section class="sec-section">
+            <h2 class="section-title">Sicherheitsproblem von Telnet &amp; NVT-Konzept</h2>
+
+            <div class="sec-grid">
+                <!-- Security Card -->
+                <div class="sec-card unsecure">
+                    <div class="sec-header">
+                        <span class="sec-icon">⚠️</span>
+                        <h3>Warum Telnet heute veraltet ist: Fehlende Verschlüsselung</h3>
+                    </div>
+                    <div class="sec-body">
+                        <p>
+                            Telnet überträgt <strong>alle Nutzdaten im Klartext</strong> über TCP:
+                        </p>
+                        <ul class="sec-list">
+                            <li>Benutzernamen und Passwörter werden unverschlüsselt gesendet.</li>
+                            <li>Jeder Router oder Angreifer im selben Netz kann den Bytestrom mit Wireshark / Sniffern mitlesen.</li>
+                            <li>Keine Server-Authentifizierung (Man-in-the-Middle Angriffe möglich).</li>
+                            <li>Deshalb seit Windows Vista standardmäßig deaktiviert und ab macOS Mojave entfernt.</li>
+                        </ul>
+                        <div class="modern-alternative">
+                            <strong>Moderner Standard:</strong> <code>SSH (Secure Shell, Port 22)</code> mit asymmetrischer Verschlüsselung, Integritätsprüfung und Schlüssel-Authentifizierung.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- NVT Card -->
+                <div class="sec-card nvt-card">
+                    <div class="sec-header">
+                        <span class="sec-icon">⚙️</span>
+                        <h3>Network Virtual Terminal (NVT) &amp; Escape-Sequenzen</h3>
+                    </div>
+                    <div class="sec-body">
+                        <p>
+                            Damit heterogene Terminals (VT100, Wyse, PC) miteinander sprechen können, definiert Telnet ein <strong>virtuelles Normalterminal (NVT)</strong>:
+                        </p>
+                        <ul class="sec-list">
+                            <li>Basis: 7-Bit ASCII mit 8-Bit Übertragung (höchstes Bit = 0 für Text).</li>
+                            <li>Steuerbefehle beginnen mit dem Escape-Byte <code>IAC</code> (Interpret As Command = <code>255</code> bzw. <code>0xFF</code>).</li>
+                            <li><strong>Optionsverhandlung:</strong>
+                                <ul>
+                                    <li><code>WILL</code> / <code>WONT</code>: Sender bietet Option an oder lehnt ab.</li>
+                                    <li><code>DO</code> / <code>DONT</code>: Empfänger fordert Option an oder verbietet sie.</li>
+                                </ul>
+                            </li>
+                            <li>Typische Optionen: Echo (lokal vs. entfernt), Terminal-Typ, Fenstergröße (NAWS).</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+    }
+    else if (ActiveView == ViewMode.Trainer)
+    {
+        <!-- S1.4: Klausur-Trainer -->
+        <section class="trainer-section">
+            <div class="trainer-card">
+                <div class="trainer-header">
+                    <span class="trainer-badge">Klausuraufgabe &bull; Rechnernetze Anwendungsschicht</span>
+                    <h2>Original-Klausurfrage</h2>
+                </div>
+                <div class="prompt-quote">
+                    „Das Telnet-Protokoll ist in der Vorlesung als „zeichenorientierter Datenaustausch über TCP“ beschrieben.
+                    D.h. das immer Zeichen bzw. Zeilen von Zeichen übertragen werden. Damit kann man z.B. eine entfernte Shell so bedienen,
+                    als sei sie lokal. Welche anderen Protokolle der Anwendungsschicht funktionieren noch über das Senden von Befehlszeilen?“
+                </div>
+
+                <div class="trainer-form">
+                    <label class="form-label">Ihre Antwort (Protokoll-Akronyme):</label>
+                    <textarea class="form-textarea" placeholder="Nennen Sie die relevanten zeichen- bzw. befehlszeilenorientierten Protokolle..." @bind="UserAnswer"></textarea>
+
+                    <div class="trainer-actions">
+                        <button class="btn-check" @onclick="ToggleTrainerSolution">
+                            @(ShowTrainerSolution ? "Lösung ausblenden" : "Musterlösung anzeigen")
+                        </button>
+                    </div>
+
+                    @if (ShowTrainerSolution)
+                    {
+                        <div class="trainer-solution-box">
+                            <div class="sol-title">Offizielle Musterlösung (aus XeLaTeX-Master):</div>
+                            <ul class="official-sol-list">
+                                <li><strong>SMTP</strong> (Simple Mail Transfer Protocol &ndash; Port 25)</li>
+                                <li><strong>POP3</strong> (Post Office Protocol 3 &ndash; Port 110)</li>
+                                <li><strong>IMAP</strong> (Internet Message Access Protocol &ndash; Port 143)</li>
+                                <li><strong>FTP</strong> (File Transfer Protocol Control &ndash; Port 21)</li>
+                            </ul>
+                            <div class="sol-explanation">
+                                <strong>Gemeinsamkeit:</strong>
+                                Alle diese Protokolle verwenden einen TCP-Bytestrom, auf dem Befehle als Klartext-Strings (ASCII) übertragen
+                                und mit Zeilenumbrüchen (<code>\r\n</code> / CRLF) terminiert werden. Daher können sie mit einem einfachen Telnet-Client
+                                direkt per Hand debuggt und getestet werden.
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </section>
+    }
+    else if (ActiveView == ViewMode.Worksheet)
+    {
+        <!-- S2: 1:1 Printable A4 Exam-Replica Worksheet -->
+        <div class="worksheet-container">
+            <div class="no-print worksheet-controls">
+                <button class="btn-action" @onclick="ToggleSolution">
+                    @(ShowSolution ? "Musterlösung verbergen" : "Musterlösung einblenden")
+                </button>
+                <button class="btn-action print-btn" @onclick="TriggerPrint">🖨️ Drucken / PDF Export</button>
+            </div>
+
+            <!-- Single-page Header -->
+            <header class="worksheet-header">
+                <div class="ws-head-left">
+                    <div class="ws-institution">Hochschule Hamm-Lippstadt</div>
+                    <div class="ws-course">Grundlagen der Informatik &bull; Rechnernetze</div>
+                    <div class="ws-topic">Zeichenorientierter Datenaustausch &bull; Telnet &amp; Befehlszeilen-Protokolle</div>
+                </div>
+                <div class="ws-head-right">
+                    <div class="ws-meta-field"><span>Name:</span> _________________________________</div>
+                    <div class="ws-meta-field"><span>Matrikelnr.:</span> ___________________________</div>
+                    <div class="ws-meta-field"><span>Datum:</span> _________________________________</div>
+                </div>
+            </header>
+
+            <div class="worksheet-body">
+                <div class="task-title-bar">
+                    <h2 class="task-title">Aufgabe: Zeichenorientierte Protokolle der Anwendungsschicht</h2>
+                    <span class="task-score">Punkte: / 5</span>
+                </div>
+
+                <div class="ws-prompt">
+                    Das Telnet-Protokoll ist in der Vorlesung als „zeichenorientierter Datenaustausch über TCP“ beschrieben.
+                    D.h. das immer Zeichen bzw. Zeilen von Zeichen übertragen werden. Damit kann man z.B. eine entfernte Shell so bedienen,
+                    als sei sie lokal. Welche anderen Protokolle der Anwendungsschicht funktionieren noch über das Senden von Befehlszeilen?
+                </div>
+
+                <!-- Conceptual Diagram: Telnet client connecting to various command-line services -->
+                <div class="ws-diagram-box">
+                    <div class="ws-diag-title">Zeichenorientierter Datenaustausch über TCP:</div>
+                    <div class="ws-diag-grid">
+                        <div class="ws-diag-client">
+                            <strong>Telnet-Client</strong><br/>
+                            <small>(Zeicheneingabe per Tastatur)</small>
+                        </div>
+                        <div class="ws-diag-arrows">
+                            <div class="ws-arrow-row"><span>Port 23 &rarr;</span> <strong>Telnet Server</strong> (Remote Shell)</div>
+                            <div class="ws-arrow-row"><span>Port 25 &rarr;</span> <strong>SMTP</strong> (<code>HELO</code>, <code>MAIL FROM</code>, <code>RCPT TO</code>)</div>
+                            <div class="ws-arrow-row"><span>Port 110 &rarr;</span> <strong>POP3</strong> (<code>USER</code>, <code>PASS</code>, <code>RETR</code>)</div>
+                            <div class="ws-arrow-row"><span>Port 143 &rarr;</span> <strong>IMAP</strong> (<code>LOGIN</code>, <code>SELECT</code>, <code>FETCH</code>)</div>
+                            <div class="ws-arrow-row"><span>Port 21 &rarr;</span> <strong>FTP</strong> (<code>USER</code>, <code>PASS</code>, <code>PWD</code>)</div>
+                        </div>
+                    </div>
+                </div>
+
+                @if (ShowSolution)
+                {
+                    <div class="solution-box">
+                        <div class="solution-badge">MUSTERLÖSUNG:</div>
+                        <ul class="solution-items">
+                            <li><strong>SMTP</strong> (Simple Mail Transfer Protocol, Port 25)</li>
+                            <li><strong>POP3</strong> (Post Office Protocol Version 3, Port 110)</li>
+                            <li><strong>IMAP</strong> (Internet Message Access Protocol, Port 143)</li>
+                            <li><strong>FTP</strong> (File Transfer Protocol Control-Verbindung, Port 21)</li>
+                        </ul>
+                        <div class="solution-note">
+                            <em>Hinweis:</em> Bei allen genannten Protokollen werden Kommandos als ASCII-Befehlszeilen mit CRLF (<code>\r\n</code>)
+                            über einen zuverlässigen TCP-Bytestrom gesendet und mit Text- oder nummerischen Statusmeldungen quittiert.
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="ws-writing-area">
+                        <div class="answer-line"></div>
+                        <div class="answer-line"></div>
+                        <div class="answer-line"></div>
+                        <div class="answer-line"></div>
+                        <div class="answer-line"></div>
+                    </div>
+                }
+            </div>
+
+            <!-- Single-page Footer -->
+            <footer class="worksheet-footer">
+                <span>Intelligent Systems Design &bull; Hochschule Hamm-Lippstadt &bull; Rechnernetze</span>
+            </footer>
+        </div>
+    }
+
+</article>
+
+@code {
+    [Parameter]
+    public bool IsEmbed { get; set; } = false;
+
+    public enum ViewMode
+    {
+        Simulator,
+        ProtocolMatrix,
+        SecurityAndNvt,
+        Trainer,
+        Worksheet
+    }
+
+    public enum TargetService
+    {
+        TelnetShell,
+        Smtp,
+        Pop3,
+        Imap,
+        Ftp
+    }
+
+    public enum LineType
+    {
+        System,
+        ClientCommand,
+        ServerResponse,
+        Error
+    }
+
+    public class TermEntry
+    {
+        public string Timestamp { get; set; } = "";
+        public string Text { get; set; } = "";
+        public LineType Type { get; set; }
+    }
+
+    private ViewMode ActiveView { get; set; } = ViewMode.Simulator;
+    private bool ShowSolution { get; set; } = false;
+    private bool ShowTrainerSolution { get; set; } = false;
+    private string UserAnswer { get; set; } = "";
+
+    private TargetService SelectedTarget { get; set; } = TargetService.TelnetShell;
+    private bool IsConnected { get; set; } = true;
+    private string CurrentInput { get; set; } = "";
+
+    private List<TermEntry> TerminalLines { get; set; } = new();
+
+    private List<string> AvailableQuickCommands => SelectedTarget switch
+    {
+        TargetService.TelnetShell => new List<string> { "whoami", "uname -a", "ls -la", "uptime", "exit" },
+        TargetService.Smtp => new List<string> { "HELO client.hshl.de", "MAIL FROM:<alice@hshl.de>", "RCPT TO:<bob@hshl.de>", "DATA", "QUIT" },
+        TargetService.Pop3 => new List<string> { "USER alice", "PASS geheim123", "STAT", "LIST", "RETR 1", "QUIT" },
+        TargetService.Imap => new List<string> { "a001 LOGIN alice pass123", "a002 SELECT INBOX", "a003 FETCH 1 FULL", "a004 LOGOUT" },
+        TargetService.Ftp => new List<string> { "USER anonymous", "PASS guest@hshl.de", "PWD", "LIST", "QUIT" },
+        _ => new List<string>()
+    };
+
+    protected override void OnInitialized()
+    {
+        ConnectTo(TargetService.TelnetShell);
+        CheckUrlParameters();
+    }
+
+    protected override void OnParametersSet()
+    {
+        CheckUrlParameters();
+    }
+
+    private void CheckUrlParameters()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query.ToLowerInvariant();
+
+            if (query.Contains("embed=true") || query.Contains("embedded=true") || query.Contains("embed=1"))
+            {
+                IsEmbed = true;
+            }
+
+            if (query.Contains("view=worksheet") || query.Contains("view=sheet"))
+            {
+                ActiveView = ViewMode.Worksheet;
+            }
+            else if (query.Contains("view=matrix") || query.Contains("view=protocols"))
+            {
+                ActiveView = ViewMode.ProtocolMatrix;
+            }
+            else if (query.Contains("view=trainer"))
+            {
+                ActiveView = ViewMode.Trainer;
+            }
+
+            if (query.Contains("solution=true") || query.Contains("sol=true") || query.Contains("loesung=true"))
+            {
+                ShowSolution = true;
+            }
+        }
+        catch
+        {
+            // Fallback
+        }
+    }
+
+    private void SetView(ViewMode mode)
+    {
+        ActiveView = mode;
+    }
+
+    private string GetHostDisplay() => "server.hshl.de";
+
+    private string GetPortDisplay() => SelectedTarget switch
+    {
+        TargetService.TelnetShell => "23",
+        TargetService.Smtp => "25",
+        TargetService.Pop3 => "110",
+        TargetService.Imap => "143",
+        TargetService.Ftp => "21",
+        _ => "23"
+    };
+
+    private void ConnectTo(TargetService target)
+    {
+        SelectedTarget = target;
+        IsConnected = true;
+        TerminalLines.Clear();
+
+        var time = DateTime.Now.ToString("HH:mm:ss");
+        TerminalLines.Add(new TermEntry { Timestamp = time, Text = $"Trying 193.175.22.10 ({GetHostDisplay()})...", Type = LineType.System });
+        TerminalLines.Add(new TermEntry { Timestamp = time, Text = $"Connected to {GetHostDisplay()}:{GetPortDisplay()}.", Type = LineType.System });
+        TerminalLines.Add(new TermEntry { Timestamp = time, Text = "Escape character is '^]'.", Type = LineType.System });
+
+        switch (target)
+        {
+            case TargetService.TelnetShell:
+                TerminalLines.Add(new TermEntry { Timestamp = time, Text = "Ubuntu 24.04.1 LTS (GNU/Linux 6.8.0-40-generic x86_64)", Type = LineType.ServerResponse });
+                TerminalLines.Add(new TermEntry { Timestamp = time, Text = "server login: stud (automatic login)\nLast login: Fri Sep 11 18:00:00 2026 from 10.0.4.12", Type = LineType.ServerResponse });
+                TerminalLines.Add(new TermEntry { Timestamp = time, Text = "stud@server:~$ ", Type = LineType.ServerResponse });
+                break;
+            case TargetService.Smtp:
+                TerminalLines.Add(new TermEntry { Timestamp = time, Text = "220 server.hshl.de ESMTP Postfix (Ubuntu)", Type = LineType.ServerResponse });
+                break;
+            case TargetService.Pop3:
+                TerminalLines.Add(new TermEntry { Timestamp = time, Text = "+OK Dovecot ready.", Type = LineType.ServerResponse });
+                break;
+            case TargetService.Imap:
+                TerminalLines.Add(new TermEntry { Timestamp = time, Text = "* OK [CAPABILITY IMAP4rev1 LITERAL+ SASL-IR LOGIN] Dovecot ready.", Type = LineType.ServerResponse });
+                break;
+            case TargetService.Ftp:
+                TerminalLines.Add(new TermEntry { Timestamp = time, Text = "220 (vsFTPd 3.0.5)", Type = LineType.ServerResponse });
+                break;
+        }
+    }
+
+    private void ResetConnection()
+    {
+        ConnectTo(SelectedTarget);
+    }
+
+    private void ClearTerminal()
+    {
+        TerminalLines.Clear();
+    }
+
+    private void SendQuickCommand(string cmd)
+    {
+        CurrentInput = cmd;
+        ExecuteCurrentInput();
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            ExecuteCurrentInput();
+        }
+    }
+
+    private void ExecuteCurrentInput()
+    {
+        if (string.IsNullOrWhiteSpace(CurrentInput)) return;
+
+        var cmd = CurrentInput.Trim();
+        CurrentInput = "";
+        var time = DateTime.Now.ToString("HH:mm:ss");
+
+        TerminalLines.Add(new TermEntry { Timestamp = time, Text = cmd, Type = LineType.ClientCommand });
+
+        // Simulate server response based on target protocol
+        SimulateResponse(cmd, time);
+    }
+
+    private void SimulateResponse(string cmd, string time)
+    {
+        var upper = cmd.ToUpperInvariant();
+
+        switch (SelectedTarget)
+        {
+            case TargetService.TelnetShell:
+                if (upper == "WHOAMI")
+                    TerminalLines.Add(new TermEntry { Timestamp = time, Text = "stud", Type = LineType.ServerResponse });
+                else if (upper.StartsWith("UNAME"))
+                    TerminalLines.Add(new TermEntry { Timestamp = time, Text = "Linux server.hshl.de 6.8.0-40-generic #40-Ubuntu SMP PREEMPT_DYNAMIC x86_64", Type = LineType.ServerResponse });
+                else if (upper.StartsWith("LS"))
+                    TerminalLines.Add(new TermEntry { Timestamp = time, Text = "drwxr-xr-x 2 stud stud 4096 Sep 11 18:00 docs\n-rw-r--r-- 1 stud stud 1024 Sep 11 17:30 klausur_aufgaben.txt\n-rwxr-xr-x 1 stud stud  840 Sep 11 16:15 demo.sh", Type = LineType.ServerResponse });
+                else if (upper == "UPTIME")
+                    TerminalLines.Add(new TermEntry { Timestamp = time, Text = " 19:15:00 up 42 days, 14:02,  2 users,  load average: 0.12, 0.08, 0.05", Type = LineType.ServerResponse });
+                else if (upper == "EXIT")
+                {
+                    TerminalLines.Add(new TermEntry { Timestamp = time, Text = "logout\nConnection closed by foreign host.", Type = LineType.System });
+                    IsConnected = false;
+                }
+                else
+                    TerminalLines.Add(new TermEntry { Timestamp = time, Text = $"bash: {cmd}: command executed successfully", Type = LineType.ServerResponse });
+                break;
+
+            case TargetService.Smtp:
+                if (upper.StartsWith("HELO") || upper.StartsWith("EHLO"))
+                    TerminalLines.Add(new TermEntry { Timestamp = time, Text = "250 server.hshl.de Hello client, pleased to meet you", Type = LineType.ServerResponse });
+                else if (upper.StartsWith("MAIL FROM"))
+                    TerminalLines.Add(new TermEntry { Timestamp = time, Text = "250 2.1.0 Ok: sender accepted", Type = LineType.ServerResponse });
+                else if (upper.StartsWith("RCPT TO"))
+                    TerminalLines.Add(new TermEntry { Timestamp = time, Text = "250 2.1.5 Ok: recipient accepted", Type = LineType.ServerResponse });
+                else if (upper == "DATA")
+                    TerminalLines.Add(new TermEntry { Timestamp = time, Text = "354 End data with <CR><LF>.<CR><LF>", Type = LineType.ServerResponse });
+                else if (upper == "QUIT")
+                {
+                    TerminalLines.Add(new TermEntry { Timestamp = time, Text = "221 2.0.0 Bye\nConnection closed by foreign host.", Type = LineType.ServerResponse });
+                    IsConnected = false;
+                }
+                else
+                    TerminalLines.Add(new TermEntry { Timestamp = time, Text = "250 2.0.0 Ok", Type = LineType.ServerResponse });
+                break;
+
+            case TargetService.Pop3:
+                if (upper.StartsWith("USER"))
+                    TerminalLines.Add(new TermEntry { Timestamp = time, Text = "+OK User accepted, enter PASS", Type = LineType.ServerResponse });
+                else if (upper.StartsWith("PASS"))
+                    TerminalLines.Add(new TermEntry { Timestamp = time, Text = "+OK Logged in, 2 messages (1420 octets)", Type = LineType.ServerResponse });
+                else if (upper == "STAT")
+                    TerminalLines.Add(new TermEntry { Timestamp = time, Text = "+OK 2 1420", Type = LineType.ServerResponse });
+                else if (upper == "LIST")
+                    TerminalLines.Add(new TermEntry { Timestamp = time, Text = "+OK 2 messages:\n1 820\n2 600\n.", Type = LineType.ServerResponse });
+                else if (upper.StartsWith("RETR"))
+                    TerminalLines.Add(new TermEntry { Timestamp = time, Text = "+OK 820 octets\nFrom: prof@hshl.de\nSubject: Rechnernetze Klausur\n\nHallo Alice, Klausurtermin ist fix.\n.", Type = LineType.ServerResponse });
+                else if (upper == "QUIT")
+                {
+                    TerminalLines.Add(new TermEntry { Timestamp = time, Text = "+OK Logging out.\nConnection closed by foreign host.", Type = LineType.ServerResponse });
+                    IsConnected = false;
+                }
+                else
+                    TerminalLines.Add(new TermEntry { Timestamp = time, Text = "+OK", Type = LineType.ServerResponse });
+                break;
+
+            case TargetService.Imap:
+                var tag = cmd.Split(' ')[0];
+                if (upper.Contains("LOGIN"))
+                    TerminalLines.Add(new TermEntry { Timestamp = time, Text = $"{tag} OK [CAPABILITY IMAP4rev1] Logged in", Type = LineType.ServerResponse });
+                else if (upper.Contains("SELECT"))
+                    TerminalLines.Add(new TermEntry { Timestamp = time, Text = $"* 12 EXISTS\n* 0 RECENT\n{tag} OK [READ-WRITE] SELECT completed", Type = LineType.ServerResponse });
+                else if (upper.Contains("FETCH"))
+                    TerminalLines.Add(new TermEntry { Timestamp = time, Text = $"* 1 FETCH (FLAGS (\\Seen) RFC822.SIZE 820)\n{tag} OK FETCH completed", Type = LineType.ServerResponse });
+                else if (upper.Contains("LOGOUT"))
+                {
+                    TerminalLines.Add(new TermEntry { Timestamp = time, Text = $"* BYE Logging out\n{tag} OK LOGOUT completed\nConnection closed by foreign host.", Type = LineType.ServerResponse });
+                    IsConnected = false;
+                }
+                else
+                    TerminalLines.Add(new TermEntry { Timestamp = time, Text = $"{tag} OK Command completed", Type = LineType.ServerResponse });
+                break;
+
+            case TargetService.Ftp:
+                if (upper.StartsWith("USER"))
+                    TerminalLines.Add(new TermEntry { Timestamp = time, Text = "331 Please specify the password.", Type = LineType.ServerResponse });
+                else if (upper.StartsWith("PASS"))
+                    TerminalLines.Add(new TermEntry { Timestamp = time, Text = "230 Login successful.", Type = LineType.ServerResponse });
+                else if (upper == "PWD")
+                    TerminalLines.Add(new TermEntry { Timestamp = time, Text = "257 \"/home/stud\" is the current directory", Type = LineType.ServerResponse });
+                else if (upper == "LIST")
+                    TerminalLines.Add(new TermEntry { Timestamp = time, Text = "150 Here comes the directory listing.\n226 Directory send OK.", Type = LineType.ServerResponse });
+                else if (upper == "QUIT")
+                {
+                    TerminalLines.Add(new TermEntry { Timestamp = time, Text = "221 Goodbye.\nConnection closed by foreign host.", Type = LineType.ServerResponse });
+                    IsConnected = false;
+                }
+                else
+                    TerminalLines.Add(new TermEntry { Timestamp = time, Text = "200 Command okay.", Type = LineType.ServerResponse });
+                break;
+        }
+    }
+
+    private string GetLineClass(LineType type) => type switch
+    {
+        LineType.System => "line-system",
+        LineType.ClientCommand => "line-cmd",
+        LineType.ServerResponse => "line-rsp",
+        LineType.Error => "line-err",
+        _ => ""
+    };
+
+    private void ToggleSolution()
+    {
+        ShowSolution = !ShowSolution;
+    }
+
+    private void ToggleTrainerSolution()
+    {
+        ShowTrainerSolution = !ShowTrainerSolution;
+    }
+
+    private async Task TriggerPrint()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+}
