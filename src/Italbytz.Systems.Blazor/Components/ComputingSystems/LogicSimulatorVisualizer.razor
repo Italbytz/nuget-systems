@@ -39,7 +39,7 @@
         <!-- Circuit Selector Tabs -->
         <div class="circuit-tabs no-print">
             <button class="circuit-tab @(SelectedCircuit == CircuitType.Multiplexer ? "active" : "")" @onclick="() => SetCircuit(CircuitType.Multiplexer)">
-                🔀 4-zu-1 Multiplexer (Klausur)
+                🔀 4-zu-1 Multiplexer
             </button>
             <button class="circuit-tab @(SelectedCircuit == CircuitType.Gates ? "active" : "")" @onclick="() => SetCircuit(CircuitType.Gates)">
                 Elementare Gatter

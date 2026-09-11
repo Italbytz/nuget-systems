@@ -45,14 +45,10 @@
                 <div class="technique-tabs">
                     @foreach (var tech in Techniques)
                     {
-                        <button class="tech-tab-btn @(SelectedTechId == tech.Id ? "active" : "") @(tech.IsExamFocus ? "exam-highlight" : "")"
+                        <button class="tech-tab-btn @(SelectedTechId == tech.Id ? "active" : "")"
                                 @onclick="() => SelectTechnique(tech.Id)">
                             <span class="tab-icon">@tech.Icon</span>
                             <span class="tab-title">@tech.Name</span>
-                            @if (tech.IsExamFocus)
-                            {
-                                <span class="exam-tag">★ Klausur</span>
-                            }
                         </button>
                     }
                 </div>

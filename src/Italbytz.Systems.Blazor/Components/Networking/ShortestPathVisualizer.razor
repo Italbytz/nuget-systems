@@ -53,9 +53,9 @@
                 <label class="control-label">
                     <span>Topologie / Graph:</span>
                     <select class="form-input select" @bind="SelectedPresetKey" @bind:after="OnPresetChanged">
-                        <option value="Standard">Vorlesungs-Graph (8 Knoten, 12 Kanten)</option>
-                        <option value="Exam1">Klausur-Netz A (8 Knoten, 11 Kanten)</option>
-                        <option value="Compact">Kompaktes Netz (6 Knoten, 9 Kanten)</option>
+                        <option value="Standard">Netz 1 (8 Knoten, 12 Kanten)</option>
+                        <option value="Exam1">Netz 2 (8 Knoten, 11 Kanten)</option>
+                        <option value="Compact">Netz 3 (6 Knoten, 9 Kanten)</option>
                     </select>
                 </label>
             </div>
@@ -63,9 +63,9 @@
             <!-- Presets Bar -->
             <div class="preset-bar">
                 <span class="preset-label">Beispiele:</span>
-                <button class="preset-btn" @onclick='() => LoadPreset("Standard")'>Vorlesung (8 Knoten)</button>
-                <button class="preset-btn" @onclick='() => LoadPreset("Exam1")'>Klausur-Graph 1</button>
-                <button class="preset-btn" @onclick='() => LoadPreset("Compact")'>6-Knoten-Netz</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("Standard")'>Beispiel 1 (8 Knoten)</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("Exam1")'>Beispiel 2 (8 Knoten)</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("Compact")'>Beispiel 3 (6 Knoten)</button>
                 <button class="preset-btn random" @onclick="GenerateRandomGraph">🎲 Zufallsgraph</button>
             </div>
         </div>

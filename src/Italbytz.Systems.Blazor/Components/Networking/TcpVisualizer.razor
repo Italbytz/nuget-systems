@@ -42,7 +42,7 @@
                 <label class="control-label">
                     <span>Szenario:</span>
                     <select class="form-input select" @bind="SelectedPresetKey" @bind:after="OnPresetChanged">
-                        <option value="ExamStandard">Klausuraufgabe: Datenübertragung (6 Segmente, Seq/Ack-Berechnung)</option>
+                        <option value="ExamStandard">Beispiel: Datenübertragung (6 Segmente)</option>
                         <option value="HandshakeDataTeardown">Vollständiger Lebenszyklus: Handshake + Daten + Teardown</option>
                         <option value="SlidingWindow">Flusskontrolle &amp; Sliding Window (Pufferbegrenzung)</option>
                         <option value="PacketLoss">Paketverlust &amp; Fast Retransmit (Duplicate ACKs)</option>
@@ -64,7 +64,7 @@
             <!-- Presets Bar -->
             <div class="preset-bar">
                 <span class="preset-label">Beispiele:</span>
-                <button class="preset-btn" @onclick='() => LoadPreset("ExamStandard")'>Klausur-Standard</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("ExamStandard")'>Beispiel (6 Segmente)</button>
                 <button class="preset-btn" @onclick='() => LoadPreset("HandshakeDataTeardown")'>3-Wege-Handshake &amp; FIN</button>
                 <button class="preset-btn" @onclick='() => LoadPreset("SlidingWindow")'>Sliding Window</button>
                 <button class="preset-btn" @onclick='() => LoadPreset("PacketLoss")'>Paketverlust (DupACK)</button>
@@ -684,7 +684,7 @@
 
     private TcpScenario BuildExamStandardScenario(int aliceISN, int bobISN)
     {
-        var scenario = new TcpScenario { Title = "Klausuraufgabe: Datenübertragung (6 Segmente)" };
+        var scenario = new TcpScenario { Title = "Datenübertragung (6 Segmente)" };
         var aliceSeq = aliceISN;
         var bobSeq = bobISN;
 
@@ -809,7 +809,7 @@
 
     private TcpScenario BuildRandomExamScenario(int aliceISN, int bobISN, Random rand)
     {
-        var scenario = new TcpScenario { Title = "Zufällige Klausuraufgabe: Datenübertragung" };
+        var scenario = new TcpScenario { Title = "Zufälliges Szenario: Datenübertragung" };
         var aliceSeq = aliceISN;
         var bobSeq = bobISN;
 

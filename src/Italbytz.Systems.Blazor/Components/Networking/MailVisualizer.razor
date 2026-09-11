@@ -49,7 +49,7 @@
                 </div>
                 <div class="sim-preset-group">
                     <span class="ctrl-label">Beispiel-Mail:</span>
-                    <button class="btn-sm @(SelectedMailIndex == 0 ? "active" : "")" @onclick="() => SelectMailPreset(0)">Klausur-Muster</button>
+                    <button class="btn-sm @(SelectedMailIndex == 0 ? "active" : "")" @onclick="() => SelectMailPreset(0)">Standard-Mail</button>
                     <button class="btn-sm @(SelectedMailIndex == 1 ? "active" : "")" @onclick="() => SelectMailPreset(1)">Projekt-Abgabe</button>
                     <button class="btn-sm @(SelectedMailIndex == 2 ? "active" : "")" @onclick="() => SelectMailPreset(2)">Server-Relay</button>
                 </div>
@@ -140,7 +140,7 @@
                             </div>
 
                             <div class="exam-connection-callout">
-                                <span class="callout-badge">Klausur-Relevanz:</span>
+                                <span class="callout-badge">Bedeutung:</span>
                                 <p class="callout-text">
                                     @GetExamRelevanceNote(CurrentStep.PacketType)
                                 </p>
@@ -165,7 +165,7 @@
             <div class="triad-summary-box">
                 <div class="triad-header">
                     <span class="triad-icon">💡</span>
-                    <h3>Klausur-Kernkonzept: Welche Daten landen in unterschiedlichen TCP-Paketen?</h3>
+                    <h3>Kernkonzept: Welche Daten landen in unterschiedlichen TCP-Paketen?</h3>
                 </div>
                 <div class="triad-grid">
                     <div class="triad-card @(CurrentStep?.PacketType == PacketCategory.Sender ? "triad-active" : "")">
@@ -687,9 +687,9 @@
 
     private string GetKlausurBadgeName(PacketCategory cat) => cat switch
     {
-        PacketCategory.Sender => "Klausur: SENDER",
-        PacketCategory.Recipient => "Klausur: EMPFÄNGER",
-        PacketCategory.MailData => "Klausur: MAILDATEN",
+        PacketCategory.Sender => "SENDER",
+        PacketCategory.Recipient => "EMPFÄNGER",
+        PacketCategory.MailData => "MAILDATEN",
         _ => ""
     };
 
@@ -711,9 +711,9 @@
 
     private string GetExamRelevanceNote(PacketCategory cat) => cat switch
     {
-        PacketCategory.Sender => "In der Klausur als 'Sender' zu nennen: Dieses TCP-Paket enthält den Befehl MAIL FROM:<absender@domain> und übergibt die Absenderadresse des Umschlags.",
-        PacketCategory.Recipient => "In der Klausur als 'Empfänger' zu nennen: Dieses TCP-Paket enthält den Befehl RCPT TO:<empfaenger@domain> zur Überprüfung der Ziel-Mailbox.",
-        PacketCategory.MailData => "In der Klausur als 'Maildaten' zu nennen: Nach DATA werden in diesem TCP-Paket alle Header (From, To, Subject) und der Mailtext samt Anhängen übertragen.",
+        PacketCategory.Sender => "Dieses TCP-Paket enthält den Befehl MAIL FROM:<absender@domain> und übergibt die Absenderadresse des Umschlags (Sender).",
+        PacketCategory.Recipient => "Dieses TCP-Paket enthält den Befehl RCPT TO:<empfaenger@domain> zur Überprüfung der Ziel-Mailbox (Empfänger).",
+        PacketCategory.MailData => "Nach dem DATA-Befehl werden in diesem TCP-Paket alle Header (From, To, Subject) und der Mailtext samt Anhängen übertragen (Maildaten).",
         _ => "Steuerbefehl für Verbindungsaufbau, Bestätigungen (250 OK) oder Abmeldung (QUIT)."
     };
 

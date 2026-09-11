@@ -96,7 +96,7 @@
                 <div class="banner-title-row">
                     <h3 class="banner-title">@CurrentMechanism.Name</h3>
                     <span class="cat-badge @(CurrentMechanism.IsExamAnswer ? "badge-exam" : "badge-standard")">
-                        @(CurrentMechanism.IsExamAnswer ? "★ Weiterer Begriff (Klausurrelevant)" : "Vorlesungs-Klassiker")
+                        @(CurrentMechanism.IsExamAnswer ? "★ Weiterer Begriff" : "Klassischer Begriff")
                     </span>
                     <span class="speed-pill">Performance: @CurrentMechanism.PerformanceRating</span>
                 </div>
@@ -381,7 +381,7 @@
                                 </tr>
                                 <tr>
                                     <td><strong>Pipes (anonym)</strong></td>
-                                    <td><span class="tag-standard">Vorlesung</span></td>
+                                    <td><span class="tag-standard">Standard</span></td>
                                     <td>Kernel-Ringspeicher (RAM)</td>
                                     <td>Unstrukturierter Bytestrom (FIFO)</td>
                                     <td>Nur verwandte Prozesse (Parent/Child)</td>
@@ -390,7 +390,7 @@
                                 </tr>
                                 <tr>
                                     <td><strong>Named Pipes (FIFOs)</strong></td>
-                                    <td><span class="tag-standard">Vorlesung</span></td>
+                                    <td><span class="tag-standard">Standard</span></td>
                                     <td>Kernel-Puffer mit Dateisystem-Knoten</td>
                                     <td>Unstrukturierter Bytestrom (FIFO)</td>
                                     <td>Beliebige lokale Prozesse</td>
@@ -399,7 +399,7 @@
                                 </tr>
                                 <tr>
                                     <td><strong>Message Queues</strong></td>
-                                    <td><span class="tag-standard">Vorlesung</span></td>
+                                    <td><span class="tag-standard">Standard</span></td>
                                     <td>Kernel-Warteschlange</td>
                                     <td>Strukturierte Nachrichten + Typ/Priorität</td>
                                     <td>Beliebige lokale Prozesse</td>
@@ -408,7 +408,7 @@
                                 </tr>
                                 <tr>
                                     <td><strong>Sockets</strong></td>
-                                    <td><span class="tag-standard">Vorlesung</span></td>
+                                    <td><span class="tag-standard">Standard</span></td>
                                     <td>Netzwerk-Stack / UNIX Domain Socket</td>
                                     <td>Bytestrom (TCP) oder Datagramme (UDP)</td>
                                     <td>Lokal oder über Rechnernetze hinweg</td>
@@ -417,7 +417,7 @@
                                 </tr>
                                 <tr>
                                     <td><strong>Signale</strong></td>
-                                    <td><span class="tag-standard">Vorlesung</span></td>
+                                    <td><span class="tag-standard">Standard</span></td>
                                     <td>Kernel-Interrupt / Prozesstabelle</td>
                                     <td>Ganzzahlige Signal-ID (z.B. SIGKILL, SIGUSR1)</td>
                                     <td>Beliebige Prozesse mit Rechten</td>
@@ -454,7 +454,7 @@
                             @if (ShowQuizSolution)
                             {
                                 <span class="opt-verdict @(opt.IsCorrect ? "verdict-correct" : "verdict-wrong")">
-                                    @(opt.IsCorrect ? "✓ Richtig (Klausurlösung)" : "✗ Bereits in Vorlesung / kein IPC")
+                                    @(opt.IsCorrect ? "✓ Richtig" : "✗ Bereits genannt / kein IPC")
                                 </span>
                             }
                         </button>
