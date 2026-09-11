@@ -1,0 +1,862 @@
+@using Microsoft.AspNetCore.Components
+@using Microsoft.JSInterop
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<div class="hazards-container @(IsEmbed ? "is-embedded" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-mode" : "simulator-mode")">
+    @if (!IsEmbed)
+    {
+        <header class="component-header">
+            <div class="header-titles">
+                <span class="kicker">Grundlagen der Informatik &bull; Technische Informatik</span>
+                <h2>Funktions-Hazards &amp; Zeitverhalten</h2>
+                <p class="subtitle">Störimpulse (Glitches), kürzeste Wege im KV-Diagramm &amp; statische / dynamische Hazards</p>
+            </div>
+            <div class="view-switcher no-print">
+                <button class="btn-toggle @(ActiveView == ViewMode.StepByStep ? "active" : "")" @onclick="() => SetView(ViewMode.StepByStep)">
+                    ▶️ Interaktiver Simulator
+                </button>
+                <button class="btn-toggle @(ActiveView == ViewMode.Worksheet ? "active" : "")" @onclick="() => SetView(ViewMode.Worksheet)">
+                    📄 Klausur-Übungsblatt
+                </button>
+            </div>
+        </header>
+    }
+
+    @if (ActiveView == ViewMode.StepByStep)
+    {
+        <!-- TOOLBAR & PRESETS -->
+        <div class="card toolbar-card no-print">
+            <div class="toolbar-section">
+                <span class="tool-label">Klausur-Teilaufgaben:</span>
+                <div class="btn-group">
+                    <button class="btn-preset @(SelectedPreset == 0 ? "active" : "")" @onclick="() => LoadPreset(0)">
+                        T1 (1000 &rarr; 1011)
+                    </button>
+                    <button class="btn-preset @(SelectedPreset == 1 ? "active" : "")" @onclick="() => LoadPreset(1)">
+                        T2 (0010 &rarr; 1111)
+                    </button>
+                    <button class="btn-preset @(SelectedPreset == 2 ? "active" : "")" @onclick="() => LoadPreset(2)">
+                        T3 (0000 &rarr; 1101)
+                    </button>
+                    <button class="btn-preset @(SelectedPreset == 3 ? "active" : "")" @onclick="() => LoadPreset(3)">
+                        T4 (0100 &rarr; 1101)
+                    </button>
+                </div>
+            </div>
+
+            <div class="toolbar-section">
+                <span class="tool-label">Eingangsübergang:</span>
+                <div class="state-pickers">
+                    <div class="picker-box">
+                        <span class="p-label">Start A:</span>
+                        <select class="state-select" @bind="StartState">
+                            @for (int i = 0; i < 16; i++)
+                            {
+                                <option value="@i">@ToBinary(i) (m@i)</option>
+                            }
+                        </select>
+                    </div>
+                    <span class="arrow">&rarr;</span>
+                    <div class="picker-box">
+                        <span class="p-label">Ziel B:</span>
+                        <select class="state-select" @bind="EndState">
+                            @for (int i = 0; i < 16; i++)
+                            {
+                                <option value="@i">@ToBinary(i) (m@i)</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="toolbar-section">
+                <button class="btn-random" @onclick="RandomizeStates" title="Zufälliger Übergang">
+                    🎲 Zufälliger Übergang
+                </button>
+            </div>
+        </div>
+
+        <!-- HAZARD CLASSIFICATION BANNER -->
+        <div class="card summary-card @GetSummaryClass()">
+            <div class="summary-icon">@GetSummaryIcon()</div>
+            <div class="summary-info">
+                <div class="summary-title">@GetSummaryTitle()</div>
+                <div class="summary-desc">@GetSummaryDescription()</div>
+            </div>
+            <div class="distance-badge">
+                Hamming-Distanz d = @HammingDistance &bull; @ShortestPaths.Count Pfad(e)
+            </div>
+        </div>
+
+        <div class="simulator-layout">
+            <!-- LEFT PANEL: KV-DIAGRAMM -->
+            <div class="left-panel">
+                <div class="card kv-card">
+                    <div class="card-header">
+                        <h3>KV-Diagramm &amp; Pfadanalyse</h3>
+                        <span class="badge badge-accent">4 Variablen (x₁x₂ &times; x₃x₄)</span>
+                    </div>
+
+                    <div class="kv-grid-wrapper">
+                        <table class="sim-kv-table">
+                            <thead>
+                                <tr>
+                                    <th class="kv-corner" colspan="2" rowspan="2">
+                                        <div class="corner-diag">
+                                            <span class="var-top">x₃x₄</span>
+                                            <span class="var-left">x₁x₂</span>
+                                        </div>
+                                    </th>
+                                    <th>00</th>
+                                    <th>01</th>
+                                    <th>11</th>
+                                    <th>10</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{
+                                    string[] rowCodes = new[] { "00", "01", "11", "10" };
+                                    string[] colCodes = new[] { "00", "01", "11", "10" };
+                                    int[] rowGray = new[] { 0, 1, 3, 2 };
+                                    int[] colGray = new[] { 0, 1, 3, 2 };
+                                }
+                                @for (int r = 0; r < 4; r++)
+                                {
+                                    int rIdx = r;
+                                    <tr>
+                                        <th class="kv-row-header">@rowCodes[rIdx]</th>
+                                        <td class="kv-stub"></td>
+                                        @for (int c = 0; c < 4; c++)
+                                        {
+                                            int cIdx = c;
+                                            int m = (rowGray[rIdx] << 2) | colGray[cIdx];
+                                            int val = FunctionVector[m];
+                                            bool isStart = (m == StartState);
+                                            bool isEnd = (m == EndState);
+                                            bool isOnSelectedPath = IsMintermOnSelectedPath(m);
+
+                                            <td class="kv-cell @(isStart ? "is-start" : "") @(isEnd ? "is-end" : "") @(isOnSelectedPath ? "on-path" : "")"
+                                                @onclick="() => HandleCellClick(m)">
+                                                <span class="cell-val @(val == 1 ? "val-one" : "val-zero")">@val</span>
+                                                <span class="cell-minterm">m@(m)</span>
+                                                @if (isStart)
+                                                {
+                                                    <span class="cell-badge badge-start">Start</span>
+                                                }
+                                                @if (isEnd)
+                                                {
+                                                    <span class="cell-badge badge-end">Ziel</span>
+                                                }
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="kv-footer-notes">
+                        <div class="fn-item"><span class="swatch sw-start"></span> Start A: @ToBinary(StartState) (f = @FunctionVector[StartState])</div>
+                        <div class="fn-item"><span class="swatch sw-end"></span> Ziel B: @ToBinary(EndState) (f = @FunctionVector[EndState])</div>
+                        <div class="fn-item"><span class="swatch sw-path"></span> Pfad-Zustand</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT PANEL: SHORTEST PATHS & TIMING DIAGRAM -->
+            <div class="right-panel">
+                <!-- PATHS LIST -->
+                <div class="card paths-card">
+                    <div class="card-header">
+                        <h3>Kürzeste Pfade im booleschen Hyperwürfel</h3>
+                        <span class="badge">@ShortestPaths.Count Möglichkeiten</span>
+                    </div>
+
+                    <div class="paths-list">
+                        @for (int i = 0; i < ShortestPaths.Count; i++)
+                        {
+                            var pIdx = i;
+                            var path = ShortestPaths[pIdx];
+                            bool isSelected = (SelectedPathIndex == pIdx);
+
+                            <div class="path-item @(isSelected ? "path-selected" : "") @(path.HasHazard ? "has-hazard" : "no-hazard")"
+                                 @onclick="() => SelectPath(pIdx)">
+                                <div class="path-header">
+                                    <div class="path-id">
+                                        <span class="p-num">Weg @(pIdx + 1):</span>
+                                        <span class="p-states">@string.Join(" → ", path.States.Select(s => ToBinary(s)))</span>
+                                    </div>
+                                    <span class="hazard-pill @(path.HasHazard ? "pill-hazard" : "pill-safe")">
+                                        @path.HazardLabel
+                                    </span>
+                                </div>
+                                <div class="path-values">
+                                    Wertefolge: <strong>@string.Join(" → ", path.Values)</strong>
+                                    @if (path.HasHazard)
+                                    {
+                                        <span class="hazard-warn">⚠️ @path.HazardExplanation</span>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- TIMING WAVEFORM DIAGRAM -->
+                <div class="card waveform-card">
+                    <div class="card-header">
+                        <h3>Signal-Zeitverlauf (Timing Waveform)</h3>
+                        <span class="badge">Aktiver Weg @(SelectedPathIndex + 1)</span>
+                    </div>
+
+                    <div class="waveform-canvas-wrap">
+                        @RenderWaveformSvg()
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- WORKSHEET VIEW (1:1 EXAM EQUIVALENT) -->
+        <div class="worksheet-paper">
+            <div class="ws-header-row no-print">
+                <div class="ws-controls">
+                    <button class="btn-ws-primary" @onclick="ToggleSolution">
+                        @(ShowSolution ? "👁️ Lösung verbergen" : "👁️ Lösung anzeigen")
+                    </button>
+                    <button class="btn-ws-secondary" @onclick="TriggerPrint">
+                        🖨️ Drucken / PDF Export
+                    </button>
+                </div>
+            </div>
+
+            <!-- EXAM BANNER -->
+            <div class="exam-title-block">
+                <div class="exam-kicker">Grundlagen der Informatik &bull; Übungsaufgabe</div>
+                <h1 class="exam-h1">Aufgabe: Entdecken von Funktions-Hazards</h1>
+                <div class="exam-points">Erreichbare Punkte: 10 Punkte</div>
+            </div>
+
+            <div class="exam-intro-box">
+                <p>
+                    Mit <strong>Funktions-Hazards</strong> werden Situationen im Zeitverhalten von Schaltungen beschrieben,
+                    bei denen mehr als eine Eingangsvariable sich ändert und zwischen dem alten Funktionswert und dem neuen Funktionswert
+                    noch ein oder mehrere ungeplante Wertewechsel (Störimpulse bzw. Glitches) auftauchen.
+                </p>
+                <p>
+                    Dies können Sie im KV-Diagramm der Funktion erkennen. Wenn Sie in folgendem KV-Diagramm alle kürzesten Wege von
+                    <strong>(1, 0, 1, 0)</strong> zu <strong>(1, 1, 0, 0)</strong> betrachten, stellen Sie fest, dass der Weg
+                </p>
+                <div class="exam-formula-center">
+                    <strong>(1, 0, 1, 0) &rarr; (1, 0, 0, 0) &rarr; (1, 1, 0, 0)</strong>
+                </div>
+                <p>
+                    einen Hazard beinhaltet (Werteübergang <strong>1 &rarr; 0 &rarr; 1</strong>).
+                </p>
+            </div>
+
+            <!-- INTRO DEMO KV-MAP -->
+            <div class="exam-demo-kv-wrap">
+                <div class="demo-kv-box">
+                    <div class="demo-kv-title">Beispiel-KV-Diagramm (Intro):</div>
+                    <table class="exam-kv-table">
+                        <thead>
+                            <tr>
+                                <th colspan="2" rowspan="2"></th>
+                                <th colspan="4">x₃x₄</th>
+                            </tr>
+                            <tr>
+                                <th>00</th>
+                                <th>01</th>
+                                <th>11</th>
+                                <th>10</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <th rowspan="4">x₁x₂</th>
+                                <th>00</th>
+                                <td>0</td><td>0</td><td>0</td><td>1</td>
+                            </tr>
+                            <tr>
+                                <th>01</th>
+                                <td>0</td><td>0</td><td>0</td><td>1</td>
+                            </tr>
+                            <tr>
+                                <th>11</th>
+                                <td>1</td><td>1</td><td>0</td><td>1</td>
+                            </tr>
+                            <tr>
+                                <th>10</th>
+                                <td>0</td><td>0</td><td>0</td><td>1</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="exam-prompt-block">
+                <p>
+                    Übertragen Sie den Wertevektor <strong>(1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1, 1)</strong> in das folgende KV-Diagramm
+                    und prüfen Sie dann in den Teilaufgaben auf Hazards:
+                </p>
+            </div>
+
+            <!-- EXAM KV TABLE (TASK & SOLUTION) -->
+            <div class="ws-kv-table-wrap">
+                <table class="exam-kv-table">
+                    <thead>
+                        <tr>
+                            <th colspan="2" rowspan="2"></th>
+                            <th colspan="4">x₃x₄</th>
+                        </tr>
+                        <tr>
+                            <th>00</th>
+                            <th>01</th>
+                            <th>11</th>
+                            <th>10</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{
+                            int[] rG = new[] { 0, 1, 3, 2 };
+                            int[] cG = new[] { 0, 1, 3, 2 };
+                            string[] rNames = new[] { "00", "01", "11", "10" };
+                        }
+                        @for (int r = 0; r < 4; r++)
+                        {
+                            int row = r;
+                            <tr>
+                                @if (row == 0)
+                                {
+                                    <th rowspan="4">x₁x₂</th>
+                                }
+                                <th>@rNames[row]</th>
+                                @for (int c = 0; c < 4; c++)
+                                {
+                                    int col = c;
+                                    int mIndex = (rG[row] << 2) | cG[col];
+                                    int correctVal = FunctionVector[mIndex];
+
+                                    <td class="exam-kv-slot @(ShowSolution ? "sol-revealed" : "blank-slot")">
+                                        @(ShowSolution ? correctVal.ToString() : "")
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- TEILAUFGABEN -->
+            <div class="exam-part page-break-before">
+                <div class="part-title">Teilaufgabe 1 (2,5 Punkte)</div>
+                <p class="part-prompt">
+                    Treten beim Übergang von <strong>(1, 0, 0, 0)</strong> zu <strong>(1, 0, 1, 1)</strong> potentiell Funktions-Hazards auf?
+                </p>
+                @if (ShowSolution)
+                {
+                    <div class="ws-solution-box">
+                        <strong>Musterlösung:</strong><br />
+                        Ja, beim Weg 1000 &rarr; 1010 &rarr; 1011 tritt ein <strong>statischer 1-Hazard</strong> auf (Werteübergang 1 &rarr; 0 &rarr; 1).
+                    </div>
+                }
+                else
+                {
+                    <div class="ws-answer-lines"></div>
+                }
+            </div>
+
+            <div class="exam-part">
+                <div class="part-title">Teilaufgabe 2 (2,5 Punkte)</div>
+                <p class="part-prompt">
+                    Treten beim Übergang von <strong>(0, 0, 1, 0)</strong> zu <strong>(1, 1, 1, 1)</strong> potentiell Funktions-Hazards auf?
+                </p>
+                @if (ShowSolution)
+                {
+                    <div class="ws-solution-box">
+                        <strong>Musterlösung:</strong><br />
+                        Nein, auf jedem kürzesten Weg wechselt der Wert nur genau ein Mal monoton (kein Störimpuls).
+                    </div>
+                }
+                else
+                {
+                    <div class="ws-answer-lines"></div>
+                }
+            </div>
+
+            <div class="exam-part">
+                <div class="part-title">Teilaufgabe 3 (2,5 Punkte)</div>
+                <p class="part-prompt">
+                    Treten beim Übergang von <strong>(0, 0, 0, 0)</strong> zu <strong>(1, 1, 0, 1)</strong> potentiell Funktions-Hazards auf?
+                </p>
+                @if (ShowSolution)
+                {
+                    <div class="ws-solution-box">
+                        <strong>Musterlösung:</strong><br />
+                        Ja, beim Weg 0000 &rarr; 0001 &rarr; 1001 &rarr; 1101 tritt ein <strong>dynamischer Hazard</strong> auf (Werteübergang 0 &rarr; 1 &rarr; 0 &rarr; 1 bzw. mehrfacher Wechsel).
+                    </div>
+                }
+                else
+                {
+                    <div class="ws-answer-lines"></div>
+                }
+            </div>
+
+            <div class="exam-part">
+                <div class="part-title">Teilaufgabe 4 (2,5 Punkte)</div>
+                <p class="part-prompt">
+                    Treten beim Übergang von <strong>(0, 1, 0, 0)</strong> zu <strong>(1, 1, 0, 1)</strong> potentiell Funktions-Hazards auf?
+                </p>
+                @if (ShowSolution)
+                {
+                    <div class="ws-solution-box">
+                        <strong>Musterlösung:</strong><br />
+                        Nein, alle kürzesten Wege bleiben konstant bei 0 (0 &rarr; 0 &rarr; 0, kein Wertewechsel).
+                    </div>
+                }
+                else
+                {
+                    <div class="ws-answer-lines"></div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    public enum ViewMode
+    {
+        StepByStep,
+        Worksheet
+    }
+
+    public class PathResult
+    {
+        public List<int> States { get; set; } = new();
+        public List<int> Values { get; set; } = new();
+        public bool HasHazard { get; set; }
+        public string HazardType { get; set; } = "Kein Hazard";
+        public string HazardLabel { get; set; } = "Stabil";
+        public string HazardExplanation { get; set; } = "";
+    }
+
+    private ViewMode ActiveView = ViewMode.StepByStep;
+    private bool ShowSolution = false;
+    private bool IsEmbed = false;
+
+    private int SelectedPreset = 0;
+
+    // Vector from TIHazards_01.tex: (1,0,0,1,0,0,1,1,1,1,0,1,0,0,1,1)
+    private readonly int[] FunctionVector = new int[16]
+    {
+        1, 0, 0, 1,
+        0, 0, 1, 1,
+        1, 1, 0, 1,
+        0, 0, 1, 1
+    };
+
+    private int _startState = 8;  // 1000
+    private int _endState = 11;   // 1011
+
+    private int StartState
+    {
+        get => _startState;
+        set
+        {
+            if (_startState != value)
+            {
+                _startState = value;
+                ComputeShortestPaths();
+            }
+        }
+    }
+
+    private int EndState
+    {
+        get => _endState;
+        set
+        {
+            if (_endState != value)
+            {
+                _endState = value;
+                ComputeShortestPaths();
+            }
+        }
+    }
+
+    private int SelectedPathIndex = 0;
+    private List<PathResult> ShortestPaths = new();
+
+    private int HammingDistance => CountBitDifferences(StartState, EndState);
+
+    protected override void OnInitialized()
+    {
+        ReadQueryParameters();
+        LoadPreset(0);
+    }
+
+    protected override void OnParametersSet()
+    {
+        ReadQueryParameters();
+    }
+
+    private void ReadQueryParameters()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query;
+            if (!string.IsNullOrEmpty(query))
+            {
+                if (query.Contains("view=worksheet", StringComparison.OrdinalIgnoreCase))
+                {
+                    ActiveView = ViewMode.Worksheet;
+                }
+                if (query.Contains("solution=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    ShowSolution = true;
+                }
+                if (query.Contains("embed=true", StringComparison.OrdinalIgnoreCase) || query.Contains("embedded=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsEmbed = true;
+                }
+            }
+        }
+        catch { }
+    }
+
+    private void SetView(ViewMode mode) => ActiveView = mode;
+    private void ToggleSolution() => ShowSolution = !ShowSolution;
+    private async Task TriggerPrint() => await JSRuntime.InvokeVoidAsync("window.print");
+
+    private void LoadPreset(int preset)
+    {
+        SelectedPreset = preset;
+        switch (preset)
+        {
+            case 0:
+                _startState = 8;  // 1000
+                _endState = 11;   // 1011
+                break;
+            case 1:
+                _startState = 2;  // 0010
+                _endState = 15;   // 1111
+                break;
+            case 2:
+                _startState = 0;  // 0000
+                _endState = 13;   // 1101
+                break;
+            case 3:
+                _startState = 4;  // 0100
+                _endState = 13;   // 1101
+                break;
+        }
+        ComputeShortestPaths();
+    }
+
+    private void HandleCellClick(int m)
+    {
+        // Alternating click sets start, then end
+        if (StartState == m) return;
+        if (EndState == m)
+        {
+            EndState = StartState;
+            StartState = m;
+        }
+        else
+        {
+            EndState = m;
+        }
+    }
+
+    private void RandomizeStates()
+    {
+        var rnd = new Random();
+        int s = rnd.Next(16);
+        int e = rnd.Next(16);
+        while (e == s) e = rnd.Next(16);
+        _startState = s;
+        _endState = e;
+        SelectedPreset = -1;
+        ComputeShortestPaths();
+    }
+
+    private void SelectPath(int idx)
+    {
+        if (idx >= 0 && idx < ShortestPaths.Count)
+        {
+            SelectedPathIndex = idx;
+        }
+    }
+
+    private bool IsMintermOnSelectedPath(int m)
+    {
+        if (SelectedPathIndex < 0 || SelectedPathIndex >= ShortestPaths.Count) return false;
+        return ShortestPaths[SelectedPathIndex].States.Contains(m);
+    }
+
+    private void ComputeShortestPaths()
+    {
+        ShortestPaths.Clear();
+        SelectedPathIndex = 0;
+
+        int diff = StartState ^ EndState;
+        List<int> bitIndices = new();
+        for (int b = 0; b < 4; b++)
+        {
+            if (((diff >> b) & 1) == 1)
+            {
+                bitIndices.Add(b);
+            }
+        }
+
+        if (bitIndices.Count == 0)
+        {
+            // Same state
+            var res = new PathResult();
+            res.States.Add(StartState);
+            res.Values.Add(FunctionVector[StartState]);
+            res.HasHazard = false;
+            res.HazardLabel = "Kein Wechsel";
+            ShortestPaths.Add(res);
+            return;
+        }
+
+        // Generate all permutations of bitIndices
+        var perms = GetPermutations(bitIndices, bitIndices.Count);
+        foreach (var perm in perms)
+        {
+            var res = new PathResult();
+            int current = StartState;
+            res.States.Add(current);
+            res.Values.Add(FunctionVector[current]);
+
+            foreach (var b in perm)
+            {
+                current ^= (1 << b);
+                res.States.Add(current);
+                res.Values.Add(FunctionVector[current]);
+            }
+
+            AnalyzePathHazard(res);
+            ShortestPaths.Add(res);
+        }
+    }
+
+    private void AnalyzePathHazard(PathResult res)
+    {
+        int vStart = res.Values.First();
+        int vEnd = res.Values.Last();
+
+        // Count value alternations
+        int alternations = 0;
+        for (int i = 0; i < res.Values.Count - 1; i++)
+        {
+            if (res.Values[i] != res.Values[i + 1])
+                alternations++;
+        }
+
+        if (vStart == vEnd)
+        {
+            // Should be constant, check if any intermediate value deviates
+            bool hasDeviation = res.Values.Any(v => v != vStart);
+            if (hasDeviation)
+            {
+                res.HasHazard = true;
+                if (vStart == 1)
+                {
+                    res.HazardType = "Statischer 1-Hazard";
+                    res.HazardLabel = "Statischer 1-Hazard (1 → 0 → 1)";
+                    res.HazardExplanation = "Endwerte sind 1, Zwischenzustand fällt auf 0 ab!";
+                }
+                else
+                {
+                    res.HazardType = "Statischer 0-Hazard";
+                    res.HazardLabel = "Statischer 0-Hazard (0 → 1 → 0)";
+                    res.HazardExplanation = "Endwerte sind 0, Zwischenzustand springt kurzzeitig auf 1!";
+                }
+            }
+            else
+            {
+                res.HasHazard = false;
+                res.HazardLabel = "Stabil (Kein Hazard)";
+                res.HazardExplanation = $"Funktionswert bleibt konstant {vStart}.";
+            }
+        }
+        else
+        {
+            // Transition from 0 to 1 or 1 to 0
+            if (alternations > 1)
+            {
+                res.HasHazard = true;
+                res.HazardType = "Dynamischer Hazard";
+                res.HazardLabel = "Dynamischer Hazard";
+                res.HazardExplanation = $"Mehrfacher Pegelwechsel ({alternations} Wechsel)! Signal fluktuiert vor dem Einpegeln.";
+            }
+            else
+            {
+                res.HasHazard = false;
+                res.HazardLabel = "Monotoner Übergang";
+                res.HazardExplanation = "Genau ein sauberer Pegelwechsel, kein Glitch.";
+            }
+        }
+    }
+
+    private static IEnumerable<IEnumerable<T>> GetPermutations<T>(IEnumerable<T> list, int length)
+    {
+        if (length == 1) return list.Select(t => new T[] { t });
+        return GetPermutations(list, length - 1)
+            .SelectMany(t => list.Where(e => !t.Contains(e)),
+                (t1, t2) => t1.Concat(new T[] { t2 }));
+    }
+
+    private static int CountBitDifferences(int a, int b)
+    {
+        int diff = a ^ b;
+        int count = 0;
+        while (diff > 0)
+        {
+            count += (diff & 1);
+            diff >>= 1;
+        }
+        return count;
+    }
+
+    private static string ToBinary(int val)
+    {
+        return Convert.ToString(val, 2).PadLeft(4, '0');
+    }
+
+    private string GetSummaryClass()
+    {
+        if (ShortestPaths.Any(p => p.HasHazard)) return "hazard-detected";
+        return "hazard-free";
+    }
+
+    private string GetSummaryIcon()
+    {
+        if (ShortestPaths.Any(p => p.HasHazard)) return "⚠️";
+        return "✅";
+    }
+
+    private string GetSummaryTitle()
+    {
+        bool anyHazard = ShortestPaths.Any(p => p.HasHazard);
+        if (!anyHazard) return "Kein Funktions-Hazard auf kürzesten Wegen";
+        var hazards = ShortestPaths.Where(p => p.HasHazard).Select(p => p.HazardType).Distinct();
+        return $"Funktions-Hazard erkannt: {string.Join(" & ", hazards)}";
+    }
+
+    private string GetSummaryDescription()
+    {
+        int total = ShortestPaths.Count;
+        int hazardCount = ShortestPaths.Count(p => p.HasHazard);
+        if (hazardCount == 0)
+        {
+            return $"Auf allen {total} kürzesten Wegen von {ToBinary(StartState)} nach {ToBinary(EndState)} verhält sich die Schaltung fehlerfrei (konstant oder monoton).";
+        }
+        return $"Bei {hazardCount} von {total} kürzesten Wegen durch den booleschen Hyperwürfel tritt ein Störimpuls auf! Reale Laufzeitunterschiede der Gatter können hier Glitches auslösen.";
+    }
+
+    private RenderFragment RenderWaveformSvg() => builder =>
+    {
+        if (SelectedPathIndex < 0 || SelectedPathIndex >= ShortestPaths.Count) return;
+        var path = ShortestPaths[SelectedPathIndex];
+
+        double width = 560;
+        double height = 240;
+        int steps = path.States.Count;
+        double stepWidth = (width - 100) / Math.Max(1, steps);
+
+        builder.OpenElement(0, "svg");
+        builder.AddAttribute(1, "viewBox", $"0 0 {width} {height}");
+        builder.AddAttribute(2, "class", "waveform-svg");
+
+        // Background grid
+        string gridColor = IsEmbed ? "#1e293b" : "#f1f5f9";
+        string textColor = IsEmbed ? "#94a3b8" : "#475569";
+        string lineCol = IsEmbed ? "#38bdf8" : "#0284c7";
+        string glitchColor = "#ef4444";
+
+        // Draw vertical step lines
+        for (int s = 0; s <= steps; s++)
+        {
+            double x = 80 + (s * stepWidth);
+            builder.AddContent(3, (MarkupString)$"<line x1=\"{x}\" y1=\"20\" x2=\"{x}\" y2=\"200\" stroke=\"{gridColor}\" stroke-width=\"1\" stroke-dasharray=\"3,3\" />");
+            if (s < steps)
+            {
+                builder.AddContent(4, (MarkupString)$"<text x=\"{x + (stepWidth / 2)}\" y=\"216\" text-anchor=\"middle\" fill=\"{textColor}\" font-family=\"monospace\" font-size=\"11\">{ToBinary(path.States[s])}</text>");
+            }
+        }
+
+        // 4 Input waveforms (compressed) and 1 Output waveform
+        // Let's render:
+        // Inputs x1..x4 at Y: 30, 60, 90, 120
+        // Output y at Y: 165
+        string[] varNames = new[] { "x₁", "x₂", "x₃", "x₄" };
+        for (int v = 0; v < 4; v++)
+        {
+            int bitPos = 3 - v;
+            double baseY = 36 + (v * 26);
+            double highY = baseY - 12;
+            double lowY = baseY;
+
+            builder.AddContent(5, (MarkupString)$"<text x=\"30\" y=\"{baseY - 2}\" fill=\"{textColor}\" font-family=\"sans-serif\" font-size=\"12\" font-weight=\"bold\">{varNames[v]}</text>");
+
+            double startY = ((path.States[0] >> bitPos) & 1) == 1 ? highY : lowY;
+            string pathD = $"M 80 {startY}";
+            for (int s = 0; s < steps; s++)
+            {
+                int bitVal = (path.States[s] >> bitPos) & 1;
+                double curY = bitVal == 1 ? highY : lowY;
+                double xStart = 80 + (s * stepWidth);
+                double xEnd = xStart + stepWidth;
+                pathD += $" L {xStart} {curY} L {xEnd} {curY}";
+            }
+            builder.AddContent(6, (MarkupString)$"<path d=\"{pathD}\" fill=\"none\" stroke=\"{lineCol}\" stroke-width=\"2\" />");
+        }
+
+        // Output waveform Y
+        double outBaseY = 180;
+        double outHighY = 155;
+        double outLowY = outBaseY;
+
+        string outLabelColor = path.HasHazard ? glitchColor : lineCol;
+        builder.AddContent(7, (MarkupString)$"<text x=\"30\" y=\"{outBaseY - 8}\" fill=\"{outLabelColor}\" font-family=\"sans-serif\" font-size=\"13\" font-weight=\"bold\">y</text>");
+
+        double outStartY = path.Values[0] == 1 ? outHighY : outLowY;
+        string outPathD = $"M 80 {outStartY}";
+        for (int s = 0; s < steps; s++)
+        {
+            int v = path.Values[s];
+            double curY = v == 1 ? outHighY : outLowY;
+            double xStart = 80 + (s * stepWidth);
+            double xEnd = xStart + stepWidth;
+            outPathD += $" L {xStart} {curY} L {xEnd} {curY}";
+        }
+
+        string outStroke = path.HasHazard ? glitchColor : (IsEmbed ? "#10b981" : "#16a34a");
+        builder.AddContent(8, (MarkupString)$"<path d=\"{outPathD}\" fill=\"none\" stroke=\"{outStroke}\" stroke-width=\"3.5\" />");
+
+        // Glitch marker if hazard
+        if (path.HasHazard)
+        {
+            // Highlight glitch segment
+            for (int s = 1; s < steps - 1; s++)
+            {
+                if ((path.Values[0] == path.Values.Last() && path.Values[s] != path.Values[0]) ||
+                    (path.Values[0] != path.Values.Last() && path.Values[s] != path.Values[s - 1] && path.Values[s] != path.Values[s + 1]))
+                {
+                    double gx = 80 + (s * stepWidth) + (stepWidth / 2);
+                    double gy = path.Values[s] == 1 ? outHighY - 10 : outLowY + 14;
+                    builder.AddContent(9, (MarkupString)$"<text x=\"{gx}\" y=\"{gy}\" text-anchor=\"middle\" fill=\"{glitchColor}\" font-family=\"sans-serif\" font-size=\"11\" font-weight=\"bold\">⚡ Glitch!</text>");
+                }
+            }
+        }
+
+        builder.CloseElement();
+    };
+}
