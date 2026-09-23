@@ -109,7 +109,7 @@
                     </div>
 
                     <div class="matrix-legend">
-                        <span class="legend-chip free">Frei</span>
+                        <span class="legend-chip free">Frei (Block 1, 2...)</span>
                         <span class="legend-chip p-blue">A (@buddyData.Requests[0] KB)</span>
                         <span class="legend-chip p-green">B (@buddyData.Requests[1] KB)</span>
                         <span class="legend-chip p-amber">C (@buddyData.Requests[2] KB)</span>
@@ -148,7 +148,12 @@
                                         <span class="active-arrow">◀</span>
                                     }
                                 </td>
-                                <td colspan="32" class="initial-bar">1024 KB Frei</td>
+                                <td colspan="32" class="initial-bar">
+                                    <div class="block-content">
+                                        <span class="free-num-badge">1</span>
+                                        <span class="free-size-text">1024 KB Frei (Block 1)</span>
+                                    </div>
+                                </td>
                             </tr>
 
                             @for (int s = 0; s < buddyData.Snapshots.Count; s++)
@@ -158,6 +163,7 @@
                                 var isFuture = stepNum > CurrentStepIndex;
                                 var op = buddyData.StepDetails[s];
                                 var rowSnap = buddyData.Snapshots[s];
+                                var blocks = GetBuddyBlocks(rowSnap);
 
                                 <tr class="matrix-row @(isRowActive ? "matrix-row-active" : "") @(isFuture ? "matrix-row-future" : "")">
                                     <td class="op-cell">
@@ -167,21 +173,49 @@
                                             <span class="active-arrow">◀</span>
                                         }
                                     </td>
-                                    @for (int c = 0; c < 32; c++)
+                                    @if (isFuture)
                                     {
-                                        if (isFuture)
+                                        <td colspan="32" class="future-row-placeholder">
+                                            <span class="placeholder-dots">· · ·</span>
+                                        </td>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var b in blocks)
                                         {
-                                            <td class="matrix-cell cell-future">–</td>
-                                        }
-                                        else
-                                        {
-                                            var slotVal = rowSnap[c];
-                                            var isAffected = isRowActive && op.AffectedSlots.Contains(c);
-
-                                            <td class="matrix-cell @GetSlotColorClass(slotVal) @(isAffected ? "affected-cell" : "")"
-                                                title="Kachel @c [@(c * 32) KB – @((c + 1) * 32) KB]: @(slotVal == "free" ? "Frei" : $"Prozess {slotVal}")">
-                                                @(slotVal == "free" ? "–" : slotVal)
-                                            </td>
+                                            var isAffected = isRowActive && op.AffectedSlots.Any(slot => slot >= b.StartSlot && slot <= b.EndSlot);
+                                            if (b.IsAllocated)
+                                            {
+                                                <td colspan="@b.SlotCount"
+                                                    class="matrix-cell block-allocated @GetSlotColorClass(b.ProcessName) @(isAffected ? "affected-cell" : "")"
+                                                    title="Prozess @b.ProcessName: [@(b.StartSlot * 32) KB – @((b.StartSlot + b.SlotCount) * 32) KB] (@(b.SizeKb) KB)">
+                                                    <div class="block-content">
+                                                        <strong class="block-label">@b.ProcessName</strong>
+                                                        @if (b.SlotCount >= 2)
+                                                        {
+                                                            <span class="block-size-tag">@(b.SizeKb) KB</span>
+                                                        }
+                                                    </div>
+                                                </td>
+                                            }
+                                            else
+                                            {
+                                                <td colspan="@b.SlotCount"
+                                                    class="matrix-cell block-free @(isAffected ? "affected-free" : "")"
+                                                    title="Freier Block @b.BlockNumber: [@(b.StartSlot * 32) KB – @((b.StartSlot + b.SlotCount) * 32) KB] (@(b.SizeKb) KB)">
+                                                    <div class="block-content">
+                                                        <span class="free-num-badge">@b.BlockNumber</span>
+                                                        @if (b.SlotCount >= 2)
+                                                        {
+                                                            <span class="free-size-text">@(b.SizeKb) KB Frei</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="free-size-text">32K</span>
+                                                        }
+                                                    </div>
+                                                </td>
+                                            }
                                         }
                                     }
                                 </tr>
@@ -190,6 +224,9 @@
                     </table>
                 </div>
 
+                @{
+                    var currentBlocks = GetBuddyBlocks(currentSnapshot);
+                }
                 <!-- Step Metrics Bar -->
                 <div class="metrics-grid four-up">
                     <div class="metric-card">
@@ -201,7 +238,7 @@
                     <div class="metric-card">
                         <span class="metric-label">Freier Speicher</span>
                         <strong class="metric-val text-success">@((currentSnapshot.Count(s => s == "free") * 32)) KB</strong>
-                        <span class="metric-sub">@currentSnapshot.Count(s => s == "free") von 32 Kacheln frei</span>
+                        <span class="metric-sub">in @(currentBlocks.Count(b => !b.IsAllocated)) Freiblöcken</span>
                     </div>
 
                     <div class="metric-card">
@@ -259,7 +296,13 @@
                     </p>
                     <p>
                         Tragen Sie für die folgenden Anforderungen der Prozesse <strong>A bis E</strong> sowie die anschließenden 
-                        Freigaben die jeweilige Belegung in das Raster ein. Verwenden Sie für belegte Kacheln den Prozessbuchstaben und für freie Bereiche einen Strich (<code>–</code>).
+                        Freigaben die jeweilige Belegung in das Raster ein. Ein Feld entspricht dabei 32 KB.
+                    </p>
+                    <p>
+                        Tragen Sie in die Felder <strong>A, B, C, D oder E</strong> ein, wenn der Speicher einem der Prozesse zugeordnet ist. 
+                        <strong>Visualisieren Sie zudem die einzelnen Freiblöcke:</strong> Tragen Sie in freie Felder Ziffern ein (z.&nbsp;B. <strong>1, 2, 3&hellip;</strong> für die einzelnen Freiblöcke). 
+                        Unterschiedliche freie Speicherblöcke müssen durch unterschiedliche Ziffern bzw. durch deutliche Blockgrenzen markiert werden 
+                        (es reicht, wenn Sie dies durch Füllen des ersten und letzten Feldes des Blocks bzw. Einzeichnen der Blockgrenzen markieren).
                     </p>
                 </div>
 
@@ -318,7 +361,9 @@
                                 <!-- Initial Row -->
                                 <tr>
                                     <td class="ws-row-label">Initial</td>
-                                    <td colspan="32" class="ws-init-cell">1024 KB</td>
+                                    <td colspan="32" class="ws-init-cell">
+                                        @(ShowSolution ? "1024 KB (Freier Block 1)" : "1024 KB")
+                                    </td>
                                 </tr>
 
                                 <!-- 5 Allocation Rows -->
@@ -326,14 +371,32 @@
                                 {
                                     var op = wsBuddy.StepDetails[i];
                                     var snap = wsBuddy.Snapshots[i];
+                                    var blocks = GetBuddyBlocks(snap);
 
                                     <tr>
                                         <td class="ws-row-label">@op.ProcessName (@wsBuddy.Requests[i])</td>
                                         @for (int c = 0; c < 32; c++)
                                         {
                                             var val = snap[c];
-                                            <td class="ws-slot-cell @(ShowSolution && val != "free" ? "ws-filled" : "")">
-                                                @(ShowSolution ? (val == "free" ? "–" : val) : "")
+                                            var block = blocks.FirstOrDefault(b => c >= b.StartSlot && c <= b.EndSlot);
+                                            var isBlockEnd = block != null && c == block.EndSlot && c < 31;
+                                            var isAlloc = val != "free";
+                                            string cellDisplay = "";
+                                            if (ShowSolution)
+                                            {
+                                                if (isAlloc)
+                                                {
+                                                    cellDisplay = val;
+                                                }
+                                                else if (block != null)
+                                                {
+                                                    cellDisplay = block.BlockNumber.ToString();
+                                                }
+                                            }
+
+                                            <td class="ws-slot-cell @(ShowSolution && isAlloc ? "ws-filled" : "") @(ShowSolution && !isAlloc ? "ws-free-block" : "") @(ShowSolution && isBlockEnd ? "ws-block-boundary" : "")"
+                                                title="@(ShowSolution && block != null ? (block.IsAllocated ? $"Prozess {block.ProcessName} ({block.SizeKb} KB)" : $"Freier Block {block.BlockNumber} ({block.SizeKb} KB)") : $"Kachel {c}")">
+                                                @cellDisplay
                                             </td>
                                         }
                                     </tr>
@@ -344,14 +407,32 @@
                                 {
                                     var op = wsBuddy.StepDetails[i];
                                     var snap = wsBuddy.Snapshots[i];
+                                    var blocks = GetBuddyBlocks(snap);
 
                                     <tr>
                                         <td class="ws-row-label">Free @op.ProcessName</td>
                                         @for (int c = 0; c < 32; c++)
                                         {
                                             var val = snap[c];
-                                            <td class="ws-slot-cell @(ShowSolution && val != "free" ? "ws-filled" : "")">
-                                                @(ShowSolution ? (val == "free" ? "–" : val) : "")
+                                            var block = blocks.FirstOrDefault(b => c >= b.StartSlot && c <= b.EndSlot);
+                                            var isBlockEnd = block != null && c == block.EndSlot && c < 31;
+                                            var isAlloc = val != "free";
+                                            string cellDisplay = "";
+                                            if (ShowSolution)
+                                            {
+                                                if (isAlloc)
+                                                {
+                                                    cellDisplay = val;
+                                                }
+                                                else if (block != null)
+                                                {
+                                                    cellDisplay = block.BlockNumber.ToString();
+                                                }
+                                            }
+
+                                            <td class="ws-slot-cell @(ShowSolution && isAlloc ? "ws-filled" : "") @(ShowSolution && !isAlloc ? "ws-free-block" : "") @(ShowSolution && isBlockEnd ? "ws-block-boundary" : "")"
+                                                title="@(ShowSolution && block != null ? (block.IsAllocated ? $"Prozess {block.ProcessName} ({block.SizeKb} KB)" : $"Freier Block {block.BlockNumber} ({block.SizeKb} KB)") : $"Kachel {c}")">
+                                                @cellDisplay
                                             </td>
                                         }
                                     </tr>
@@ -359,6 +440,18 @@
                             </tbody>
                         </table>
                     </div>
+
+                    @if (ShowSolution)
+                    {
+                        <div class="ws-solution-box no-print">
+                            <h4>Hinweise zur Musterlösung:</h4>
+                            <p>
+                                Die Buchstaben <strong>A–E</strong> bezeichnen die Kacheln der allokierten Blöcke. 
+                                Die Ziffern <strong>1, 2, 3&hellip;</strong> nummerieren die jeweiligen <strong>zusammenhängenden freien Partnerblöcke</strong> pro Zeile. 
+                                Die verstärkten vertikalen Linien markieren die Blockgrenzen im Buddy-System.
+                            </p>
+                        </div>
+                    }
                 }
             </div>
         </div>
@@ -690,5 +783,75 @@
         {
             return $"Block {op.BlockSize} KB [{startKb}–{endKb} KB] freigegeben & Buddies verschmolzen";
         }
+    }
+
+    public record BuddyBlock(bool IsAllocated, string ProcessName, int StartSlot, int SlotCount, int BlockNumber)
+    {
+        public int SizeKb => SlotCount * 32;
+        public int EndSlot => StartSlot + SlotCount - 1;
+    }
+
+    private static List<BuddyBlock> GetBuddyBlocks(string[] snapshot)
+    {
+        var rawBlocks = new List<(bool isAlloc, string name, int start, int count)>();
+        DecomposeBuddyTree(snapshot, 0, 32, rawBlocks);
+
+        var result = new List<BuddyBlock>();
+        int freeBlockCounter = 1;
+        foreach (var b in rawBlocks)
+        {
+            if (b.isAlloc)
+            {
+                result.Add(new BuddyBlock(true, b.name, b.start, b.count, 0));
+            }
+            else
+            {
+                result.Add(new BuddyBlock(false, "free", b.start, b.count, freeBlockCounter++));
+            }
+        }
+        return result;
+    }
+
+    private static void DecomposeBuddyTree(string[] snapshot, int startSlot, int slotCount, List<(bool isAlloc, string name, int start, int count)> result)
+    {
+        bool allFree = true;
+        for (int i = startSlot; i < startSlot + slotCount; i++)
+        {
+            if (snapshot[i] != "free")
+            {
+                allFree = false;
+                break;
+            }
+        }
+
+        if (allFree)
+        {
+            result.Add((false, "free", startSlot, slotCount));
+            return;
+        }
+
+        var firstProc = snapshot[startSlot];
+        bool allSameProc = firstProc != "free";
+        if (allSameProc)
+        {
+            for (int i = startSlot + 1; i < startSlot + slotCount; i++)
+            {
+                if (snapshot[i] != firstProc)
+                {
+                    allSameProc = false;
+                    break;
+                }
+            }
+        }
+
+        if (allSameProc)
+        {
+            result.Add((true, firstProc, startSlot, slotCount));
+            return;
+        }
+
+        int half = slotCount / 2;
+        DecomposeBuddyTree(snapshot, startSlot, half, result);
+        DecomposeBuddyTree(snapshot, startSlot + half, half, result);
     }
 }
