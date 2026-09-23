@@ -522,7 +522,14 @@
     private const string PresetExam2 = "2, 6, 1, 2, 2, 5, 1, 6, 4, 5, 3, 2, 4";
     private const string PresetBelady = "1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5";
 
+    private string? _lastQueryString;
+
     protected override void OnInitialized()
+    {
+        ReadQueryParameters();
+    }
+
+    protected override void OnParametersSet()
     {
         ReadQueryParameters();
     }
@@ -533,9 +540,13 @@
         {
             var uri = new Uri(NavigationManager.Uri);
             var query = uri.Query;
-            if (string.IsNullOrEmpty(query)) return;
+            if (string.IsNullOrEmpty(query) || query == _lastQueryString) return;
+            _lastQueryString = query;
 
             var pairs = query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries);
+            int? requestedStep = null;
+            bool jumpToEnd = false;
+
             foreach (var pair in pairs)
             {
                 var parts = pair.Split('=', 2);
@@ -556,18 +567,53 @@
                 {
                     ShowSolution = solBool;
                 }
-                else if (key == "policy" && !string.IsNullOrWhiteSpace(val))
+                else if ((key == "policy" || key == "strategy") && !string.IsNullOrWhiteSpace(val))
                 {
-                    SelectedPagePolicy = val;
+                    var cleanVal = val.Trim().ToLowerInvariant();
+                    SelectedPagePolicy = cleanVal switch
+                    {
+                        "fifo" => "FIFO",
+                        "lru" => "LRU",
+                        "clock" or "secondchance" or "second-chance" => "Clock",
+                        "optimal" or "opt" or "min" or "belady" => "Optimal",
+                        _ => val.Trim()
+                    };
                 }
-                else if (key == "frames" && int.TryParse(val, out var framesInt))
+                else if ((key == "frames" || key == "k") && int.TryParse(val, out var framesInt))
                 {
                     FrameCount = Math.Clamp(framesInt, 1, 8);
                 }
-                else if (key == "requests" && !string.IsNullOrWhiteSpace(val))
+                else if ((key == "requests" || key == "reference" || key == "references" || key == "folge" || key == "seq") && !string.IsNullOrWhiteSpace(val))
                 {
                     ReferenceInput = val;
                 }
+                else if (key == "preset" && !string.IsNullOrWhiteSpace(val))
+                {
+                    var presetKey = val.Trim().ToLowerInvariant();
+                    if (presetKey == "belady") ReferenceInput = PresetBelady;
+                    else if (presetKey == "exam1" || presetKey == "1") ReferenceInput = PresetExam1;
+                    else if (presetKey == "exam2" || presetKey == "2") ReferenceInput = PresetExam2;
+                }
+                else if (key == "step")
+                {
+                    if (val.Equals("end", StringComparison.OrdinalIgnoreCase) || val.Equals("max", StringComparison.OrdinalIgnoreCase))
+                    {
+                        jumpToEnd = true;
+                    }
+                    else if (int.TryParse(val, out var s))
+                    {
+                        requestedStep = s;
+                    }
+                }
+            }
+
+            if (jumpToEnd)
+            {
+                GoToEnd();
+            }
+            else if (requestedStep.HasValue)
+            {
+                CurrentStepIndex = Math.Max(0, requestedStep.Value);
             }
         }
         catch { }
