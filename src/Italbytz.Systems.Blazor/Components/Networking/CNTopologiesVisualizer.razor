@@ -510,7 +510,12 @@
 
     protected override void OnParametersSet()
     {
+        var prevTopo = SelectedTopoId;
         CheckUrlParameters();
+        if (SelectedTopoId != prevTopo)
+        {
+            LoadTopologyGraph(SelectedTopoId);
+        }
     }
 
     private void CheckUrlParameters()
@@ -533,6 +538,16 @@
             if (query.Contains("solution=true") || query.Contains("solution=1") || query.Contains("lsg=true"))
             {
                 ShowSolution = true;
+            }
+
+            var topoMatch = System.Text.RegularExpressions.Regex.Match(uri.Query, @"[?&]topo(?:logy)?=([a-z]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (topoMatch.Success)
+            {
+                var val = topoMatch.Groups[1].Value.ToLowerInvariant();
+                if (Topologies.Any(t => t.Id == val))
+                {
+                    SelectedTopoId = val;
+                }
             }
         }
         catch
