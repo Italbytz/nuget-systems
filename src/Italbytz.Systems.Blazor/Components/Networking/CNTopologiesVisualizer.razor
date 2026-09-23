@@ -89,14 +89,14 @@
                         @foreach (var link in CurrentLinks)
                         {
                             var isCut = CutLinkIds.Contains(link.Id);
-                            <line x1="@link.X1" y1="@link.Y1" x2="@link.X2" y2="@link.Y2"
+                            <line x1="@link.SvgX1" y1="@link.SvgY1" x2="@link.SvgX2" y2="@link.SvgY2"
                                   class="topo-line @(isCut ? "line-cut" : "line-active")"
                                   @onclick="() => ToggleLinkCut(link.Id)" />
                             
                             @if (isCut)
                             {
                                 <g>
-                                    <text x="@((link.X1 + link.X2) / 2)" y="@((link.Y1 + link.Y2) / 2)" 
+                                    <text x="@link.SvgMidX" y="@link.SvgMidY" 
                                           class="cut-cross-icon" text-anchor="middle" dominant-baseline="central">⚡</text>
                                 </g>
                             }
@@ -108,13 +108,13 @@
                             var isFailed = FailedNodeIds.Contains(node.Id);
                             <g class="topo-node-group @(isFailed ? "node-failed" : "node-ok")"
                                @onclick="() => ToggleNodeFail(node.Id)">
-                                <circle cx="@node.X" cy="@node.Y" r="@(node.IsCentral ? 22 : 16)"
+                                <circle cx="@node.SvgX" cy="@node.SvgY" r="@(node.IsCentral ? 22 : 16)"
                                         class="node-circle @(node.IsCentral ? "central-circle" : "")" />
-                                <text x="@node.X" y="@node.Y" class="node-label" 
+                                <text x="@node.SvgX" y="@node.SvgY" class="node-label" 
                                       dominant-baseline="central" text-anchor="middle">
                                     @(isFailed ? "❌" : node.Label)
                                 </text>
-                                <text x="@node.X" y="@(node.Y + (node.IsCentral ? 32 : 24))" 
+                                <text x="@node.SvgX" y="@node.SvgSublabelY" 
                                       class="node-sublabel" text-anchor="middle">
                                     @node.Sublabel
                                 </text>
@@ -462,6 +462,10 @@
         public double X { get; set; }
         public double Y { get; set; }
         public bool IsCentral { get; set; }
+
+        public string SvgX => X.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+        public string SvgY => Y.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+        public string SvgSublabelY => (Y + (IsCentral ? 32 : 24)).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
     }
 
     public class LinkModel
@@ -472,6 +476,13 @@
         public double X2 { get; set; }
         public double Y2 { get; set; }
         public bool IsCritical { get; set; }
+
+        public string SvgX1 => X1.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+        public string SvgY1 => Y1.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+        public string SvgX2 => X2.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+        public string SvgY2 => Y2.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+        public string SvgMidX => ((X1 + X2) / 2.0).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+        public string SvgMidY => ((Y1 + Y2) / 2.0).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
     }
 
     public class QuizItemModel
@@ -723,8 +734,8 @@
                 for (int i = 0; i < 5; i++)
                 {
                     double angle = (i * 72 - 90) * Math.PI / 180.0;
-                    double nx = cx + r * Math.Cos(angle);
-                    double ny = cy + r * Math.Sin(angle);
+                    double nx = Math.Round(cx + r * Math.Cos(angle));
+                    double ny = Math.Round(cy + r * Math.Sin(angle));
                     CurrentNodes.Add(new NodeModel { Id = $"r{i + 1}", Label = labels[i], Sublabel = $"Knoten {i + 1}", X = nx, Y = ny });
                 }
                 for (int i = 0; i < 5; i++)
@@ -749,8 +760,8 @@
                 for (int i = 0; i < 5; i++)
                 {
                     double angle = (i * 72 - 90) * Math.PI / 180.0;
-                    double nx = 250 + 110 * Math.Cos(angle);
-                    double ny = 150 + 110 * Math.Sin(angle);
+                    double nx = Math.Round(250 + 110 * Math.Cos(angle));
+                    double ny = Math.Round(150 + 110 * Math.Sin(angle));
                     CurrentNodes.Add(new NodeModel { Id = $"s{i + 1}", Label = $"PC{i + 1}", Sublabel = $"Host {i + 1}", X = nx, Y = ny });
                     CurrentLinks.Add(new LinkModel
                     {
@@ -833,8 +844,8 @@
                 for (int i = 0; i < 5; i++)
                 {
                     double angle = (i * 72 - 90) * Math.PI / 180.0;
-                    double nx = 250 + 110 * Math.Cos(angle);
-                    double ny = 150 + 110 * Math.Sin(angle);
+                    double nx = Math.Round(250 + 110 * Math.Cos(angle));
+                    double ny = Math.Round(150 + 110 * Math.Sin(angle));
                     CurrentNodes.Add(new NodeModel { Id = $"phone_{i + 1}", Label = $"GSM{i + 1}", Sublabel = "Mobilgerät", X = nx, Y = ny });
                     CurrentLinks.Add(new LinkModel
                     {
