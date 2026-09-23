@@ -109,12 +109,12 @@
                     </div>
 
                     <div class="matrix-legend">
-                        <span class="legend-chip free">Frei (Block 1, 2...)</span>
-                        <span class="legend-chip p-blue">A (@buddyData.Requests[0] KB)</span>
-                        <span class="legend-chip p-green">B (@buddyData.Requests[1] KB)</span>
-                        <span class="legend-chip p-amber">C (@buddyData.Requests[2] KB)</span>
-                        <span class="legend-chip p-purple">D (@buddyData.Requests[3] KB)</span>
-                        <span class="legend-chip p-rose">E (@buddyData.Requests[4] KB)</span>
+                        <span class="legend-chip p-a">A (@buddyData.Requests[0] KB)</span>
+                        <span class="legend-chip p-b">B (@buddyData.Requests[1] KB)</span>
+                        <span class="legend-chip p-c">C (@buddyData.Requests[2] KB)</span>
+                        <span class="legend-chip p-d">D (@buddyData.Requests[3] KB)</span>
+                        <span class="legend-chip p-e">E (@buddyData.Requests[4] KB)</span>
+                        <span class="legend-chip free-legend-pill">Ziffern 1, 2, 3… = Freiblöcke (Start &amp; Ende)</span>
                     </div>
                 </div>
 
@@ -133,7 +133,10 @@
                                 <th class="col-op">Operation</th>
                                 @for (int c = 0; c < 32; c++)
                                 {
-                                    <th class="col-kachel" title="Kachel @c: [@(c * 32) KB – @((c + 1) * 32) KB]">@c</th>
+                                    var is4th = (c + 1) % 4 == 0 && c < 31;
+                                    var is8th = (c + 1) % 8 == 0 && c < 31;
+                                    <th class="col-kachel @(is8th ? "grid-bound-major" : is4th ? "grid-bound-minor" : "")" 
+                                        title="Kachel @c: [@(c * 32) KB – @((c + 1) * 32) KB]">@c</th>
                                 }
                             </tr>
                         </thead>
@@ -148,12 +151,26 @@
                                         <span class="active-arrow">◀</span>
                                     }
                                 </td>
-                                <td colspan="32" class="initial-bar">
-                                    <div class="block-content">
-                                        <span class="free-num-badge">1</span>
-                                        <span class="free-size-text">1024 KB Frei (Block 1)</span>
-                                    </div>
-                                </td>
+                                @for (int c = 0; c < 32; c++)
+                                {
+                                    var isStart = c == 0;
+                                    var isEnd = c == 31;
+                                    var is8thBound = (c + 1) % 8 == 0 && c < 31;
+                                    var is4thBound = (c + 1) % 4 == 0 && c < 31;
+                                    <td class="kaestchen kaestchen-free free-color-0 @(isStart ? "block-start" : "") @(isEnd ? "block-end" : "") @(is8thBound ? "grid-bound-major" : is4thBound ? "grid-bound-minor" : "")"
+                                        title="Freier Block 1: Kacheln [0..31] [0 KB – 1024 KB] (1024 KB)">
+                                        <div class="kaestchen-inner">
+                                            @if (isStart || isEnd)
+                                            {
+                                                <span class="free-num-badge">1</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="free-connector"></span>
+                                            }
+                                        </div>
+                                    </td>
+                                }
                             </tr>
 
                             @for (int s = 0; s < buddyData.Snapshots.Count; s++)
@@ -175,46 +192,55 @@
                                     </td>
                                     @if (isFuture)
                                     {
-                                        <td colspan="32" class="future-row-placeholder">
-                                            <span class="placeholder-dots">· · ·</span>
-                                        </td>
+                                        @for (int c = 0; c < 32; c++)
+                                        {
+                                            var is8thBound = (c + 1) % 8 == 0 && c < 31;
+                                            var is4thBound = (c + 1) % 4 == 0 && c < 31;
+                                            <td class="kaestchen kaestchen-future @(is8thBound ? "grid-bound-major" : is4thBound ? "grid-bound-minor" : "")">
+                                                <span class="future-dot">·</span>
+                                            </td>
+                                        }
                                     }
                                     else
                                     {
-                                        @foreach (var b in blocks)
+                                        @for (int c = 0; c < 32; c++)
                                         {
-                                            var isAffected = isRowActive && op.AffectedSlots.Any(slot => slot >= b.StartSlot && slot <= b.EndSlot);
-                                            if (b.IsAllocated)
+                                            var block = blocks.FirstOrDefault(b => c >= b.StartSlot && c <= b.EndSlot);
+                                            if (block != null)
                                             {
-                                                <td colspan="@b.SlotCount"
-                                                    class="matrix-cell block-allocated @GetSlotColorClass(b.ProcessName) @(isAffected ? "affected-cell" : "")"
-                                                    title="Prozess @b.ProcessName: [@(b.StartSlot * 32) KB – @((b.StartSlot + b.SlotCount) * 32) KB] (@(b.SizeKb) KB)">
-                                                    <div class="block-content">
-                                                        <strong class="block-label">@b.ProcessName</strong>
-                                                        @if (b.SlotCount >= 2)
-                                                        {
-                                                            <span class="block-size-tag">@(b.SizeKb) KB</span>
-                                                        }
-                                                    </div>
-                                                </td>
-                                            }
-                                            else
-                                            {
-                                                <td colspan="@b.SlotCount"
-                                                    class="matrix-cell block-free @(isAffected ? "affected-free" : "")"
-                                                    title="Freier Block @b.BlockNumber: [@(b.StartSlot * 32) KB – @((b.StartSlot + b.SlotCount) * 32) KB] (@(b.SizeKb) KB)">
-                                                    <div class="block-content">
-                                                        <span class="free-num-badge">@b.BlockNumber</span>
-                                                        @if (b.SlotCount >= 2)
-                                                        {
-                                                            <span class="free-size-text">@(b.SizeKb) KB Frei</span>
-                                                        }
-                                                        else
-                                                        {
-                                                            <span class="free-size-text">32K</span>
-                                                        }
-                                                    </div>
-                                                </td>
+                                                var isAlloc = block.IsAllocated;
+                                                var isStart = c == block.StartSlot;
+                                                var isEnd = c == block.EndSlot;
+                                                var isAffected = isRowActive && op.AffectedSlots.Contains(c);
+                                                var is8thBound = (c + 1) % 8 == 0 && c < 31;
+                                                var is4thBound = (c + 1) % 4 == 0 && c < 31;
+
+                                                if (isAlloc)
+                                                {
+                                                    <td class="kaestchen kaestchen-alloc @GetSlotColorClass(block.ProcessName) @(isStart ? "block-start" : "") @(isEnd ? "block-end" : "") @(isAffected ? "affected-slot" : "") @(is8thBound ? "grid-bound-major" : is4thBound ? "grid-bound-minor" : "")"
+                                                        title="Prozess @block.ProcessName: Kacheln [@block.StartSlot..@block.EndSlot] [@block.StartKb KB – @block.EndKb KB] (@(block.SizeKb) KB)">
+                                                        <div class="kaestchen-inner">
+                                                            <span class="slot-letter">@block.ProcessName</span>
+                                                        </div>
+                                                    </td>
+                                                }
+                                                else
+                                                {
+                                                    var colorIdx = (block.BlockNumber - 1) % 6;
+                                                    <td class="kaestchen kaestchen-free free-color-@colorIdx @(isStart ? "block-start" : "") @(isEnd ? "block-end" : "") @(isAffected ? "affected-slot" : "") @(is8thBound ? "grid-bound-major" : is4thBound ? "grid-bound-minor" : "")"
+                                                        title="Freier Block @block.BlockNumber: Kacheln [@block.StartSlot..@block.EndSlot] [@block.StartKb KB – @block.EndKb KB] (@(block.SizeKb) KB)">
+                                                        <div class="kaestchen-inner">
+                                                            @if (isStart || isEnd)
+                                                            {
+                                                                <span class="free-num-badge">@block.BlockNumber</span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="free-connector"></span>
+                                                            }
+                                                        </div>
+                                                    </td>
+                                                }
                                             }
                                         }
                                     }
@@ -227,6 +253,40 @@
                 @{
                     var currentBlocks = GetBuddyBlocks(currentSnapshot);
                 }
+                <!-- Active Blocks Detail (Anfangspunkt, Endpunkt, Kacheln & Größe) -->
+                <div class="active-allocation-panel no-print">
+                    <div class="allocation-title-row">
+                        <span class="alloc-title">📍 Aktuelle Speicherbelegung (Start- &amp; Endpunkte):</span>
+                        <span class="alloc-help">Kacheln 0–31 à 32 KB | 0 KB – 1024 KB</span>
+                    </div>
+                    <div class="block-chips-list">
+                        @foreach (var b in currentBlocks)
+                        {
+                            if (b.IsAllocated)
+                            {
+                                <div class="alloc-chip chip-alloc @GetSlotColorClass(b.ProcessName)"
+                                     title="Prozess @b.ProcessName: Kacheln [@b.StartSlot..@b.EndSlot] [@b.StartKb–@b.EndKb KB]">
+                                    <span class="chip-proc">@b.ProcessName</span>
+                                    <span class="chip-range">Kacheln @b.StartSlot–@b.EndSlot</span>
+                                    <span class="chip-kb">[@b.StartKb–@b.EndKb KB]</span>
+                                    <span class="chip-len">(@(b.SizeKb) KB)</span>
+                                </div>
+                            }
+                            else
+                            {
+                                var colorIdx = (b.BlockNumber - 1) % 6;
+                                <div class="alloc-chip chip-free free-color-@colorIdx"
+                                     title="Freier Block @b.BlockNumber: Kacheln [@b.StartSlot..@b.EndSlot] [@b.StartKb–@b.EndKb KB]">
+                                    <span class="chip-free-badge">@b.BlockNumber</span>
+                                    <span class="chip-range">Kacheln @b.StartSlot–@b.EndSlot</span>
+                                    <span class="chip-kb">[@b.StartKb–@b.EndKb KB]</span>
+                                    <span class="chip-len">(@(b.SizeKb) KB frei)</span>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+
                 <!-- Step Metrics Bar -->
                 <div class="metrics-grid four-up">
                     <div class="metric-card">
@@ -300,9 +360,7 @@
                     </p>
                     <p>
                         Tragen Sie in die Felder <strong>A, B, C, D oder E</strong> ein, wenn der Speicher einem der Prozesse zugeordnet ist. 
-                        <strong>Visualisieren Sie zudem die einzelnen Freiblöcke:</strong> Tragen Sie in freie Felder Ziffern ein (z.&nbsp;B. <strong>1, 2, 3&hellip;</strong> für die einzelnen Freiblöcke). 
-                        Unterschiedliche freie Speicherblöcke müssen durch unterschiedliche Ziffern bzw. durch deutliche Blockgrenzen markiert werden 
-                        (es reicht, wenn Sie dies durch Füllen des ersten und letzten Feldes des Blocks bzw. Einzeichnen der Blockgrenzen markieren).
+                        <strong>Visualisieren Sie zudem die einzelnen Freiblöcke:</strong> Tragen Sie in das <em>erste</em> und <em>letzte</em> Feld jedes zusammenhängenden Freiblocks die Ziffer des Blocks ein (z.&nbsp;B. <strong>1, 2, 3&hellip;</strong>) und kennzeichnen Sie die Blockgrenzen. Unterschiedliche Freiblöcke müssen durch unterschiedliche Ziffern und deutliche Blockgrenzen markiert werden.
                     </p>
                 </div>
 
@@ -353,7 +411,9 @@
                                     <th class="ws-col-hdr">Operation</th>
                                     @for (int c = 0; c < 32; c++)
                                     {
-                                        <th>@c</th>
+                                        var is4th = (c + 1) % 4 == 0 && c < 31;
+                                        var is8th = (c + 1) % 8 == 0 && c < 31;
+                                        <th class="@(is8th ? "grid-bound-major" : is4th ? "grid-bound-minor" : "")">@c</th>
                                     }
                                 </tr>
                             </thead>
@@ -361,9 +421,26 @@
                                 <!-- Initial Row -->
                                 <tr>
                                     <td class="ws-row-label">Initial</td>
-                                    <td colspan="32" class="ws-init-cell">
-                                        @(ShowSolution ? "1024 KB (Freier Block 1)" : "1024 KB")
-                                    </td>
+                                    @for (int c = 0; c < 32; c++)
+                                    {
+                                        var isStart = c == 0;
+                                        var isEnd = c == 31;
+                                        var is8thBound = (c + 1) % 8 == 0 && c < 31;
+                                        var is4thBound = (c + 1) % 4 == 0 && c < 31;
+                                        <td class="ws-slot-cell @(ShowSolution ? "ws-free-block free-color-0" : "") @(isStart ? "block-start" : "") @(isEnd ? "block-end" : "") @(is8thBound ? "grid-bound-major" : is4thBound ? "grid-bound-minor" : "")">
+                                            @if (ShowSolution)
+                                            {
+                                                if (isStart || isEnd)
+                                                {
+                                                    <span class="free-num-badge">1</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="free-connector"></span>
+                                                }
+                                            }
+                                        </td>
+                                    }
                                 </tr>
 
                                 <!-- 5 Allocation Rows -->
@@ -377,26 +454,31 @@
                                         <td class="ws-row-label">@op.ProcessName (@wsBuddy.Requests[i])</td>
                                         @for (int c = 0; c < 32; c++)
                                         {
-                                            var val = snap[c];
                                             var block = blocks.FirstOrDefault(b => c >= b.StartSlot && c <= b.EndSlot);
-                                            var isBlockEnd = block != null && c == block.EndSlot && c < 31;
-                                            var isAlloc = val != "free";
-                                            string cellDisplay = "";
-                                            if (ShowSolution)
-                                            {
-                                                if (isAlloc)
-                                                {
-                                                    cellDisplay = val;
-                                                }
-                                                else if (block != null)
-                                                {
-                                                    cellDisplay = block.BlockNumber.ToString();
-                                                }
-                                            }
+                                            var isAlloc = block != null && block.IsAllocated;
+                                            var isStart = block != null && c == block.StartSlot;
+                                            var isEnd = block != null && c == block.EndSlot;
+                                            var is8thBound = (c + 1) % 8 == 0 && c < 31;
+                                            var is4thBound = (c + 1) % 4 == 0 && c < 31;
+                                            var colorIdx = block != null && !isAlloc ? (block.BlockNumber - 1) % 6 : 0;
 
-                                            <td class="ws-slot-cell @(ShowSolution && isAlloc ? "ws-filled" : "") @(ShowSolution && !isAlloc ? "ws-free-block" : "") @(ShowSolution && isBlockEnd ? "ws-block-boundary" : "")"
-                                                title="@(ShowSolution && block != null ? (block.IsAllocated ? $"Prozess {block.ProcessName} ({block.SizeKb} KB)" : $"Freier Block {block.BlockNumber} ({block.SizeKb} KB)") : $"Kachel {c}")">
-                                                @cellDisplay
+                                            <td class="ws-slot-cell @(ShowSolution && isAlloc ? $"ws-filled {GetSlotColorClass(block!.ProcessName)}" : "") @(ShowSolution && !isAlloc ? $"ws-free-block free-color-{colorIdx}" : "") @(ShowSolution && isStart ? "block-start" : "") @(ShowSolution && isEnd ? "block-end" : "") @(is8thBound ? "grid-bound-major" : is4thBound ? "grid-bound-minor" : "")"
+                                                title="@(ShowSolution && block != null ? (block.IsAllocated ? $"Prozess {block.ProcessName} [Kacheln {block.StartSlot}..{block.EndSlot}] ({block.SizeKb} KB)" : $"Freier Block {block.BlockNumber} [Kacheln {block.StartSlot}..{block.EndSlot}] ({block.SizeKb} KB)") : $"Kachel {c}")">
+                                                @if (ShowSolution && block != null)
+                                                {
+                                                    if (isAlloc)
+                                                    {
+                                                        <span class="slot-letter">@block.ProcessName</span>
+                                                    }
+                                                    else if (isStart || isEnd)
+                                                    {
+                                                        <span class="free-num-badge">@block.BlockNumber</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="free-connector"></span>
+                                                    }
+                                                }
                                             </td>
                                         }
                                     </tr>
@@ -413,26 +495,31 @@
                                         <td class="ws-row-label">Free @op.ProcessName</td>
                                         @for (int c = 0; c < 32; c++)
                                         {
-                                            var val = snap[c];
                                             var block = blocks.FirstOrDefault(b => c >= b.StartSlot && c <= b.EndSlot);
-                                            var isBlockEnd = block != null && c == block.EndSlot && c < 31;
-                                            var isAlloc = val != "free";
-                                            string cellDisplay = "";
-                                            if (ShowSolution)
-                                            {
-                                                if (isAlloc)
-                                                {
-                                                    cellDisplay = val;
-                                                }
-                                                else if (block != null)
-                                                {
-                                                    cellDisplay = block.BlockNumber.ToString();
-                                                }
-                                            }
+                                            var isAlloc = block != null && block.IsAllocated;
+                                            var isStart = block != null && c == block.StartSlot;
+                                            var isEnd = block != null && c == block.EndSlot;
+                                            var is8thBound = (c + 1) % 8 == 0 && c < 31;
+                                            var is4thBound = (c + 1) % 4 == 0 && c < 31;
+                                            var colorIdx = block != null && !isAlloc ? (block.BlockNumber - 1) % 6 : 0;
 
-                                            <td class="ws-slot-cell @(ShowSolution && isAlloc ? "ws-filled" : "") @(ShowSolution && !isAlloc ? "ws-free-block" : "") @(ShowSolution && isBlockEnd ? "ws-block-boundary" : "")"
-                                                title="@(ShowSolution && block != null ? (block.IsAllocated ? $"Prozess {block.ProcessName} ({block.SizeKb} KB)" : $"Freier Block {block.BlockNumber} ({block.SizeKb} KB)") : $"Kachel {c}")">
-                                                @cellDisplay
+                                            <td class="ws-slot-cell @(ShowSolution && isAlloc ? $"ws-filled {GetSlotColorClass(block!.ProcessName)}" : "") @(ShowSolution && !isAlloc ? $"ws-free-block free-color-{colorIdx}" : "") @(ShowSolution && isStart ? "block-start" : "") @(ShowSolution && isEnd ? "block-end" : "") @(is8thBound ? "grid-bound-major" : is4thBound ? "grid-bound-minor" : "")"
+                                                title="@(ShowSolution && block != null ? (block.IsAllocated ? $"Prozess {block.ProcessName} [Kacheln {block.StartSlot}..{block.EndSlot}] ({block.SizeKb} KB)" : $"Freier Block {block.BlockNumber} [Kacheln {block.StartSlot}..{block.EndSlot}] ({block.SizeKb} KB)") : $"Kachel {c}")">
+                                                @if (ShowSolution && block != null)
+                                                {
+                                                    if (isAlloc)
+                                                    {
+                                                        <span class="slot-letter">@block.ProcessName</span>
+                                                    }
+                                                    else if (isStart || isEnd)
+                                                    {
+                                                        <span class="free-num-badge">@block.BlockNumber</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="free-connector"></span>
+                                                    }
+                                                }
                                             </td>
                                         }
                                     </tr>
@@ -750,38 +837,35 @@
             _ => "?"
         };
 
-    private string GetSlotColorClass(string slot) =>
-        slot switch
-        {
-            "A" => "p-blue",
-            "B" => "p-green",
-            "C" => "p-amber",
-            "D" => "p-purple",
-            "E" => "p-rose",
-            "Free A" or "A (120)" or "A (171)" or "A (80)" => "p-blue",
-            "Free B" or "B (64)" or "B (7)" or "B (240)" => "p-green",
-            "Free C" or "C (200)" or "C (394)" or "C (60)" => "p-amber",
-            "Free D" or "D (32)" or "D (41)" or "D (110)" => "p-purple",
-            "Free E" or "E (90)" or "E (9)" or "E (45)" => "p-rose",
-            _ => "free"
-        };
+    private string GetSlotColorClass(string slot)
+    {
+        if (string.IsNullOrWhiteSpace(slot)) return "p-default";
+        if (slot.Contains('A')) return "p-a";
+        if (slot.Contains('B')) return "p-b";
+        if (slot.Contains('C')) return "p-c";
+        if (slot.Contains('D')) return "p-d";
+        if (slot.Contains('E')) return "p-e";
+        return "p-default";
+    }
 
     private static string GetCompactStepSummary(int stepIndex, ParsedBuddyData data)
     {
         if (stepIndex == 0) return "1024 KB freier Hauptspeicher (32 Kacheln à 32 KB)";
 
         var op = data.StepDetails[stepIndex - 1];
-        var startKb = op.AffectedSlots.Count > 0 ? op.AffectedSlots.Min() * 32 : 0;
-        var endKb = startKb + op.BlockSize;
+        var startSlot = op.AffectedSlots.Count > 0 ? op.AffectedSlots.Min() : 0;
+        var endSlot = op.AffectedSlots.Count > 0 ? op.AffectedSlots.Max() : 0;
+        var startKb = startSlot * 32;
+        var endKb = (endSlot + 1) * 32;
 
         if (op.OperationType == "Allocate")
         {
             var frag = op.BlockSize - op.RequestedSize;
-            return $"{op.RequestedSize} KB → Block {op.BlockSize} KB [{startKb}–{endKb} KB] (Verschnitt: {frag} KB)";
+            return $"Allokiert in Kacheln {startSlot}–{endSlot} [{startKb}–{endKb} KB] ({op.BlockSize} KB Block für {op.RequestedSize} KB Anforderung, Verschnitt: {frag} KB)";
         }
         else
         {
-            return $"Block {op.BlockSize} KB [{startKb}–{endKb} KB] freigegeben & Buddies verschmolzen";
+            return $"Kacheln {startSlot}–{endSlot} [{startKb}–{endKb} KB] ({op.BlockSize} KB) freigegeben & Buddies verschmolzen";
         }
     }
 
@@ -789,6 +873,8 @@
     {
         public int SizeKb => SlotCount * 32;
         public int EndSlot => StartSlot + SlotCount - 1;
+        public int StartKb => StartSlot * 32;
+        public int EndKb => (EndSlot + 1) * 32;
     }
 
     private static List<BuddyBlock> GetBuddyBlocks(string[] snapshot)
