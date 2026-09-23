@@ -4,7 +4,7 @@
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 
-<article class="bitencoding-container @(IsEmbed ? "embed-mode" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
+<article class="bitencoding-container @(IsEmbed ? "embed-mode" : "") @(Theme == "dark" ? "theme-dark" : (Theme == "light" ? "theme-light" : "")) @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
 
     @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
     {
@@ -165,72 +165,79 @@
                 </div>
             </div>
 
-            <!-- Matrix Table -->
-            <div class="matrix-card">
-                <div class="matrix-header">
-                    <h3>Pegeltabelle der Leitungscodierungen</h3>
-                </div>
-                <div class="table-responsive">
-                    <table class="encoding-table">
-                        <thead>
-                            <tr class="header-row">
-                                <th class="label-col">Verfahren</th>
-                                @for (int i = 0; i < ParsedBits.Length; i++)
-                                {
-                                    <th class="bit-col @(i == CurrentStepIndex ? "active-col" : "")">
-                                        <div class="bit-idx">Bit @i</div>
-                                        <div class="bit-val">@ParsedBits[i]</div>
-                                    </th>
-                                }
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- NRZ -->
-                            <tr>
-                                <td class="row-title"><strong>NRZ</strong></td>
-                                @for (int i = 0; i < ParsedBits.Length; i++)
-                                {
-                                    <td class="symbol-cell @(i == CurrentStepIndex ? "active-col" : "") @(i <= CurrentStepIndex ? "revealed" : "future")">
-                                        <span class="sym-badge sym-@NrzSymbols[i]">@NrzSymbols[i]</span>
-                                    </td>
-                                }
-                            </tr>
+            <!-- Optional / Collapsible Level Table -->
+            <div class="matrix-card no-print">
+                <button class="toggle-table-btn" type="button" @onclick="ToggleTable">
+                    <span class="toggle-table-title">
+                        <span class="toggle-arrow">@(ShowTable ? "▼" : "▶")</span>
+                        <span>Pegeltabelle der Leitungscodierungen</span>
+                    </span>
+                    <span class="table-badge">@(ShowTable ? "Tabelle ausblenden" : "Tabelle einblenden")</span>
+                </button>
+                @if (ShowTable)
+                {
+                    <div class="table-responsive">
+                        <table class="encoding-table">
+                            <thead>
+                                <tr class="header-row">
+                                    <th class="label-col">Verfahren</th>
+                                    @for (int i = 0; i < ParsedBits.Length; i++)
+                                    {
+                                        <th class="bit-col @(i == CurrentStepIndex ? "active-col" : "")">
+                                            <div class="bit-idx">Bit @i</div>
+                                            <div class="bit-val">@ParsedBits[i]</div>
+                                        </th>
+                                    }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- NRZ -->
+                                <tr>
+                                    <td class="row-title"><strong>NRZ</strong></td>
+                                    @for (int i = 0; i < ParsedBits.Length; i++)
+                                    {
+                                        <td class="symbol-cell @(i == CurrentStepIndex ? "active-col" : "") @(i <= CurrentStepIndex ? "revealed" : "future")">
+                                            <span class="sym-badge sym-@NrzSymbols[i]">@NrzSymbols[i]</span>
+                                        </td>
+                                    }
+                                </tr>
 
-                            <!-- NRZ-I -->
-                            <tr>
-                                <td class="row-title"><strong>NRZ-I</strong></td>
-                                @for (int i = 0; i < ParsedBits.Length; i++)
-                                {
-                                    <td class="symbol-cell @(i == CurrentStepIndex ? "active-col" : "") @(i <= CurrentStepIndex ? "revealed" : "future")">
-                                        <span class="sym-badge sym-@NrziSymbols[i]">@NrziSymbols[i]</span>
-                                    </td>
-                                }
-                            </tr>
+                                <!-- NRZ-I -->
+                                <tr>
+                                    <td class="row-title"><strong>NRZ-I</strong></td>
+                                    @for (int i = 0; i < ParsedBits.Length; i++)
+                                    {
+                                        <td class="symbol-cell @(i == CurrentStepIndex ? "active-col" : "") @(i <= CurrentStepIndex ? "revealed" : "future")">
+                                            <span class="sym-badge sym-@NrziSymbols[i]">@NrziSymbols[i]</span>
+                                        </td>
+                                    }
+                                </tr>
 
-                            <!-- MLT-3 -->
-                            <tr>
-                                <td class="row-title"><strong>MLT-3</strong></td>
-                                @for (int i = 0; i < ParsedBits.Length; i++)
-                                {
-                                    <td class="symbol-cell @(i == CurrentStepIndex ? "active-col" : "") @(i <= CurrentStepIndex ? "revealed" : "future")">
-                                        <span class="sym-badge sym-@Mlt3Symbols[i]">@Mlt3Symbols[i]</span>
-                                    </td>
-                                }
-                            </tr>
+                                <!-- MLT-3 -->
+                                <tr>
+                                    <td class="row-title"><strong>MLT-3</strong></td>
+                                    @for (int i = 0; i < ParsedBits.Length; i++)
+                                    {
+                                        <td class="symbol-cell @(i == CurrentStepIndex ? "active-col" : "") @(i <= CurrentStepIndex ? "revealed" : "future")">
+                                            <span class="sym-badge sym-@Mlt3Symbols[i]">@Mlt3Symbols[i]</span>
+                                        </td>
+                                    }
+                                </tr>
 
-                            <!-- Manchester -->
-                            <tr>
-                                <td class="row-title"><strong>Manchester</strong></td>
-                                @for (int i = 0; i < ParsedBits.Length; i++)
-                                {
-                                    <td class="symbol-cell @(i == CurrentStepIndex ? "active-col" : "") @(i <= CurrentStepIndex ? "revealed" : "future")">
-                                        <span class="sym-badge sym-edge">@(ParsedBits[i] == 0 ? "HL" : "LH")</span>
-                                    </td>
-                                }
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                                <!-- Manchester -->
+                                <tr>
+                                    <td class="row-title"><strong>Manchester</strong></td>
+                                    @for (int i = 0; i < ParsedBits.Length; i++)
+                                    {
+                                        <td class="symbol-cell @(i == CurrentStepIndex ? "active-col" : "") @(i <= CurrentStepIndex ? "revealed" : "future")">
+                                            <span class="sym-badge sym-edge">@(ParsedBits[i] == 0 ? "HL" : "LH")</span>
+                                        </td>
+                                    }
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                }
             </div>
         }
     }
@@ -440,10 +447,12 @@
     [Parameter] public string? View { get; set; }
     [Parameter] public bool? Solution { get; set; }
     [Parameter] public bool? Embed { get; set; }
+    [Parameter] public string? Theme { get; set; }
 
     private ViewMode ActiveView = ViewMode.Simulator;
     private bool ShowSolution = false;
     private bool IsEmbed = false;
+    private bool ShowTable = false;
 
     private string BitPatternInput = "10110010";
     private string InitialLevel = "-";
@@ -503,9 +512,17 @@
                 {
                     ShowSolution = solBool;
                 }
-                else if (key == "embed" && bool.TryParse(val, out var embedBool))
+                else if (key == "embed" || key == "embedded")
                 {
-                    IsEmbed = embedBool;
+                    IsEmbed = val.Equals("true", StringComparison.OrdinalIgnoreCase) || val == "1" || string.IsNullOrEmpty(val);
+                }
+                else if (key == "theme" && !string.IsNullOrEmpty(val))
+                {
+                    Theme = val.ToLowerInvariant();
+                }
+                else if (key == "table" && bool.TryParse(val, out var tableBool))
+                {
+                    ShowTable = tableBool;
                 }
                 else if ((key == "bits" || key == "pattern") && !string.IsNullOrEmpty(val))
                 {
@@ -533,6 +550,11 @@
         UpdateUrl();
     }
 
+    private void ToggleTable()
+    {
+        ShowTable = !ShowTable;
+    }
+
     private void UpdateUrl()
     {
         var uri = NavigationManager.GetUriWithQueryParameters(new Dictionary<string, object?>
@@ -540,7 +562,8 @@
             ["view"] = ActiveView == ViewMode.Worksheet ? "worksheet" : null,
             ["solution"] = ShowSolution ? "true" : null,
             ["pattern"] = BitPatternInput != "10110010" ? BitPatternInput : null,
-            ["embed"] = IsEmbed ? "true" : null
+            ["embed"] = IsEmbed ? "true" : null,
+            ["theme"] = !string.IsNullOrEmpty(Theme) ? Theme : null
         });
         NavigationManager.NavigateTo(uri, replace: true);
     }
