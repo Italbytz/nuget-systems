@@ -135,11 +135,28 @@
                 </div>
             </div>
 
-            <!-- Memory Strip Visualizer Card -->
-            <div class="memory-card">
-                <div class="memory-header">
-                    <h4 class="memory-title">Speicherbelegung (32 Blöcke à 32 KB = 1024 KB)</h4>
-                    <div class="memory-legend">
+            <!-- Unified Buddy Matrix Card -->
+            <div class="matrix-card">
+                <div class="matrix-card-header">
+                    <div class="matrix-title-wrap">
+                        <h4 class="matrix-title">Buddy-Speichermatrix (32 Kacheln à 32 KB = 1024 KB)</h4>
+                        <span class="matrix-subtitle">
+                            @if (CurrentStepIndex == 0)
+                            {
+                                <span>🏁 Initialzustand: 1024 KB freier Hauptspeicher</span>
+                            }
+                            else if (CurrentStepIndex == maxSteps)
+                            {
+                                <span>🏁 Endzustand: Alle 10 Allokations- &amp; Freigabeschritte ausgeführt</span>
+                            }
+                            else
+                            {
+                                <span>Schrittweise Ausführung: Zeile @CurrentStepIndex von @maxSteps aktiv</span>
+                            }
+                        </span>
+                    </div>
+
+                    <div class="matrix-legend">
                         <span class="legend-chip free">Frei</span>
                         <span class="legend-chip p-blue">A (@buddyData.Requests[0] KB)</span>
                         <span class="legend-chip p-green">B (@buddyData.Requests[1] KB)</span>
@@ -149,79 +166,36 @@
                     </div>
                 </div>
 
-                <!-- 32-Chunk Visual Memory Bar -->
-                <div class="memory-bar-wrapper">
-                    <div class="memory-bar-container">
-                        @for (int c = 0; c < 32; c++)
-                        {
-                            var slot = currentSnapshot[c];
-                            var colorClass = GetSlotColorClass(slot);
-                            var isSlotActive = CurrentStepIndex > 0 && buddyData.StepDetails[CurrentStepIndex - 1].AffectedSlots.Contains(c);
-
-                            <div class="memory-slot @colorClass @(isSlotActive ? "active-slot" : "")"
-                                 title="Kachel @c [@(c * 32) KB – @((c + 1) * 32) KB]: @(slot == "free" ? "Frei" : $"Prozess {slot}")">
-                                <span class="slot-text">@(slot == "free" ? "–" : slot)</span>
-                                <span class="slot-idx">@c</span>
-                            </div>
-                        }
-                    </div>
-
-                    <!-- Memory Scale Ticks -->
-                    <div class="memory-ticks">
-                        <span class="tick tick-0">0 KB</span>
-                        <span class="tick tick-256">256 KB</span>
-                        <span class="tick tick-512">512 KB</span>
-                        <span class="tick tick-768">768 KB</span>
-                        <span class="tick tick-1024">1024 KB</span>
-                    </div>
-                </div>
-
-                <!-- Step Metrics Bar -->
-                <div class="metrics-grid four-up">
-                    <div class="metric-card">
-                        <span class="metric-label">Belegter Speicher</span>
-                        <strong class="metric-val">@((currentSnapshot.Count(s => s != "free") * 32)) KB</strong>
-                        <span class="metric-sub">@currentSnapshot.Count(s => s != "free") von 32 Kacheln</span>
-                    </div>
-
-                    <div class="metric-card">
-                        <span class="metric-label">Freier Speicher</span>
-                        <strong class="metric-val text-success">@((currentSnapshot.Count(s => s == "free") * 32)) KB</strong>
-                        <span class="metric-sub">@currentSnapshot.Count(s => s == "free") von 32 Kacheln</span>
-                    </div>
-
-                    <div class="metric-card">
-                        <span class="metric-label">Aktive Prozesse</span>
-                        <strong class="metric-val text-brand">@currentSnapshot.Where(s => s != "free").Distinct().Count()</strong>
-                        <span class="metric-sub">im RAM residierend</span>
-                    </div>
-
-                    <div class="metric-card">
-                        <span class="metric-label">Freigabereihenfolge</span>
-                        <strong class="metric-val text-amber">@string.Join(" → ", buddyData.ReleaseOrder)</strong>
-                        <span class="metric-sub">Schritte 6 bis 10</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Full History Matrix Table -->
-            <div class="history-matrix-card">
-                <h4 class="history-title">Gesamter Ablauf (10-Schritte Allokations-Matrix)</h4>
-                <div class="history-table-wrapper">
+                <!-- 32-Column Matrix Table -->
+                <div class="matrix-table-wrapper">
                     <table class="buddy-matrix-table">
                         <thead>
-                            <tr>
+                            <tr class="scale-row">
+                                <th class="col-op scale-hdr">Adressbereich</th>
+                                <th colspan="8" class="scale-th">0 – 256 KB</th>
+                                <th colspan="8" class="scale-th">256 – 512 KB</th>
+                                <th colspan="8" class="scale-th">512 – 768 KB</th>
+                                <th colspan="8" class="scale-th">768 – 1024 KB</th>
+                            </tr>
+                            <tr class="header-row">
                                 <th class="col-op">Operation</th>
                                 @for (int c = 0; c < 32; c++)
                                 {
-                                    <th class="col-kachel">@c</th>
+                                    <th class="col-kachel" title="Kachel @c: [@(c * 32) KB – @((c + 1) * 32) KB]">@c</th>
                                 }
                             </tr>
                         </thead>
                         <tbody>
                             <!-- Step 0: Initial -->
-                            <tr class="@(CurrentStepIndex == 0 ? "matrix-row-active" : "")">
-                                <td class="op-cell">Initial (1024 KB)</td>
+                            <tr class="matrix-row @(CurrentStepIndex == 0 ? "matrix-row-active" : "")">
+                                <td class="op-cell">
+                                    <span class="proc-indicator init-tag">Initial</span>
+                                    <span class="op-sub">1024 KB</span>
+                                    @if (CurrentStepIndex == 0)
+                                    {
+                                        <span class="active-arrow">◀</span>
+                                    }
+                                </td>
                                 <td colspan="32" class="initial-bar">1024 KB Frei</td>
                             </tr>
 
@@ -229,26 +203,66 @@
                             {
                                 var stepNum = s + 1;
                                 var isRowActive = CurrentStepIndex == stepNum;
+                                var isFuture = stepNum > CurrentStepIndex;
                                 var op = buddyData.StepDetails[s];
                                 var rowSnap = buddyData.Snapshots[s];
 
-                                <tr class="@(isRowActive ? "matrix-row-active" : "")">
+                                <tr class="matrix-row @(isRowActive ? "matrix-row-active" : "") @(isFuture ? "matrix-row-future" : "")">
                                     <td class="op-cell">
                                         <span class="proc-indicator @GetSlotColorClass(op.ProcessName)">@op.Title</span>
+                                        @if (isRowActive)
+                                        {
+                                            <span class="active-arrow">◀</span>
+                                        }
                                     </td>
                                     @for (int c = 0; c < 32; c++)
                                     {
-                                        var slotVal = rowSnap[c];
-                                        var isAffected = op.AffectedSlots.Contains(c);
+                                        if (isFuture)
+                                        {
+                                            <td class="matrix-cell cell-future">–</td>
+                                        }
+                                        else
+                                        {
+                                            var slotVal = rowSnap[c];
+                                            var isAffected = isRowActive && op.AffectedSlots.Contains(c);
 
-                                        <td class="matrix-cell @GetSlotColorClass(slotVal) @(isAffected ? "affected-cell" : "")">
-                                            @(slotVal == "free" ? "–" : slotVal)
-                                        </td>
+                                            <td class="matrix-cell @GetSlotColorClass(slotVal) @(isAffected ? "affected-cell" : "")"
+                                                title="Kachel @c [@(c * 32) KB – @((c + 1) * 32) KB]: @(slotVal == "free" ? "Frei" : $"Prozess {slotVal}")">
+                                                @(slotVal == "free" ? "–" : slotVal)
+                                            </td>
+                                        }
                                     }
                                 </tr>
                             }
                         </tbody>
                     </table>
+                </div>
+
+                <!-- Step Metrics Bar -->
+                <div class="metrics-grid four-up">
+                    <div class="metric-card">
+                        <span class="metric-label">Belegter Speicher</span>
+                        <strong class="metric-val">@((currentSnapshot.Count(s => s != "free") * 32)) KB</strong>
+                        <span class="metric-sub">@currentSnapshot.Count(s => s != "free") von 32 Kacheln belegt</span>
+                    </div>
+
+                    <div class="metric-card">
+                        <span class="metric-label">Freier Speicher</span>
+                        <strong class="metric-val text-success">@((currentSnapshot.Count(s => s == "free") * 32)) KB</strong>
+                        <span class="metric-sub">@currentSnapshot.Count(s => s == "free") von 32 Kacheln frei</span>
+                    </div>
+
+                    <div class="metric-card">
+                        <span class="metric-label">Aktive Prozesse</span>
+                        <strong class="metric-val text-brand">@currentSnapshot.Where(s => s != "free").Distinct().Count()</strong>
+                        <span class="metric-sub">im Hauptspeicher</span>
+                    </div>
+
+                    <div class="metric-card">
+                        <span class="metric-label">Freigabereihenfolge</span>
+                        <strong class="metric-val text-amber">@string.Join(" → ", buddyData.ReleaseOrder)</strong>
+                        <span class="metric-sub">Schritte 6 bis 10</span>
+                    </div>
                 </div>
             </div>
         }
