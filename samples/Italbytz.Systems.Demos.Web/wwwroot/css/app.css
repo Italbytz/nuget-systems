@@ -562,6 +562,18 @@ html.is-embedded body,
     overflow-x: hidden !important;
 }
 
+html.is-embedded.is-light,
+body.is-embedded.is-light,
+.is-embedded.is-light,
+html.is-embedded.is-light body,
+.is-embedded.is-light #app,
+.is-embedded.is-light .page,
+.is-embedded.is-light main,
+.is-embedded.is-light article.content {
+    background: #ffffff !important;
+    color: #0f172a !important;
+}
+
 .is-embedded .sidebar,
 .is-embedded .hero-panel,
 .is-embedded .page-hero,

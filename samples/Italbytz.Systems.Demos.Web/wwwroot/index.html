@@ -8,10 +8,10 @@
     <base href="/" />
     <meta name="description" content="Interactive Blazor demos for the nuget-systems package family." />
     <link rel="stylesheet" href="lib/bootstrap/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="css/app.css?v=3" />
+    <link rel="stylesheet" href="css/app.css?v=4" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous" />
     <link rel="icon" type="image/png" href="favicon.png" />
-    <link href="Italbytz.Systems.Demos.Web.styles.css?v=3" rel="stylesheet" />
+    <link href="Italbytz.Systems.Demos.Web.styles.css?v=4" rel="stylesheet" />
     <script>
         (function () {
             function checkEmbed() {
@@ -23,6 +23,9 @@
                 } catch (e) {
                     isEmbed = true;
                 }
+                var isLight = window.location.search.indexOf('theme=light') !== -1;
+                var isDark = window.location.search.indexOf('theme=dark') !== -1;
+
                 if (isEmbed) {
                     document.documentElement.classList.add('is-embedded');
                     if (document.body) {
@@ -32,6 +35,22 @@
                     document.documentElement.classList.remove('is-embedded');
                     if (document.body) {
                         document.body.classList.remove('is-embedded');
+                    }
+                }
+
+                if (isLight) {
+                    document.documentElement.classList.add('is-light');
+                    document.documentElement.classList.remove('is-dark');
+                    if (document.body) {
+                        document.body.classList.add('is-light');
+                        document.body.classList.remove('is-dark');
+                    }
+                } else if (isDark) {
+                    document.documentElement.classList.add('is-dark');
+                    document.documentElement.classList.remove('is-light');
+                    if (document.body) {
+                        document.body.classList.add('is-dark');
+                        document.body.classList.remove('is-light');
                     }
                 }
             }

@@ -5,7 +5,7 @@
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 
-<article class="page-replacement-container @(IsEmbed ? "embed-mode" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
+<article class="page-replacement-container @(IsEmbed ? "embed-mode" : "") @ThemeClass @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
     
     @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
     {
@@ -30,6 +30,11 @@
             <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
                     @onclick="() => SetView(ViewMode.Worksheet)">
                 🖨️ Klausur-Arbeitsblatt (Druckansicht)
+            </button>
+            <button class="view-btn theme-toggle-btn"
+                    title="Zwischen Hell- und Dunkelmodus wechseln"
+                    @onclick="ToggleTheme">
+                @(IsDarkEffective ? "☀️ Hell" : "🌙 Dunkel")
             </button>
         </div>
     }
@@ -94,6 +99,9 @@
                     <button class="player-btn primary" title="Nächster Schritt" disabled="@(CurrentStepIndex >= totalRequests)" @onclick="NextStep">▶ Weiter</button>
                     <button class="player-btn" title="Ende" disabled="@(CurrentStepIndex >= totalRequests)" @onclick="GoToEnd">⏭ Ende</button>
                     <button class="player-btn reset" title="Zurücksetzen" @onclick="GoToStart">🔄 Reset</button>
+                    <button class="player-btn theme-toggle-btn" title="Design wechseln (Hell/Dunkel)" @onclick="ToggleTheme">
+                        @(IsDarkEffective ? "☀️ Hell" : "🌙 Dunkel")
+                    </button>
                 </div>
 
                 <div class="player-progress">
@@ -513,6 +521,30 @@
     [Parameter]
     public bool IsEmbed { get; set; } = false;
 
+    public enum VisualizerTheme
+    {
+        Auto,
+        Light,
+        Dark
+    }
+
+    [Parameter]
+    public VisualizerTheme CurrentTheme { get; set; } = VisualizerTheme.Auto;
+
+    private bool IsDarkEffective => CurrentTheme == VisualizerTheme.Dark || (CurrentTheme == VisualizerTheme.Auto && IsEmbed);
+
+    private string ThemeClass => CurrentTheme switch
+    {
+        VisualizerTheme.Dark => "theme-dark",
+        VisualizerTheme.Light => "theme-light",
+        _ => IsEmbed ? "theme-dark" : ""
+    };
+
+    private void ToggleTheme()
+    {
+        CurrentTheme = IsDarkEffective ? VisualizerTheme.Light : VisualizerTheme.Dark;
+    }
+
     private ViewMode ActiveView { get; set; } = ViewMode.Simulator;
     private bool ShowSolution { get; set; } = false;
     private int CurrentStepIndex { get; set; } = 0;
@@ -556,6 +588,13 @@
                 if (key == "embed" && bool.TryParse(val, out var embedBool))
                 {
                     IsEmbed = embedBool;
+                }
+                else if (key == "theme")
+                {
+                    if (val.Equals("dark", StringComparison.OrdinalIgnoreCase))
+                        CurrentTheme = VisualizerTheme.Dark;
+                    else if (val.Equals("light", StringComparison.OrdinalIgnoreCase))
+                        CurrentTheme = VisualizerTheme.Light;
                 }
                 else if (key == "view")
                 {
