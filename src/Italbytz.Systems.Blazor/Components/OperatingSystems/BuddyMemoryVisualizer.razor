@@ -56,10 +56,10 @@
             <!-- Presets Bar -->
             <div class="preset-bar">
                 <span class="preset-label">Beispiele:</span>
-                <button class="preset-btn" @onclick="() => LoadPreset(Preset1Requests, Preset1Release)">Beispiel 1 (120, 64, 200, 32, 90 | B,D,A,E,C)</button>
-                <button class="preset-btn" @onclick="() => LoadPreset(Preset2Requests, Preset2Release)">Beispiel 2 (171, 7, 394, 41, 9 | C,E,D,B,A)</button>
-                <button class="preset-btn" @onclick="() => LoadPreset(Preset3Requests, Preset3Release)">Beispiel 3 (80, 240, 60, 110, 45 | A,C,B,E,D)</button>
-                <button class="preset-btn random" @onclick="GenerateRandomSet">🎲 Zufallswerte</button>
+                <button class="preset-btn" title="120, 64, 200, 32, 90 | B, D, A, E, C" @onclick="() => LoadPreset(Preset1Requests, Preset1Release)">Beispiel 1</button>
+                <button class="preset-btn" title="171, 7, 394, 41, 9 | C, E, D, B, A" @onclick="() => LoadPreset(Preset2Requests, Preset2Release)">Beispiel 2</button>
+                <button class="preset-btn" title="80, 240, 60, 110, 45 | A, C, B, E, D" @onclick="() => LoadPreset(Preset3Requests, Preset3Release)">Beispiel 3</button>
+                <button class="preset-btn random" @onclick="GenerateRandomSet">🎲 Zufall</button>
             </div>
         </div>
 
@@ -82,78 +82,30 @@
 
                 <div class="player-progress">
                     <span class="step-indicator">
-                        @if (CurrentStepIndex == 0)
-                        {
-                            <strong>Schritt 0 / @maxSteps:</strong> <span>Initialzustand (1024 KB freier Speicher)</span>
-                        }
-                        else
-                        {
-                            var stepInfo = buddyData.StepDetails[CurrentStepIndex - 1];
-                            <strong>Schritt @CurrentStepIndex / @maxSteps:</strong> <span>@stepInfo.Title</span>
-                        }
+                        <strong>Schritt @CurrentStepIndex / @maxSteps</strong>
                     </span>
                     <input type="range" min="0" max="@maxSteps" value="@CurrentStepIndex" @oninput="OnSliderChanged" class="step-slider" />
-                </div>
-            </div>
-
-            <!-- Narrator Card -->
-            <div class="narrator-card">
-                <div class="narrator-header">
-                    <div class="step-badge @(CurrentStepIndex == 0 ? "badge-init" : (CurrentStepIndex <= 5 ? "badge-alloc" : "badge-free"))">
-                        @if (CurrentStepIndex == 0)
-                        {
-                            <span>🏁 Initialisierung</span>
-                        }
-                        else if (CurrentStepIndex <= 5)
-                        {
-                            var op = buddyData.StepDetails[CurrentStepIndex - 1];
-                            <span>📥 Allokation: @op.ProcessName</span>
-                        }
-                        else
-                        {
-                            var op = buddyData.StepDetails[CurrentStepIndex - 1];
-                            <span>📤 Freigabe: @op.ProcessName</span>
-                        }
-                    </div>
-                    <div class="narrator-title">
-                        @if (CurrentStepIndex == 0)
-                        {
-                            <span>1024 KB Speicher unsegmentiert verfügbar (32 Kacheln à 32 KB)</span>
-                        }
-                        else
-                        {
-                            var op = buddyData.StepDetails[CurrentStepIndex - 1];
-                            <span>@op.DescriptionHeader</span>
-                        }
-                    </div>
-                </div>
-
-                <div class="narrator-body">
-                    <p class="narrator-text">
-                        @GetBuddyNarratorText(CurrentStepIndex, buddyData)
-                    </p>
                 </div>
             </div>
 
             <!-- Unified Buddy Matrix Card -->
             <div class="matrix-card">
                 <div class="matrix-card-header">
-                    <div class="matrix-title-wrap">
-                        <h4 class="matrix-title">Buddy-Speichermatrix (32 Kacheln à 32 KB = 1024 KB)</h4>
-                        <span class="matrix-subtitle">
-                            @if (CurrentStepIndex == 0)
-                            {
-                                <span>🏁 Initialzustand: 1024 KB freier Hauptspeicher</span>
-                            }
-                            else if (CurrentStepIndex == maxSteps)
-                            {
-                                <span>🏁 Endzustand: Alle 10 Allokations- &amp; Freigabeschritte ausgeführt</span>
-                            }
-                            else
-                            {
-                                <span>Schrittweise Ausführung: Zeile @CurrentStepIndex von @maxSteps aktiv</span>
-                            }
-                        </span>
+                    <div class="step-summary-bar">
+                        @if (CurrentStepIndex == 0)
+                        {
+                            <span class="step-badge badge-init">🏁 Initial</span>
+                            <span class="summary-text">1024 KB freier Hauptspeicher (32 Kacheln à 32 KB)</span>
+                        }
+                        else
+                        {
+                            var op = buddyData.StepDetails[CurrentStepIndex - 1];
+                            var isAlloc = op.OperationType == "Allocate";
+                            <span class="step-badge @(isAlloc ? "badge-alloc" : "badge-free")">
+                                @(isAlloc ? "📥 Allokation" : "📤 Freigabe") @op.ProcessName
+                            </span>
+                            <span class="summary-text">@GetCompactStepSummary(CurrentStepIndex, buddyData)</span>
+                        }
                     </div>
 
                     <div class="matrix-legend">
@@ -721,29 +673,22 @@
             _ => "free"
         };
 
-    private string GetBuddyNarratorText(int stepIndex, ParsedBuddyData data)
+    private static string GetCompactStepSummary(int stepIndex, ParsedBuddyData data)
     {
-        if (stepIndex == 0)
-        {
-            return "Initialzustand: Der gesamte Speicher von 1024 KB ist ungeteilt und frei. 32 Kacheln à 32 KB stehen bereit.";
-        }
+        if (stepIndex == 0) return "1024 KB freier Hauptspeicher (32 Kacheln à 32 KB)";
 
         var op = data.StepDetails[stepIndex - 1];
+        var startKb = op.AffectedSlots.Count > 0 ? op.AffectedSlots.Min() * 32 : 0;
+        var endKb = startKb + op.BlockSize;
+
         if (op.OperationType == "Allocate")
         {
             var frag = op.BlockSize - op.RequestedSize;
-            var numChunks = op.BlockSize / 32;
-            var startKb = op.AffectedSlots.Count > 0 ? op.AffectedSlots.Min() * 32 : 0;
-            var endKb = startKb + op.BlockSize;
-
-            return $"Schritt {stepIndex} (Allokation): Prozess {op.ProcessName} fordert {op.RequestedSize} KB an. Die kleinste passende 2er-Potenz ist {op.BlockSize} KB ({numChunks} Kacheln à 32 KB). Größere freie Blöcke werden rekursiv halbiert (Split), bis ein passender {op.BlockSize} KB Block entsteht. Prozess {op.ProcessName} wird im Adressbereich [{startKb}..{endKb} KB] platziert. Interner Verschnitt: {frag} KB ({((double)frag / op.BlockSize * 100):F1}%).";
+            return $"{op.RequestedSize} KB → Block {op.BlockSize} KB [{startKb}–{endKb} KB] (Verschnitt: {frag} KB)";
         }
         else
         {
-            var startKb = op.AffectedSlots.Count > 0 ? op.AffectedSlots.Min() * 32 : 0;
-            var endKb = startKb + op.BlockSize;
-
-            return $"Schritt {stepIndex} (Freigabe & Merge): Prozess {op.ProcessName} gibt seinen {op.BlockSize} KB Block [{startKb}..{endKb} KB] frei. Ist der zugehörige Nachbar-Partner (Buddy) ebenfalls frei, verschmelzen (coalesce) beide Partner sofort wieder zu einem doppelt so großen zusammenhängenden Block.";
+            return $"Block {op.BlockSize} KB [{startKb}–{endKb} KB] freigegeben & Buddies verschmolzen";
         }
     }
 }
