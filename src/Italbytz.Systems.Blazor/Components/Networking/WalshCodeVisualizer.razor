@@ -1,0 +1,767 @@
+@namespace Italbytz.Systems.Blazor.Components.Networking
+@inject NavigationManager NavigationManager
+
+<article class="walsh-container @(IsEmbed ? "embed-mode" : "") @(Theme == "dark" ? "theme-dark" : (Theme == "light" ? "theme-light" : "")) @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
+
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
+    {
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Rechnernetze &bull; Bitübertragungsschicht (Physical Layer)</p>
+            <h2>CDMA &amp; Walsh-Codes (Code Division Multiple Access)</h2>
+            <p class="feature-intro">
+                Interaktive Simulation von Codemultiplexverfahren: Mehrere Sender übertragen gleichzeitig über denselben Kanal.
+                Durch orthogonale Chip-Sequenzen (Walsh-Codes) decodiert jeder Empfänger störungsfrei exakt sein Signal via Skalarprodukt.
+            </p>
+        </div>
+    }
+
+    <!-- View Switcher -->
+    @if (!IsEmbed)
+    {
+        <div class="view-switch no-print">
+            <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Simulator)">
+                🚀 Interaktiver CDMA-Simulator
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Worksheet)">
+                🖨️ Klausur-Arbeitsblatt (Druckansicht)
+            </button>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- SIMULATOR VIEW                                                            -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Preset Toolbar -->
+        <div class="controls-panel">
+            <div class="presets-row">
+                <span class="preset-label">Vorlesungsbeispiele:</span>
+                <button class="preset-btn @(IsActivePreset(1) ? "active-preset" : "")" @onclick="() => ApplyPreset(1)">
+                    📖 Folie Bsp 1 (A=1, B=1)
+                </button>
+                <button class="preset-btn @(IsActivePreset(2) ? "active-preset" : "")" @onclick="() => ApplyPreset(2)">
+                    📖 Folie Bsp 2 (B=0, D=1)
+                </button>
+                <button class="preset-btn @(IsActivePreset(3) ? "active-preset" : "")" @onclick="() => ApplyPreset(3)">
+                    ⚡ Alle senden 1
+                </button>
+                <button class="preset-btn @(IsActivePreset(4) ? "active-preset" : "")" @onclick="() => ApplyPreset(4)">
+                    🔀 Mix (A=1, B=0, C=1, D=0)
+                </button>
+                <button class="preset-btn" @onclick="RandomizeSenders">
+                    🎲 Zufall
+                </button>
+                <button class="preset-btn reset-btn" @onclick="ResetSenders">
+                    🔄 Alle stumm
+                </button>
+            </div>
+        </div>
+
+        <!-- Sender Matrix Card -->
+        <section class="walsh-card senders-card">
+            <div class="card-header">
+                <div class="header-title">
+                    <span class="badge badge-sender">📡 Sender</span>
+                    <h3>Sender-Konfiguration &amp; Orthogonale Walsh-Codes (8 Chips)</h3>
+                </div>
+                <div class="header-legend">
+                    <span class="legend-item"><span class="chip chip-p">+1</span> = High</span>
+                    <span class="legend-item"><span class="chip chip-m">&minus;1</span> = Low</span>
+                    <span class="legend-hint">Bit 1 &rarr; +1 &bull; Bit 0 &rarr; &minus;1 &bull; Stumm &rarr; 0</span>
+                </div>
+            </div>
+
+            <div class="senders-table-wrapper">
+                <table class="walsh-table">
+                    <thead>
+                        <tr>
+                            <th class="th-sender">Sender</th>
+                            <th class="th-state">Sendestatus / Bit</th>
+                            <th class="th-factor">Faktor $d_i$</th>
+                            <th class="th-chips" colspan="8">Walsh-Code $C_i$ (8 Chips)</th>
+                            <th class="th-signal">Moduliertes Signal $d_i \cdot C_i$</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int i = 0; i < 4; i++)
+                        {
+                            int senderIdx = i;
+                            var s = Senders[senderIdx];
+                            <tr class="sender-row @(s.State != SenderState.Silent ? "row-active" : "row-silent")">
+                                <td class="td-sender">
+                                    <div class="sender-pill sender-pill-@s.Name.ToLower()">
+                                        Sender @s.Name
+                                    </div>
+                                </td>
+                                <td class="td-state">
+                                    <div class="state-selector">
+                                        <button type="button" class="btn-state btn-bit1 @(s.State == SenderState.Bit1 ? "active" : "")"
+                                                @onclick="() => SetSenderState(senderIdx, SenderState.Bit1)"
+                                                title="Sendet Bit 1 (Multiplikator +1)">
+                                            Bit 1
+                                        </button>
+                                        <button type="button" class="btn-state btn-bit0 @(s.State == SenderState.Bit0 ? "active" : "")"
+                                                @onclick="() => SetSenderState(senderIdx, SenderState.Bit0)"
+                                                title="Sendet Bit 0 (Multiplikator -1)">
+                                            Bit 0
+                                        </button>
+                                        <button type="button" class="btn-state btn-silent @(s.State == SenderState.Silent ? "active" : "")"
+                                                @onclick="() => SetSenderState(senderIdx, SenderState.Silent)"
+                                                title="Inaktiv / Sendet nichts (Multiplikator 0)">
+                                            &empty; Stumm
+                                        </button>
+                                    </div>
+                                </td>
+                                <td class="td-factor">
+                                    <span class="factor-badge factor-@GetFactorClass(s.Factor)">
+                                        @(s.Factor > 0 ? $"+{s.Factor}" : $"{s.Factor}")
+                                    </span>
+                                </td>
+                                @for (int c = 0; c < 8; c++)
+                                {
+                                    int val = s.Code[c];
+                                    <td class="td-chip">
+                                        <span class="chip-val @(val > 0 ? "val-pos" : "val-neg")">
+                                            @(val > 0 ? "+1" : "-1")
+                                        </span>
+                                    </td>
+                                }
+                                <td class="td-signal">
+                                    <span class="vector-repr">
+                                        (@string.Join(", ", s.ModulatedSignal))
+                                    </span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Channel Sum Card -->
+        <section class="walsh-card channel-card">
+            <div class="card-header">
+                <div class="header-title">
+                    <span class="badge badge-channel">〰️ Kanal</span>
+                    <h3>Summensignal auf dem Übertragungsmedium $S = \sum d_i \cdot C_i$</h3>
+                </div>
+                <div class="active-summary">
+                    @GetActiveSendersFormula()
+                </div>
+            </div>
+
+            <div class="channel-content">
+                <!-- Channel Vector Chips -->
+                <div class="channel-chips-row">
+                    <span class="channel-label">Summenvektor $S$:</span>
+                    <div class="chips-container">
+                        @for (int j = 0; j < 8; j++)
+                        {
+                            int sumVal = ChannelSum[j];
+                            <div class="sum-chip-slot">
+                                <span class="slot-idx">c<sub>@j</sub></span>
+                                <div class="sum-chip-box val-level-@GetLevelClass(sumVal)">
+                                    @(sumVal > 0 ? $"+{sumVal}" : $"{sumVal}")
+                                </div>
+                            </div>
+                        }
+                    </div>
+                    <span class="channel-vector-str">
+                        $S = (@string.Join(", ", ChannelSum))$
+                    </span>
+                </div>
+
+                <!-- Channel Signal Bar Chart -->
+                <div class="channel-chart-box">
+                    <svg class="channel-svg" viewBox="0 0 800 130" preserveAspectRatio="none">
+                        <!-- Zero Line -->
+                        <line x1="20" y1="65" x2="780" y2="65" class="svg-zero-line" />
+                        <text x="8" y="69" class="svg-axis-label">0</text>
+                        <text x="4" y="22" class="svg-axis-label">+4</text>
+                        <text x="4" y="118" class="svg-axis-label">-4</text>
+
+                        @for (int j = 0; j < 8; j++)
+                        {
+                            int val = ChannelSum[j];
+                            double barWidth = 70;
+                            double x = 40 + j * 92;
+                            double zeroY = 65;
+                            // height range: val from -4 to +4 -> up to 45px height
+                            double barHeight = Math.Abs(val) * 11.25;
+                            double y = val >= 0 ? zeroY - barHeight : zeroY;
+
+                            <!-- Grid vertical divider -->
+                            @if (j > 0)
+                            {
+                                <line x1="@(x - 11)" y1="10" x2="@(x - 11)" y2="120" class="svg-divider-line" />
+                            }
+
+                            <!-- Bar -->
+                            <rect x="@x" y="@y" width="@barWidth" height="@(Math.Max(barHeight, 2))"
+                                  class="svg-bar @(val > 0 ? "bar-pos" : (val < 0 ? "bar-neg" : "bar-zero"))"
+                                  rx="3" />
+
+                            <!-- Value label -->
+                            @((MarkupString)$"<text x=\"{x + barWidth / 2}\" y=\"{(val >= 0 ? y - 6 : y + barHeight + 14)}\" class=\"svg-bar-text {(val > 0 ? "text-pos" : (val < 0 ? "text-neg" : "text-zero"))}\" text-anchor=\"middle\">{(val > 0 ? $"+{val}" : $"{val}")}</text>")
+                            @((MarkupString)$"<text x=\"{x + barWidth / 2}\" y=\"125\" class=\"svg-chip-idx\" text-anchor=\"middle\">c{j}</text>")
+                        }
+                    </svg>
+                </div>
+            </div>
+        </section>
+
+        <!-- Receiver Matrix / Decoding Card -->
+        <section class="walsh-card receiver-card">
+            <div class="card-header">
+                <div class="header-title">
+                    <span class="badge badge-receiver">📥 Empfänger</span>
+                    <h3>Decodierung durch inneres Produkt (Skalarprodukt $S \times C_k$)</h3>
+                </div>
+                <div class="receiver-tabs">
+                    <span class="tabs-label">Fokus-Empfänger:</span>
+                    <button class="tab-btn @(FocusedReceiver == 0 ? "active" : "")" @onclick="() => SetFocusedReceiver(0)">Empfänger A</button>
+                    <button class="tab-btn @(FocusedReceiver == 1 ? "active" : "")" @onclick="() => SetFocusedReceiver(1)">Empfänger B</button>
+                    <button class="tab-btn @(FocusedReceiver == 2 ? "active" : "")" @onclick="() => SetFocusedReceiver(2)">Empfänger C</button>
+                    <button class="tab-btn @(FocusedReceiver == 3 ? "active" : "")" @onclick="() => SetFocusedReceiver(3)">Empfänger D</button>
+                    <button class="tab-btn @(FocusedReceiver == -1 ? "active" : "")" @onclick="() => SetFocusedReceiver(-1)">📊 Alle 4 im Vergleich</button>
+                </div>
+            </div>
+
+            @if (FocusedReceiver >= 0 && FocusedReceiver < 4)
+            {
+                var r = Senders[FocusedReceiver];
+                int sumProd = GetInnerProduct(FocusedReceiver);
+                var prods = GetElementwiseProducts(FocusedReceiver);
+
+                <div class="receiver-detail-panel">
+                    <div class="detail-header-row">
+                        <div class="rx-name-badge rx-pill-@r.Name.ToLower()">
+                            Empfänger liest Sender @r.Name
+                        </div>
+                        <div class="rx-code-info">
+                            Eigenes Walsh-Muster: $C_@r.Name = (@string.Join(", ", r.Code))$
+                        </div>
+                        <div class="rx-result-pill @GetResultPillClass(sumProd)">
+                            Ergebnis: <strong>@GetResultText(sumProd)</strong> (Summe: @sumProd)
+                        </div>
+                    </div>
+
+                    <!-- Step by step table -->
+                    <div class="calculation-table-wrapper">
+                        <table class="calc-table">
+                            <thead>
+                                <tr>
+                                    <th class="th-desc">Vektor</th>
+                                    @for (int j = 0; j < 8; j++)
+                                    {
+                                        <th>c<sub>@j</sub></th>
+                                    }
+                                    <th class="th-sum">Auswertung</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="row-channel-s">
+                                    <td class="td-desc">Kanal $S$</td>
+                                    @for (int j = 0; j < 8; j++)
+                                    {
+                                        int sv = ChannelSum[j];
+                                        <td class="td-calc-val">@(sv > 0 ? $"+{sv}" : $"{sv}")</td>
+                                    }
+                                    <td class="td-eval-info">&mdash;</td>
+                                </tr>
+                                <tr class="row-code-c">
+                                    <td class="td-desc">Code $C_@r.Name$</td>
+                                    @for (int j = 0; j < 8; j++)
+                                    {
+                                        int cv = r.Code[j];
+                                        <td class="td-calc-val @(cv > 0 ? "val-pos" : "val-neg")">@(cv > 0 ? "+1" : "-1")</td>
+                                    }
+                                    <td class="td-eval-info">$\times$ multiplizieren</td>
+                                </tr>
+                                <tr class="row-prod-p">
+                                    <td class="td-desc">Produkt $S_j \cdot C_{@r.Name,j}$</td>
+                                    @for (int j = 0; j < 8; j++)
+                                    {
+                                        int pv = prods[j];
+                                        <td class="td-calc-val td-prod @(pv > 0 ? "prod-pos" : (pv < 0 ? "prod-neg" : "prod-zero"))">
+                                            @(pv > 0 ? $"+{pv}" : $"{pv}")
+                                        </td>
+                                    }
+                                    <td class="td-eval-sum">
+                                        <span class="sum-highlight @GetResultColorClass(sumProd)">
+                                            Summe = @sumProd
+                                        </span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Formula breakdown banner -->
+                    <div class="formula-banner">
+                        <span class="formula-term">$S \times C_@r.Name = (@string.Join(", ", prods))$</span>
+                        <span class="formula-eq">&rarr;</span>
+                        <span class="formula-sum">Summe = @string.Join(" + ", prods.Select(p => p < 0 ? $"({p})" : $"{p}")) = <strong>@sumProd</strong></span>
+                        <span class="formula-eq">&rarr;</span>
+                        <span class="formula-norm">@sumProd / 8 = <strong>@(sumProd / 8)</strong> &rArr; @GetResultInterpretation(sumProd, r.Name)</span>
+                    </div>
+
+                    <!-- Didactic explanation -->
+                    <div class="explanation-box">
+                        <div class="expl-icon">💡</div>
+                        <div class="expl-text">
+                            @GetDidacticExplanation(FocusedReceiver, sumProd)
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <!-- Comparison matrix of all 4 receivers -->
+                <div class="receiver-grid">
+                    @for (int i = 0; i < 4; i++)
+                    {
+                        int rIdx = i;
+                        var r = Senders[rIdx];
+                        int sum = GetInnerProduct(rIdx);
+                        var prods = GetElementwiseProducts(rIdx);
+
+                        <div class="rx-card @(r.State != SenderState.Silent ? "rx-card-active" : "rx-card-silent")">
+                            <div class="rx-card-top">
+                                <span class="rx-pill rx-pill-@r.Name.ToLower()">Empfänger @r.Name</span>
+                                <span class="rx-sender-state">
+                                    Sender sendete: <strong>@GetSenderStateLabel(r.State)</strong>
+                                </span>
+                            </div>
+
+                            <div class="rx-calc-mini">
+                                <div class="mini-prod-row">
+                                    $S \times C_@r.Name = (@string.Join(", ", prods))$
+                                </div>
+                                <div class="mini-sum-row">
+                                    Summe: <strong class="@GetResultColorClass(sum)">@(sum > 0 ? $"+{sum}" : $"{sum}")</strong>
+                                    &bull; Normiert: <strong>@(sum / 8)</strong>
+                                </div>
+                            </div>
+
+                            <div class="rx-verdict @GetResultPillClass(sum)">
+                                Decodiert: <strong>@GetResultText(sum)</strong>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </section>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- WORKSHEET VIEW (PRINT / EXAM PREPARATION)                                -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Worksheet)
+    {
+        <div class="worksheet-paper">
+            <div class="exam-header">
+                <div class="exam-title-block">
+                    <span class="exam-course">Rechnernetze &bull; Klausur-Übungsaufgabe</span>
+                    <h3 class="exam-main-title">Aufgabe: Codemultiplexverfahren (CDMA) mit Walsh-Codes</h3>
+                </div>
+                <div class="student-info-strip">
+                    <div class="info-field"><span class="info-label">Name:</span> <span class="info-line"></span></div>
+                    <div class="info-field"><span class="info-label">Matrikelnr.:</span> <span class="info-line"></span></div>
+                    <div class="info-field"><span class="info-label">Datum:</span> <span class="info-line"></span></div>
+                    <div class="points-box">Punkte: &nbsp;&nbsp;&nbsp;&nbsp; / 10</div>
+                </div>
+            </div>
+
+            <div class="task-prompt-box">
+                <p class="task-text">
+                    In einem Funkübertragungskanal nutzen die vier Sender $A, B, C$ und $D$ ein Codemultiplexverfahren (CDMA)
+                    mit orthogonalen 8-Chip-Walsh-Codes:
+                </p>
+                <div class="ws-codes-table">
+                    <table class="ws-table">
+                        <tr><td><strong>Sender A:</strong></td><td>$(-1, -1, -1,  1,  1, -1,  1,  1)$</td></tr>
+                        <tr><td><strong>Sender B:</strong></td><td>$(-1, -1,  1, -1,  1,  1,  1, -1)$</td></tr>
+                        <tr><td><strong>Sender C:</strong></td><td>$(-1,  1, -1,  1,  1,  1, -1, -1)$</td></tr>
+                        <tr><td><strong>Sender D:</strong></td><td>$(-1,  1, -1, -1, -1, -1,  1, -1)$</td></tr>
+                    </table>
+                </div>
+                <p class="task-text">
+                    Bit 1 wird durch den Faktor $+1$, Bit 0 durch den Faktor $-1$ und Inaktivität durch $0$ repräsentiert.
+                </p>
+            </div>
+
+            <div class="worksheet-subtask">
+                <h4>Teilaufgabe a) Summensignal berechnen (4 Punkte)</h4>
+                <p>
+                    Sender <strong>A</strong> sendet eine <strong>1</strong>, Sender <strong>B</strong> sendet eine <strong>1</strong>.
+                    Die Sender <strong>C</strong> und <strong>D</strong> senden nichts (stumm).
+                    Berechnen Sie das resultierende Summensignal $S$ auf dem Übertragungskanal.
+                </p>
+                <div class="solution-grid-blank">
+                    <p class="ws-ans-label">Rechnung $S = A + B$:</p>
+                    <div class="ws-blank-line"></div>
+                    <div class="ws-blank-line"></div>
+                </div>
+            </div>
+
+            <div class="worksheet-subtask">
+                <h4>Teilaufgabe b) Signaldecodierung beim Empfänger (6 Punkte)</h4>
+                <p>
+                    Der Empfänger empfängt das Summensignal $S$. Zeigen Sie durch komponentenweises Skalarprodukt,
+                    wie der Empfänger das Signal von <strong>Sender A</strong> und das Signal von <strong>Sender C</strong> decodiert.
+                </p>
+                <div class="solution-grid-blank">
+                    <p class="ws-ans-label">1. Empfänger decodiert Sender A ($S \times C_A$):</p>
+                    <div class="ws-blank-line"></div>
+                    <p class="ws-ans-label">2. Empfänger decodiert Sender C ($S \times C_C$):</p>
+                    <div class="ws-blank-line"></div>
+                </div>
+            </div>
+
+            <!-- Musterlösung Toggle -->
+            <div class="no-print ws-actions">
+                <button class="btn-toggle-sol" @onclick="() => ShowWorksheetSolution = !ShowWorksheetSolution">
+                    @(ShowWorksheetSolution ? "🙈 Musterlösung ausblenden" : "👁️ Musterlösung anzeigen")
+                </button>
+            </div>
+
+            @if (ShowWorksheetSolution)
+            {
+                <div class="worksheet-solution-block no-print">
+                    <h4>Musterlösung:</h4>
+                    <p><strong>Zu a):</strong> $S = A + B = (-1,-1,-1,1,1,-1,1,1) + (-1,-1,1,-1,1,1,1,-1) = \mathbf{(-2, -2, 0, 0, 2, 0, 2, 0)}$</p>
+                    <p><strong>Zu b) für A:</strong> $S \times C_A = (-2,-2,0,0,2,0,2,0) \times (-1,-1,-1,1,1,-1,1,1) = (2, 2, 0, 0, 2, 0, 2, 2) \to \text{Summe} = \mathbf{8}$. Normierung $8 / 8 = +1 \implies \mathbf{Bit\ 1}$.</p>
+                    <p><strong>Zu b) für C:</strong> $S \times C_C = (-2,-2,0,0,2,0,2,0) \times (-1,1,-1,1,1,1,-1,-1) = (2, -2, 0, 0, 2, 0, -2, 0) \to \text{Summe} = \mathbf{0}$. Normierung $0 / 8 = 0 \implies \mathbf{Kein\ Signal\ (Sender\ inaktiv)}$.</p>
+                </div>
+            }
+        </div>
+    }
+
+</article>
+
+@code {
+    public enum ViewMode { Simulator, Worksheet }
+    public enum SenderState { Bit1, Bit0, Silent }
+
+    public class SenderModel
+    {
+        public string Name { get; set; } = "";
+        public int[] Code { get; set; } = new int[8];
+        public SenderState State { get; set; } = SenderState.Silent;
+
+        public int Factor => State switch
+        {
+            SenderState.Bit1 => 1,
+            SenderState.Bit0 => -1,
+            _ => 0
+        };
+
+        public int[] ModulatedSignal => Code.Select(c => c * Factor).ToArray();
+    }
+
+    [Parameter] public bool IsEmbed { get; set; }
+    [Parameter] public string? Theme { get; set; }
+    [Parameter] public int Preset { get; set; }
+
+    private ViewMode ActiveView { get; set; } = ViewMode.Simulator;
+    private int FocusedReceiver { get; set; } = 0; // 0=A, 1=B, 2=C, 3=D, -1=All
+    private bool ShowWorksheetSolution { get; set; } = false;
+
+    private List<SenderModel> Senders { get; set; } = new();
+
+    private int[] ChannelSum
+    {
+        get
+        {
+            var sum = new int[8];
+            foreach (var s in Senders)
+            {
+                var mod = s.ModulatedSignal;
+                for (int j = 0; j < 8; j++)
+                {
+                    sum[j] += mod[j];
+                }
+            }
+            return sum;
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        InitializeSenders();
+        ReadQueryParameters();
+    }
+
+    private void InitializeSenders()
+    {
+        // Exact 8-chip Walsh codes from lecture slides
+        Senders = new List<SenderModel>
+        {
+            new SenderModel { Name = "A", Code = new[] { -1, -1, -1,  1,  1, -1,  1,  1 }, State = SenderState.Bit1 },
+            new SenderModel { Name = "B", Code = new[] { -1, -1,  1, -1,  1,  1,  1, -1 }, State = SenderState.Bit1 },
+            new SenderModel { Name = "C", Code = new[] { -1,  1, -1,  1,  1,  1, -1, -1 }, State = SenderState.Silent },
+            new SenderModel { Name = "D", Code = new[] { -1,  1, -1, -1, -1, -1,  1, -1 }, State = SenderState.Silent }
+        };
+    }
+
+    private void ReadQueryParameters()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+
+            if (query["embed"] != null || query["embedded"] != null)
+            {
+                var val = query["embed"] ?? query["embedded"];
+                IsEmbed = val?.ToLowerInvariant() == "true" || val == "1" || string.IsNullOrEmpty(val);
+            }
+
+            if (!string.IsNullOrEmpty(query["theme"]))
+            {
+                Theme = query["theme"]?.ToLowerInvariant();
+            }
+
+            if (int.TryParse(query["preset"], out int p) && p >= 1 && p <= 4)
+            {
+                ApplyPreset(p);
+            }
+            else if (query["preset"] == null)
+            {
+                // Parse individual senders if provided: ?a=1&b=0&c=silent&d=1
+                ParseSenderStateFromQuery("a", 0, query);
+                ParseSenderStateFromQuery("b", 1, query);
+                ParseSenderStateFromQuery("c", 2, query);
+                ParseSenderStateFromQuery("d", 3, query);
+            }
+
+            if (int.TryParse(query["rx"], out int rx) && rx >= -1 && rx <= 3)
+            {
+                FocusedReceiver = rx;
+            }
+        }
+        catch
+        {
+            // Fallback to default
+        }
+    }
+
+    private void ParseSenderStateFromQuery(string key, int senderIdx, System.Collections.Specialized.NameValueCollection query)
+    {
+        var val = query[key]?.ToLowerInvariant();
+        if (val == null) return;
+        if (val == "1" || val == "bit1" || val == "true") Senders[senderIdx].State = SenderState.Bit1;
+        else if (val == "0" || val == "bit0" || val == "false" || val == "-1") Senders[senderIdx].State = SenderState.Bit0;
+        else if (val == "silent" || val == "none" || val == "empty" || val == "stumm") Senders[senderIdx].State = SenderState.Silent;
+    }
+
+    private void SetView(ViewMode mode) => ActiveView = mode;
+
+    private void SetSenderState(int idx, SenderState state)
+    {
+        Senders[idx].State = state;
+    }
+
+    private void SetFocusedReceiver(int rx)
+    {
+        FocusedReceiver = rx;
+    }
+
+    private void ApplyPreset(int presetNum)
+    {
+        switch (presetNum)
+        {
+            case 1:
+                // Folie Bsp 1: A=1, B=1, C=silent, D=silent
+                Senders[0].State = SenderState.Bit1;
+                Senders[1].State = SenderState.Bit1;
+                Senders[2].State = SenderState.Silent;
+                Senders[3].State = SenderState.Silent;
+                FocusedReceiver = 0;
+                break;
+            case 2:
+                // Folie Bsp 2: A=silent, B=0, C=silent, D=1
+                Senders[0].State = SenderState.Silent;
+                Senders[1].State = SenderState.Bit0;
+                Senders[2].State = SenderState.Silent;
+                Senders[3].State = SenderState.Bit1;
+                FocusedReceiver = 1;
+                break;
+            case 3:
+                // All send 1
+                Senders[0].State = SenderState.Bit1;
+                Senders[1].State = SenderState.Bit1;
+                Senders[2].State = SenderState.Bit1;
+                Senders[3].State = SenderState.Bit1;
+                FocusedReceiver = -1;
+                break;
+            case 4:
+                // Mixed
+                Senders[0].State = SenderState.Bit1;
+                Senders[1].State = SenderState.Bit0;
+                Senders[2].State = SenderState.Bit1;
+                Senders[3].State = SenderState.Bit0;
+                FocusedReceiver = -1;
+                break;
+        }
+    }
+
+    private bool IsActivePreset(int presetNum)
+    {
+        return presetNum switch
+        {
+            1 => Senders[0].State == SenderState.Bit1 && Senders[1].State == SenderState.Bit1 &&
+                 Senders[2].State == SenderState.Silent && Senders[3].State == SenderState.Silent,
+            2 => Senders[0].State == SenderState.Silent && Senders[1].State == SenderState.Bit0 &&
+                 Senders[2].State == SenderState.Silent && Senders[3].State == SenderState.Bit1,
+            3 => Senders.All(s => s.State == SenderState.Bit1),
+            4 => Senders[0].State == SenderState.Bit1 && Senders[1].State == SenderState.Bit0 &&
+                 Senders[2].State == SenderState.Bit1 && Senders[3].State == SenderState.Bit0,
+            _ => false
+        };
+    }
+
+    private void RandomizeSenders()
+    {
+        var rand = new Random();
+        foreach (var s in Senders)
+        {
+            int r = rand.Next(3);
+            s.State = r switch
+            {
+                0 => SenderState.Bit1,
+                1 => SenderState.Bit0,
+                _ => SenderState.Silent
+            };
+        }
+    }
+
+    private void ResetSenders()
+    {
+        foreach (var s in Senders)
+        {
+            s.State = SenderState.Silent;
+        }
+    }
+
+    private int GetInnerProduct(int senderIdx)
+    {
+        var code = Senders[senderIdx].Code;
+        var sum = ChannelSum;
+        int prodSum = 0;
+        for (int j = 0; j < 8; j++)
+        {
+            prodSum += sum[j] * code[j];
+        }
+        return prodSum;
+    }
+
+    private int[] GetElementwiseProducts(int senderIdx)
+    {
+        var code = Senders[senderIdx].Code;
+        var sum = ChannelSum;
+        var res = new int[8];
+        for (int j = 0; j < 8; j++)
+        {
+            res[j] = sum[j] * code[j];
+        }
+        return res;
+    }
+
+    private string GetActiveSendersFormula()
+    {
+        var active = Senders.Where(s => s.State != SenderState.Silent).ToList();
+        if (!active.Any()) return "Kein Sender aktiv &rarr; Kanal = (0, 0, 0, 0, 0, 0, 0, 0)";
+
+        var parts = active.Select(s => s.State == SenderState.Bit1 ? s.Name : $"-{s.Name}");
+        return $"$S = {string.Join(" + ", parts)}$";
+    }
+
+    private string GetFactorClass(int factor)
+    {
+        if (factor > 0) return "pos";
+        if (factor < 0) return "neg";
+        return "zero";
+    }
+
+    private string GetLevelClass(int val)
+    {
+        if (val > 0) return $"p{Math.Min(val, 4)}";
+        if (val < 0) return $"m{Math.Min(Math.Abs(val), 4)}";
+        return "0";
+    }
+
+    private string GetSenderStateLabel(SenderState st)
+    {
+        return st switch
+        {
+            SenderState.Bit1 => "Bit 1 (+1)",
+            SenderState.Bit0 => "Bit 0 (-1)",
+            _ => "Stumm (0)"
+        };
+    }
+
+    private string GetResultText(int sum)
+    {
+        if (sum == 8) return "Bit 1";
+        if (sum == -8) return "Bit 0";
+        if (sum == 0) return "Stumm (inaktiv)";
+        return $"Ungültig ({sum})";
+    }
+
+    private string GetResultPillClass(int sum)
+    {
+        if (sum == 8) return "pill-bit1";
+        if (sum == -8) return "pill-bit0";
+        if (sum == 0) return "pill-silent";
+        return "pill-invalid";
+    }
+
+    private string GetResultColorClass(int sum)
+    {
+        if (sum == 8) return "text-bit1";
+        if (sum == -8) return "text-bit0";
+        if (sum == 0) return "text-silent";
+        return "text-invalid";
+    }
+
+    private string GetResultInterpretation(int sum, string name)
+    {
+        if (sum == 8) return $"Empfänger {name} empfängt Bit 1";
+        if (sum == -8) return $"Empfänger {name} empfängt Bit 0";
+        if (sum == 0) return $"Empfänger {name} stellt fest: Sender {name} hat nicht gesendet";
+        return $"Kanalrauschen / Fehlerhafte Decodierung ({sum})";
+    }
+
+    private string GetDidacticExplanation(int rxIdx, int sum)
+    {
+        var target = Senders[rxIdx];
+        var otherActive = Senders.Where((s, idx) => idx != rxIdx && s.State != SenderState.Silent).ToList();
+
+        if (target.State == SenderState.Silent && !otherActive.Any())
+        {
+            return "Aktuell sendet kein Teilnehmer auf dem Übertragungsmedium. Das Summensignal ist 0, die Decodierung ergibt 0.";
+        }
+
+        if (target.State == SenderState.Silent && otherActive.Any())
+        {
+            var names = string.Join(", ", otherActive.Select(s => $"Sender {s.Name}"));
+            return $"Obwohl {names} aktiv senden, ergibt das Skalarprodukt $S \\times C_{target.Name}$ exakt 0! " +
+                   $"Grund: Der Walsh-Code von {target.Name} ist paarweise orthogonal zu allen anderen Codes. Die Fremdsignale heben sich bei der Summation vollständig auf.";
+        }
+
+        if (target.State != SenderState.Silent && !otherActive.Any())
+        {
+            return $"Sender {target.Name} sendet als einziger Teilnehmer ({GetSenderStateLabel(target.State)}). " +
+                   $"Das Skalarprodukt mit sich selbst ergibt $C_{target.Name} \\times C_{target.Name} = 8$ (bzw. $-8$). Normiert durch 8 ergibt sich exakt das gesendete Bit.";
+        }
+
+        var otherNames = string.Join(", ", otherActive.Select(s => $"Sender {s.Name}"));
+        return $"Sender {target.Name} sendet gleichzeitig mit {otherNames}. Durch die Vektorzerlegung $S = d_{target.Name} C_{target.Name} + \\sum_{{i \\neq {target.Name}}} d_i C_i$ " +
+               $"wird beim Skalarprodukt mit $C_{target.Name}$ der Anteil von {target.Name} zu $d_{target.Name} \\cdot 8$ verstärkt, während alle Terme der fremden Sender durch Orthogonalität exakt 0 ergeben!";
+    }
+}
