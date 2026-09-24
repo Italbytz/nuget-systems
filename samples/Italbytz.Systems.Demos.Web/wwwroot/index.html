@@ -57,6 +57,25 @@
             checkEmbed();
             document.addEventListener('DOMContentLoaded', checkEmbed);
             window.addEventListener('popstate', checkEmbed);
+
+            window.addEventListener('keydown', function(e) {
+                if (window.self !== window.top) {
+                    var active = document.activeElement;
+                    var isTextInput = active && (active.tagName === 'TEXTAREA' || (active.tagName === 'INPUT' && !['checkbox', 'radio', 'range', 'button', 'submit'].includes(active.type)));
+                    if (isTextInput) return;
+                    if (['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Space'].includes(e.code) ||
+                        ['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', ' '].includes(e.key)) {
+                        try {
+                            window.parent.postMessage({
+                                type: 'reveal:key',
+                                code: e.code,
+                                key: e.key,
+                                keyCode: e.keyCode
+                            }, '*');
+                        } catch(ex) {}
+                    }
+                }
+            });
         })();
     </script>
     <style media="print">
