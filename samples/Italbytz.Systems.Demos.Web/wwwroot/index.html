@@ -131,19 +131,41 @@
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
     <script>
+        var isRenderingMath = false;
+        var mathTimeout = null;
         window.renderMath = function () {
+            if (isRenderingMath) return;
             if (window.renderMathInElement) {
-                renderMathInElement(document.body, {
-                    delimiters: [
-                        { left: '$$', right: '$$', display: true },
-                        { left: '$', right: '$', display: false }
-                    ],
-                    throwOnError: false
-                });
+                isRenderingMath = true;
+                try {
+                    renderMathInElement(document.body, {
+                        delimiters: [
+                            { left: '$$', right: '$$', display: true },
+                            { left: '$', right: '$', display: false }
+                        ],
+                        ignoredClasses: ['katex', 'katex-html', 'katex-mathml', 'no-mathjax'],
+                        throwOnError: false
+                    });
+                } finally {
+                    setTimeout(function() { isRenderingMath = false; }, 100);
+                }
             }
         };
-        var mathObserver = new MutationObserver(function () {
-            window.renderMath();
+        var mathObserver = new MutationObserver(function (mutations) {
+            if (isRenderingMath) return;
+            var hasRelevantMutation = false;
+            for (var i = 0; i < mutations.length; i++) {
+                var m = mutations[i];
+                if (m.target && m.target.closest && m.target.closest('.katex')) continue;
+                hasRelevantMutation = true;
+                break;
+            }
+            if (!hasRelevantMutation) return;
+
+            if (mathTimeout) clearTimeout(mathTimeout);
+            mathTimeout = setTimeout(function () {
+                window.renderMath();
+            }, 200);
         });
         document.addEventListener('DOMContentLoaded', function () {
             mathObserver.observe(document.body, { childList: true, subtree: true });

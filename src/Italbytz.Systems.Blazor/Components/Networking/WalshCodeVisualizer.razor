@@ -80,9 +80,9 @@
                         <tr>
                             <th class="th-sender">Sender</th>
                             <th class="th-state">Sendestatus / Bit</th>
-                            <th class="th-factor">Faktor $d_i$</th>
-                            <th class="th-chips" colspan="8">Walsh-Code $C_i$ (8 Chips)</th>
-                            <th class="th-signal">Moduliertes Signal $d_i \cdot C_i$</th>
+                            <th class="th-factor">Faktor <i>d<sub>i</sub></i></th>
+                            <th class="th-chips" colspan="8">Walsh-Code <i>C<sub>i</sub></i> (8 Chips)</th>
+                            <th class="th-signal">Moduliertes Signal <i>d<sub>i</sub> &bull; C<sub>i</sub></i></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -146,17 +146,17 @@
             <div class="card-header">
                 <div class="header-title">
                     <span class="badge badge-channel">〰️ Kanal</span>
-                    <h3>Summensignal auf dem Übertragungsmedium $S = \sum d_i \cdot C_i$</h3>
+                    <h3>Summensignal auf dem Übertragungsmedium <i>S</i> = &sum; <i>d<sub>i</sub> &bull; C<sub>i</sub></i></h3>
                 </div>
                 <div class="active-summary">
-                    @GetActiveSendersFormula()
+                    @((MarkupString)GetActiveSendersFormula())
                 </div>
             </div>
 
             <div class="channel-content">
                 <!-- Channel Vector Chips -->
                 <div class="channel-chips-row">
-                    <span class="channel-label">Summenvektor $S$:</span>
+                    <span class="channel-label">Summenvektor <i>S</i>:</span>
                     <div class="chips-container">
                         @for (int j = 0; j < 8; j++)
                         {
@@ -170,7 +170,7 @@
                         }
                     </div>
                     <span class="channel-vector-str">
-                        $S = (@string.Join(", ", ChannelSum))$
+                        <i>S</i> = (@string.Join(", ", ChannelSum))
                     </span>
                 </div>
 
@@ -218,7 +218,7 @@
             <div class="card-header">
                 <div class="header-title">
                     <span class="badge badge-receiver">📥 Empfänger</span>
-                    <h3>Decodierung durch inneres Produkt (Skalarprodukt $S \times C_k$)</h3>
+                    <h3>Decodierung durch inneres Produkt (Skalarprodukt <i>S</i> &times; <i>C<sub>k</sub></i>)</h3>
                 </div>
                 <div class="receiver-tabs">
                     <span class="tabs-label">Fokus-Empfänger:</span>
@@ -242,7 +242,7 @@
                             Empfänger liest Sender @r.Name
                         </div>
                         <div class="rx-code-info">
-                            Eigenes Walsh-Muster: $C_@r.Name = (@string.Join(", ", r.Code))$
+                            Eigenes Walsh-Muster: <i>C<sub>@r.Name</sub></i> = (@string.Join(", ", r.Code))
                         </div>
                         <div class="rx-result-pill @GetResultPillClass(sumProd)">
                             Ergebnis: <strong>@GetResultText(sumProd)</strong> (Summe: @sumProd)
@@ -264,7 +264,7 @@
                             </thead>
                             <tbody>
                                 <tr class="row-channel-s">
-                                    <td class="td-desc">Kanal $S$</td>
+                                    <td class="td-desc">Kanal <i>S</i></td>
                                     @for (int j = 0; j < 8; j++)
                                     {
                                         int sv = ChannelSum[j];
@@ -273,16 +273,16 @@
                                     <td class="td-eval-info">&mdash;</td>
                                 </tr>
                                 <tr class="row-code-c">
-                                    <td class="td-desc">Code $C_@r.Name$</td>
+                                    <td class="td-desc">Code <i>C<sub>@r.Name</sub></i></td>
                                     @for (int j = 0; j < 8; j++)
                                     {
                                         int cv = r.Code[j];
                                         <td class="td-calc-val @(cv > 0 ? "val-pos" : "val-neg")">@(cv > 0 ? "+1" : "-1")</td>
                                     }
-                                    <td class="td-eval-info">$\times$ multiplizieren</td>
+                                    <td class="td-eval-info">&times; multiplizieren</td>
                                 </tr>
                                 <tr class="row-prod-p">
-                                    <td class="td-desc">Produkt $S_j \cdot C_{@r.Name,j}$</td>
+                                    <td class="td-desc">Produkt <i>S<sub>j</sub> &bull; C<sub>@r.Name,j</sub></i></td>
                                     @for (int j = 0; j < 8; j++)
                                     {
                                         int pv = prods[j];
@@ -302,7 +302,7 @@
 
                     <!-- Formula breakdown banner -->
                     <div class="formula-banner">
-                        <span class="formula-term">$S \times C_@r.Name = (@string.Join(", ", prods))$</span>
+                        <span class="formula-term"><i>S</i> &times; <i>C<sub>@r.Name</sub></i> = (@string.Join(", ", prods))</span>
                         <span class="formula-eq">&rarr;</span>
                         <span class="formula-sum">Summe = @string.Join(" + ", prods.Select(p => p < 0 ? $"({p})" : $"{p}")) = <strong>@sumProd</strong></span>
                         <span class="formula-eq">&rarr;</span>
@@ -313,7 +313,7 @@
                     <div class="explanation-box">
                         <div class="expl-icon">💡</div>
                         <div class="expl-text">
-                            @GetDidacticExplanation(FocusedReceiver, sumProd)
+                            @((MarkupString)GetDidacticExplanation(FocusedReceiver, sumProd))
                         </div>
                     </div>
                 </div>
@@ -339,7 +339,7 @@
 
                             <div class="rx-calc-mini">
                                 <div class="mini-prod-row">
-                                    $S \times C_@r.Name = (@string.Join(", ", prods))$
+                                    <i>S</i> &times; <i>C<sub>@r.Name</sub></i> = (@string.Join(", ", prods))
                                 </div>
                                 <div class="mini-sum-row">
                                     Summe: <strong class="@GetResultColorClass(sum)">@(sum > 0 ? $"+{sum}" : $"{sum}")</strong>
@@ -378,19 +378,19 @@
 
             <div class="task-prompt-box">
                 <p class="task-text">
-                    In einem Funkübertragungskanal nutzen die vier Sender $A, B, C$ und $D$ ein Codemultiplexverfahren (CDMA)
+                    In einem Funkübertragungskanal nutzen die vier Sender <i>A, B, C</i> und <i>D</i> ein Codemultiplexverfahren (CDMA)
                     mit orthogonalen 8-Chip-Walsh-Codes:
                 </p>
                 <div class="ws-codes-table">
                     <table class="ws-table">
-                        <tr><td><strong>Sender A:</strong></td><td>$(-1, -1, -1,  1,  1, -1,  1,  1)$</td></tr>
-                        <tr><td><strong>Sender B:</strong></td><td>$(-1, -1,  1, -1,  1,  1,  1, -1)$</td></tr>
-                        <tr><td><strong>Sender C:</strong></td><td>$(-1,  1, -1,  1,  1,  1, -1, -1)$</td></tr>
-                        <tr><td><strong>Sender D:</strong></td><td>$(-1,  1, -1, -1, -1, -1,  1, -1)$</td></tr>
+                        <tr><td><strong>Sender A:</strong></td><td>(&minus;1, &minus;1, &minus;1,  1,  1, &minus;1,  1,  1)</td></tr>
+                        <tr><td><strong>Sender B:</strong></td><td>(&minus;1, &minus;1,  1, &minus;1,  1,  1,  1, &minus;1)</td></tr>
+                        <tr><td><strong>Sender C:</strong></td><td>(&minus;1,  1, &minus;1,  1,  1,  1, &minus;1, &minus;1)</td></tr>
+                        <tr><td><strong>Sender D:</strong></td><td>(&minus;1,  1, &minus;1, &minus;1, &minus;1, &minus;1,  1, &minus;1)</td></tr>
                     </table>
                 </div>
                 <p class="task-text">
-                    Bit 1 wird durch den Faktor $+1$, Bit 0 durch den Faktor $-1$ und Inaktivität durch $0$ repräsentiert.
+                    Bit 1 wird durch den Faktor +1, Bit 0 durch den Faktor &minus;1 und Inaktivität durch 0 repräsentiert.
                 </p>
             </div>
 
@@ -399,10 +399,10 @@
                 <p>
                     Sender <strong>A</strong> sendet eine <strong>1</strong>, Sender <strong>B</strong> sendet eine <strong>1</strong>.
                     Die Sender <strong>C</strong> und <strong>D</strong> senden nichts (stumm).
-                    Berechnen Sie das resultierende Summensignal $S$ auf dem Übertragungskanal.
+                    Berechnen Sie das resultierende Summensignal <i>S</i> auf dem Übertragungskanal.
                 </p>
                 <div class="solution-grid-blank">
-                    <p class="ws-ans-label">Rechnung $S = A + B$:</p>
+                    <p class="ws-ans-label">Rechnung <i>S = A + B</i>:</p>
                     <div class="ws-blank-line"></div>
                     <div class="ws-blank-line"></div>
                 </div>
@@ -411,13 +411,13 @@
             <div class="worksheet-subtask">
                 <h4>Teilaufgabe b) Signaldecodierung beim Empfänger (6 Punkte)</h4>
                 <p>
-                    Der Empfänger empfängt das Summensignal $S$. Zeigen Sie durch komponentenweises Skalarprodukt,
+                    Der Empfänger empfängt das Summensignal <i>S</i>. Zeigen Sie durch komponentenweises Skalarprodukt,
                     wie der Empfänger das Signal von <strong>Sender A</strong> und das Signal von <strong>Sender C</strong> decodiert.
                 </p>
                 <div class="solution-grid-blank">
-                    <p class="ws-ans-label">1. Empfänger decodiert Sender A ($S \times C_A$):</p>
+                    <p class="ws-ans-label">1. Empfänger decodiert Sender A (<i>S</i> &times; <i>C<sub>A</sub></i>):</p>
                     <div class="ws-blank-line"></div>
-                    <p class="ws-ans-label">2. Empfänger decodiert Sender C ($S \times C_C$):</p>
+                    <p class="ws-ans-label">2. Empfänger decodiert Sender C (<i>S</i> &times; <i>C<sub>C</sub></i>):</p>
                     <div class="ws-blank-line"></div>
                 </div>
             </div>
@@ -433,9 +433,9 @@
             {
                 <div class="worksheet-solution-block no-print">
                     <h4>Musterlösung:</h4>
-                    <p><strong>Zu a):</strong> $S = A + B = (-1,-1,-1,1,1,-1,1,1) + (-1,-1,1,-1,1,1,1,-1) = \mathbf{(-2, -2, 0, 0, 2, 0, 2, 0)}$</p>
-                    <p><strong>Zu b) für A:</strong> $S \times C_A = (-2,-2,0,0,2,0,2,0) \times (-1,-1,-1,1,1,-1,1,1) = (2, 2, 0, 0, 2, 0, 2, 2) \to \text{Summe} = \mathbf{8}$. Normierung $8 / 8 = +1 \implies \mathbf{Bit\ 1}$.</p>
-                    <p><strong>Zu b) für C:</strong> $S \times C_C = (-2,-2,0,0,2,0,2,0) \times (-1,1,-1,1,1,1,-1,-1) = (2, -2, 0, 0, 2, 0, -2, 0) \to \text{Summe} = \mathbf{0}$. Normierung $0 / 8 = 0 \implies \mathbf{Kein\ Signal\ (Sender\ inaktiv)}$.</p>
+                    <p><strong>Zu a):</strong> <i>S = A + B</i> = (&minus;1,&minus;1,&minus;1,1,1,&minus;1,1,1) + (&minus;1,&minus;1,1,&minus;1,1,1,1,&minus;1) = <strong>(&minus;2, &minus;2, 0, 0, 2, 0, 2, 0)</strong></p>
+                    <p><strong>Zu b) für A:</strong> <i>S</i> &times; <i>C<sub>A</sub></i> = (&minus;2,&minus;2,0,0,2,0,2,0) &times; (&minus;1,&minus;1,&minus;1,1,1,&minus;1,1,1) = (2, 2, 0, 0, 2, 0, 2, 2) &rarr; Summe = <strong>8</strong>. Normierung 8 / 8 = +1 &rArr; <strong>Bit 1</strong>.</p>
+                    <p><strong>Zu b) für C:</strong> <i>S</i> &times; <i>C<sub>C</sub></i> = (&minus;2,&minus;2,0,0,2,0,2,0) &times; (&minus;1,1,&minus;1,1,1,1,&minus;1,&minus;1) = (2, &minus;2, 0, 0, 2, 0, &minus;2, 0) &rarr; Summe = <strong>0</strong>. Normierung 0 / 8 = 0 &rArr; <strong>Kein Signal (Sender inaktiv)</strong>.</p>
                 </div>
             }
         </div>
@@ -677,8 +677,8 @@
         var active = Senders.Where(s => s.State != SenderState.Silent).ToList();
         if (!active.Any()) return "Kein Sender aktiv &rarr; Kanal = (0, 0, 0, 0, 0, 0, 0, 0)";
 
-        var parts = active.Select(s => s.State == SenderState.Bit1 ? s.Name : $"-{s.Name}");
-        return $"$S = {string.Join(" + ", parts)}$";
+        var parts = active.Select(s => s.State == SenderState.Bit1 ? s.Name : $"&minus;{s.Name}");
+        return $"<i>S</i> = {string.Join(" + ", parts)}";
     }
 
     private string GetFactorClass(int factor)
@@ -750,18 +750,18 @@
         if (target.State == SenderState.Silent && otherActive.Any())
         {
             var names = string.Join(", ", otherActive.Select(s => $"Sender {s.Name}"));
-            return $"Obwohl {names} aktiv senden, ergibt das Skalarprodukt $S \\times C_{target.Name}$ exakt 0! " +
+            return $"Obwohl {names} aktiv senden, ergibt das Skalarprodukt <i>S</i> &times; <i>C<sub>{target.Name}</sub></i> exakt 0! " +
                    $"Grund: Der Walsh-Code von {target.Name} ist paarweise orthogonal zu allen anderen Codes. Die Fremdsignale heben sich bei der Summation vollständig auf.";
         }
 
         if (target.State != SenderState.Silent && !otherActive.Any())
         {
             return $"Sender {target.Name} sendet als einziger Teilnehmer ({GetSenderStateLabel(target.State)}). " +
-                   $"Das Skalarprodukt mit sich selbst ergibt $C_{target.Name} \\times C_{target.Name} = 8$ (bzw. $-8$). Normiert durch 8 ergibt sich exakt das gesendete Bit.";
+                   $"Das Skalarprodukt mit sich selbst ergibt <i>C<sub>{target.Name}</sub></i> &times; <i>C<sub>{target.Name}</sub></i> = 8 (bzw. &minus;8). Normiert durch 8 ergibt sich exakt das gesendete Bit.";
         }
 
         var otherNames = string.Join(", ", otherActive.Select(s => $"Sender {s.Name}"));
-        return $"Sender {target.Name} sendet gleichzeitig mit {otherNames}. Durch die Vektorzerlegung $S = d_{target.Name} C_{target.Name} + \\sum_{{i \\neq {target.Name}}} d_i C_i$ " +
-               $"wird beim Skalarprodukt mit $C_{target.Name}$ der Anteil von {target.Name} zu $d_{target.Name} \\cdot 8$ verstärkt, während alle Terme der fremden Sender durch Orthogonalität exakt 0 ergeben!";
+        return $"Sender {target.Name} sendet gleichzeitig mit {otherNames}. Durch die Vektorzerlegung <i>S</i> = <i>d<sub>{target.Name}</sub></i> &bull; <i>C<sub>{target.Name}</sub></i> + &sum; <i>d<sub>i</sub></i> &bull; <i>C<sub>i</sub></i> " +
+               $"wird beim Skalarprodukt mit <i>C<sub>{target.Name}</sub></i> der Anteil von {target.Name} zu <i>d<sub>{target.Name}</sub></i> &bull; 8 verstärkt, während alle Terme der fremden Sender durch Orthogonalität exakt 0 ergeben!";
     }
 }
