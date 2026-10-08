@@ -326,4 +326,46 @@ public sealed class ComputingSystemsTests
         Assert.IsNotEmpty(solution.Steps);
         Assert.IsTrue(solution.Steps.Any(step => step.Contains("Subnet mask")));
     }
+
+    [TestMethod]
+    public void Moore_machine_catalog_provides_valid_models()
+    {
+        var models = MooreMachineCatalog.GetAllModels().ToList();
+        Assert.AreEqual(3, models.Count);
+
+        var model1 = MooreMachineCatalog.GetModel(1);
+        Assert.AreEqual(8, model1.Transitions.Count);
+        Assert.AreEqual(4, model1.Outputs.Count);
+
+        var nextState = model1.GetNextState(0, 0, 1);
+        Assert.AreEqual((0, 1), nextState);
+
+        var output = model1.GetOutput(0, 1);
+        Assert.AreEqual((0, 1), output);
+    }
+
+    [TestMethod]
+    public void Hazard_engine_detects_static_and_dynamic_hazards()
+    {
+        var model1 = HazardCatalog.GetModel(1);
+
+        // Subtask (a): 1000 to 1011 (8 to 11) -> Static 1-hazard
+        var resA = HazardEngine.Analyze(model1.FunctionVector, 8, 11);
+        Assert.IsTrue(resA.HasAnyHazard);
+        Assert.IsTrue(resA.ShortestPaths.Any(p => p.HazardType == "Statischer 1-Hazard"));
+
+        // Subtask (b): 0010 to 1111 (2 to 15) -> Monotonous (no hazard)
+        var resB = HazardEngine.Analyze(model1.FunctionVector, 2, 15);
+        Assert.IsFalse(resB.HasAnyHazard);
+
+        // Subtask (c): 0000 to 1101 (0 to 13) -> Dynamic hazard
+        var resC = HazardEngine.Analyze(model1.FunctionVector, 0, 13);
+        Assert.IsTrue(resC.HasAnyHazard);
+        Assert.IsTrue(resC.ShortestPaths.Any(p => p.HazardType == "Dynamischer Hazard"));
+
+        // Subtask (d): 0100 to 1101 (4 to 13) -> Constant 0 (no hazard)
+        var resD = HazardEngine.Analyze(model1.FunctionVector, 4, 13);
+        Assert.IsFalse(resD.HasAnyHazard);
+    }
 }
+

@@ -1,5 +1,6 @@
 @using Microsoft.AspNetCore.Components
 @using Microsoft.JSInterop
+@using Italbytz.ComputingSystems
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 
@@ -433,16 +434,6 @@
         Worksheet
     }
 
-    public class PathResult
-    {
-        public List<int> States { get; set; } = new();
-        public List<int> Values { get; set; } = new();
-        public bool HasHazard { get; set; }
-        public string HazardType { get; set; } = "Kein Hazard";
-        public string HazardLabel { get; set; } = "Stabil";
-        public string HazardExplanation { get; set; } = "";
-    }
-
     private ViewMode ActiveView = ViewMode.StepByStep;
     private bool ShowSolution = false;
     private bool IsEmbed = false;
@@ -488,9 +479,9 @@
     }
 
     private int SelectedPathIndex = 0;
-    private List<PathResult> ShortestPaths = new();
+    private List<HazardPathResult> ShortestPaths = new();
 
-    private int HammingDistance => CountBitDifferences(StartState, EndState);
+    private int HammingDistance => HazardEngine.CountBitDifferences(StartState, EndState);
 
     protected override void OnInitialized()
     {
@@ -600,129 +591,8 @@
 
     private void ComputeShortestPaths()
     {
-        ShortestPaths.Clear();
         SelectedPathIndex = 0;
-
-        int diff = StartState ^ EndState;
-        List<int> bitIndices = new();
-        for (int b = 0; b < 4; b++)
-        {
-            if (((diff >> b) & 1) == 1)
-            {
-                bitIndices.Add(b);
-            }
-        }
-
-        if (bitIndices.Count == 0)
-        {
-            // Same state
-            var res = new PathResult();
-            res.States.Add(StartState);
-            res.Values.Add(FunctionVector[StartState]);
-            res.HasHazard = false;
-            res.HazardLabel = "Kein Wechsel";
-            ShortestPaths.Add(res);
-            return;
-        }
-
-        // Generate all permutations of bitIndices
-        var perms = GetPermutations(bitIndices, bitIndices.Count);
-        foreach (var perm in perms)
-        {
-            var res = new PathResult();
-            int current = StartState;
-            res.States.Add(current);
-            res.Values.Add(FunctionVector[current]);
-
-            foreach (var b in perm)
-            {
-                current ^= (1 << b);
-                res.States.Add(current);
-                res.Values.Add(FunctionVector[current]);
-            }
-
-            AnalyzePathHazard(res);
-            ShortestPaths.Add(res);
-        }
-    }
-
-    private void AnalyzePathHazard(PathResult res)
-    {
-        int vStart = res.Values.First();
-        int vEnd = res.Values.Last();
-
-        // Count value alternations
-        int alternations = 0;
-        for (int i = 0; i < res.Values.Count - 1; i++)
-        {
-            if (res.Values[i] != res.Values[i + 1])
-                alternations++;
-        }
-
-        if (vStart == vEnd)
-        {
-            // Should be constant, check if any intermediate value deviates
-            bool hasDeviation = res.Values.Any(v => v != vStart);
-            if (hasDeviation)
-            {
-                res.HasHazard = true;
-                if (vStart == 1)
-                {
-                    res.HazardType = "Statischer 1-Hazard";
-                    res.HazardLabel = "Statischer 1-Hazard (1 → 0 → 1)";
-                    res.HazardExplanation = "Endwerte sind 1, Zwischenzustand fällt auf 0 ab!";
-                }
-                else
-                {
-                    res.HazardType = "Statischer 0-Hazard";
-                    res.HazardLabel = "Statischer 0-Hazard (0 → 1 → 0)";
-                    res.HazardExplanation = "Endwerte sind 0, Zwischenzustand springt kurzzeitig auf 1!";
-                }
-            }
-            else
-            {
-                res.HasHazard = false;
-                res.HazardLabel = "Stabil (Kein Hazard)";
-                res.HazardExplanation = $"Funktionswert bleibt konstant {vStart}.";
-            }
-        }
-        else
-        {
-            // Transition from 0 to 1 or 1 to 0
-            if (alternations > 1)
-            {
-                res.HasHazard = true;
-                res.HazardType = "Dynamischer Hazard";
-                res.HazardLabel = "Dynamischer Hazard";
-                res.HazardExplanation = $"Mehrfacher Pegelwechsel ({alternations} Wechsel)! Signal fluktuiert vor dem Einpegeln.";
-            }
-            else
-            {
-                res.HasHazard = false;
-                res.HazardLabel = "Monotoner Übergang";
-                res.HazardExplanation = "Genau ein sauberer Pegelwechsel, kein Glitch.";
-            }
-        }
-    }
-
-    private static IEnumerable<IEnumerable<T>> GetPermutations<T>(IEnumerable<T> list, int length)
-    {
-        if (length == 1) return list.Select(t => new T[] { t });
-        return GetPermutations(list, length - 1)
-            .SelectMany(t => list.Where(e => !t.Contains(e)),
-                (t1, t2) => t1.Concat(new T[] { t2 }));
-    }
-
-    private static int CountBitDifferences(int a, int b)
-    {
-        int diff = a ^ b;
-        int count = 0;
-        while (diff > 0)
-        {
-            count += (diff & 1);
-            diff >>= 1;
-        }
-        return count;
+        ShortestPaths = HazardEngine.ComputeShortestPaths(FunctionVector, StartState, EndState);
     }
 
     private static string ToBinary(int val)
