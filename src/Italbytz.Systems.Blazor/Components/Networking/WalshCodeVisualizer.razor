@@ -1,4 +1,5 @@
 @namespace Italbytz.Systems.Blazor.Components.Networking
+@using System.Globalization
 @inject NavigationManager NavigationManager
 
 <article class="walsh-container @(IsEmbed ? "embed-mode" : "") @(Theme == "dark" ? "theme-dark" : (Theme == "light" ? "theme-light" : "")) @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
@@ -193,20 +194,27 @@
                             double barHeight = Math.Abs(val) * 11.25;
                             double y = val >= 0 ? zeroY - barHeight : zeroY;
 
+                            string xStr = Svg(x);
+                            string yStr = Svg(y);
+                            string wStr = Svg(barWidth);
+                            string hStr = Svg(Math.Max(barHeight, 2));
+                            string textX = Svg(x + barWidth / 2);
+                            string textY = Svg(val >= 0 ? y - 6 : y + barHeight + 14);
+
                             <!-- Grid vertical divider -->
                             @if (j > 0)
                             {
-                                <line x1="@(x - 11)" y1="10" x2="@(x - 11)" y2="120" class="svg-divider-line" />
+                                <line x1="@Svg(x - 11)" y1="10" x2="@Svg(x - 11)" y2="120" class="svg-divider-line" />
                             }
 
                             <!-- Bar -->
-                            <rect x="@x" y="@y" width="@barWidth" height="@(Math.Max(barHeight, 2))"
+                            <rect x="@xStr" y="@yStr" width="@wStr" height="@hStr"
                                   class="svg-bar @(val > 0 ? "bar-pos" : (val < 0 ? "bar-neg" : "bar-zero"))"
                                   rx="3" />
 
                             <!-- Value label -->
-                            @((MarkupString)$"<text x=\"{x + barWidth / 2}\" y=\"{(val >= 0 ? y - 6 : y + barHeight + 14)}\" class=\"svg-bar-text {(val > 0 ? "text-pos" : (val < 0 ? "text-neg" : "text-zero"))}\" text-anchor=\"middle\">{(val > 0 ? $"+{val}" : $"{val}")}</text>")
-                            @((MarkupString)$"<text x=\"{x + barWidth / 2}\" y=\"125\" class=\"svg-chip-idx\" text-anchor=\"middle\">c{j}</text>")
+                            @((MarkupString)$"<text x=\"{textX}\" y=\"{textY}\" class=\"svg-bar-text {(val > 0 ? "text-pos" : (val < 0 ? "text-neg" : "text-zero"))}\" text-anchor=\"middle\">{(val > 0 ? $"+{val}" : $"{val}")}</text>")
+                            @((MarkupString)$"<text x=\"{textX}\" y=\"125\" class=\"svg-chip-idx\" text-anchor=\"middle\">c{j}</text>")
                         }
                     </svg>
                 </div>
@@ -764,4 +772,6 @@
         return $"Sender {target.Name} sendet gleichzeitig mit {otherNames}. Durch die Vektorzerlegung <i>S</i> = <i>d<sub>{target.Name}</sub></i> &bull; <i>C<sub>{target.Name}</sub></i> + &sum; <i>d<sub>i</sub></i> &bull; <i>C<sub>i</sub></i> " +
                $"wird beim Skalarprodukt mit <i>C<sub>{target.Name}</sub></i> der Anteil von {target.Name} zu <i>d<sub>{target.Name}</sub></i> &bull; 8 verstärkt, während alle Terme der fremden Sender durch Orthogonalität exakt 0 ergeben!";
     }
+
+    private static string Svg(double val) => val.ToString("0.##", CultureInfo.InvariantCulture);
 }

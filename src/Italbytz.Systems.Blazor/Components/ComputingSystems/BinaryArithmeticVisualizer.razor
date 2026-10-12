@@ -108,14 +108,20 @@
                     <tr>
                         <td class="matrix-label">Übertrag (Carry)</td>
                         <td class="matrix-cell carry-cell @(CurrentStep >= 8 && CarryOutBits[7] == 1 ? "active-col" : (CurrentStep < 8 ? "dimmed" : ""))">
-                            @(CurrentStep >= 8 ? CarryOutBits[7] : "")
+                            @if (CurrentStep >= 8 && CarryOutBits[7] == 1)
+                            {
+                                <span>1</span>
+                            }
                         </td>
                         @for (var b = 7; b >= 0; b--)
                         {
-                            var showCarry = b == 0 ? (CurrentStep >= 0) : (CurrentStep >= b);
-                            var carryVal = b == 0 ? 0 : CarryOutBits[b - 1];
-                            <td class="matrix-cell carry-cell @(IsActiveBit(b) ? "active-col" : (!showCarry ? "dimmed" : ""))">
-                                @(showCarry && (carryVal == 1 || b == 0) ? carryVal.ToString() : (showCarry ? "0" : ""))
+                            var showCarry = b > 0 && CurrentStep >= b;
+                            var c = b == 0 ? 0 : CarryOutBits[b - 1];
+                            <td class="matrix-cell carry-cell @(IsActiveBit(b) ? "active-col" : (CurrentStep < b || b == 0 ? "dimmed" : ""))">
+                                @if (showCarry && c > 0)
+                                {
+                                    <span>1</span>
+                                }
                             </td>
                         }
                     </tr>
@@ -372,6 +378,7 @@
     {
         return CurrentStep > 0 && (CurrentStep - 1) == bitIndex;
     }
+
 
     private static int GetBit(byte value, int bitIndex) => (value >> bitIndex) & 1;
     private static byte ClampToByte(int value) => (byte)Math.Clamp(value, 0, 255);
