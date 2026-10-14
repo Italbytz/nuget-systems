@@ -434,6 +434,15 @@
         Worksheet
     }
 
+    [Parameter] public string? View { get; set; }
+    [Parameter] public bool? SolutionParam { get; set; }
+    [Parameter] public bool? Embed { get; set; }
+
+    [SupplyParameterFromQuery(Name = "start")] public int? QueryStart { get; set; }
+    [SupplyParameterFromQuery(Name = "end")] public int? QueryEnd { get; set; }
+    [SupplyParameterFromQuery(Name = "preset")] public int? QueryPreset { get; set; }
+    [SupplyParameterFromQuery(Name = "values")] public string? QueryValues { get; set; }
+
     private ViewMode ActiveView = ViewMode.StepByStep;
     private bool ShowSolution = false;
     private bool IsEmbed = false;
@@ -441,7 +450,7 @@
     private int SelectedPreset = 0;
 
     // Vector from TIHazards_01.tex: (1,0,0,1,0,0,1,1,1,1,0,1,0,0,1,1)
-    private readonly int[] FunctionVector = new int[16]
+    private int[] FunctionVector = new int[16]
     {
         1, 0, 0, 1,
         0, 0, 1, 1,
@@ -486,7 +495,6 @@
     protected override void OnInitialized()
     {
         ReadQueryParameters();
-        LoadPreset(0);
     }
 
     protected override void OnParametersSet()
@@ -514,6 +522,33 @@
                 {
                     IsEmbed = true;
                 }
+            }
+
+            if (!string.IsNullOrEmpty(QueryValues))
+            {
+                var parsed = QueryValues
+                    .Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Select(t => int.TryParse(t, out var val) ? val : 0)
+                    .ToArray();
+                if (parsed.Length >= 16)
+                {
+                    FunctionVector = parsed.Take(16).ToArray();
+                }
+            }
+
+            if (QueryStart.HasValue && QueryEnd.HasValue)
+            {
+                _startState = QueryStart.Value;
+                _endState = QueryEnd.Value;
+                ComputeShortestPaths();
+            }
+            else if (QueryPreset.HasValue)
+            {
+                LoadPreset(QueryPreset.Value);
+            }
+            else
+            {
+                LoadPreset(0);
             }
         }
         catch { }
