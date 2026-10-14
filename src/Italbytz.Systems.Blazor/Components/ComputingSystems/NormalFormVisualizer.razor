@@ -75,18 +75,18 @@
                 <div class="narrator-header">
                     <div class="step-badge badge-nf">Normalformen-Analyse</div>
                     <div class="narrator-title">
-                        Einsmenge: <strong class="emerald mono">L_ein = {@string.Join(", ", GetOneIndices())}</strong> &bull; 
-                        Nullmenge: <strong class="red mono">L_null = {@string.Join(", ", GetZeroIndices())}</strong>
+                        Einsmenge: <strong class="emerald mono"><em>L</em><sub>ein</sub> = &#123;@string.Join(", ", GetOneIndices())&#125;</strong> &bull; 
+                        Nullmenge: <strong class="red mono"><em>L</em><sub>null</sub> = &#123;@string.Join(", ", GetZeroIndices())&#125;</strong>
                     </div>
                 </div>
                 <div class="nf-metrics-strip">
                     <div class="metric-item">
                         <span class="metric-label">KDNF (Minterme &or; <em>m</em><sub><em>i</em></sub>):</span>
-                        <div class="metric-val mono bold emerald">@FormatDnfMath(Solution.Dnf)</div>
+                        <div class="metric-val mono bold emerald"><em>y</em><sub>KDNF</sub> = @FormatDnfUnicode(Solution.Dnf)</div>
                     </div>
                     <div class="metric-item">
                         <span class="metric-label">KKNF (Maxterme &and; <em>M</em><sub><em>i</em></sub>):</span>
-                        <div class="metric-val mono bold red">@FormatCnfMath(Solution.Cnf)</div>
+                        <div class="metric-val mono bold red"><em>y</em><sub>KKNF</sub> = @FormatCnfUnicode(Solution.Cnf)</div>
                     </div>
                 </div>
             </div>
@@ -133,10 +133,10 @@
                                             </button>
                                         </td>
                                         <td class="mono minterm-col @(isOne ? "active-term" : "")">
-                                            @GetMintermString(bits)
+                                            @GetMintermUnicode(bits)
                                         </td>
                                         <td class="mono maxterm-col @(!isOne ? "active-term" : "")">
-                                            @GetMaxtermString(bits)
+                                            @GetMaxtermUnicode(bits)
                                         </td>
                                     </tr>
                                 }
@@ -156,7 +156,7 @@
                             {
                                 <div class="trace-item">
                                     <span class="trace-num">@(i + 1).</span>
-                                    <span class="trace-text">@Solution.Steps[i]</span>
+                                    <span class="trace-text">@FormatStepUnicode(Solution.Steps[i])</span>
                                 </div>
                             }
                         </div>
@@ -167,6 +167,16 @@
                         <div class="rule-box">
                             <p><strong>KDNF:</strong> Disjunktion (&or;) aller Zeilen mit <em>y</em>=1. In den Konjunktionstermen gilt: <em>x</em><sub><em>i</em></sub> wenn <em>x</em><sub><em>i</em></sub>=1, &not;<em>x</em><sub><em>i</em></sub> wenn <em>x</em><sub><em>i</em></sub>=0.</p>
                             <p><strong>KKNF:</strong> Konjunktion (&and;) aller Zeilen mit <em>y</em>=0. In den Disjunktionstermen gilt: &not;<em>x</em><sub><em>i</em></sub> wenn <em>x</em><sub><em>i</em></sub>=1, <em>x</em><sub><em>i</em></sub> wenn <em>x</em><sub><em>i</em></sub>=0.</p>
+                        </div>
+                    </div>
+
+                    <div class="formula-card">
+                        <div class="formula-title">LaTeX-Formeln (für Skripte &amp; Klausuren):</div>
+                        <div class="formula-display mono" style="font-size: 0.85rem; word-break: break-all; margin-bottom: 0.5rem;">
+                            <code>y_{\text{KDNF}} = @FormatDnfLatex(Solution.Dnf)</code>
+                        </div>
+                        <div class="formula-display mono" style="font-size: 0.85rem; word-break: break-all;">
+                            <code>y_{\text{KKNF}} = @FormatCnfLatex(Solution.Cnf)</code>
                         </div>
                     </div>
                 </div>
@@ -217,8 +227,9 @@
             <!-- Task Prompt -->
             <div class="task-prompt-box">
                 <p class="task-text">
-                    Gegeben sei eine Boolesche Funktion $f(x_{@(VariableCount-1)} \dots x_0)$ mit der folgenden Ausgabespalte:
-                    $$\mathbf{f} = (@string.Join(", ", TruthValues))$$
+                    Gegeben sei die folgende Wahrheitstafel einer Booleschen Funktion 
+                    <em>y</em> = <em>f</em>(<em>x</em><sub>@(VariableCount - 1)</sub>, &hellip;, <em>x</em><sub>0</sub>) mit der Ausgabespalte 
+                    <strong>f</strong> = (@string.Join(", ", TruthValues)):
                 </p>
             </div>
 
@@ -276,17 +287,17 @@
                 {
                     <div class="ws-solution-box">
                         <div class="sol-formula-line mono bold emerald">
-                            $$y_{KDNF} = @FormatDnfMath(Solution.Dnf)$$
+                            <em>y</em><sub>KDNF</sub> = @FormatDnfUnicode(Solution.Dnf)
                         </div>
                         <div class="sol-details">
-                            Minterme aus Einsmenge $L_{ein} = \{@string.Join(", ", GetOneIndices())\}$
+                            Minterme aus Einsmenge <em>L</em><sub>ein</sub> = &#123;@string.Join(", ", GetOneIndices())&#125;
                         </div>
                     </div>
                 }
                 else
                 {
                     <div class="ws-formula-blank">
-                        <span class="mono bold">y_{KDNF} = </span>
+                        <span class="mono bold"><em>y</em><sub>KDNF</sub> = </span>
                         <div class="blank-line-long"></div>
                     </div>
                 }
@@ -305,17 +316,17 @@
                 {
                     <div class="ws-solution-box">
                         <div class="sol-formula-line mono bold red">
-                            $$y_{KKNF} = @FormatCnfMath(Solution.Cnf)$$
+                            <em>y</em><sub>KKNF</sub> = @FormatCnfUnicode(Solution.Cnf)
                         </div>
                         <div class="sol-details">
-                            Maxterme aus Nullmenge $L_{null} = \{@string.Join(", ", GetZeroIndices())\}$
+                            Maxterme aus Nullmenge <em>L</em><sub>null</sub> = &#123;@string.Join(", ", GetZeroIndices())&#125;
                         </div>
                     </div>
                 }
                 else
                 {
                     <div class="ws-formula-blank">
-                        <span class="mono bold">y_{KKNF} = </span>
+                        <span class="mono bold"><em>y</em><sub>KKNF</sub> = </span>
                         <div class="blank-line-long"></div>
                     </div>
                 }
@@ -531,26 +542,52 @@
         return bits;
     }
 
-    private static string GetMintermString(bool[] bits)
+    private static string ToSubscript(int number)
     {
-        var terms = new List<string>();
-        for (int i = 0; i < bits.Length; i++)
+        var s = number.ToString();
+        var sb = new System.Text.StringBuilder();
+        foreach (var c in s)
         {
-            int varIndex = bits.Length - 1 - i;
-            terms.Add(bits[i] ? $"x_{varIndex}" : $"\\neg x_{varIndex}");
+            sb.Append(c switch
+            {
+                '0' => '₀',
+                '1' => '₁',
+                '2' => '₂',
+                '3' => '₃',
+                '4' => '₄',
+                '5' => '₅',
+                '6' => '₆',
+                '7' => '₇',
+                '8' => '₈',
+                '9' => '₉',
+                _ => c
+            });
         }
-        return "(" + string.Join(" \\wedge ", terms) + ")";
+        return sb.ToString();
     }
 
-    private static string GetMaxtermString(bool[] bits)
+    private static string GetMintermUnicode(bool[] bits)
     {
         var terms = new List<string>();
         for (int i = 0; i < bits.Length; i++)
         {
             int varIndex = bits.Length - 1 - i;
-            terms.Add(bits[i] ? $"\\neg x_{varIndex}" : $"x_{varIndex}");
+            var sub = ToSubscript(varIndex);
+            terms.Add(bits[i] ? $"x{sub}" : $"¬x{sub}");
         }
-        return "(" + string.Join(" \\vee ", terms) + ")";
+        return "(" + string.Join(" ∧ ", terms) + ")";
+    }
+
+    private static string GetMaxtermUnicode(bool[] bits)
+    {
+        var terms = new List<string>();
+        for (int i = 0; i < bits.Length; i++)
+        {
+            int varIndex = bits.Length - 1 - i;
+            var sub = ToSubscript(varIndex);
+            terms.Add(bits[i] ? $"¬x{sub}" : $"x{sub}");
+        }
+        return "(" + string.Join(" ∨ ", terms) + ")";
     }
 
     private List<int> GetOneIndices()
@@ -573,13 +610,55 @@
         return list;
     }
 
-    private static string FormatDnfMath(string dnf)
+    private static string FormatDnfUnicode(string? dnf)
     {
-        return dnf.Replace(" | ", " \\vee ").Replace(" & ", " \\wedge ").Replace("!", "\\neg ");
+        if (string.IsNullOrWhiteSpace(dnf)) return "0";
+        var res = System.Text.RegularExpressions.Regex.Replace(dnf, @"x_?(\d+)", m => "x" + ToSubscript(int.Parse(m.Groups[1].Value)));
+        return res.Replace(" | ", " ∨ ")
+                  .Replace(" \\vee ", " ∨ ")
+                  .Replace(" & ", " ∧ ")
+                  .Replace(" \\wedge ", " ∧ ")
+                  .Replace("!x", "¬x")
+                  .Replace("\\neg x", "¬x")
+                  .Replace("\\neg ", "¬");
     }
 
-    private static string FormatCnfMath(string cnf)
+    private static string FormatCnfUnicode(string? cnf)
     {
-        return cnf.Replace(" & ", " \\wedge ").Replace(" | ", " \\vee ").Replace("!", "\\neg ");
+        if (string.IsNullOrWhiteSpace(cnf)) return "1";
+        var res = System.Text.RegularExpressions.Regex.Replace(cnf, @"x_?(\d+)", m => "x" + ToSubscript(int.Parse(m.Groups[1].Value)));
+        return res.Replace(" & ", " ∧ ")
+                  .Replace(" \\wedge ", " ∧ ")
+                  .Replace(" | ", " ∨ ")
+                  .Replace(" \\vee ", " ∨ ")
+                  .Replace("!x", "¬x")
+                  .Replace("\\neg x", "¬x")
+                  .Replace("\\neg ", "¬");
+    }
+
+    private static string FormatStepUnicode(string step)
+    {
+        if (string.IsNullOrEmpty(step)) return string.Empty;
+        var res = System.Text.RegularExpressions.Regex.Replace(step, @"x_?(\d+)", m => "x" + ToSubscript(int.Parse(m.Groups[1].Value)));
+        return res.Replace(" -> ", " → ")
+                  .Replace(" & ", " ∧ ")
+                  .Replace(" | ", " ∨ ")
+                  .Replace("!x", "¬x");
+    }
+
+    private static string FormatDnfLatex(string? dnf)
+    {
+        if (string.IsNullOrWhiteSpace(dnf)) return "0";
+        var res = System.Text.RegularExpressions.Regex.Replace(dnf, @"!x_?(\d+)", @"\neg x_{$1}");
+        res = System.Text.RegularExpressions.Regex.Replace(res, @"x_?(\d+)", @"x_{$1}");
+        return res.Replace(" | ", " \\vee ").Replace(" & ", " \\wedge ");
+    }
+
+    private static string FormatCnfLatex(string? cnf)
+    {
+        if (string.IsNullOrWhiteSpace(cnf)) return "1";
+        var res = System.Text.RegularExpressions.Regex.Replace(cnf, @"!x_?(\d+)", @"\neg x_{$1}");
+        res = System.Text.RegularExpressions.Regex.Replace(res, @"x_?(\d+)", @"x_{$1}");
+        return res.Replace(" & ", " \\wedge ").Replace(" | ", " \\vee ");
     }
 }
