@@ -240,48 +240,148 @@
 .svg-container {
     display: flex;
     justify-content: center;
-    background: #f8fafc;
+    background: #ffffff;
     border: 1px solid #e2e8f0;
     border-radius: 0.5rem;
     padding: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .circuit-svg {
     width: 100%;
-    max-height: 320px;
+    max-height: 380px;
 }
 
 .wire {
-    stroke-width: 2.5;
+    stroke-width: 2.2;
     stroke-linecap: round;
-    transition: stroke 0.2s;
+    stroke-linejoin: round;
+    fill: none;
+    transition: stroke 0.15s ease;
 }
 
 .wire-high { stroke: #10b981; }
-.wire-low { stroke: #cbd5e1; }
+.wire-low { stroke: #64748b; }
+
+.wire-dot {
+    transition: fill 0.15s ease;
+}
+.wire-dot.dot-high { fill: #10b981; }
+.wire-dot.dot-low { fill: #64748b; }
 
 .gate-box {
-    fill: #1e293b;
-    stroke: #0f172a;
-    stroke-width: 1.5;
+    fill: #ffffff;
+    stroke: #334155;
+    stroke-width: 1.8;
+    transition: all 0.15s ease;
 }
 
 .gate-box.gate-selected {
-    fill: #7c3aed;
-    stroke: #5b21b6;
+    fill: #ede9fe;
+    stroke: #7c3aed;
+    stroke-width: 2.2;
 }
 
 .gate-box-text {
-    fill: #ffffff;
+    fill: #0f172a;
     font-size: 14px;
     font-weight: 700;
     text-anchor: middle;
+    dominant-baseline: central;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.gate-box.gate-selected .gate-box-text {
+    fill: #6d28d9;
+}
+
+.inversion-bubble {
+    fill: #ffffff;
+    stroke: #334155;
+    stroke-width: 1.6;
+    transition: all 0.15s ease;
+}
+
+.inversion-bubble.bubble-high {
+    fill: #d1fae5;
+    stroke: #10b981;
+}
+
+.inversion-bubble.bubble-low {
+    fill: #ffffff;
+    stroke: #64748b;
 }
 
 .pin-label {
     font-size: 13px;
-    font-family: system-ui, sans-serif;
+    font-family: system-ui, -apple-system, sans-serif;
+    fill: #1e293b;
+    dominant-baseline: central;
+    user-select: none;
 }
+
+.pin-label.purple { fill: #7c3aed; font-weight: 700; }
+.pin-label.blue { fill: #2563eb; font-weight: 700; }
+.pin-label.emerald { fill: #059669; font-weight: 700; }
+.pin-label.red { fill: #dc2626; font-weight: 700; }
+
+:global(.is-dark) .svg-container {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+:global(.is-dark) .wire-low {
+    stroke: #64748b;
+}
+
+:global(.is-dark) .wire-high {
+    stroke: #34d399;
+}
+
+:global(.is-dark) .wire-dot.dot-low {
+    fill: #64748b;
+}
+
+:global(.is-dark) .wire-dot.dot-high {
+    fill: #34d399;
+}
+
+:global(.is-dark) .gate-box {
+    fill: #1e293b;
+    stroke: #64748b;
+}
+
+:global(.is-dark) .gate-box-text {
+    fill: #f8fafc;
+}
+
+:global(.is-dark) .gate-box.gate-selected {
+    fill: #2e1065;
+    stroke: #a855f7;
+}
+
+:global(.is-dark) .gate-box.gate-selected .gate-box-text {
+    fill: #e9d5ff;
+}
+
+:global(.is-dark) .inversion-bubble {
+    fill: #1e293b;
+    stroke: #64748b;
+}
+
+:global(.is-dark) .inversion-bubble.bubble-high {
+    fill: #064e3b;
+    stroke: #34d399;
+}
+
+:global(.is-dark) .pin-label {
+    fill: #e2e8f0;
+}
+
+:global(.is-dark) .pin-label.purple { fill: #c084fc; font-weight: 700; }
+:global(.is-dark) .pin-label.blue { fill: #60a5fa; font-weight: 700; }
+:global(.is-dark) .pin-label.emerald { fill: #34d399; font-weight: 700; }
+:global(.is-dark) .pin-label.red { fill: #f87171; font-weight: 700; }
 
 /* Table Card */
 .table-card {
@@ -558,13 +658,15 @@
 }
 
 .ws-svg-exam {
-    width: 85%;
-    max-height: 240px;
+    width: 95%;
+    max-height: 360px;
 }
 
 .ws-svg-txt {
     font-size: 13px;
-    font-family: sans-serif;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    fill: #000000;
+    dominant-baseline: central;
 }
 
 .task-section {

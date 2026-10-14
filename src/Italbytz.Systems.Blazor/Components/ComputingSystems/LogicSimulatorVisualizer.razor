@@ -62,17 +62,17 @@
                 <div class="narrator-header">
                     <div class="step-badge badge-mux">4-zu-1 Multiplexer</div>
                     <div class="narrator-title">
-                        Steuereingänge: <span class="mono bold purple">S1=@(MuxS1 ? "1" : "0"), S0=@(MuxS0 ? "1" : "0")</span> &rarr;
-                        Kanal gewählt: <strong class="blue mono">e@(SelectedChannel)</strong> &bull;
+                        Steuereingänge: <span class="mono bold purple">S₁=@(MuxS1 ? "1" : "0"), S₀=@(MuxS0 ? "1" : "0")</span> &rarr;
+                        Kanal gewählt: <strong class="blue mono"><em>e</em><sub>@SelectedChannel</sub></strong> &bull;
                         Ausgang: <strong class="@(MuxOutput ? "emerald" : "red") mono">a = @(MuxOutput ? "1" : "0")</strong>
                     </div>
                 </div>
                 <p class="narrator-text">
-                    Die Steuersignale <em>S</em><sub>1</sub>, <em>S</em><sub>0</sub> dekodieren die Binärzahl @(SelectedChannel) und schalten ausschließlich den Eingang <em>e</em><sub>@(SelectedChannel)</sub> (Wert @(GetChannelValue(SelectedChannel) ? "1" : "0")) über das zugehörige AND-Gatter und das abschließende OR-Gatter auf den Ausgang <em>a</em> durch.
+                    Die Steuersignale <em>S</em><sub>1</sub>, <em>S</em><sub>0</sub> dekodieren die Binärzahl @SelectedChannel und schalten ausschließlich den Eingang <em>e</em><sub>@SelectedChannel</sub> (Wert @(GetChannelValue(SelectedChannel) ? "1" : "0")) über das zugehörige AND-Gatter und das abschließende OR-Gatter auf den Ausgang <em>a</em> durch.
                 </p>
                 <div class="logic-metrics-strip">
                     <span>Funktion: <strong class="mono">a = e₀·¬S₁·¬S₀ ∨ e₁·¬S₁·S₀ ∨ e₂·S₁·¬S₀ ∨ e₃·S₁·S₀</strong></span>
-                    <span>Aktiver Pfad: <strong class="mono emerald">Kanal e@(SelectedChannel) (@(GetChannelValue(SelectedChannel) ? "HIGH" : "LOW"))</strong></span>
+                    <span>Aktiver Pfad: <strong class="mono emerald">Kanal <em>e</em><sub>@SelectedChannel</sub> (@(GetChannelValue(SelectedChannel) ? "HIGH" : "LOW"))</strong></span>
                 </div>
             </div>
 
@@ -115,41 +115,108 @@
                     </div>
 
                     <div class="svg-container">
-                        <svg viewBox="0 0 650 340" class="circuit-svg" xmlns="http://www.w3.org/2000/svg">
-                            <!-- 4 AND Gate Boxes -->
+                        <svg viewBox="0 0 680 360" class="circuit-svg" xmlns="http://www.w3.org/2000/svg">
+                            @{
+                                bool ctrlS1 = MuxS1;
+                                bool ctrlS1_not = !MuxS1;
+                                bool ctrlS0 = MuxS0;
+                                bool ctrlS0_not = !MuxS0;
+                            }
+
+                            <!-- =================================================== -->
+                            <!-- Control Inputs & NOT Gates at the top               -->
+                            <!-- =================================================== -->
+                            <!-- S1 Direct Bus -->
+                            <text x="115" y="14" class="pin-label purple mono bold" text-anchor="middle">S₁</text>
+                            <line x1="115" y1="20" x2="115" y2="340" class="wire @(ctrlS1 ? "wire-high" : "wire-low")" />
+
+                            <!-- S1 Tap to NOT Gate 1 -->
+                            <circle cx="115" cy="38" r="3.5" class="wire-dot @(ctrlS1 ? "dot-high" : "dot-low")" />
+                            <line x1="115" y1="38" x2="135" y2="38" class="wire @(ctrlS1 ? "wire-high" : "wire-low")" />
+
+                            <!-- NOT Gate 1 for S1 -->
+                            <rect x="135" y="24" width="24" height="28" rx="3" class="gate-box @(ctrlS1_not ? "gate-selected" : "")" />
+                            <text x="147" y="38" class="gate-box-text" font-size="12">1</text>
+                            <circle cx="163" cy="38" r="3.5" class="inversion-bubble @(ctrlS1_not ? "bubble-high" : "bubble-low")" />
+
+                            <!-- S1 Inverted Bus (¬S1) -->
+                            <line x1="166.5" y1="38" x2="170" y2="38" class="wire @(ctrlS1_not ? "wire-high" : "wire-low")" />
+                            <line x1="170" y1="20" x2="170" y2="340" class="wire @(ctrlS1_not ? "wire-high" : "wire-low")" />
+                            <text x="170" y="14" class="pin-label purple mono bold" text-anchor="middle">¬S₁</text>
+
+                            <!-- S0 Direct Bus -->
+                            <text x="225" y="14" class="pin-label purple mono bold" text-anchor="middle">S₀</text>
+                            <line x1="225" y1="20" x2="225" y2="340" class="wire @(ctrlS0 ? "wire-high" : "wire-low")" />
+
+                            <!-- S0 Tap to NOT Gate 2 -->
+                            <circle cx="225" cy="38" r="3.5" class="wire-dot @(ctrlS0 ? "dot-high" : "dot-low")" />
+                            <line x1="225" y1="38" x2="245" y2="38" class="wire @(ctrlS0 ? "wire-high" : "wire-low")" />
+
+                            <!-- NOT Gate 2 for S0 -->
+                            <rect x="245" y="24" width="24" height="28" rx="3" class="gate-box @(ctrlS0_not ? "gate-selected" : "")" />
+                            <text x="257" y="38" class="gate-box-text" font-size="12">1</text>
+                            <circle cx="273" cy="38" r="3.5" class="inversion-bubble @(ctrlS0_not ? "bubble-high" : "bubble-low")" />
+
+                            <!-- S0 Inverted Bus (¬S0) -->
+                            <line x1="276.5" y1="38" x2="280" y2="38" class="wire @(ctrlS0_not ? "wire-high" : "wire-low")" />
+                            <line x1="280" y1="20" x2="280" y2="340" class="wire @(ctrlS0_not ? "wire-high" : "wire-low")" />
+                            <text x="280" y="14" class="pin-label purple mono bold" text-anchor="middle">¬S₀</text>
+
+                            <!-- =================================================== -->
+                            <!-- 4 AND Gates & Inputs                                -->
+                            <!-- =================================================== -->
+                            @{
+                                int[] yCenters = new int[] { 80, 150, 220, 290 };
+                                int[] orPinY = new int[] { 150, 173, 197, 220 };
+                            }
+
                             @for (int i = 0; i < 4; i++)
                             {
                                 int idx = i;
-                                int y = 40 + idx * 70;
-                                bool isSelected = idx == SelectedChannel;
-                                bool outVal = isSelected && GetChannelValue(idx);
+                                int yCenter = yCenters[idx];
+                                int pinDataY = yCenter - 12;
+                                int pinS1Y = yCenter;
+                                int pinS0Y = yCenter + 12;
 
-                                <!-- Input lines e[i] -->
-                                <line x1="40" y1="@(y + 20)" x2="220" y2="@(y + 20)" class="wire @(GetChannelValue(idx) ? "wire-high" : "wire-low")" />
-                                @((MarkupString)$"<text x=\"30\" y=\"{y + 25}\" text-anchor=\"end\" class=\"pin-label mono bold\">e{idx}</text>")
+                                bool isSelected = idx == SelectedChannel;
+                                bool dataVal = GetChannelValue(idx);
+                                bool outVal = isSelected && dataVal;
+
+                                int s1TapX = (idx < 2) ? 170 : 115;
+                                bool s1Val = (idx < 2) ? ctrlS1_not : ctrlS1;
+
+                                int s0TapX = (idx % 2 == 0) ? 280 : 225;
+                                bool s0Val = (idx % 2 == 0) ? ctrlS0_not : ctrlS0;
+
+                                <!-- Data line e[i] -->
+                                @((MarkupString)$"<text x=\"28\" y=\"{pinDataY}\" text-anchor=\"end\" class=\"pin-label mono bold {(dataVal ? "emerald" : "")}\">e{ToSubscript(idx)}</text>")
+                                <line x1="35" y1="@pinDataY" x2="340" y2="@pinDataY" class="wire @(dataVal ? "wire-high" : "wire-low")" />
+
+                                <!-- S1 tap line -->
+                                <circle cx="@s1TapX" cy="@pinS1Y" r="3.5" class="wire-dot @(s1Val ? "dot-high" : "dot-low")" />
+                                <line x1="@s1TapX" y1="@pinS1Y" x2="340" y2="@pinS1Y" class="wire @(s1Val ? "wire-high" : "wire-low")" />
+
+                                <!-- S0 tap line -->
+                                <circle cx="@s0TapX" cy="@pinS0Y" r="3.5" class="wire-dot @(s0Val ? "dot-high" : "dot-low")" />
+                                <line x1="@s0TapX" y1="@pinS0Y" x2="340" y2="@pinS0Y" class="wire @(s0Val ? "wire-high" : "wire-low")" />
 
                                 <!-- AND Gate Box -->
-                                <rect x="220" y="@y" width="60" height="40" rx="4" class="gate-box @(isSelected ? "gate-selected" : "")" />
-                                @((MarkupString)$"<text x=\"250\" y=\"{y + 25}\" class=\"gate-box-text\">&amp;</text>")
+                                <rect x="340" y="@(yCenter - 20)" width="55" height="40" rx="4" class="gate-box @(isSelected ? "gate-selected" : "")" />
+                                @((MarkupString)$"<text x=\"367\" y=\"{yCenter}\" class=\"gate-box-text\">&amp;</text>")
 
-                                <!-- Line to OR gate -->
-                                <path d="M 280 @(y + 20) L 430 @(120 + idx * 25)" class="wire @(outVal ? "wire-high" : "wire-low")" />
+                                <!-- Output to OR gate -->
+                                <path d="M 395 @yCenter C 440 @yCenter, 440 @orPinY[idx], 480 @orPinY[idx]" class="wire @(outVal ? "wire-high" : "wire-low")" />
                             }
 
-                            <!-- S1 and S0 vertical buses -->
-                            <line x1="120" y1="20" x2="120" y2="310" class="wire @(MuxS1 ? "wire-high" : "wire-low")" />
-                            @((MarkupString)$"<text x=\"120\" y=\"15\" text-anchor=\"middle\" class=\"pin-label mono bold purple\">S₁</text>")
+                            <!-- =================================================== -->
+                            <!-- OR Gate & Output                                    -->
+                            <!-- =================================================== -->
+                            <rect x="480" y="135" width="65" height="100" rx="6" class="gate-box @(MuxOutput ? "gate-selected" : "")" />
+                            <text x="512" y="185" class="gate-box-text" font-size="16">≥1</text>
 
-                            <line x1="160" y1="20" x2="160" y2="310" class="wire @(MuxS0 ? "wire-high" : "wire-low")" />
-                            @((MarkupString)$"<text x=\"160\" y=\"15\" text-anchor=\"middle\" class=\"pin-label mono bold purple\">S₀</text>")
-
-                            <!-- OR Gate Box -->
-                            <rect x="430" y="125" width="70" height="80" rx="6" class="gate-box @(MuxOutput ? "gate-selected" : "")" />
-                            @((MarkupString)$"<text x=\"465\" y=\"170\" class=\"gate-box-text\">≥1</text>")
-
-                            <!-- Output Line a -->
-                            <line x1="500" y1="165" x2="600" y2="165" class="wire @(MuxOutput ? "wire-high" : "wire-low")" stroke-width="4" />
-                            @((MarkupString)$"<text x=\"610\" y=\"170\" class=\"pin-label mono bold {(MuxOutput ? "emerald" : "red")}\">a = {(MuxOutput ? "1" : "0")}</text>")
+                            <!-- Output line a -->
+                            <line x1="545" y1="185" x2="610" y2="185" class="wire @(MuxOutput ? "wire-high" : "wire-low")" stroke-width="3.5" />
+                            <text x="620" y="185" class="pin-label mono bold @(MuxOutput ? "emerald" : "red")">a = @(MuxOutput ? "1" : "0")</text>
                         </svg>
                     </div>
                 </div>
@@ -189,7 +256,7 @@
                                             <td class="mono">@(ch == 2 ? "e₂" : "–")</td>
                                             <td class="mono">@(ch == 3 ? "e₃" : "–")</td>
                                             <td class="mono bold @(isCurrentRow ? (MuxOutput ? "emerald" : "red") : "")">
-                                                <strong>e@ch</strong>
+                                                <strong><em>e</em><sub>@ch</sub></strong>
                                             </td>
                                         </tr>
                                     }
@@ -201,7 +268,7 @@
                     <div class="circuit-summary-box">
                         <div class="summary-item">
                             <span>Ausgewählter Eingang:</span>
-                            <strong class="mono blue">e@SelectedChannel (@(GetChannelValue(SelectedChannel) ? "1" : "0"))</strong>
+                            <strong class="mono blue"><em>e</em><sub>@SelectedChannel</sub> (@(GetChannelValue(SelectedChannel) ? "1" : "0"))</strong>
                         </div>
                         <div class="summary-item">
                             <span>Ausgangspegel <em>a</em>:</span>
@@ -366,34 +433,74 @@
 
             <!-- Schematic Box -->
             <div class="ws-diagram-center">
-                <svg viewBox="0 0 620 280" class="ws-svg-exam" xmlns="http://www.w3.org/2000/svg">
-                    <!-- 4 AND gates -->
-                    @for (int i = 0; i < 4; i++)
-                    {
-                        int y = 30 + i * 60;
-                        <line x1="30" y1="@(y + 15)" x2="200" y2="@(y + 15)" stroke="#000" stroke-width="1.5" />
-                        @((MarkupString)$"<text x=\"20\" y=\"{y + 20}\" text-anchor=\"end\" class=\"ws-svg-txt font-bold\">e{i}</text>")
+                <svg viewBox="0 0 680 360" class="ws-svg-exam" xmlns="http://www.w3.org/2000/svg">
+                    <!-- S1 line and NOT gate -->
+                    <text x="115" y="14" class="ws-svg-txt font-bold" text-anchor="middle">S₁</text>
+                    <line x1="115" y1="20" x2="115" y2="340" stroke="#000" stroke-width="1.5" />
+                    <circle cx="115" cy="38" r="3" fill="#000" />
+                    <line x1="115" y1="38" x2="135" y2="38" stroke="#000" stroke-width="1.5" />
+                    <rect x="135" y="24" width="24" height="28" fill="#fff" stroke="#000" stroke-width="1.5" />
+                    <text x="147" y="38" text-anchor="middle" dominant-baseline="central" class="ws-svg-txt" font-size="12">1</text>
+                    <circle cx="163" cy="38" r="3.5" fill="#fff" stroke="#000" stroke-width="1.5" />
+                    <line x1="166.5" y1="38" x2="170" y2="38" stroke="#000" stroke-width="1.5" />
+                    <line x1="170" y1="20" x2="170" y2="340" stroke="#000" stroke-width="1.5" />
+                    <text x="170" y="14" class="ws-svg-txt font-bold" text-anchor="middle">¬S₁</text>
 
-                        <rect x="200" y="@y" width="50" height="30" fill="#fff" stroke="#000" stroke-width="1.5" />
-                        @((MarkupString)$"<text x=\"225\" y=\"{y + 20}\" text-anchor=\"middle\" class=\"ws-svg-txt\">&amp;</text>")
+                    <!-- S0 line and NOT gate -->
+                    <text x="225" y="14" class="ws-svg-txt font-bold" text-anchor="middle">S₀</text>
+                    <line x1="225" y1="20" x2="225" y2="340" stroke="#000" stroke-width="1.5" />
+                    <circle cx="225" cy="38" r="3" fill="#000" />
+                    <line x1="225" y1="38" x2="245" y2="38" stroke="#000" stroke-width="1.5" />
+                    <rect x="245" y="24" width="24" height="28" fill="#fff" stroke="#000" stroke-width="1.5" />
+                    <text x="257" y="38" text-anchor="middle" dominant-baseline="central" class="ws-svg-txt" font-size="12">1</text>
+                    <circle cx="273" cy="38" r="3.5" fill="#fff" stroke="#000" stroke-width="1.5" />
+                    <line x1="276.5" y1="38" x2="280" y2="38" stroke="#000" stroke-width="1.5" />
+                    <line x1="280" y1="20" x2="280" y2="340" stroke="#000" stroke-width="1.5" />
+                    <text x="280" y="14" class="ws-svg-txt font-bold" text-anchor="middle">¬S₀</text>
 
-                        <path d="M 250 @(y + 15) L 380 @(100 + i * 20)" stroke="#000" stroke-width="1.5" fill="none" />
+                    @{
+                        int[] wsYCenters = new int[] { 80, 150, 220, 290 };
+                        int[] wsOrPinY = new int[] { 150, 173, 197, 220 };
                     }
 
-                    <!-- S1, S0 lines -->
-                    <line x1="100" y1="15" x2="100" y2="255" stroke="#000" stroke-width="1.5" />
-                    @((MarkupString)$"<text x=\"100\" y=\"12\" text-anchor=\"middle\" class=\"ws-svg-txt font-bold\">S₁</text>")
+                    @for (int i = 0; i < 4; i++)
+                    {
+                        int idx = i;
+                        int yCenter = wsYCenters[idx];
+                        int pinDataY = yCenter - 12;
+                        int pinS1Y = yCenter;
+                        int pinS0Y = yCenter + 12;
 
-                    <line x1="140" y1="15" x2="140" y2="255" stroke="#000" stroke-width="1.5" />
-                    @((MarkupString)$"<text x=\"140\" y=\"12\" text-anchor=\"middle\" class=\"ws-svg-txt font-bold\">S₀</text>")
+                        int s1TapX = (idx < 2) ? 170 : 115;
+                        int s0TapX = (idx % 2 == 0) ? 280 : 225;
+
+                        <!-- Data line e[i] -->
+                        @((MarkupString)$"<text x=\"28\" y=\"{pinDataY}\" text-anchor=\"end\" dominant-baseline=\"central\" class=\"ws-svg-txt font-bold\">e{ToSubscript(idx)}</text>")
+                        <line x1="35" y1="@pinDataY" x2="340" y2="@pinDataY" stroke="#000" stroke-width="1.5" />
+
+                        <!-- S1 tap line -->
+                        <circle cx="@s1TapX" cy="@pinS1Y" r="3" fill="#000" />
+                        <line x1="@s1TapX" y1="@pinS1Y" x2="340" y2="@pinS1Y" stroke="#000" stroke-width="1.5" />
+
+                        <!-- S0 tap line -->
+                        <circle cx="@s0TapX" cy="@pinS0Y" r="3" fill="#000" />
+                        <line x1="@s0TapX" y1="@pinS0Y" x2="340" y2="@pinS0Y" stroke="#000" stroke-width="1.5" />
+
+                        <!-- AND Gate Box -->
+                        <rect x="340" y="@(yCenter - 20)" width="55" height="40" rx="4" fill="#fff" stroke="#000" stroke-width="1.5" />
+                        @((MarkupString)$"<text x=\"367\" y=\"{yCenter}\" text-anchor=\"middle\" dominant-baseline=\"central\" class=\"ws-svg-txt font-bold\">&amp;</text>")
+
+                        <!-- Output to OR gate -->
+                        <path d="M 395 @yCenter C 440 @yCenter, 440 @wsOrPinY[idx], 480 @wsOrPinY[idx]" stroke="#000" stroke-width="1.5" fill="none" />
+                    }
 
                     <!-- OR Gate -->
-                    <rect x="380" y="105" width="60" height="60" fill="#fff" stroke="#000" stroke-width="1.5" />
-                    @((MarkupString)$"<text x=\"410\" y=\"140\" text-anchor=\"middle\" class=\"ws-svg-txt\">≥1</text>")
+                    <rect x="480" y="135" width="65" height="100" rx="6" fill="#fff" stroke="#000" stroke-width="1.5" />
+                    <text x="512" y="185" text-anchor="middle" dominant-baseline="central" class="ws-svg-txt font-bold" font-size="16">≥1</text>
 
-                    <!-- Output a -->
-                    <line x1="440" y1="135" x2="550" y2="135" stroke="#000" stroke-width="2" />
-                    @((MarkupString)$"<text x=\"560\" y=\"140\" class=\"ws-svg-txt font-bold\">a</text>")
+                    <!-- Output line a -->
+                    <line x1="545" y1="185" x2="615" y2="185" stroke="#000" stroke-width="2" />
+                    <text x="625" y="185" dominant-baseline="central" class="ws-svg-txt font-bold">a</text>
                 </svg>
             </div>
 
@@ -538,6 +645,21 @@
     };
 
     private bool MuxOutput => GetChannelValue(SelectedChannel);
+
+    private static string ToSubscript(int number) => number switch
+    {
+        0 => "₀",
+        1 => "₁",
+        2 => "₂",
+        3 => "₃",
+        4 => "₄",
+        5 => "₅",
+        6 => "₆",
+        7 => "₇",
+        8 => "₈",
+        9 => "₉",
+        _ => number.ToString()
+    };
 
     // Basic Gates state
     private bool InputA = false;
