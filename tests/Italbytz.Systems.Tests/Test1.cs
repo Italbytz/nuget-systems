@@ -130,6 +130,21 @@ public sealed class ComputingSystemsTests
     }
 
     [TestMethod]
+    public void Ascii_memory_solver_encodes_little_and_big_endian()
+    {
+        IAsciiMemorySolver solver = new AsciiMemorySolver();
+
+        // "Info" -> 'I'=0x49, 'n'=0x6E, 'f'=0x66, 'o'=0x6F
+        // Little Endian: lowest address (I) at lowest byte -> 6F 66 6E 49
+        var le = solver.Solve(new AsciiMemoryParameters("Info", true));
+        Assert.AreEqual("6F666E49", le.MemoryLines[0]);
+
+        // Big Endian: lowest address (I) at highest byte -> 49 6E 66 6F
+        var be = solver.Solve(new AsciiMemoryParameters("Info", false));
+        Assert.AreEqual("496E666F", be.MemoryLines[0]);
+    }
+
+    [TestMethod]
     public void Normal_form_solver_rejects_invalid_truth_table_length()
     {
         INormalFormSolver solver = new NormalFormSolver();

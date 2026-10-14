@@ -1,0 +1,527 @@
+@namespace Italbytz.Systems.Blazor.Components.ComputingSystems
+@using Italbytz.ComputingSystems
+@using Italbytz.ComputingSystems.Abstractions
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<article class="demo-card wide-card @(IsEmbed ? "embed-mode" : "")">
+
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
+    {
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Grundlagen der Informatik &bull; Zahlendarstellung &amp; Codes</p>
+            <h2>ASCII-Zeichen im Speicher &amp; Bytereihenfolge (Endianness)</h2>
+            <p class="feature-intro">
+                Analyse der Bytereihenfolge (Little Endian vs. Big Endian) bei der Speicherung von US-ASCII-Strings in 32-Bit-Speicherwörtern.
+            </p>
+        </div>
+    }
+
+    <!-- View Switcher -->
+    @if (!IsEmbed)
+    {
+        <div class="view-switch no-print">
+            <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Simulator)">
+                🚀 Interaktiver Simulator &amp; Speicheranalyse
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Worksheet)">
+                🖨️ Klausur-Arbeitsblatt (Druckansicht)
+            </button>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- SIMULATOR VIEW                                                            -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Controls Panel -->
+        <div class="controls-panel no-print">
+            <div class="config-grid">
+                <label class="control-label">
+                    <span>Wort / Zeichenkette (US-ASCII):</span>
+                    <input type="text" class="form-input mono" @bind="WordInput" @bind:after="Recalculate" maxlength="32" />
+                </label>
+
+                <div class="control-label">
+                    <span>Bytereihenfolge (Endianness):</span>
+                    <div class="endian-toggle-group">
+                        <button class="endian-btn @(IsLittleEndian ? "active" : "")" @onclick="() => SetEndianness(true)">
+                            Little Endian (x86/ARM default)
+                        </button>
+                        <button class="endian-btn @(!IsLittleEndian ? "active" : "")" @onclick="() => SetEndianness(false)">
+                            Big Endian (Netzwerk-Byteorder)
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Presets Bar -->
+            <div class="preset-bar">
+                <span class="preset-label">Beispiele:</span>
+                @foreach (var preset in Presets)
+                {
+                    <button class="preset-btn" @onclick="() => LoadPreset(preset)">@preset</button>
+                }
+                <button class="preset-btn random" @onclick="RandomizeWord">🎲 Zufallswort</button>
+            </div>
+        </div>
+
+        <!-- Step-by-Step Player Controls -->
+        <div class="player-toolbar no-print">
+            <div class="player-controls">
+                <button class="player-btn" title="Zum Start" disabled="@(CurrentStep == 0)" @onclick="ResetPlayer">
+                    ⏮ Start
+                </button>
+                <button class="player-btn" title="Vorheriger Schritt" disabled="@(CurrentStep == 0)" @onclick="PreviousStep">
+                    ◀ Zurück
+                </button>
+                <button class="player-btn primary" title="Nächster Schritt" disabled="@(CurrentStep >= TotalBytes)" @onclick="NextStep">
+                    ▶ Nächster Schritt
+                </button>
+                <button class="player-btn" title="Gesamtlösung anzeigen" disabled="@(CurrentStep >= TotalBytes)" @onclick="CompleteSolution">
+                    ⏭ Ende
+                </button>
+            </div>
+            <div class="player-progress">
+                @if (CurrentStep == 0)
+                {
+                    <span>Bereit: Dekodierung bei Adresse 0x00 starten</span>
+                }
+                else
+                {
+                    <span>Schritt @CurrentStep von @TotalBytes (Adresse 0x@((CurrentStep - 1).ToString("X2")): '@(GetStepChar(CurrentStep - 1))')</span>
+                }
+            </div>
+        </div>
+
+        @if (Solution != null)
+        {
+            <!-- Narrator Card -->
+            <div class="narrator-card">
+                <div class="narrator-title">
+                    @GetStepTitle()
+                </div>
+                <p class="narrator-text">
+                    @GetStepExplanation()
+                </p>
+            </div>
+
+            <!-- Main Display Grid -->
+            <div class="main-display-grid">
+
+                <!-- Left: 32-Bit Memory Words -->
+                <div class="memory-card">
+                    <div class="card-title">
+                        <span>32-Bit-Speicherwörter (4 Bytes pro Zelle)</span>
+                        <span class="badge-endian mono">@(IsLittleEndian ? "LITTLE ENDIAN" : "BIG ENDIAN")</span>
+                    </div>
+
+                    <!-- Decoded string progress -->
+                    <div class="decoded-string-strip">
+                        <span class="decoded-label">Dekodiert:</span>
+                        <div class="decoded-letters">
+                            @for (int i = 0; i < Solution.Word.Length; i++)
+                            {
+                                int idx = i;
+                                bool isRevealed = idx < CurrentStep;
+                                bool isActive = idx == CurrentStep - 1;
+                                <span class="letter-pill @(isActive ? "active" : (isRevealed ? "revealed" : ""))">
+                                    @(isRevealed ? Solution.Word[idx].ToString() : "·")
+                                </span>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Memory Rows -->
+                    @foreach (var wordObj in Solution.Words)
+                    {
+                        <div class="memory-word-row">
+                            <div class="word-meta">
+                                <span>Adresse: <strong>0x@(wordObj.Address.ToString("X2"))</strong></span>
+                                <span>32-Bit Hex: <strong>0x@wordObj.HexWord</strong></span>
+                            </div>
+
+                            <div class="word-bytes-grid">
+                                <!-- Order of bytes in register display: MSB (left) to LSB (right) -->
+                                @for (int col = 0; col < 4; col++)
+                                {
+                                    // In Little Endian: Left is byte 3 (offset +3), right is byte 0 (offset +0)
+                                    // In Big Endian: Left is byte 0 (offset +0), right is byte 3 (offset +3)
+                                    int byteOffset = IsLittleEndian ? (3 - col) : col;
+                                    var b = wordObj.Bytes[byteOffset];
+                                    bool isRevealed = b.Address < CurrentStep;
+                                    bool isActive = b.Address == CurrentStep - 1;
+
+                                    <div class="byte-block @(isActive ? "active-byte" : (isRevealed ? "revealed-byte" : ""))"
+                                         title="Adresse 0x@(b.Address.ToString("X2")), Offset +@byteOffset">
+                                        <div class="byte-addr">0x@(b.Address.ToString("X2")) (+@byteOffset)</div>
+                                        <div class="byte-hex">@b.Hex</div>
+                                        <div class="byte-char">
+                                            @if (b.Value == 0)
+                                            {
+                                                <span class="text-muted">\0</span>
+                                            }
+                                            else
+                                            {
+                                                <span>'@b.Character'</span>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <!-- Right: Interactive US-ASCII Table -->
+                <div class="table-card">
+                    <div class="card-title">
+                        <span>US-ASCII-Referenztabelle (7-Bit / Hex 0x00 – 0x7F)</span>
+                    </div>
+
+                    <div class="ascii-matrix-wrapper">
+                        <table class="ascii-matrix-table">
+                            <thead>
+                                <tr>
+                                    <th></th>
+                                    @for (int c = 0; c < 16; c++)
+                                    {
+                                        <th>...@(c.ToString("X"))</th>
+                                    }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int r = 0; r < 8; r++)
+                                {
+                                    int rowHigh = r;
+                                    <tr>
+                                        <td class="row-header">@(rowHigh)...</td>
+                                        @for (int c = 0; c < 16; c++)
+                                        {
+                                            int asciiCode = (rowHigh << 4) | c;
+                                            bool isCurrentActive = CurrentActiveByteCode == asciiCode;
+                                            <td class="ascii-cell @(isCurrentActive ? "active-char" : "")"
+                                                title="0x@(asciiCode.ToString("X2")) = @asciiCode dez = '@GetAsciiDisplay(asciiCode)'">
+                                                @GetAsciiDisplay(asciiCode)
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        }
+    }
+
+    <!-- ========================================================================= -->
+    <!-- WORKSHEET VIEW (1:1 EXAM REPLICA)                                         -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Worksheet && Solution != null)
+    {
+        <div class="worksheet-paper">
+            <!-- Header -->
+            <div class="exam-header">
+                <div>
+                    <span class="feature-kicker">Grundlagen der Informatik &bull; Zahlendarstellung &amp; Codes</span>
+                    <h1 class="exam-main-title">Übungsaufgabe: ASCII-Zeichen im Speicher</h1>
+                </div>
+                <div class="exam-meta-box no-print">
+                    <button class="toggle-sol-btn @(ShowWorksheetSolution ? "active" : "")" @onclick="() => ShowWorksheetSolution = !ShowWorksheetSolution">
+                        @(ShowWorksheetSolution ? "👁️ Musterlösung ausblenden" : "💡 Musterlösung einblenden")
+                    </button>
+                    <button class="print-btn" @onclick="TriggerPrint">
+                        🖨️ Drucken / PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Intro text matching AsciiMemoryTextGenerator -->
+            <p>
+                In der folgenden Tabelle lassen sich Zeichen gemäß US-ASCII-Kodierung ablesen. Die möglichen Werte zwischen <code>000 0000</code> und <code>111 1111</code> sind dabei in Hexadezimalschreibweise notiert, liegen also zwischen <code>00</code> und <code>7E</code>.
+            </p>
+
+            <div class="ascii-matrix-wrapper" style="margin: 1.5rem 0;">
+                <table class="ascii-matrix-table">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            @for (int c = 0; c < 16; c++)
+                            {
+                                <th>...@(c.ToString("X"))</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int r = 0; r < 8; r++)
+                        {
+                            int rowHigh = r;
+                            <tr>
+                                <td class="row-header">@(rowHigh)...</td>
+                                @for (int c = 0; c < 16; c++)
+                                {
+                                    int code = (rowHigh << 4) | c;
+                                    <td class="ascii-cell">@GetAsciiDisplay(code)</td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <p>
+                @if (IsLittleEndian)
+                {
+                    <span>Daten werden teilweise in so genannter <em>Little Endian</em> Reihenfolge gespeichert. Dabei sind die Bytes (Byte = 8 Bit) in einer Speicherzelle andersherum abgelegt. Welches Wort ist im folgenden Speicherausschnitt abgelegt?</span>
+                }
+                else
+                {
+                    <span>Daten werden teilweise in so genannter <em>Big Endian</em> Reihenfolge gespeichert. Dabei ist das höchstwertige Byte an der kleinsten Speicheradresse abgelegt. Welches Wort ist im folgenden Speicherausschnitt abgelegt?</span>
+                }
+            </p>
+
+            <table style="margin: 1rem 0; border: 1px solid #ccc; border-collapse: collapse; min-width: 200px;">
+                <thead>
+                    <tr style="background: #003366; color: white;">
+                        <th style="padding: 0.5rem 1rem;">Speicherinhalt</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var line in Solution.MemoryLines)
+                    {
+                        <tr>
+                            <td style="padding: 0.5rem 1rem; text-align: center; font-family: monospace; font-size: 1.1rem; border-top: 1px solid #ccc;">
+                                @line
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            <div style="margin-top: 1.5rem;">
+                <strong>Antwort:</strong>
+                @if (ShowWorksheetSolution)
+                {
+                    <div style="margin-top: 0.5rem; padding: 1rem; border: 2px solid #10b981; background: #ecfdf5; border-radius: 0.4rem; font-family: monospace; font-size: 1.2rem; font-weight: bold; color: #059669;">
+                        @Solution.Word
+                    </div>
+                }
+                else
+                {
+                    <div style="margin-top: 0.5rem; border-bottom: 2px solid #000; height: 2.5rem;"></div>
+                }
+            </div>
+
+        </div>
+    }
+
+</article>
+
+@code {
+    public enum ViewMode { Simulator, Worksheet }
+
+    [SupplyParameterFromQuery(Name = "word")] public string? QueryWord { get; set; }
+    [SupplyParameterFromQuery(Name = "endian")] public string? QueryEndian { get; set; }
+    [SupplyParameterFromQuery(Name = "view")] public string? QueryView { get; set; }
+    [SupplyParameterFromQuery(Name = "solution")] public bool? QuerySolution { get; set; }
+    [SupplyParameterFromQuery(Name = "embed")] public bool? QueryEmbed { get; set; }
+
+    private ViewMode ActiveView = ViewMode.Simulator;
+    private bool IsEmbed = false;
+    private bool ShowWorksheetSolution = false;
+
+    private string WordInput = "Informatik";
+    private bool IsLittleEndian = true;
+    private int CurrentStep = 0;
+
+    private AsciiMemorySolution? Solution;
+    private readonly AsciiMemorySolver solver = new();
+
+    private static readonly string[] Presets =
+    [
+        "Informatik", "Zweiundvierzig", "Algorithmus", "Prozessor",
+        "Schaltwerk", "Register", "Speicher", "Compiler", "Hardware"
+    ];
+
+    private int TotalBytes => Solution?.Word.Length ?? 0;
+
+    private int? CurrentActiveByteCode
+    {
+        get
+        {
+            if (CurrentStep > 0 && Solution != null && CurrentStep <= Solution.Word.Length)
+            {
+                return (int)Solution.Word[CurrentStep - 1];
+            }
+            return null;
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        ReadQueryParameters();
+        Recalculate();
+    }
+
+    protected override void OnParametersSet()
+    {
+        ReadQueryParameters();
+    }
+
+    private void ReadQueryParameters()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query;
+            if (!string.IsNullOrEmpty(query))
+            {
+                if (query.Contains("view=worksheet", StringComparison.OrdinalIgnoreCase))
+                {
+                    ActiveView = ViewMode.Worksheet;
+                }
+                if (query.Contains("solution=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    ShowWorksheetSolution = true;
+                }
+                if (query.Contains("embed=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsEmbed = true;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(QueryWord))
+            {
+                WordInput = QueryWord;
+                CurrentStep = 0;
+            }
+
+            if (!string.IsNullOrWhiteSpace(QueryEndian))
+            {
+                if (QueryEndian.Equals("big", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsLittleEndian = false;
+                }
+                else if (QueryEndian.Equals("little", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsLittleEndian = true;
+                }
+                CurrentStep = 0;
+            }
+
+            if (QueryView?.Equals("worksheet", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                ActiveView = ViewMode.Worksheet;
+            }
+
+            if (QuerySolution.HasValue)
+            {
+                ShowWorksheetSolution = QuerySolution.Value;
+            }
+        }
+        catch { }
+    }
+
+    private void SetView(ViewMode mode) => ActiveView = mode;
+
+    private void SetEndianness(bool littleEndian)
+    {
+        IsLittleEndian = littleEndian;
+        CurrentStep = 0;
+        Recalculate();
+    }
+
+    private void LoadPreset(string preset)
+    {
+        WordInput = preset;
+        CurrentStep = 0;
+        Recalculate();
+    }
+
+    private void RandomizeWord()
+    {
+        var rand = new Random();
+        WordInput = Presets[rand.Next(Presets.Length)];
+        CurrentStep = 0;
+        Recalculate();
+    }
+
+    private void Recalculate()
+    {
+        Solution = (AsciiMemorySolution)solver.Solve(new AsciiMemoryParameters(WordInput, IsLittleEndian));
+    }
+
+    private void ResetPlayer() => CurrentStep = 0;
+    private void PreviousStep() => CurrentStep = Math.Max(0, CurrentStep - 1);
+    private void NextStep() => CurrentStep = Math.Min(TotalBytes, CurrentStep + 1);
+    private void CompleteSolution() => CurrentStep = TotalBytes;
+    private async Task TriggerPrint() => await JSRuntime.InvokeVoidAsync("window.print");
+
+    private char GetStepChar(int index)
+    {
+        if (Solution != null && index >= 0 && index < Solution.Word.Length)
+        {
+            return Solution.Word[index];
+        }
+        return ' ';
+    }
+
+    private string GetStepTitle()
+    {
+        if (CurrentStep == 0)
+        {
+            return $"Bereit: Wort '{WordInput}' im {(IsLittleEndian ? "Little Endian" : "Big Endian")} Format analysieren";
+        }
+        var idx = CurrentStep - 1;
+        var ch = GetStepChar(idx);
+        var hex = ((int)ch).ToString("X2");
+        var wordIdx = idx / 4;
+        var offset = idx % 4;
+        return $"Schritt {CurrentStep}: Adresse 0x{idx:X2} (Wort {wordIdx}, Offset +{offset}) → Byte 0x{hex} = '{ch}'";
+    }
+
+    private string GetStepExplanation()
+    {
+        if (CurrentStep == 0)
+        {
+            return IsLittleEndian
+                ? "Bei Little Endian steht das niederwertigste Byte (Adresse +0) an der niederwertigsten Stelle des 32-Bit-Registers (ganz rechts). Klicken Sie auf 'Nächster Schritt', um das erste Byte auszulesen."
+                : "Bei Big Endian steht das höchstwertige Byte (Adresse +0) an der höchstwertigen Stelle des 32-Bit-Registers (ganz links). Klicken Sie auf 'Nächster Schritt', um das erste Byte auszulesen.";
+        }
+
+        var idx = CurrentStep - 1;
+        var ch = GetStepChar(idx);
+        var asciiVal = (int)ch;
+        var wordIdx = idx / 4;
+        var offset = idx % 4;
+        var regBytePos = IsLittleEndian ? offset : (3 - offset);
+
+        if (IsLittleEndian)
+        {
+            return $"Im 32-Bit-Wort {wordIdx} (Adresse 0x{(wordIdx * 4):X2}) befindet sich Adresse 0x{idx:X2} an Byte-Offset +{offset}. Im Little-Endian-Hexwert steht dieses Byte an Byte-Position {regBytePos} (von rechts gezählt): 0x{asciiVal:X2}. Laut US-ASCII-Tabelle (Zeile {asciiVal >> 4}, Spalte {asciiVal & 0xF:X}) ist dies das Zeichen '{ch}'.";
+        }
+        else
+        {
+            return $"Im 32-Bit-Wort {wordIdx} (Adresse 0x{(wordIdx * 4):X2}) befindet sich Adresse 0x{idx:X2} an Byte-Offset +{offset}. Im Big-Endian-Hexwert steht dieses Byte an Byte-Position {regBytePos} (von links gezählt): 0x{asciiVal:X2}. Laut US-ASCII-Tabelle (Zeile {asciiVal >> 4}, Spalte {asciiVal & 0xF:X}) ist dies das Zeichen '{ch}'.";
+        }
+    }
+
+    private static string GetAsciiDisplay(int code) => code switch
+    {
+        0x00 => "NUL", 0x01 => "SOH", 0x02 => "STX", 0x03 => "ETX",
+        0x04 => "EOT", 0x05 => "ENQ", 0x06 => "ACK", 0x07 => "BEL",
+        0x08 => "BS",  0x09 => "HT",  0x0A => "LF",  0x0B => "VT",
+        0x0C => "FF",  0x0D => "CR",  0x0E => "SO",  0x0F => "SI",
+        0x10 => "DLE", 0x11 => "DC1", 0x12 => "DC2", 0x13 => "DC3",
+        0x14 => "DC4", 0x15 => "NAK", 0x16 => "SYN", 0x17 => "ETB",
+        0x18 => "CAN", 0x19 => "EM",  0x1A => "SUB", 0x1B => "ESC",
+        0x1C => "FS",  0x1D => "GS",  0x1E => "RS",  0x1F => "US",
+        0x20 => "SP",  0x7F => "DEL",
+        _ => ((char)code).ToString()
+    };
+}
