@@ -1,73 +1,123 @@
 @page "/operating-systems"
+@page "/bs"
+@page "/betriebssysteme"
 
-<PageTitle>Betriebssysteme – Themenübersicht</PageTitle>
+<PageTitle>Betriebssysteme – Themenübersicht nach Kapiteln</PageTitle>
 
 <section class="hero-panel page-hero">
     <div>
-        <p class="eyebrow">Themenbereich</p>
+        <p class="eyebrow">Themenbereich · Betriebssysteme</p>
         <h1>Betriebssysteme</h1>
         <p class="hero-copy">
-            Wählen Sie ein spezifisches Thema für interaktive Demonstratoren und Lösungsberechnungen:
+            11 interaktive Simulatoren, gegliedert nach den Kernbereichen und Foliensätzen der Vorlesung.
+            Wählen Sie ein Kapitel oder steigen Sie direkt in die Übungen ein:
         </p>
     </div>
 </section>
 
-<section class="section-stack">
-    <div class="card-grid card-grid-two">
-        <a class="feature-card route-card" href="buddy-memory">
-            <p class="feature-kicker">01 Speicherverwaltung</p>
-            <h3>Buddy-System</h3>
-            <p>Binäre Block-Aufteilung (Splitting) und Verschmelzung (Merging).</p>
-        </a>
-        <a class="feature-card route-card" href="page-replacement">
-            <p class="feature-kicker">02 Speicherverwaltung</p>
-            <h3>Seitenaustausch</h3>
-            <p>FIFO, LRU, Clock und Optimal (MIN) Schritt-für-Schritt simuliert.</p>
-        </a>
-        <a class="feature-card route-card" href="cpu-scheduling">
-            <p class="feature-kicker">03 Prozessverwaltung</p>
-            <h3>CPU-Scheduling</h3>
-            <p>FCFS, SPN, SRT, Round Robin und Feedback im Gantt-Chart.</p>
-        </a>
-        <a class="feature-card route-card" href="realtime-scheduling">
-            <p class="feature-kicker">04 Echtzeitsysteme</p>
-            <h3>Echtzeit-Scheduling</h3>
-            <p>Rate Monotonic (RMS) und Earliest Deadline First (EDF) mit Auslastung.</p>
-        </a>
-        <a class="feature-card route-card" href="process-state">
-            <p class="feature-kicker">05 Prozessverwaltung</p>
-            <h3>Prozesszustandsmodell</h3>
-            <p>Zustandsübergänge zwischen Bereit (Ready), Rechnend (Running) und Blockiert (Blocked).</p>
-        </a>
-        <a class="feature-card route-card" href="race-condition">
-            <p class="feature-kicker">06 Synchronisation</p>
-            <h3>Race Conditions &amp; Mutex</h3>
-            <p>Interleaving, Wettlaufsituationen und wechselseitiger Ausschluss im kritischen Abschnitt.</p>
-        </a>
-        <a class="feature-card route-card" href="peterson">
-            <p class="feature-kicker">07 Synchronisation</p>
-            <h3>Petersons Algorithmus</h3>
-            <p>Wechselseitiger Ausschluss, Interessens-Flags und symmetriebrechendes aktives Warten.</p>
-        </a>
-        <a class="feature-card route-card" href="pipes">
-            <p class="feature-kicker">08 Kommunikation</p>
-            <h3>Pipes &amp; IPC-Kategorien</h3>
-            <p>Puffer-Mechanismus, Lese-/Schreibzeiger und Zuordnung zu Shared Memory vs. Message Queues.</p>
-        </a>
-        <a class="feature-card route-card" href="ipc">
-            <p class="feature-kicker">09 Kommunikation</p>
-            <h3>IPC-Mechanismen &amp; Synthese</h3>
-            <p>Shared Memory, Sockets, Semaphoren, Dateien und Message Queues im direkten Architekturvergleich.</p>
-        </a>
-        <a class="feature-card route-card" href="virtualisation">
-            <p class="feature-kicker">10 Virtualisierung</p>
-            <h3>Virtualisierung &amp; Architekturen</h3>
-            <p>Partitionierung, Emulation, Hypervisoren (Typ 1 &amp; 2), Paravirtualisierung und Container.</p>
-        </a>
-        <a class="feature-card route-card" href="filesystems">
-            <p class="feature-kicker">11 Dateisysteme</p>
-            <h3>UNIX Inodes &amp; FAT</h3>
-            <p>Blockhierarchie, direkte &amp; indirekte Zeiger, maximale Dateigrößen und Clusterverkettung.</p>
-        </a>
-    </div>
-</section>
+<div class="chapter-sections">
+    <!-- Kapitel 01 -->
+    <section class="chapter-block">
+        <div class="chapter-header">
+            <span class="chapter-tag">Kapitel 01</span>
+            <h2>Speicherverwaltung (Memory Management)</h2>
+        </div>
+        <div class="card-grid card-grid-two">
+            <a class="feature-card route-card" href="buddy-memory">
+                <p class="feature-kicker">01 Speicherverwaltung</p>
+                <h3>Buddy-System</h3>
+                <p>Binäre Block-Aufteilung (Splitting) und Verschmelzung (Merging).</p>
+            </a>
+            <a class="feature-card route-card" href="page-replacement">
+                <p class="feature-kicker">02 Speicherverwaltung</p>
+                <h3>Seitenaustausch</h3>
+                <p>FIFO, LRU, Clock und Optimal (MIN) Schritt-für-Schritt simuliert.</p>
+            </a>
+        </div>
+    </section>
+
+    <!-- Kapitel 02 -->
+    <section class="chapter-block">
+        <div class="chapter-header">
+            <span class="chapter-tag">Kapitel 02</span>
+            <h2>Dateisysteme (File Systems)</h2>
+        </div>
+        <div class="card-grid card-grid-two">
+            <a class="feature-card route-card" href="filesystems">
+                <p class="feature-kicker">03 Dateisysteme</p>
+                <h3>UNIX Inodes &amp; FAT</h3>
+                <p>Blockhierarchie, direkte &amp; indirekte Zeiger, Dateigrößen-Berechnung und FAT-Clusterverkettung.</p>
+            </a>
+        </div>
+    </section>
+
+    <!-- Kapitel 03 -->
+    <section class="chapter-block">
+        <div class="chapter-header">
+            <span class="chapter-tag">Kapitel 03</span>
+            <h2>Prozesse &amp; CPU-Scheduling</h2>
+        </div>
+        <div class="card-grid card-grid-two">
+            <a class="feature-card route-card" href="process-state">
+                <p class="feature-kicker">04 Prozessverwaltung</p>
+                <h3>Prozesszustandsmodell</h3>
+                <p>Zustandsübergänge zwischen Bereit (Ready), Rechnend (Running) und Blockiert (Blocked).</p>
+            </a>
+            <a class="feature-card route-card" href="cpu-scheduling">
+                <p class="feature-kicker">05 Prozessverwaltung</p>
+                <h3>CPU-Scheduling</h3>
+                <p>FCFS, SPN, SRT, Round Robin und Feedback im interaktiven Gantt-Chart.</p>
+            </a>
+            <a class="feature-card route-card" href="realtime-scheduling">
+                <p class="feature-kicker">06 Echtzeitsysteme</p>
+                <h3>Echtzeit-Scheduling</h3>
+                <p>Rate Monotonic (RMS) und Earliest Deadline First (EDF) mit Auslastungsberechnung.</p>
+            </a>
+        </div>
+    </section>
+
+    <!-- Kapitel 04 -->
+    <section class="chapter-block">
+        <div class="chapter-header">
+            <span class="chapter-tag">Kapitel 04</span>
+            <h2>Synchronisation &amp; Interprozesskommunikation</h2>
+        </div>
+        <div class="card-grid card-grid-two">
+            <a class="feature-card route-card" href="race-condition">
+                <p class="feature-kicker">07 Synchronisation</p>
+                <h3>Race Conditions &amp; Mutex</h3>
+                <p>Interleaving, Wettlaufsituationen und wechselseitiger Ausschluss im kritischen Abschnitt.</p>
+            </a>
+            <a class="feature-card route-card" href="peterson">
+                <p class="feature-kicker">08 Synchronisation</p>
+                <h3>Petersons Algorithmus</h3>
+                <p>Wechselseitiger Ausschluss, Interessens-Flags und symmetriebrechendes aktives Warten.</p>
+            </a>
+            <a class="feature-card route-card" href="pipes">
+                <p class="feature-kicker">09 Kommunikation</p>
+                <h3>Pipes &amp; IPC-Kategorien</h3>
+                <p>Puffer-Mechanismus, Lese-/Schreibzeiger und Zuordnung zu Shared Memory vs. Message Queues.</p>
+            </a>
+            <a class="feature-card route-card" href="ipc">
+                <p class="feature-kicker">10 Kommunikation</p>
+                <h3>IPC-Mechanismen &amp; Synthese</h3>
+                <p>Shared Memory, Sockets, Semaphoren, Dateien und Message Queues im direkten Architekturvergleich.</p>
+            </a>
+        </div>
+    </section>
+
+    <!-- Kapitel 05 -->
+    <section class="chapter-block">
+        <div class="chapter-header">
+            <span class="chapter-tag">Kapitel 05</span>
+            <h2>Virtualisierung</h2>
+        </div>
+        <div class="card-grid card-grid-two">
+            <a class="feature-card route-card" href="virtualisation">
+                <p class="feature-kicker">11 Virtualisierung</p>
+                <h3>Virtualisierung &amp; Architekturen</h3>
+                <p>Partitionierung, Emulation, Hypervisoren (Typ 1 &amp; 2), Paravirtualisierung und Container.</p>
+            </a>
+        </div>
+    </section>
+</div>

@@ -1,3 +1,6 @@
+@inject NavigationManager NavigationManager
+@implements IDisposable
+
 <div class="top-row">
     <div>
         <a class="navbar-brand" href="">nuget-systems</a>
@@ -22,452 +25,676 @@
     </button>
 </div>
 
+<!-- Vorlesungs-Umschalter (Segmented Controls) -->
+<div class="lecture-switcher-wrap">
+    <div class="lecture-switcher" role="tablist" aria-label="Vorlesungsauswahl">
+        <button type="button" 
+                class="switcher-pill @(SelectedTab == LectureTab.GdI ? "active pill-gdi" : "")" 
+                @onclick="() => SelectTab(LectureTab.GdI)"
+                title="Grundlagen der Informatik (17 Simulatoren)">
+            <span class="pill-dot dot-gdi"></span>
+            <span>GdI</span>
+        </button>
+        <button type="button" 
+                class="switcher-pill @(SelectedTab == LectureTab.Net ? "active pill-net" : "")" 
+                @onclick="() => SelectTab(LectureTab.Net)"
+                title="Rechnernetze (15 Simulatoren)">
+            <span class="pill-dot dot-net"></span>
+            <span>Netze</span>
+        </button>
+        <button type="button" 
+                class="switcher-pill @(SelectedTab == LectureTab.BS ? "active pill-bs" : "")" 
+                @onclick="() => SelectTab(LectureTab.BS)"
+                title="Betriebssysteme (11 Simulatoren)">
+            <span class="pill-dot dot-bs"></span>
+            <span>BS</span>
+        </button>
+        <button type="button" 
+                class="switcher-pill switcher-pill-all @(SelectedTab == LectureTab.All ? "active pill-all" : "")" 
+                @onclick="() => SelectTab(LectureTab.All)"
+                title="Alle 43 Aufgaben anzeigen">
+            <span>Alle</span>
+        </button>
+    </div>
+</div>
+
 <div class="@NavMenuCssClass nav-scrollable">
     <nav class="nav-sections">
-        <!-- Group 1: Grundlagen der Informatik -->
-        <div class="nav-group nav-group-first">
-            <button type="button" class="nav-group-header" @onclick="() => ToggleGroup(1)">
-                <span class="nav-group-title">
-                    <span class="nav-group-dot dot-gdi"></span>
-                    <span>Grundlagen der Informatik</span>
-                </span>
-                <svg class="chevron-icon @(IsGdIOpen ? "open" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
-            </button>
 
-            @if (IsGdIOpen)
-            {
-                <div class="nav-group-items">
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="abacus">
-                            <span class="nav-kicker">01</span>
-                            <span>
-                                <strong>Abakus (Soroban)</strong>
-                                <small>Bi-Quinär-System (Perlen)</small>
-                            </span>
-                        </NavLink>
+        <!-- ======================================================== -->
+        <!-- 1. GRUNDLAGEN DER INFORMATIK                            -->
+        <!-- ======================================================== -->
+        @if (SelectedTab == LectureTab.GdI || SelectedTab == LectureTab.All)
+        {
+            <div class="lecture-section-container">
+                <div class="lecture-header-banner banner-gdi">
+                    <span class="lecture-header-title">
+                        <span class="badge-dot dot-gdi"></span>
+                        <strong>Grundlagen der Informatik</strong>
+                    </span>
+                    <NavLink class="lecture-overview-link" href="computing-systems">
+                        Themen ↗
+                    </NavLink>
+                </div>
+
+                <!-- Kapitel 01 -->
+                <div class="nav-chapter-group">
+                    <div class="nav-chapter-heading">
+                        <span class="chapter-num">01</span>
+                        <span class="chapter-name">Historie &amp; Rechenhilfen</span>
                     </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="napier-bones">
-                            <span class="nav-kicker">02</span>
-                            <span>
-                                <strong>Napiersche Rechenstäbe</strong>
-                                <small>Gelosia-Multiplikation (1617)</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="binary-to-decimal">
-                            <span class="nav-kicker">03</span>
-                            <span>
-                                <strong>Binär zu Dezimal</strong>
-                                <small>Stellenwertsystem &amp; Potenzen</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="decimal-to-binary">
-                            <span class="nav-kicker">04</span>
-                            <span>
-                                <strong>Dezimal zu Binär</strong>
-                                <small>Divisionsverfahren &amp; Reste</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                            <span class="nav-kicker">05</span>
-                            <span>
-                                <strong>Binärarithmetik</strong>
-                                <small>8-Bit-Addition &amp; Überträge</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="twos-complement">
-                            <span class="nav-kicker">06</span>
-                            <span>
-                                <strong>Zweierkomplement</strong>
-                                <small>Vorzeichenbehaftete Ganzzahlen</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="floating-point">
-                            <span class="nav-kicker">07</span>
-                            <span>
-                                <strong>Gleitkommazahlen</strong>
-                                <small>IEEE 754 (32-Bit Single)</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="normal-forms">
-                            <span class="nav-kicker">08</span>
-                            <span>
-                                <strong>Kanonische Normalformen</strong>
-                                <small>DNF (Minterme) &amp; KNF (Maxterme)</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="karnaugh-veitch">
-                            <span class="nav-kicker">09</span>
-                            <span>
-                                <strong>KV-Diagramme</strong>
-                                <small>Gray-Code &amp; Blockbildung</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="quine-mccluskey">
-                            <span class="nav-kicker">10</span>
-                            <span>
-                                <strong>Quine-McCluskey</strong>
-                                <small>KV-Diagramme &amp; Minimierung</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="logic-circuits">
-                            <span class="nav-kicker">11</span>
-                            <span>
-                                <strong>Logikgatter &amp; Schaltungen</strong>
-                                <small>Gatter, Addierer, D-Latch</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="pla">
-                            <span class="nav-kicker">12</span>
-                            <span>
-                                <strong>Programmierbare Bausteine (PLA)</strong>
-                                <small>AND-/OR-Matrix &amp; Espresso</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="hazards">
-                            <span class="nav-kicker">13</span>
-                            <span>
-                                <strong>Funktions-Hazards</strong>
-                                <small>Glitches &amp; kürzeste Wege</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="moore-machine">
-                            <span class="nav-kicker">14</span>
-                            <span>
-                                <strong>Moore-Automaten</strong>
-                                <small>Zustandsgraph &amp; Schaltwerk</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="cpu-simulator">
-                            <span class="nav-kicker">15</span>
-                            <span>
-                                <strong>CPU-Simulator</strong>
-                                <small>Mikrocode &amp; Von-Neumann</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="addressing">
-                            <span class="nav-kicker">16</span>
-                            <span>
-                                <strong>Adressierungsarten (MIPS)</strong>
-                                <small>Register-, Basis- &amp; PC-relativ</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="assembler">
-                            <span class="nav-kicker">17</span>
-                            <span>
-                                <strong>MIPS-Assembler</strong>
-                                <small>Befehlsausführung &amp; Register-Trace</small>
-                            </span>
-                        </NavLink>
+                    <div class="nav-chapter-items">
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="abacus">
+                                <span class="nav-kicker">01</span>
+                                <span>
+                                    <strong>Abakus (Soroban)</strong>
+                                    <small>Bi-Quinär-System (Perlen)</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="napier-bones">
+                                <span class="nav-kicker">02</span>
+                                <span>
+                                    <strong>Napiersche Rechenstäbe</strong>
+                                    <small>Gelosia-Multiplikation (1617)</small>
+                                </span>
+                            </NavLink>
+                        </div>
                     </div>
                 </div>
-            }
-        </div>
 
-        <!-- Group 2: Rechnernetze -->
-        <div class="nav-group">
-            <button type="button" class="nav-group-header" @onclick="() => ToggleGroup(2)">
-                <span class="nav-group-title">
-                    <span class="nav-group-dot dot-net"></span>
-                    <span>Rechnernetze</span>
-                </span>
-                <svg class="chevron-icon @(IsNetOpen ? "open" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
-            </button>
-
-            @if (IsNetOpen)
-            {
-                <div class="nav-group-items">
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="line-coding">
-                            <span class="nav-kicker">01</span>
-                            <span>
-                                <strong>Leitungscodierung</strong>
-                                <small>NRZ, NRZ-I, Manchester</small>
-                            </span>
-                        </NavLink>
+                <!-- Kapitel 02 -->
+                <div class="nav-chapter-group">
+                    <div class="nav-chapter-heading">
+                        <span class="chapter-num">02</span>
+                        <span class="chapter-name">Zahlendarstellung &amp; Codes</span>
                     </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="crc">
-                            <span class="nav-kicker">02</span>
-                            <span>
-                                <strong>CRC-Verfahren</strong>
-                                <small>Polynomdivision &amp; Prüfsummen</small>
-                            </span>
-                        </NavLink>
+                    <div class="nav-chapter-items">
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="binary-to-decimal">
+                                <span class="nav-kicker">03</span>
+                                <span>
+                                    <strong>Binär zu Dezimal</strong>
+                                    <small>Stellenwertsystem &amp; Potenzen</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="decimal-to-binary">
+                                <span class="nav-kicker">04</span>
+                                <span>
+                                    <strong>Dezimal zu Binär</strong>
+                                    <small>Divisionsverfahren &amp; Reste</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="binary-arithmetic">
+                                <span class="nav-kicker">05</span>
+                                <span>
+                                    <strong>Binäraddition</strong>
+                                    <small>8-Bit-Addition &amp; Überträge</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="twos-complement">
+                                <span class="nav-kicker">06</span>
+                                <span>
+                                    <strong>Zweierkomplement</strong>
+                                    <small>Vorzeichenbehaftete Ganzzahlen</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="floating-point">
+                                <span class="nav-kicker">07</span>
+                                <span>
+                                    <strong>Gleitkommazahlen</strong>
+                                    <small>IEEE 754 (32-Bit Single)</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="ascii-memory">
+                                <span class="nav-kicker">08</span>
+                                <span>
+                                    <strong>ASCII &amp; Endianness</strong>
+                                    <small>Little vs. Big Endian</small>
+                                </span>
+                            </NavLink>
+                        </div>
                     </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="spanning-tree">
-                            <span class="nav-kicker">03</span>
-                            <span>
-                                <strong>Spanning Tree Protocol</strong>
-                                <small>Minimaler Spannbaum (Kruskal/Prim)</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="subnetting">
-                            <span class="nav-kicker">04</span>
-                            <span>
-                                <strong>IPv4-Subnetting</strong>
-                                <small>CIDR, Masken, Hostbereiche</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="shortest-path">
-                            <span class="nav-kicker">05</span>
-                            <span>
-                                <strong>Kürzeste Wege (Dijkstra)</strong>
-                                <small>Distanz-Matrix &amp; Routing</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="tcp">
-                            <span class="nav-kicker">06</span>
-                            <span>
-                                <strong>TCP-Protokollablauf</strong>
-                                <small>Seq/Ack, Handshake &amp; Window</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="layering">
-                            <span class="nav-kicker">07</span>
-                            <span>
-                                <strong>Schichtenmodell &amp; Kapselung</strong>
-                                <small>Auswirkungen von Schichtenänderungen</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="cn-topologies">
-                            <span class="nav-kicker">08</span>
-                            <span>
-                                <strong>Netzwerktopologien</strong>
-                                <small>Bus, Ring, Stern, Masche, Zelle</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="twisted-pair">
-                            <span class="nav-kicker">09</span>
-                            <span>
-                                <strong>Twisted-Pair &amp; Differenzsignale</strong>
-                                <small>Differenzsignal, Störunterdrückung &amp; T568</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="dns">
-                            <span class="nav-kicker">10</span>
-                            <span>
-                                <strong>DNS &amp; UDP-Idempotenz</strong>
-                                <small>Hierarchie, Namensauflösung &amp; UDP</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="http">
-                            <span class="nav-kicker">11</span>
-                            <span>
-                                <strong>HTTP &amp; MIME-Types</strong>
-                                <small>Request/Response &amp; Typenkatalog</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="mail">
-                            <span class="nav-kicker">12</span>
-                            <span>
-                                <strong>E-Mail &amp; Zeichenorientiert</strong>
-                                <small>SMTP, POP3, IMAP &amp; TCP-Pakete</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="telnet">
-                            <span class="nav-kicker">13</span>
-                            <span>
-                                <strong>Telnet &amp; Befehlszeilen</strong>
-                                <small>Remote Shell &amp; Text-Protokolle</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="server-identification">
-                            <span class="nav-kicker">14</span>
-                            <span>
-                                <strong>Server-Identifikation</strong>
-                                <small>DNS-Name, IP &amp; MAC-Adresse</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="walsh-code">
-                            <span class="nav-kicker">15</span>
-                            <span>
-                                <strong>CDMA &amp; Walsh-Codes</strong>
-                                <small>Kanalüberlagerung &amp; Decodierung</small>
-                            </span>
-                        </NavLink>
-                    </div>
-
                 </div>
-            }
-        </div>
 
-        <!-- Group 3: Betriebssysteme -->
-        <div class="nav-group">
-            <button type="button" class="nav-group-header" @onclick="() => ToggleGroup(3)">
-                <span class="nav-group-title">
-                    <span class="nav-group-dot dot-bs"></span>
-                    <span>Betriebssysteme</span>
-                </span>
-                <svg class="chevron-icon @(IsBsOpen ? "open" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
-            </button>
-
-            @if (IsBsOpen)
-            {
-                <div class="nav-group-items">
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="buddy-memory">
-                            <span class="nav-kicker">01</span>
-                            <span>
-                                <strong>Buddy-Speicher</strong>
-                                <small>Binäres Splitting &amp; Merging</small>
-                            </span>
-                        </NavLink>
+                <!-- Kapitel 03 -->
+                <div class="nav-chapter-group">
+                    <div class="nav-chapter-heading">
+                        <span class="chapter-num">03</span>
+                        <span class="chapter-name">Boolesche Algebra &amp; Minimierung</span>
                     </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="page-replacement">
-                            <span class="nav-kicker">02</span>
-                            <span>
-                                <strong>Seitenaustausch</strong>
-                                <small>FIFO, LRU, Clock, Optimal</small>
-                            </span>
-                        </NavLink>
+                    <div class="nav-chapter-items">
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="normal-forms">
+                                <span class="nav-kicker">09</span>
+                                <span>
+                                    <strong>Kanonische Normalformen</strong>
+                                    <small>DNF (Minterme) &amp; KNF (Maxterme)</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="karnaugh-veitch">
+                                <span class="nav-kicker">10</span>
+                                <span>
+                                    <strong>KV-Diagramme</strong>
+                                    <small>Gray-Code &amp; Blockbildung</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="quine-mccluskey">
+                                <span class="nav-kicker">11</span>
+                                <span>
+                                    <strong>Quine-McCluskey</strong>
+                                    <small>Primimplikanten &amp; Überdeckung</small>
+                                </span>
+                            </NavLink>
+                        </div>
                     </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="cpu-scheduling">
-                            <span class="nav-kicker">03</span>
-                            <span>
-                                <strong>CPU-Scheduling</strong>
-                                <small>FCFS, SPN, Round Robin Gantt</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="realtime-scheduling">
-                            <span class="nav-kicker">04</span>
-                            <span>
-                                <strong>Echtzeit-Scheduling</strong>
-                                <small>RMS &amp; EDF Auslastung</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="process-state">
-                            <span class="nav-kicker">05</span>
-                            <span>
-                                <strong>Prozesszustandsmodell</strong>
-                                <small>Ready, Running, Blocked</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="race-condition">
-                            <span class="nav-kicker">06</span>
-                            <span>
-                                <strong>Race Conditions &amp; Mutex</strong>
-                                <small>Kritische Abschnitte &amp; Interleaving</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="peterson">
-                            <span class="nav-kicker">07</span>
-                            <span>
-                                <strong>Petersons Algorithmus</strong>
-                                <small>Wechselseitiger Ausschluss &amp; Warten</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="pipes">
-                            <span class="nav-kicker">08</span>
-                            <span>
-                                <strong>Pipes &amp; IPC-Kategorien</strong>
-                                <small>Pipes, FIFOs &amp; Puffer-Kommunikation</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="ipc">
-                            <span class="nav-kicker">09</span>
-                            <span>
-                                <strong>IPC-Mechanismen</strong>
-                                <small>Shared Memory, Sockets &amp; Semaphoren</small>
-                            </span>
-                        </NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link" href="virtualisation">
-                            <span class="nav-kicker">10</span>
-                            <span>
-                                <strong>Virtualisierung</strong>
-                                <small>Hypervisor, Container &amp; Emulation</small>
-                            </span>
-                        </NavLink>
-                    </div>
-
                 </div>
-            }
-        </div>
+
+                <!-- Kapitel 04 -->
+                <div class="nav-chapter-group">
+                    <div class="nav-chapter-heading">
+                        <span class="chapter-num">04</span>
+                        <span class="chapter-name">Schaltnetze &amp; Bausteine</span>
+                    </div>
+                    <div class="nav-chapter-items">
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="logic-circuits">
+                                <span class="nav-kicker">12</span>
+                                <span>
+                                    <strong>Logikgatter &amp; Schaltungen</strong>
+                                    <small>Gatter, Addierer, D-Latch</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="pla">
+                                <span class="nav-kicker">13</span>
+                                <span>
+                                    <strong>Programmierbare Bausteine (PLA)</strong>
+                                    <small>AND-/OR-Matrix &amp; Espresso</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kapitel 05 -->
+                <div class="nav-chapter-group">
+                    <div class="nav-chapter-heading">
+                        <span class="chapter-num">05</span>
+                        <span class="chapter-name">Zeitverhalten &amp; Schaltwerke</span>
+                    </div>
+                    <div class="nav-chapter-items">
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="hazards">
+                                <span class="nav-kicker">14</span>
+                                <span>
+                                    <strong>Funktions-Hazards</strong>
+                                    <small>Glitches &amp; kürzeste Wege</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="moore-machine">
+                                <span class="nav-kicker">15</span>
+                                <span>
+                                    <strong>Moore-Automaten</strong>
+                                    <small>Zustandsgraph &amp; Schaltwerk</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kapitel 06 -->
+                <div class="nav-chapter-group">
+                    <div class="nav-chapter-heading">
+                        <span class="chapter-num">06</span>
+                        <span class="chapter-name">Rechnerstrukturen &amp; Software</span>
+                    </div>
+                    <div class="nav-chapter-items">
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="cpu-simulator">
+                                <span class="nav-kicker">16</span>
+                                <span>
+                                    <strong>CPU-Simulator</strong>
+                                    <small>Mikrocode &amp; Von-Neumann</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="addressing">
+                                <span class="nav-kicker">17</span>
+                                <span>
+                                    <strong>Adressierungsarten (MIPS)</strong>
+                                    <small>Register-, Basis- &amp; PC-relativ</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="assembler">
+                                <span class="nav-kicker">18</span>
+                                <span>
+                                    <strong>MIPS-Assembler</strong>
+                                    <small>Befehlsausführung &amp; Trace</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- ======================================================== -->
+        <!-- 2. RECHNERNETZE                                         -->
+        <!-- ======================================================== -->
+        @if (SelectedTab == LectureTab.Net || SelectedTab == LectureTab.All)
+        {
+            <div class="lecture-section-container">
+                <div class="lecture-header-banner banner-net">
+                    <span class="lecture-header-title">
+                        <span class="badge-dot dot-net"></span>
+                        <strong>Rechnernetze</strong>
+                    </span>
+                    <NavLink class="lecture-overview-link" href="networking">
+                        Themen ↗
+                    </NavLink>
+                </div>
+
+                <!-- Kapitel 01 -->
+                <div class="nav-chapter-group">
+                    <div class="nav-chapter-heading">
+                        <span class="chapter-num">01</span>
+                        <span class="chapter-name">Grundlagen &amp; Topologien</span>
+                    </div>
+                    <div class="nav-chapter-items">
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="layering">
+                                <span class="nav-kicker">01</span>
+                                <span>
+                                    <strong>Schichtenmodelle &amp; Kapselung</strong>
+                                    <small>Auswirkungen von Änderungen</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="cn-topologies">
+                                <span class="nav-kicker">02</span>
+                                <span>
+                                    <strong>Netzwerktopologien</strong>
+                                    <small>Bus, Ring, Stern, Masche, Zelle</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kapitel 02 -->
+                <div class="nav-chapter-group">
+                    <div class="nav-chapter-heading">
+                        <span class="chapter-num">02</span>
+                        <span class="chapter-name">Bitübertragungsschicht</span>
+                    </div>
+                    <div class="nav-chapter-items">
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="line-coding">
+                                <span class="nav-kicker">03</span>
+                                <span>
+                                    <strong>Leitungscodierung</strong>
+                                    <small>NRZ, NRZ-I, Manchester</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="twisted-pair">
+                                <span class="nav-kicker">04</span>
+                                <span>
+                                    <strong>Twisted-Pair-Verkabelung</strong>
+                                    <small>Differenzsignal, Störunterdrückung</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="walsh-code">
+                                <span class="nav-kicker">05</span>
+                                <span>
+                                    <strong>CDMA &amp; Walsh-Codes</strong>
+                                    <small>Kanalüberlagerung &amp; Decodierung</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kapitel 03 -->
+                <div class="nav-chapter-group">
+                    <div class="nav-chapter-heading">
+                        <span class="chapter-num">03</span>
+                        <span class="chapter-name">Sicherungsschicht</span>
+                    </div>
+                    <div class="nav-chapter-items">
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="crc">
+                                <span class="nav-kicker">06</span>
+                                <span>
+                                    <strong>CRC-Verfahren</strong>
+                                    <small>Polynomdivision &amp; Prüfsummen</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="spanning-tree">
+                                <span class="nav-kicker">07</span>
+                                <span>
+                                    <strong>Spanning Tree Protocol</strong>
+                                    <small>Minimaler Spannbaum (Kruskal/Prim)</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kapitel 04 -->
+                <div class="nav-chapter-group">
+                    <div class="nav-chapter-heading">
+                        <span class="chapter-num">04</span>
+                        <span class="chapter-name">Vermittlungsschicht</span>
+                    </div>
+                    <div class="nav-chapter-items">
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="subnetting">
+                                <span class="nav-kicker">08</span>
+                                <span>
+                                    <strong>IPv4-Subnetting</strong>
+                                    <small>CIDR, Masken, Hostbereiche</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="shortest-path">
+                                <span class="nav-kicker">09</span>
+                                <span>
+                                    <strong>Kürzeste Wege (Dijkstra)</strong>
+                                    <small>Distanz-Matrix &amp; Routing</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kapitel 05 -->
+                <div class="nav-chapter-group">
+                    <div class="nav-chapter-heading">
+                        <span class="chapter-num">05</span>
+                        <span class="chapter-name">Transportschicht</span>
+                    </div>
+                    <div class="nav-chapter-items">
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="tcp">
+                                <span class="nav-kicker">10</span>
+                                <span>
+                                    <strong>TCP-Protokollablauf</strong>
+                                    <small>Seq/Ack, Handshake &amp; Window</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kapitel 06 -->
+                <div class="nav-chapter-group">
+                    <div class="nav-chapter-heading">
+                        <span class="chapter-num">06</span>
+                        <span class="chapter-name">Anwendungsschicht</span>
+                    </div>
+                    <div class="nav-chapter-items">
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="dns">
+                                <span class="nav-kicker">11</span>
+                                <span>
+                                    <strong>Domain Name System (DNS)</strong>
+                                    <small>Hierarchie &amp; UDP-Idempotenz</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="http">
+                                <span class="nav-kicker">12</span>
+                                <span>
+                                    <strong>HTTP &amp; MIME-Types</strong>
+                                    <small>Request/Response &amp; Header</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="mail">
+                                <span class="nav-kicker">13</span>
+                                <span>
+                                    <strong>E-Mail &amp; Zeichenorientiert</strong>
+                                    <small>SMTP, POP3, IMAP Dialoge</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="telnet">
+                                <span class="nav-kicker">14</span>
+                                <span>
+                                    <strong>Telnet &amp; Befehlszeilen</strong>
+                                    <small>Remote Shell &amp; ASCII-Befehle</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="server-identification">
+                                <span class="nav-kicker">15</span>
+                                <span>
+                                    <strong>Server-Identifikation</strong>
+                                    <small>DNS (L7), IP (L3) &amp; MAC (L2)</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- ======================================================== -->
+        <!-- 3. BETRIEBSSYSTEME                                      -->
+        <!-- ======================================================== -->
+        @if (SelectedTab == LectureTab.BS || SelectedTab == LectureTab.All)
+        {
+            <div class="lecture-section-container">
+                <div class="lecture-header-banner banner-bs">
+                    <span class="lecture-header-title">
+                        <span class="badge-dot dot-bs"></span>
+                        <strong>Betriebssysteme</strong>
+                    </span>
+                    <NavLink class="lecture-overview-link" href="operating-systems">
+                        Themen ↗
+                    </NavLink>
+                </div>
+
+                <!-- Kapitel 01 -->
+                <div class="nav-chapter-group">
+                    <div class="nav-chapter-heading">
+                        <span class="chapter-num">01</span>
+                        <span class="chapter-name">Speicherverwaltung</span>
+                    </div>
+                    <div class="nav-chapter-items">
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="buddy-memory">
+                                <span class="nav-kicker">01</span>
+                                <span>
+                                    <strong>Buddy-Speicher</strong>
+                                    <small>Binäres Splitting &amp; Merging</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="page-replacement">
+                                <span class="nav-kicker">02</span>
+                                <span>
+                                    <strong>Seitenaustausch</strong>
+                                    <small>FIFO, LRU, Clock, Optimal</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kapitel 02 -->
+                <div class="nav-chapter-group">
+                    <div class="nav-chapter-heading">
+                        <span class="chapter-num">02</span>
+                        <span class="chapter-name">Dateisysteme</span>
+                    </div>
+                    <div class="nav-chapter-items">
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="filesystems">
+                                <span class="nav-kicker">03</span>
+                                <span>
+                                    <strong>UNIX Inodes &amp; FAT</strong>
+                                    <small>Zeigerhierarchie &amp; Clusterketten</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kapitel 03 -->
+                <div class="nav-chapter-group">
+                    <div class="nav-chapter-heading">
+                        <span class="chapter-num">03</span>
+                        <span class="chapter-name">Prozesse &amp; Scheduling</span>
+                    </div>
+                    <div class="nav-chapter-items">
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="process-state">
+                                <span class="nav-kicker">04</span>
+                                <span>
+                                    <strong>Prozesszustandsmodell</strong>
+                                    <small>Ready, Running, Blocked</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="cpu-scheduling">
+                                <span class="nav-kicker">05</span>
+                                <span>
+                                    <strong>CPU-Scheduling</strong>
+                                    <small>FCFS, SPN, Round Robin Gantt</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="realtime-scheduling">
+                                <span class="nav-kicker">06</span>
+                                <span>
+                                    <strong>Echtzeit-Scheduling</strong>
+                                    <small>RMS &amp; EDF Auslastung</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kapitel 04 -->
+                <div class="nav-chapter-group">
+                    <div class="nav-chapter-heading">
+                        <span class="chapter-num">04</span>
+                        <span class="chapter-name">Synchronisation &amp; IPC</span>
+                    </div>
+                    <div class="nav-chapter-items">
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="race-condition">
+                                <span class="nav-kicker">07</span>
+                                <span>
+                                    <strong>Race Conditions &amp; Mutex</strong>
+                                    <small>Kritische Abschnitte &amp; Interleaving</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="peterson">
+                                <span class="nav-kicker">08</span>
+                                <span>
+                                    <strong>Petersons Algorithmus</strong>
+                                    <small>Ausschluss &amp; aktives Warten</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="pipes">
+                                <span class="nav-kicker">09</span>
+                                <span>
+                                    <strong>Pipes &amp; FIFOs</strong>
+                                    <small>Puffer-Mechanismus &amp; Zeiger</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="ipc">
+                                <span class="nav-kicker">10</span>
+                                <span>
+                                    <strong>IPC-Mechanismen</strong>
+                                    <small>Shared Memory, Sockets &amp; Semaphoren</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kapitel 05 -->
+                <div class="nav-chapter-group">
+                    <div class="nav-chapter-heading">
+                        <span class="chapter-num">05</span>
+                        <span class="chapter-name">Virtualisierung</span>
+                    </div>
+                    <div class="nav-chapter-items">
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="virtualisation">
+                                <span class="nav-kicker">11</span>
+                                <span>
+                                    <strong>Virtualisierung</strong>
+                                    <small>Hypervisor, Container &amp; Emulation</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
     </nav>
 </div>
 
 @code {
+    public enum LectureTab
+    {
+        GdI,
+        Net,
+        BS,
+        All
+    }
+
     private bool collapseNavMenu = true;
-    private bool IsGdIOpen = true;
-    private bool IsNetOpen = true;
-    private bool IsBsOpen = true;
+    private LectureTab SelectedTab = LectureTab.GdI;
 
     private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
 
@@ -476,19 +703,108 @@
         collapseNavMenu = !collapseNavMenu;
     }
 
-    private void ToggleGroup(int groupId)
+    private void SelectTab(LectureTab tab)
     {
-        switch (groupId)
+        SelectedTab = tab;
+    }
+
+    protected override void OnInitialized()
+    {
+        AutoDetectTabFromUri(NavigationManager.Uri);
+        NavigationManager.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        // Wenn der Nutzer nicht gerade manuell auf einen anderen Tab geklickt hat,
+        // erkennen wir die passende Vorlesung automatisch aus der Route
+        AutoDetectTabFromUri(e.Location);
+        StateHasChanged();
+    }
+
+    private void AutoDetectTabFromUri(string uriString)
+    {
+        try
         {
-            case 1:
-                IsGdIOpen = !IsGdIOpen;
-                break;
-            case 2:
-                IsNetOpen = !IsNetOpen;
-                break;
-            case 3:
-                IsBsOpen = !IsBsOpen;
-                break;
+            var uri = new Uri(uriString);
+            var path = uri.AbsolutePath.Trim('/').ToLowerInvariant();
+
+            // Wenn auf der Startseite: Standardmäßig GdI oder All lassen
+            if (string.IsNullOrEmpty(path))
+            {
+                return;
+            }
+
+            // GdI Routen
+            if (path == "computing-systems" || path == "gdi" ||
+                path == "abacus" || path == "napier-bones" ||
+                path == "binary-to-decimal" || path == "decimal-to-binary" ||
+                path == "binary-arithmetic" || path == "binary-addition" || path == "addition" ||
+                path == "twos-complement" || path == "floating-point" ||
+                path == "ascii-memory" || path == "ascii-endianness" || path == "endianness" ||
+                path == "normal-forms" || path == "boolean-normal-forms" ||
+                path == "karnaugh-veitch" || path == "kv" ||
+                path == "quine-mccluskey" || path == "qmc" ||
+                path == "logic-circuits" || path == "logic-simulator" || path == "circuits" ||
+                path == "pla" || path == "espresso" ||
+                path == "hazards" || path == "glitches" ||
+                path == "moore-machine" || path == "moore" ||
+                path == "cpu-simulator" || path == "cpu" ||
+                path == "addressing" || path == "mips-addressing" ||
+                path == "assembler" || path == "mips-assembler")
+            {
+                SelectedTab = LectureTab.GdI;
+                return;
+            }
+
+            // Rechnernetze Routen
+            if (path == "networking" || path == "cn" || path == "rechnernetze" ||
+                path == "line-coding" || path == "bitencodings" || path == "bitencoding" || path == "leitungscodierung" ||
+                path == "crc" ||
+                path == "spanning-tree" || path == "stp" ||
+                path == "subnetting" || path == "ipv4-subnetting" ||
+                path == "shortest-path" || path == "shortestpath" || path == "dijkstra" || path == "kuerzeste-wege" ||
+                path == "tcp" || path == "tcp-seq-ack" || path == "tcpseqack" ||
+                path == "layering" || path == "schichten" ||
+                path == "cn-topologies" || path == "topologien" ||
+                path == "twisted-pair" || path == "verkabelung" ||
+                path == "dns" ||
+                path == "http" ||
+                path == "mail" || path == "email" ||
+                path == "telnet" ||
+                path == "server-identification" || path == "identifikation" ||
+                path == "walsh-code" || path == "walsh" || path == "cdma")
+            {
+                SelectedTab = LectureTab.Net;
+                return;
+            }
+
+            // Betriebssysteme Routen
+            if (path == "operating-systems" || path == "bs" || path == "betriebssysteme" ||
+                path == "buddy-memory" || path == "buddymemory" ||
+                path == "page-replacement" || path == "pagereplacement" ||
+                path == "cpu-scheduling" || path == "cpuscheduling" ||
+                path == "realtime-scheduling" || path == "realtimescheduling" ||
+                path == "process-state" || path == "processstate" || path == "prozesszustand" || path == "prozessmodell" ||
+                path == "race-condition" || path == "racecondition" ||
+                path == "peterson" || path == "peterson-algorithm" ||
+                path == "pipes" || path == "pipe" ||
+                path == "ipc" || path == "interprozesskommunikation" ||
+                path == "virtualisation" || path == "virtualisierung" ||
+                path == "filesystem" || path == "filesystems" || path == "dateisysteme" || path == "inode" || path == "inodes" || path == "fat")
+            {
+                SelectedTab = LectureTab.BS;
+                return;
+            }
         }
+        catch
+        {
+            // ignore URI parsing errors
+        }
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
     }
 }

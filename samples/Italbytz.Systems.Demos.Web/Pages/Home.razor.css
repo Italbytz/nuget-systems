@@ -1,0 +1,228 @@
+.hero-metrics {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+}
+
+.metric-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0.85rem 1.1rem;
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(20, 50, 47, 0.08);
+    backdrop-filter: blur(8px);
+    min-width: 5.5rem;
+    text-align: center;
+}
+
+.metric-num {
+    font-size: 1.55rem;
+    font-weight: 800;
+    color: #14322f;
+    line-height: 1.1;
+    font-family: "Iowan Old Style", "Palatino Linotype", serif;
+}
+
+.metric-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #486b66;
+    margin-top: 0.2rem;
+}
+
+.portal-courses {
+    margin-top: 2rem;
+}
+
+.course-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+    gap: 1.5rem;
+}
+
+.course-card {
+    background: #ffffff;
+    border-radius: 1.25rem;
+    border: 1px solid rgba(20, 50, 47, 0.08);
+    box-shadow: 0 4px 20px rgba(20, 50, 47, 0.04);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 1.6rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.course-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 30px rgba(20, 50, 47, 0.08);
+}
+
+.course-gdi:hover {
+    border-color: rgba(245, 158, 11, 0.45);
+}
+
+.course-net:hover {
+    border-color: rgba(56, 189, 248, 0.45);
+}
+
+.course-bs:hover {
+    border-color: rgba(167, 139, 250, 0.45);
+}
+
+.course-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.85rem;
+}
+
+.badge-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+}
+
+.badge-gdi {
+    background: rgba(245, 158, 11, 0.12);
+    color: #b45309;
+}
+.dot-gdi {
+    background: #f59e0b;
+}
+
+.badge-net {
+    background: rgba(56, 189, 248, 0.14);
+    color: #0284c7;
+}
+.dot-net {
+    background: #38bdf8;
+}
+
+.badge-bs {
+    background: rgba(167, 139, 250, 0.14);
+    color: #7c3aed;
+}
+.dot-bs {
+    background: #a78bfa;
+}
+
+.course-header h2 {
+    font-size: 1.45rem;
+    margin: 0 0 0.55rem;
+    color: #14322f;
+}
+
+.course-desc {
+    font-size: 0.92rem;
+    line-height: 1.5;
+    color: #486b66;
+    margin: 0 0 1.25rem;
+}
+
+.course-chapters {
+    padding-top: 1rem;
+    border-top: 1px solid rgba(20, 50, 47, 0.08);
+    margin-bottom: 1.4rem;
+}
+
+.chapter-label {
+    display: block;
+    font-size: 0.74rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #6d8e89;
+    margin-bottom: 0.65rem;
+}
+
+.chapter-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.chapter-list li {
+    font-size: 0.82rem;
+    line-height: 1.35;
+    color: #2b4945;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.chapter-list li strong {
+    color: #14322f;
+    font-variant-numeric: tabular-nums;
+    flex: none;
+}
+
+.course-footer {
+    padding-top: 0.5rem;
+}
+
+.btn-course {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0.75rem 1.15rem;
+    border-radius: 0.85rem;
+    font-size: 0.88rem;
+    font-weight: 700;
+    text-decoration: none;
+    transition: all 0.15s ease-in-out;
+}
+
+.btn-gdi {
+    background: rgba(245, 158, 11, 0.12);
+    color: #92400e;
+    border: 1px solid rgba(245, 158, 11, 0.25);
+}
+.btn-gdi:hover {
+    background: #f59e0b;
+    color: #ffffff;
+    border-color: #f59e0b;
+}
+
+.btn-net {
+    background: rgba(56, 189, 248, 0.12);
+    color: #0369a1;
+    border: 1px solid rgba(56, 189, 248, 0.25);
+}
+.btn-net:hover {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #0284c7;
+}
+
+.btn-bs {
+    background: rgba(167, 139, 250, 0.12);
+    color: #6d28d9;
+    border: 1px solid rgba(167, 139, 250, 0.25);
+}
+.btn-bs:hover {
+    background: #7c3aed;
+    color: #ffffff;
+    border-color: #7c3aed;
+}
+
+@media (max-width: 768px) {
+    .hero-metrics {
+        justify-content: flex-start;
+        margin-top: 1rem;
+    }
+}

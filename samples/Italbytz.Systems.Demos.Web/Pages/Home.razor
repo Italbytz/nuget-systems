@@ -1,0 +1,142 @@
+@page "/"
+@page "/home"
+@page "/portal"
+@page "/overview"
+
+<PageTitle>Systemorientierte Informatik – Interaktive Simulatoren</PageTitle>
+
+<section class="hero-panel page-hero">
+    <div>
+        <p class="eyebrow">Interaktive Lehr- &amp; Lernumgebung</p>
+        <h1>Systemorientierte Informatik</h1>
+        <p class="hero-copy">
+            43 interaktive Simulatoren, Visualisierungen und Lösungsberechnungen für Vorlesung und Übung. 
+            Wählen Sie ein Fachgebiet aus, um die Übungen nach Buchkapiteln und Foliensätzen zu erkunden:
+        </p>
+    </div>
+    <div class="hero-metrics">
+        <div class="metric-card">
+            <span class="metric-num">3</span>
+            <span class="metric-label">Vorlesungen</span>
+        </div>
+        <div class="metric-card">
+            <span class="metric-num">43</span>
+            <span class="metric-label">Simulatoren</span>
+        </div>
+        <div class="metric-card">
+            <span class="metric-num">100%</span>
+            <span class="metric-label">Interaktiv (Wasm)</span>
+        </div>
+    </div>
+</section>
+
+<section class="section-stack portal-courses">
+    <div class="course-grid">
+        <!-- 1. Grundlagen der Informatik -->
+        <article class="course-card course-gdi">
+            <div class="course-header">
+                <div class="course-badge badge-gdi">
+                    <span class="badge-dot dot-gdi"></span>
+                    <span>17 Simulatoren</span>
+                </div>
+                <h2>Grundlagen der Informatik</h2>
+                <p class="course-desc">
+                    Zahlendarstellung, Binärarithmetik, Boolesche Algebra, Minimierungsverfahren, Schaltwerke und MIPS-Rechnerarchitektur.
+                </p>
+            </div>
+
+            <div class="course-chapters">
+                <span class="chapter-label">Gliederung nach Foliensätzen:</span>
+                <ul class="chapter-list">
+                    <li><strong>01</strong> Historie &amp; Einführung (Abakus, Napiersche Rechenstäbe)</li>
+                    <li><strong>02</strong> Zahlendarstellung &amp; Codes (Binär, Dezimal, 2er-Komplement, IEEE 754, ASCII)</li>
+                    <li><strong>03</strong> Boolesche Algebra &amp; Minimierung (Normalformen, KV-Diagramme, Quine-McCluskey)</li>
+                    <li><strong>04</strong> Schaltnetze &amp; PLA (Logikgatter, PLA)</li>
+                    <li><strong>05</strong> Zeitverhalten &amp; Schaltwerke (Funktions-Hazards, Moore-Automaten)</li>
+                    <li><strong>06</strong> Rechnerstrukturen &amp; Software (CPU-Simulator, MIPS-Adressierung &amp; Assembler)</li>
+                </ul>
+            </div>
+
+            <div class="course-footer">
+                <a class="btn-course btn-gdi" href="computing-systems">
+                    <span>Zur Themenübersicht GdI</span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
+                </a>
+            </div>
+        </article>
+
+        <!-- 2. Rechnernetze -->
+        <article class="course-card course-net">
+            <div class="course-header">
+                <div class="course-badge badge-net">
+                    <span class="badge-dot dot-net"></span>
+                    <span>15 Simulatoren</span>
+                </div>
+                <h2>Rechnernetze</h2>
+                <p class="course-desc">
+                    Schichtenarchitektur, Netzwerktopologien, Bitübertragung, Sicherung, Routing, Transportprotokolle und Internet-Dienste.
+                </p>
+            </div>
+
+            <div class="course-chapters">
+                <span class="chapter-label">Gliederung nach Foliensätzen:</span>
+                <ul class="chapter-list">
+                    <li><strong>01</strong> Grundlagen &amp; Topologien (Schichtenmodell, Netzwerktopologien)</li>
+                    <li><strong>02</strong> Bitübertragungsschicht (Leitungscodierung, Twisted-Pair, CDMA / Walsh)</li>
+                    <li><strong>03</strong> Sicherungsschicht (CRC-Verfahren, Spanning Tree Protocol)</li>
+                    <li><strong>04</strong> Vermittlungsschicht (IPv4-Subnetting, Kürzeste Wege / Dijkstra)</li>
+                    <li><strong>05</strong> Transportschicht (TCP-Protokollablauf, Seq/Ack &amp; Handshake)</li>
+                    <li><strong>06</strong> Anwendungsschicht (DNS, HTTP &amp; MIME, E-Mail, Telnet, Server-Identifikation)</li>
+                </ul>
+            </div>
+
+            <div class="course-footer">
+                <a class="btn-course btn-net" href="networking">
+                    <span>Zur Themenübersicht RN</span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
+                </a>
+            </div>
+        </article>
+
+        <!-- 3. Betriebssysteme -->
+        <article class="course-card course-bs">
+            <div class="course-header">
+                <div class="course-badge badge-bs">
+                    <span class="badge-dot dot-bs"></span>
+                    <span>11 Simulatoren</span>
+                </div>
+                <h2>Betriebssysteme</h2>
+                <p class="course-desc">
+                    Speicherverwaltung, Dateisysteme (Inodes &amp; FAT), CPU-Scheduling, Synchronisation im kritischen Abschnitt, IPC und Virtualisierung.
+                </p>
+            </div>
+
+            <div class="course-chapters">
+                <span class="chapter-label">Gliederung nach Foliensätzen:</span>
+                <ul class="chapter-list">
+                    <li><strong>01</strong> Speicherverwaltung (Buddy-System, Seitenaustausch)</li>
+                    <li><strong>02</strong> Dateisysteme (UNIX Inodes &amp; FAT Clusterketten)</li>
+                    <li><strong>03</strong> Prozesse &amp; Scheduling (Prozesszustände, CPU-Scheduling Gantt, Echtzeit RMS/EDF)</li>
+                    <li><strong>04</strong> Synchronisation &amp; IPC (Race Conditions, Peterson, Pipes, IPC-Vergleich)</li>
+                    <li><strong>05</strong> Virtualisierung (Hypervisoren Typ 1 &amp; 2, Container, Paravirtualisierung)</li>
+                </ul>
+            </div>
+
+            <div class="course-footer">
+                <a class="btn-course btn-bs" href="operating-systems">
+                    <span>Zur Themenübersicht BS</span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
+                </a>
+            </div>
+        </article>
+    </div>
+</section>

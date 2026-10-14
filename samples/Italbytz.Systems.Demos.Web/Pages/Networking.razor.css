@@ -1,3 +1,37 @@
-.networking-hero {
-    border-color: rgba(37, 90, 111, 0.18);
+.chapter-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+    margin-top: 1.5rem;
+}
+
+.chapter-block {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.chapter-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid rgba(56, 189, 248, 0.25);
+}
+
+.chapter-tag {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.25rem 0.65rem;
+    border-radius: 999px;
+    background: rgba(56, 189, 248, 0.15);
+    color: #0284c7;
+}
+
+.chapter-header h2 {
+    font-size: 1.35rem;
+    margin: 0;
+    color: #14322f;
 }
