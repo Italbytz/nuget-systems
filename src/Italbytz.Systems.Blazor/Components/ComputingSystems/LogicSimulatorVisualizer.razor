@@ -1,4 +1,5 @@
 @namespace Italbytz.Systems.Blazor.Components.ComputingSystems
+@implements IDisposable
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 
@@ -49,6 +50,9 @@
             </button>
             <button class="circuit-tab @(SelectedCircuit == CircuitType.SevenSegment ? "active" : "")" @onclick="() => SetCircuit(CircuitType.SevenSegment)">
                 🔢 7-Segment-Decoder
+            </button>
+            <button class="circuit-tab @(SelectedCircuit == CircuitType.Counter ? "active" : "")" @onclick="() => SetCircuit(CircuitType.Counter)">
+                ⏱️ 3-Bit-Synchronzähler
             </button>
             <button class="circuit-tab @(SelectedCircuit == CircuitType.Gates ? "active" : "")" @onclick="() => SetCircuit(CircuitType.Gates)">
                 Elementare Gatter
@@ -867,6 +871,317 @@
 
             </div>
         }
+        else if (SelectedCircuit == CircuitType.Counter)
+        {
+            <!-- Narrator Card -->
+            <div class="narrator-card">
+                <div class="narrator-header">
+                    <div class="step-badge" style="background:#4338ca; color:#ffffff;">3-Bit-Synchronzähler</div>
+                    <div class="narrator-title">
+                        Modus: <span class="mono bold purple">@(CounterSequential ? "Sequentiell (D-Flip-Flops mit Takt)" : "Kombinatorische Logik (e → a)")</span> &bull;
+                        Aktueller Zählerstand: <strong class="blue mono">@CounterDecimal (@(ActiveE2 ? "1" : "0")@(ActiveE1 ? "1" : "0")@(ActiveE0 ? "1" : "0")₂)</strong> &rarr;
+                        Nächster Zustand: <strong class="emerald mono">@NextCounterValue (@(CounterA2 ? "1" : "0")@(CounterA1 ? "1" : "0")@(CounterA0 ? "1" : "0")₂)</strong>
+                    </div>
+                </div>
+                <p class="narrator-text">
+                    Ein synchroner 3-Bit-Vorwärtszähler schaltet mit jedem Taktsignal um genau eins weiter (<em>n</em> + 1 mod 8). Die Flip-Flops speichern den aktuellen Zustand <em>e</em>₂, <em>e</em>₁, <em>e</em>₀. Das kombinatorische Schaltnetz erzeugt aus dem aktuellen Zustand die Ansteuerungen <em>a</em>₂, <em>a</em>₁, <em>a</em>₀ für den Folgezustand.
+                </p>
+                <div class="logic-metrics-strip">
+                    <span>Gleichungen: <strong class="mono">a₀ = ¬e₀ &bull; a₁ = e₁ ⊕ e₀ &bull; a₂ = e₂ ⊕ (e₁ · e₀)</strong></span>
+                    <span>Takt-Zyklus: <strong class="mono blue">0 &rarr; 1 &rarr; 2 &rarr; 3 &rarr; 4 &rarr; 5 &rarr; 6 &rarr; 7 &rarr; 0</strong></span>
+                </div>
+            </div>
+
+            <!-- Main Display Grid -->
+            <div class="main-display-grid">
+
+                <!-- Left: Interactive Schematic SVG -->
+                <div class="circuit-card">
+                    <div class="circuit-card-header">
+                        <h3>Schaltplan (@(CounterSequential ? "Synchrones Schaltwerk mit gemeinsamen Takt" : "Kombinatorisches Schaltnetz"))</h3>
+                        <div class="view-switch-btns">
+                            <button class="mode-btn @(CounterSequential ? "active" : "")" @onclick="() => CounterSequential = true">
+                                ⏱️ Sequentiell (mit Takt)
+                            </button>
+                            <button class="mode-btn @(!CounterSequential ? "active" : "")" @onclick="() => CounterSequential = false">
+                                🔌 Nur Kombinatorik (e)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Toolbar -->
+                    <div class="mux-toolbar">
+                        @if (CounterSequential)
+                        {
+                            <div class="mux-group">
+                                <span class="toolbar-label">Taktsteuerung:</span>
+                                <button class="btn-clock @(CounterClockPulse ? "pulsing" : "")" @onclick="StepCounterClock" title="Einen Taktimpuls auslösen">
+                                    ⏱️ Takt (Clock)
+                                </button>
+                                <button class="btn-autoplay @(CounterAutoPlay ? "active-playing" : "")" @onclick="ToggleCounterAutoPlay">
+                                    @(CounterAutoPlay ? "⏸️ Pause" : "▶️ Auto-Takt")
+                                </button>
+                                <button class="btn-reset" @onclick="ResetCounter" title="Auf 0 zurücksetzen">
+                                    ↺ Reset (000)
+                                </button>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="mux-group">
+                                <span class="toolbar-label">Eingänge (e):</span>
+                                <button class="toggle-btn @(CounterManualE2 ? "high" : "low")" @onclick="() => CounterManualE2 = !CounterManualE2">
+                                    e₂ (MSB): <strong>@(CounterManualE2 ? "1" : "0")</strong>
+                                </button>
+                                <button class="toggle-btn @(CounterManualE1 ? "high" : "low")" @onclick="() => CounterManualE1 = !CounterManualE1">
+                                    e₁: <strong>@(CounterManualE1 ? "1" : "0")</strong>
+                                </button>
+                                <button class="toggle-btn @(CounterManualE0 ? "high" : "low")" @onclick="() => CounterManualE0 = !CounterManualE0">
+                                    e₀ (LSB): <strong>@(CounterManualE0 ? "1" : "0")</strong>
+                                </button>
+                            </div>
+                        }
+
+                        <div class="mux-group">
+                            <span class="toolbar-label">Direktwahl:</span>
+                            <div class="digit-selector">
+                                @for (int i = 0; i < 8; i++)
+                                {
+                                    var digit = i;
+                                    <button class="digit-btn @(CounterDecimal == digit ? "active" : "")" @onclick="() => SetCounterValue(digit)">
+                                        @digit
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SVG Circuit Canvas -->
+                    <div class="svg-container">
+                        <svg class="logic-svg" viewBox="0 0 680 440" preserveAspectRatio="xMidYMid meet">
+                            <!-- Clock Rail (Sequential mode only) -->
+                            @if (CounterSequential)
+                            {
+                                <g class="clock-rail">
+                                    <!-- Clock Source Box -->
+                                    <rect x="25" y="40" width="70" height="36" rx="4" fill="@(CounterClockPulse ? "#ede9fe" : "#f8fafc")" stroke="@(CounterClockPulse ? "#7c3aed" : "#64748b")" stroke-width="2" />
+                                    <path d="M 38 62 L 48 62 L 48 48 L 58 48 L 58 62 L 68 62 L 68 48 L 78 48 L 78 62 L 85 62" fill="none" stroke="@(CounterClockPulse ? "#7c3aed" : "#475569")" stroke-width="2" />
+                                    <text x="60" y="32" font-size="12" font-weight="700" text-anchor="middle" fill="#64748b">CLOCK</text>
+
+                                    <!-- Clock Wires down to FF0, FF1, FF2 -->
+                                    <path d="M 95 58 L 130 58 L 130 360 L 160 360" fill="none" stroke="@(CounterClockPulse ? "#7c3aed" : "#94a3b8")" stroke-width="@(CounterClockPulse ? "3.5" : "2")" />
+                                    <path d="M 130 160 L 160 160" fill="none" stroke="@(CounterClockPulse ? "#7c3aed" : "#94a3b8")" stroke-width="@(CounterClockPulse ? "3.5" : "2")" />
+                                    <path d="M 130 260 L 160 260" fill="none" stroke="@(CounterClockPulse ? "#7c3aed" : "#94a3b8")" stroke-width="@(CounterClockPulse ? "3.5" : "2")" />
+                                    <circle cx="130" cy="160" r="3.5" fill="@(CounterClockPulse ? "#7c3aed" : "#94a3b8")" />
+                                    <circle cx="130" cy="260" r="3.5" fill="@(CounterClockPulse ? "#7c3aed" : "#94a3b8")" />
+                                </g>
+
+                                <!-- 3 D-Flip-Flops -->
+                                <!-- FF0 (LSB) -->
+                                <g class="ff-box">
+                                    <rect x="160" y="115" width="60" height="65" rx="5" fill="#ffffff" stroke="#1e293b" stroke-width="2.5" />
+                                    <text x="190" y="105" font-size="12" font-weight="700" text-anchor="middle" fill="#0f172a">FF₀</text>
+                                    <text x="168" y="142" font-size="13" font-weight="600" fill="#475569">D</text>
+                                    <path d="M 160 167 L 168 160 L 160 153 Z" fill="none" stroke="#475569" stroke-width="1.8" />
+                                    <text x="210" y="142" font-size="13" font-weight="700" text-anchor="end" fill="@(ActiveE0 ? "#2563eb" : "#475569")">Q</text>
+                                </g>
+
+                                <!-- FF1 -->
+                                <g class="ff-box">
+                                    <rect x="160" y="215" width="60" height="65" rx="5" fill="#ffffff" stroke="#1e293b" stroke-width="2.5" />
+                                    <text x="190" y="205" font-size="12" font-weight="700" text-anchor="middle" fill="#0f172a">FF₁</text>
+                                    <text x="168" y="242" font-size="13" font-weight="600" fill="#475569">D</text>
+                                    <path d="M 160 267 L 168 260 L 160 253 Z" fill="none" stroke="#475569" stroke-width="1.8" />
+                                    <text x="210" y="242" font-size="13" font-weight="700" text-anchor="end" fill="@(ActiveE1 ? "#2563eb" : "#475569")">Q</text>
+                                </g>
+
+                                <!-- FF2 (MSB) -->
+                                <g class="ff-box">
+                                    <rect x="160" y="315" width="60" height="65" rx="5" fill="#ffffff" stroke="#1e293b" stroke-width="2.5" />
+                                    <text x="190" y="305" font-size="12" font-weight="700" text-anchor="middle" fill="#0f172a">FF₂</text>
+                                    <text x="168" y="342" font-size="13" font-weight="600" fill="#475569">D</text>
+                                    <path d="M 160 367 L 168 360 L 160 353 Z" fill="none" stroke="#475569" stroke-width="1.8" />
+                                    <text x="210" y="342" font-size="13" font-weight="700" text-anchor="end" fill="@(ActiveE2 ? "#2563eb" : "#475569")">Q</text>
+                                </g>
+                            }
+                            else
+                            {
+                                <!-- Input Switches (Combinational Mode) -->
+                                <g class="input-switches">
+                                    <!-- e0 -->
+                                    <rect x="140" y="122" width="40" height="32" rx="4" fill="@(ActiveE0 ? "#2563eb" : "#f1f5f9")" stroke="@(ActiveE0 ? "#1d4ed8" : "#94a3b8")" stroke-width="2" style="cursor:pointer;" @onclick="() => CounterManualE0 = !CounterManualE0" />
+                                    <text x="160" y="143" font-size="13" font-weight="700" text-anchor="middle" fill="@(ActiveE0 ? "#ffffff" : "#334155")" style="cursor:pointer;" @onclick="() => CounterManualE0 = !CounterManualE0">e₀: @(ActiveE0 ? "1" : "0")</text>
+
+                                    <!-- e1 -->
+                                    <rect x="140" y="222" width="40" height="32" rx="4" fill="@(ActiveE1 ? "#2563eb" : "#f1f5f9")" stroke="@(ActiveE1 ? "#1d4ed8" : "#94a3b8")" stroke-width="2" style="cursor:pointer;" @onclick="() => CounterManualE1 = !CounterManualE1" />
+                                    <text x="160" y="243" font-size="13" font-weight="700" text-anchor="middle" fill="@(ActiveE1 ? "#ffffff" : "#334155")" style="cursor:pointer;" @onclick="() => CounterManualE1 = !CounterManualE1">e₁: @(ActiveE1 ? "1" : "0")</text>
+
+                                    <!-- e2 -->
+                                    <rect x="140" y="322" width="40" height="32" rx="4" fill="@(ActiveE2 ? "#2563eb" : "#f1f5f9")" stroke="@(ActiveE2 ? "#1d4ed8" : "#94a3b8")" stroke-width="2" style="cursor:pointer;" @onclick="() => CounterManualE2 = !CounterManualE2" />
+                                    <text x="160" y="343" font-size="13" font-weight="700" text-anchor="middle" fill="@(ActiveE2 ? "#ffffff" : "#334155")" style="cursor:pointer;" @onclick="() => CounterManualE2 = !CounterManualE2">e₂: @(ActiveE2 ? "1" : "0")</text>
+                                </g>
+                            }
+
+                            <!-- Wire Net for e0, e1, e2 -->
+                            <!-- e0 wires -->
+                            <path d="M @(CounterSequential ? 220 : 180) 138 L 260 138 L 320 138" fill="none" stroke="@GetCounterWireColor(ActiveE0)" stroke-width="@GetCounterWireWidth(ActiveE0)" />
+                            <path d="M 260 138 L 260 225 L 400 225" fill="none" stroke="@GetCounterWireColor(ActiveE0)" stroke-width="@GetCounterWireWidth(ActiveE0)" />
+                            <path d="M 260 225 L 260 295 L 320 295" fill="none" stroke="@GetCounterWireColor(ActiveE0)" stroke-width="@GetCounterWireWidth(ActiveE0)" />
+                            <circle cx="260" cy="138" r="4" fill="@GetCounterWireColor(ActiveE0)" />
+                            <circle cx="260" cy="225" r="4" fill="@GetCounterWireColor(ActiveE0)" />
+
+                            <!-- e1 wires -->
+                            <path d="M @(CounterSequential ? 220 : 180) 238 L 280 238 L 400 238" fill="none" stroke="@GetCounterWireColor(ActiveE1)" stroke-width="@GetCounterWireWidth(ActiveE1)" />
+                            <path d="M 280 238 L 280 315 L 320 315" fill="none" stroke="@GetCounterWireColor(ActiveE1)" stroke-width="@GetCounterWireWidth(ActiveE1)" />
+                            <circle cx="280" cy="238" r="4" fill="@GetCounterWireColor(ActiveE1)" />
+
+                            <!-- e2 wires -->
+                            <path d="M @(CounterSequential ? 220 : 180) 338 L 300 338 L 300 375 L 420 375" fill="none" stroke="@GetCounterWireColor(ActiveE2)" stroke-width="@GetCounterWireWidth(ActiveE2)" />
+
+                            <!-- GATE 1: Inverter (NOT) for a0 -->
+                            <g class="gate-not">
+                                <rect x="320" y="118" width="40" height="40" rx="4" fill="#ffffff" stroke="#0f172a" stroke-width="2.5" />
+                                <text x="340" y="143" font-size="18" font-weight="700" text-anchor="middle" fill="#0f172a">1</text>
+                                <circle cx="366" cy="138" r="5" fill="#ffffff" stroke="#0f172a" stroke-width="2" />
+                            </g>
+                            <!-- a0 wire -->
+                            <path d="M 372 138 L 530 138" fill="none" stroke="@GetCounterWireColor(CounterA0)" stroke-width="@GetCounterWireWidth(CounterA0)" />
+
+                            <!-- GATE 2: XOR for a1 -->
+                            <g class="gate-xor1">
+                                <rect x="400" y="210" width="55" height="55" rx="4" fill="#ffffff" stroke="#0f172a" stroke-width="2.5" />
+                                <text x="427" y="244" font-size="18" font-weight="700" text-anchor="middle" fill="#0f172a">=1</text>
+                            </g>
+                            <!-- a1 wire -->
+                            <path d="M 455 238 L 530 238" fill="none" stroke="@GetCounterWireColor(CounterA1)" stroke-width="@GetCounterWireWidth(CounterA1)" />
+
+                            <!-- GATE 3: AND for (e1 · e0) -->
+                            <g class="gate-and">
+                                <rect x="320" y="285" width="50" height="50" rx="4" fill="#ffffff" stroke="#0f172a" stroke-width="2.5" />
+                                <text x="345" y="317" font-size="20" font-weight="700" text-anchor="middle" fill="#0f172a">&amp;</text>
+                            </g>
+                            <!-- AND output wire to XOR -->
+                            <path d="M 370 310 L 395 310 L 395 345 L 420 345" fill="none" stroke="@GetCounterWireColor(CounterAnd)" stroke-width="@GetCounterWireWidth(CounterAnd)" />
+
+                            <!-- GATE 4: XOR for a2 -->
+                            <g class="gate-xor2">
+                                <rect x="420" y="335" width="55" height="55" rx="4" fill="#ffffff" stroke="#0f172a" stroke-width="2.5" />
+                                <text x="447" y="370" font-size="18" font-weight="700" text-anchor="middle" fill="#0f172a">=1</text>
+                            </g>
+                            <!-- a2 wire -->
+                            <path d="M 475 362 L 530 362" fill="none" stroke="@GetCounterWireColor(CounterA2)" stroke-width="@GetCounterWireWidth(CounterA2)" />
+
+                            <!-- Output Indicators / Pins a0, a1, a2 -->
+                            <!-- a0 -->
+                            <circle cx="545" cy="138" r="14" fill="@(CounterA0 ? "#dcfce7" : "#f1f5f9")" stroke="@(CounterA0 ? "#15803d" : "#64748b")" stroke-width="2.5" />
+                            <text x="545" y="143" font-size="13" font-weight="700" text-anchor="middle" fill="@(CounterA0 ? "#15803d" : "#64748b")">@(CounterA0 ? "1" : "0")</text>
+                            <text x="568" y="143" font-size="14" font-weight="700" fill="#0f172a">a₀</text>
+
+                            <!-- a1 -->
+                            <circle cx="545" cy="238" r="14" fill="@(CounterA1 ? "#dcfce7" : "#f1f5f9")" stroke="@(CounterA1 ? "#15803d" : "#64748b")" stroke-width="2.5" />
+                            <text x="545" y="243" font-size="13" font-weight="700" text-anchor="middle" fill="@(CounterA1 ? "#15803d" : "#64748b")">@(CounterA1 ? "1" : "0")</text>
+                            <text x="568" y="243" font-size="14" font-weight="700" fill="#0f172a">a₁</text>
+
+                            <!-- a2 -->
+                            <circle cx="545" cy="362" r="14" fill="@(CounterA2 ? "#dcfce7" : "#f1f5f9")" stroke="@(CounterA2 ? "#15803d" : "#64748b")" stroke-width="2.5" />
+                            <text x="545" y="367" font-size="13" font-weight="700" text-anchor="middle" fill="@(CounterA2 ? "#15803d" : "#64748b")">@(CounterA2 ? "1" : "0")</text>
+                            <text x="568" y="367" font-size="14" font-weight="700" fill="#0f172a">a₂</text>
+
+                            <!-- Sequential Feedback Loops from a0, a1, a2 back to D0, D1, D2 -->
+                            @if (CounterSequential)
+                            {
+                                <!-- Loop 0: a0 to D0 (y=138 -> y=85 -> x=110 -> y=138) -->
+                                <path d="M 545 124 L 545 85 L 110 85 L 110 138 L 160 138" fill="none" stroke="@GetCounterWireColor(CounterA0)" stroke-width="2" stroke-dasharray="4 3" />
+
+                                <!-- Loop 1: a1 to D1 (y=238 -> y=190 -> x=118 -> y=238) -->
+                                <path d="M 545 224 L 545 190 L 118 190 L 118 238 L 160 238" fill="none" stroke="@GetCounterWireColor(CounterA1)" stroke-width="2" stroke-dasharray="4 3" />
+
+                                <!-- Loop 2: a2 to D2 (y=362 -> y=415 -> x=114 -> y=338) -->
+                                <path d="M 545 376 L 545 415 L 114 415 L 114 338 L 160 338" fill="none" stroke="@GetCounterWireColor(CounterA2)" stroke-width="2" stroke-dasharray="4 3" />
+                            }
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Right: Truth Table Card -->
+                <div class="truth-table-card">
+                    <div class="table-card-header">
+                        <h3>Wertetabelle (8 Zustände)</h3>
+                        <span class="table-badge">Zustandsfolge</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="logic-table">
+                            <thead>
+                                <tr>
+                                    <th colspan="3" class="th-group-gray">Alter Zustand (e)</th>
+                                    <th colspan="3" class="th-group-accent">Neuer Zustand (a)</th>
+                                    <th>Übergang</th>
+                                </tr>
+                                <tr>
+                                    <th>e₂</th>
+                                    <th>e₁</th>
+                                    <th>e₀</th>
+                                    <th>a₂</th>
+                                    <th>a₁</th>
+                                    <th>a₀</th>
+                                    <th>Dezimal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int row = 0; row < 8; row++)
+                                {
+                                    var r = row;
+                                    var re2 = (r & 4) != 0;
+                                    var re1 = (r & 2) != 0;
+                                    var re0 = (r & 1) != 0;
+                                    var ra0 = !re0;
+                                    var ra1 = re1 ^ re0;
+                                    var ra2 = re2 ^ (re1 && re0);
+                                    var nextDec = (r + 1) % 8;
+                                    var isCurRow = (CounterDecimal == r);
+
+                                    <tr class="@(isCurRow ? "highlight-row" : "")" style="cursor:pointer;" @onclick="() => SetCounterValue(r)">
+                                        <td class="@(re2 ? "td-active-one" : "td-zero")">@(re2 ? "1" : "0")</td>
+                                        <td class="@(re1 ? "td-active-one" : "td-zero")">@(re1 ? "1" : "0")</td>
+                                        <td class="@(re0 ? "td-active-one" : "td-zero")">@(re0 ? "1" : "0")</td>
+                                        <td class="@(ra2 ? "td-active-out" : "td-zero")">@(ra2 ? "1" : "0")</td>
+                                        <td class="@(ra1 ? "td-active-out" : "td-zero")">@(ra1 ? "1" : "0")</td>
+                                        <td class="@(ra0 ? "td-active-out" : "td-zero")">@(ra0 ? "1" : "0")</td>
+                                        <td class="td-status-active">
+                                            @if (isCurRow)
+                                            {
+                                                <strong class="emerald">@r &rarr; @nextDec ◀</strong>
+                                            }
+                                            else
+                                            {
+                                                <span>@r &rarr; @nextDec</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Summary Box -->
+                    <div class="circuit-summary-box">
+                        <div class="summary-item">
+                            <span>Status:</span>
+                            <strong class="mono blue">@(CounterSequential ? "Taktgesteuert" : "Manuell")</strong>
+                        </div>
+                        <div class="summary-item">
+                            <span>Zähler:</span>
+                            <strong class="mono purple">@CounterDecimal (Zustand S@CounterDecimal)</strong>
+                        </div>
+                        <div class="summary-item">
+                            <span>Nächster Takt:</span>
+                            <strong class="mono emerald">&rarr; @NextCounterValue (S@NextCounterValue)</strong>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        }
         else if (SelectedCircuit == CircuitType.Gates)
         {
             <!-- Basic Gates Grid -->
@@ -1200,7 +1515,7 @@
 
 @code {
     public enum ViewMode { Simulator, Worksheet }
-    private enum CircuitType { TruthTableCircuit, Multiplexer, Demultiplexer, SevenSegment, Gates, HalfAdder, FullAdder, DLatch }
+    private enum CircuitType { TruthTableCircuit, Multiplexer, Demultiplexer, SevenSegment, Counter, Gates, HalfAdder, FullAdder, DLatch }
 
     [Parameter] public string? View { get; set; }
     [Parameter] public bool? SolutionParam { get; set; }
@@ -1440,6 +1755,10 @@
                 {
                     SelectedCircuit = CircuitType.SevenSegment;
                 }
+                else if (c.Contains("counter") || c.Contains("zaehler") || c.Contains("sync"))
+                {
+                    SelectedCircuit = CircuitType.Counter;
+                }
                 else if (c.Contains("gate"))
                 {
                     SelectedCircuit = CircuitType.Gates;
@@ -1466,6 +1785,81 @@
     private void ToggleSolution() => ShowSolution = !ShowSolution;
     private async Task TriggerPrint() => await JSRuntime.InvokeVoidAsync("window.print");
 
+    // 3-Bit Counter Logic (GDI09 Aufgabe 1)
+    private bool CounterSequential = true;
+    private int CounterValue = 0;
+    private bool CounterManualE0 = false;
+    private bool CounterManualE1 = false;
+    private bool CounterManualE2 = false;
+    private bool CounterClockPulse = false;
+    private bool CounterAutoPlay = false;
+    private System.Threading.Timer? CounterTimer;
+
+    private int CounterDecimal => CounterSequential ? CounterValue : ((CounterManualE0 ? 1 : 0) | (CounterManualE1 ? 2 : 0) | (CounterManualE2 ? 4 : 0));
+    private bool ActiveE0 => CounterSequential ? (CounterValue & 1) != 0 : CounterManualE0;
+    private bool ActiveE1 => CounterSequential ? (CounterValue & 2) != 0 : CounterManualE1;
+    private bool ActiveE2 => CounterSequential ? (CounterValue & 4) != 0 : CounterManualE2;
+
+    private bool CounterA0 => !ActiveE0;
+    private bool CounterA1 => ActiveE1 ^ ActiveE0;
+    private bool CounterAnd => ActiveE1 && ActiveE0;
+    private bool CounterA2 => ActiveE2 ^ CounterAnd;
+    private int NextCounterValue => (CounterA0 ? 1 : 0) | ((CounterA1 ? 1 : 0) << 1) | ((CounterA2 ? 1 : 0) << 2);
+
+    private string GetCounterWireColor(bool active) => active ? "#2563eb" : "#cbd5e1";
+    private string GetCounterWireWidth(bool active) => active ? "3.5" : "2";
+
+    private void StepCounterClock()
+    {
+        CounterClockPulse = true;
+        CounterValue = (CounterValue + 1) % 8;
+        InvokeAsync(StateHasChanged);
+        Task.Delay(180).ContinueWith(_ =>
+        {
+            CounterClockPulse = false;
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    private void ToggleCounterAutoPlay()
+    {
+        if (CounterAutoPlay)
+        {
+            StopCounterAutoPlay();
+        }
+        else
+        {
+            CounterAutoPlay = true;
+            CounterTimer = new System.Threading.Timer(_ =>
+            {
+                StepCounterClock();
+            }, null, 0, 1000);
+        }
+    }
+
+    private void StopCounterAutoPlay()
+    {
+        CounterAutoPlay = false;
+        CounterTimer?.Dispose();
+        CounterTimer = null;
+    }
+
+    private void ResetCounter()
+    {
+        CounterValue = 0;
+        CounterManualE0 = false;
+        CounterManualE1 = false;
+        CounterManualE2 = false;
+    }
+
+    private void SetCounterValue(int val)
+    {
+        CounterValue = Math.Clamp(val, 0, 7);
+        CounterManualE0 = (val & 1) != 0;
+        CounterManualE1 = (val & 2) != 0;
+        CounterManualE2 = (val & 4) != 0;
+    }
+
     private void ToggleD()
     {
         InputD = !InputD;
@@ -1476,5 +1870,10 @@
     {
         ClockSignal = !ClockSignal;
         if (ClockSignal) LatchQ = InputD;
+    }
+
+    public void Dispose()
+    {
+        StopCounterAutoPlay();
     }
 }
