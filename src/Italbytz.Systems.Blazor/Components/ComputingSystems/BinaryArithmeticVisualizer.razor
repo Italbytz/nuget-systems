@@ -319,6 +319,18 @@
     [SupplyParameterFromQuery(Name = "embed")]
     public bool? EmbedQuery { get; set; }
 
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "a")]
+    public string? QueryA { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "b")]
+    public string? QueryB { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "seed")]
+    public string? QuerySeed { get; set; }
+
     protected override void OnParametersSet()
     {
         if (string.Equals(ViewQuery, "worksheet", StringComparison.OrdinalIgnoreCase))
@@ -332,6 +344,26 @@
         if (EmbedQuery.HasValue && EmbedQuery.Value)
         {
             Embedded = true;
+        }
+        if (!string.IsNullOrEmpty(QuerySeed) && int.TryParse(QuerySeed, out var seedVal))
+        {
+            var rng = new Random(seedVal);
+            AdditionLeft = rng.Next(5, 180);
+            AdditionRight = rng.Next(5, 120);
+            CurrentStep = 0;
+        }
+        else
+        {
+            if (!string.IsNullOrEmpty(QueryA) && int.TryParse(QueryA, out var aVal))
+            {
+                AdditionLeft = aVal;
+                CurrentStep = 0;
+            }
+            if (!string.IsNullOrEmpty(QueryB) && int.TryParse(QueryB, out var bVal))
+            {
+                AdditionRight = bVal;
+                CurrentStep = 0;
+            }
         }
     }
 

@@ -42,6 +42,16 @@
 :global(.is-embedded) .demo-card,
 :global(html.is-embedded) .demo-card,
 :global(body.is-embedded) .demo-card {
+    box-shadow: none;
+    border: none;
+    border-radius: 0;
+    padding: 1rem 0;
+}
+
+:global(.is-dark.is-embedded) .demo-card,
+:global(html.is-dark.is-embedded) .demo-card,
+:global(body.is-dark.is-embedded) .demo-card,
+:global(.is-dark) .demo-card {
     --card-bg: #0b0f19;
     --card-border: transparent;
     --card-text: #f8fafc;
@@ -73,11 +83,6 @@
     --narrative-border: #38bdf8;
     --narrative-title: #38bdf8;
     --narrative-text: #cbd5e1;
-
-    box-shadow: none;
-    border: none;
-    border-radius: 0;
-    padding: 1rem 0;
 }
 
 .card-heading {
@@ -410,7 +415,8 @@
     margin-left: 0.5rem;
 }
 
-:global(.is-embedded) .solution-badge {
+:global(.is-dark.is-embedded) .solution-badge,
+:global(.is-dark) .solution-badge {
     background: #1e3a8a;
     color: #93c5fd;
 }

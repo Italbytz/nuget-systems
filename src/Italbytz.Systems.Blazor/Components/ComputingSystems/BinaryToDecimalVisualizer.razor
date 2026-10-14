@@ -250,6 +250,14 @@
     [SupplyParameterFromQuery(Name = "solution")]
     public bool? SolutionQuery { get; set; }
 
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "val")]
+    public string? QueryVal { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "binary")]
+    public string? QueryBinary { get; set; }
+
     protected override void OnParametersSet()
     {
         if (!string.IsNullOrWhiteSpace(ViewQuery))
@@ -267,6 +275,22 @@
         if (SolutionQuery.HasValue)
         {
             ShowWorksheetSolution = SolutionQuery.Value;
+        }
+
+        var inputStr = !string.IsNullOrWhiteSpace(QueryBinary) ? QueryBinary : QueryVal;
+        if (!string.IsNullOrWhiteSpace(inputStr))
+        {
+            var cleaned = inputStr.Trim();
+            if (cleaned.All(c => c == '0' || c == '1') && cleaned.Length <= 8)
+            {
+                BinaryInput = cleaned.PadLeft(8, '0');
+                CurrentStep = 0;
+            }
+            else if (byte.TryParse(cleaned, out var decVal))
+            {
+                BinaryInput = Convert.ToString(decVal, 2).PadLeft(8, '0');
+                CurrentStep = 0;
+            }
         }
     }
 

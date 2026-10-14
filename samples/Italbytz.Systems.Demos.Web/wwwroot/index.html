@@ -26,6 +26,12 @@
                 var isLight = window.location.search.indexOf('theme=light') !== -1;
                 var isDark = window.location.search.indexOf('theme=dark') !== -1;
 
+                // In embedded mode, default to light theme for slide decks (hshl-light)
+                // unless theme=dark is explicitly requested.
+                if (isEmbed && !isDark) {
+                    isLight = true;
+                }
+
                 if (isEmbed) {
                     document.documentElement.classList.add('is-embedded');
                     if (document.body) {

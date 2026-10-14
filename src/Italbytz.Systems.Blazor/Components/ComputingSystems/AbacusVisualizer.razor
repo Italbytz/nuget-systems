@@ -280,37 +280,53 @@
     }
     .info-icon { font-size: 1.2rem; }
 
-    /* Embedded Dark Mode Support (Slides) */
+    /* Embedded Mode Support */
     :root.is-embedded .abacus-card,
     .is-embedded .abacus-card {
-        background: #0b0f19 !important;
+        background: transparent !important;
         border: none !important;
         box-shadow: none !important;
         padding: 0.5rem 0 !important;
     }
-    .is-embedded .abacus-title { color: #f1f5f9 !important; }
-    .is-embedded .abacus-subtitle { color: #94a3b8 !important; }
-    .is-embedded .abacus-controls {
+
+    /* Embedded Dark Mode Support (when is-dark is set) */
+    :root.is-dark.is-embedded .abacus-card,
+    .is-dark.is-embedded .abacus-card,
+    .is-dark .abacus-card {
+        background: #0b0f19 !important;
+    }
+    .is-dark .abacus-title,
+    :root.is-dark .abacus-title { color: #f1f5f9 !important; }
+    .is-dark .abacus-subtitle,
+    :root.is-dark .abacus-subtitle { color: #94a3b8 !important; }
+    .is-dark .abacus-controls,
+    :root.is-dark .abacus-controls {
         background: #1e293b !important;
         border: 1px solid #334155 !important;
     }
-    .is-embedded .control-label { color: #94a3b8 !important; }
-    .is-embedded .abacus-total-value { color: #38bdf8 !important; }
-    .is-embedded .abacus-input {
+    .is-dark .control-label,
+    :root.is-dark .control-label { color: #94a3b8 !important; }
+    .is-dark .abacus-total-value,
+    :root.is-dark .abacus-total-value { color: #38bdf8 !important; }
+    .is-dark .abacus-input,
+    :root.is-dark .abacus-input {
         background: #0f172a !important;
         border-color: #475569 !important;
         color: #38bdf8 !important;
     }
-    .is-embedded .preset-btn {
+    .is-dark .preset-btn,
+    :root.is-dark .preset-btn {
         background: #334155 !important;
         border-color: #475569 !important;
         color: #f8fafc !important;
     }
-    .is-embedded .preset-btn:hover {
+    .is-dark .preset-btn:hover,
+    :root.is-dark .preset-btn:hover {
         background: #475569 !important;
         color: #38bdf8 !important;
     }
-    .is-embedded .abacus-explanation {
+    .is-dark .abacus-explanation,
+    :root.is-dark .abacus-explanation {
         background: rgba(14, 165, 233, 0.1) !important;
         border-color: rgba(56, 189, 248, 0.3) !important;
         color: #bae6fd !important;

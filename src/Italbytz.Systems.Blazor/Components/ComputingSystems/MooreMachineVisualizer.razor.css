@@ -620,189 +620,233 @@
     border: 1px solid #cbd5e1;
 }
 
-/* Embed Mode (Dark Presentation) */
+/* Embed Mode */
 .moore-container.is-embedded {
-    background: #0b0f19;
-    color: #f1f5f9;
     padding: 0.75rem;
     border-radius: 0;
     box-sizing: border-box;
 }
 
-.is-embedded .card {
+/* Embed Mode (Dark Presentation when is-dark is set) */
+:global(.is-dark) .moore-container.is-embedded,
+.moore-container.is-embedded.is-dark {
+    background: #0b0f19;
+    color: #f1f5f9;
+}
+
+:global(.is-dark) .is-embedded .card,
+.is-embedded.is-dark .card {
     background: #111827;
     border-color: #1f2937;
     color: #f1f5f9;
 }
 
-.is-embedded .card-header {
+:global(.is-dark) .is-embedded .card-header,
+.is-embedded.is-dark .card-header {
     border-bottom-color: #1f2937;
 }
 
-.is-embedded .card-header h3 {
+:global(.is-dark) .is-embedded .card-header h3,
+.is-embedded.is-dark .card-header h3 {
     color: #f1f5f9;
 }
 
-.is-embedded .toolbar-card {
+:global(.is-dark) .is-embedded .toolbar-card,
+.is-embedded.is-dark .toolbar-card {
     background: #111827;
     border-color: #1f2937;
 }
 
-.is-embedded .tool-label {
+:global(.is-dark) .is-embedded .tool-label,
+.is-embedded.is-dark .tool-label {
     color: #94a3b8;
 }
 
-.is-embedded .btn-input {
+:global(.is-dark) .is-embedded .btn-input,
+.is-embedded.is-dark .btn-input {
     background: #1f2937;
     border-color: #374151;
     color: #f1f5f9;
 }
 
-.is-embedded .btn-input.active-forward {
+:global(.is-dark) .is-embedded .btn-input.active-forward,
+.is-embedded.is-dark .btn-input.active-forward {
     background: #0284c7;
     border-color: #38bdf8;
     color: #ffffff;
 }
 
-.is-embedded .btn-input.active-backward {
+:global(.is-dark) .is-embedded .btn-input.active-backward,
+.is-embedded.is-dark .btn-input.active-backward {
     background: #f59e0b;
     border-color: #fbbf24;
     color: #ffffff;
 }
 
-.is-embedded .btn-clock {
+:global(.is-dark) .is-embedded .btn-clock,
+.is-embedded.is-dark .btn-clock {
     background: #0284c7;
     color: #ffffff;
 }
 
-.is-embedded .btn-autoplay {
+:global(.is-dark) .is-embedded .btn-autoplay,
+.is-embedded.is-dark .btn-autoplay {
     background: #1f2937;
     border-color: #374151;
     color: #f1f5f9;
 }
 
-.is-embedded .btn-reset {
+:global(.is-dark) .is-embedded .btn-reset,
+.is-embedded.is-dark .btn-reset {
     background: #1f2937;
     border-color: #374151;
     color: #94a3b8;
 }
 
-.is-embedded .state-summary-pill {
+:global(.is-dark) .is-embedded .state-summary-pill,
+.is-embedded.is-dark .state-summary-pill {
     background: #1f2937;
     border-color: #374151;
 }
 
-.is-embedded .pill-val {
+:global(.is-dark) .is-embedded .pill-val,
+.is-embedded.is-dark .pill-val {
     color: #38bdf8;
 }
 
-.is-embedded .pill-code {
+:global(.is-dark) .is-embedded .pill-code,
+.is-embedded.is-dark .pill-code {
     color: #94a3b8;
 }
 
-.is-embedded .tab-nav {
+:global(.is-dark) .is-embedded .tab-nav,
+.is-embedded.is-dark .tab-nav {
     border-bottom-color: #1f2937;
 }
 
-.is-embedded .tab-btn {
+:global(.is-dark) .is-embedded .tab-btn,
+.is-embedded.is-dark .tab-btn {
     color: #94a3b8;
 }
 
-.is-embedded .tab-btn.active {
+:global(.is-dark) .is-embedded .tab-btn.active,
+.is-embedded.is-dark .tab-btn.active {
     color: #38bdf8;
     border-bottom-color: #38bdf8;
 }
 
-.is-embedded .graph-canvas-wrap,
-.is-embedded .circuit-canvas-wrap {
+:global(.is-dark) .is-embedded .graph-canvas-wrap,
+:global(.is-dark) .is-embedded .circuit-canvas-wrap,
+.is-embedded.is-dark .graph-canvas-wrap,
+.is-embedded.is-dark .circuit-canvas-wrap {
     background: #111827;
 }
 
-.is-embedded .node-circle {
+:global(.is-dark) .is-embedded .node-circle,
+.is-embedded.is-dark .node-circle {
     fill: #1f2937;
     stroke: #475569;
 }
 
-.is-embedded .is-active-node .node-circle {
+:global(.is-dark) .is-embedded .is-active-node .node-circle,
+.is-embedded.is-dark .is-active-node .node-circle {
     fill: rgba(2, 132, 199, 0.35);
     stroke: #38bdf8;
 }
 
-.is-embedded .node-text-name {
+:global(.is-dark) .is-embedded .node-text-name,
+.is-embedded.is-dark .node-text-name {
     fill: #ffffff;
 }
 
-.is-embedded .node-text-sub {
+:global(.is-dark) .is-embedded .node-text-sub,
+.is-embedded.is-dark .node-text-sub {
     fill: #94a3b8;
 }
 
-.is-embedded .ff-box {
+:global(.is-dark) .is-embedded .ff-box,
+.is-embedded.is-dark .ff-box {
     fill: #1f2937;
     stroke: #475569;
 }
 
-.is-embedded .ff-box.ff-active {
+:global(.is-dark) .is-embedded .ff-box.ff-active,
+.is-embedded.is-dark .ff-box.ff-active {
     fill: rgba(22, 163, 74, 0.25);
     stroke: #4ade80;
 }
 
-.is-embedded .ff-title {
+:global(.is-dark) .is-embedded .ff-title,
+.is-embedded.is-dark .ff-title {
     fill: #f1f5f9;
 }
 
-.is-embedded .ff-pin {
+:global(.is-dark) .is-embedded .ff-pin,
+.is-embedded.is-dark .ff-pin {
     fill: #94a3b8;
 }
 
-.is-embedded .ff-sub {
+:global(.is-dark) .is-embedded .ff-sub,
+.is-embedded.is-dark .ff-sub {
     fill: #38bdf8;
 }
 
-.is-embedded .logic-box {
+:global(.is-dark) .is-embedded .logic-box,
+.is-embedded.is-dark .logic-box {
     fill: #1f2937;
     stroke: #374151;
 }
 
-.is-embedded .logic-title {
+:global(.is-dark) .is-embedded .logic-title,
+.is-embedded.is-dark .logic-title {
     fill: #38bdf8;
 }
 
-.is-embedded .logic-eq {
+:global(.is-dark) .is-embedded .logic-eq,
+.is-embedded.is-dark .logic-eq {
     fill: #94a3b8;
 }
 
-.is-embedded .logic-val {
+:global(.is-dark) .is-embedded .logic-val,
+.is-embedded.is-dark .logic-val {
     fill: #ffffff;
 }
 
-.is-embedded .kv-box {
+:global(.is-dark) .is-embedded .kv-box,
+.is-embedded.is-dark .kv-box {
     background: #111827;
     border-color: #1f2937;
 }
 
-.is-embedded .sim-kv-mini thead th {
+:global(.is-dark) .is-embedded .sim-kv-mini thead th,
+.is-embedded.is-dark .sim-kv-mini thead th {
     background: #1f2937;
     color: #94a3b8;
     border-color: #374151;
 }
 
-.is-embedded .sim-kv-mini th,
-.is-embedded .sim-kv-mini td {
+:global(.is-dark) .is-embedded .sim-kv-mini th,
+:global(.is-dark) .is-embedded .sim-kv-mini td,
+.is-embedded.is-dark .sim-kv-mini th,
+.is-embedded.is-dark .sim-kv-mini td {
     border-color: #374151;
     color: #f1f5f9;
 }
 
-.is-embedded .minterm-cell {
+:global(.is-dark) .is-embedded .minterm-cell,
+.is-embedded.is-dark .minterm-cell {
     background: rgba(34, 197, 94, 0.25);
     color: #86efac;
 }
 
-.is-embedded .dc-cell {
+:global(.is-dark) .is-embedded .dc-cell,
+.is-embedded.is-dark .dc-cell {
     background: rgba(245, 158, 11, 0.2);
     color: #fcd34d;
 }
 
-.is-embedded .kv-formula {
+:global(.is-dark) .is-embedded .kv-formula,
+.is-embedded.is-dark .kv-formula {
     background: #1f2937;
     border-color: #374151;
     color: #f1f5f9;

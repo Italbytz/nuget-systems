@@ -325,6 +325,9 @@
     [SupplyParameterFromQuery(Name = "val")]
     public string? QueryVal { get; set; }
 
+    [SupplyParameterFromQuery(Name = "hex")]
+    public string? QueryHex { get; set; }
+
     [Parameter]
     public ViewMode ActiveView { get; set; } = ViewMode.Simulator;
 
@@ -377,9 +380,16 @@
             ShowWorksheetSolution = true;
         }
 
-        if (float.TryParse(QueryVal, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var f))
+        if (!string.IsNullOrWhiteSpace(QueryHex) && uint.TryParse(QueryHex, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out var hexVal))
+        {
+            InputFloat = BitConverter.UInt32BitsToSingle(hexVal);
+            CurrentStep = 0;
+            Recompute();
+        }
+        else if (float.TryParse(QueryVal, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var f))
         {
             InputFloat = f;
+            CurrentStep = 0;
             Recompute();
         }
     }

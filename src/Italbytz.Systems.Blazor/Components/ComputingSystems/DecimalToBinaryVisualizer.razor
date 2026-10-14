@@ -310,6 +310,10 @@
     [SupplyParameterFromQuery(Name = "solution")]
     public bool? SolutionQuery { get; set; }
 
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "val")]
+    public string? QueryVal { get; set; }
+
     protected override void OnParametersSet()
     {
         if (!string.IsNullOrWhiteSpace(ViewQuery))
@@ -327,6 +331,12 @@
         if (SolutionQuery.HasValue)
         {
             ShowWorksheetSolution = SolutionQuery.Value;
+        }
+
+        if (!string.IsNullOrWhiteSpace(QueryVal) && int.TryParse(QueryVal, out var val))
+        {
+            DecimalInput = Math.Clamp(val, 0, 255);
+            CurrentStep = 0;
         }
     }
 

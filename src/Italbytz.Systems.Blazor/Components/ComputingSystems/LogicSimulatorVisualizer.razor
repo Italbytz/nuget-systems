@@ -511,6 +511,8 @@
     [Parameter] public bool? SolutionParam { get; set; }
     [Parameter] public bool? Embed { get; set; }
 
+    [SupplyParameterFromQuery(Name = "circuit")] public string? QueryCircuit { get; set; }
+
     private ViewMode ActiveView = ViewMode.Simulator;
     private CircuitType SelectedCircuit = CircuitType.Multiplexer;
     private bool ShowSolution = false;
@@ -610,6 +612,31 @@
                 if (query.Contains("embed=true", StringComparison.OrdinalIgnoreCase) || query.Contains("embedded=true", StringComparison.OrdinalIgnoreCase))
                 {
                     IsEmbed = true;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(QueryCircuit))
+            {
+                var c = QueryCircuit.ToLowerInvariant();
+                if (c.Contains("mux") || c.Contains("multiplexer"))
+                {
+                    SelectedCircuit = CircuitType.Multiplexer;
+                }
+                else if (c.Contains("gate"))
+                {
+                    SelectedCircuit = CircuitType.Gates;
+                }
+                else if (c.Contains("half"))
+                {
+                    SelectedCircuit = CircuitType.HalfAdder;
+                }
+                else if (c.Contains("full"))
+                {
+                    SelectedCircuit = CircuitType.FullAdder;
+                }
+                else if (c.Contains("latch"))
+                {
+                    SelectedCircuit = CircuitType.DLatch;
                 }
             }
         }

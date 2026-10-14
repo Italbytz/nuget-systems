@@ -616,13 +616,13 @@
     [Parameter]
     public VisualizerTheme CurrentTheme { get; set; } = VisualizerTheme.Auto;
 
-    private bool IsDarkEffective => CurrentTheme == VisualizerTheme.Dark || (CurrentTheme == VisualizerTheme.Auto && IsEmbed);
+    private bool IsDarkEffective => CurrentTheme == VisualizerTheme.Dark;
 
     private string ThemeClass => CurrentTheme switch
     {
         VisualizerTheme.Dark => "theme-dark",
         VisualizerTheme.Light => "theme-light",
-        _ => IsEmbed ? "theme-dark" : ""
+        _ => "theme-light"
     };
 
     private void ToggleTheme()

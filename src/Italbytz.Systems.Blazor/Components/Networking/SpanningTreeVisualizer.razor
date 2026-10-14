@@ -43,8 +43,8 @@
                 <label class="control-label">
                     <span>Algorithmus:</span>
                     <select class="form-input select" @bind="SelectedAlgorithm" @bind:after="Recalculate">
+                        <option value="Prim">Prim-Algorithmus (Jarník / Prim / Dijkstra – Baum wächst ab Startknoten)</option>
                         <option value="Kruskal">Kruskal-Algorithmus (Global sortierte Kanten &amp; Zyklusvermeidung)</option>
-                        <option value="Prim">Prim-Algorithmus (Wachsender Baum ab Startknoten)</option>
                     </select>
                 </label>
 
@@ -64,9 +64,10 @@
                 <label class="control-label">
                     <span>Topologie / Graph:</span>
                     <select class="form-input select" @bind="SelectedPresetKey" @bind:after="OnPresetChanged">
-                        <option value="Standard">Netz 1 (8 Knoten, 12 Kanten)</option>
-                        <option value="Exam1">Netz 2 (6 Knoten, 9 Kanten)</option>
-                        <option value="BridgeTopology">Netz 3 (Bridge-Netzwerk, 7 Bridges)</option>
+                        <option value="Lecture">Vorlesung (6 Knoten, spanningtree3)</option>
+                        <option value="ExamSTP">Klausur / STP-Kosten (6 Knoten, IEEE 802.1D)</option>
+                        <option value="BridgeTopology">Bridge-Netzwerk (7 Bridges, B1..B7)</option>
+                        <option value="Standard">Großes Netz (8 Knoten, 12 Kanten)</option>
                     </select>
                 </label>
             </div>
@@ -74,10 +75,10 @@
             <!-- Presets Bar -->
             <div class="preset-bar">
                 <span class="preset-label">Beispiele:</span>
-                <button class="preset-btn" @onclick='() => LoadPreset("Standard")'>Beispiel 1 (8 Knoten)</button>
-                <button class="preset-btn" @onclick='() => LoadPreset("Exam1")'>Beispiel 2 (6 Knoten)</button>
-                <button class="preset-btn" @onclick='() => LoadPreset("BridgeTopology")'>Beispiel 3 (Bridge-Topologie)</button>
-                <button class="preset-btn random" @onclick="GenerateRandomGraph">🎲 Zufallsgraph</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("Lecture")'>Beispiel 1 (Vorlesung)</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("ExamSTP")'>Beispiel 2 (Klausur/STP)</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("BridgeTopology")'>Beispiel 3 (Bridge-Netz)</button>
+                <button class="preset-btn random" @onclick="GenerateRandomGraph">🎲 Zufallsgraph (STP)</button>
             </div>
         </div>
 
@@ -306,9 +307,25 @@
             <div class="task-prompt-box">
                 <div class="task-number">Aufgabe (Spannbaumberechnung)</div>
                 <p class="task-text">
-                    Bestimmen Sie für den unten abgebildeten gewichteten Graphen einen <strong>minimalen Spannbaum (MST)</strong> 
-                    mithilfe des Algorithmus von <strong>Kruskal</strong> oder <strong>Prim</strong>.
-                    Geben Sie die gewählten Kanten in der Reihenfolge ihrer Auswahl sowie das <strong>Gesamtgewicht</strong> des Spannbaums an.
+                    Zur Kreisvermeidung ist es nötig, dass Bridges und Switches minimale Spannbäume berechnen können.
+                    Grundlage dafür ist folgender Algorithmus <strong>(Jarník / Prim / Dijkstra)</strong>:
+                </p>
+                <ol class="task-algo-steps" style="margin: 0.5rem 0 0.8rem 1.5rem; font-size: 0.95rem; line-height: 1.5;">
+                    <li>Wähle einen beliebigen Knoten als Startgraph <em>T</em>.</li>
+                    <li>Solange <em>T</em> noch nicht alle Knoten enthält:
+                        <ul style="list-style-type: disc; margin-left: 1.2rem;">
+                            <li>Wähle gewichtsminimale Kante <em>e</em>, die einen noch nicht enthaltenen Knoten <em>v</em> mit <em>T</em> verbindet.</li>
+                            <li>Füge <em>e</em> und <em>v</em> dem Graphen <em>T</em> hinzu.</li>
+                        </ul>
+                    </li>
+                </ol>
+                <p class="task-text">
+                    Berechnen Sie für folgenden Graphen einen Spannbaum.
+                    @if (SelectedAlgorithm == "Prim")
+                    {
+                        <span>Beginnen Sie dafür bei Knoten <strong>@PrimStartNode</strong>. </span>
+                    }
+                    Geben Sie als Lösung die Reihenfolge der Kanten an, die hinzugefügt werden (die Kante zwischen A und F notieren Sie z.&nbsp;B. als <code>(A, F)</code>) sowie das <strong>Gesamtgewicht</strong> des Spannbaums.
                 </p>
             </div>
 
@@ -351,12 +368,15 @@
                     {
                         <div class="ws-solution-content">
                             <div class="sol-tree-list">
-                                <strong>Gewählte Kanten im Minimalen Spannbaum (Kruskal):</strong>
+                                <strong>Gewählte Kanten im Minimalen Spannbaum @(SelectedAlgorithm == "Prim" ? $"(Prim ab Knoten {PrimStartNode})" : "(Kruskal)"):</strong>
+                                <div class="sol-edge-tuple-line" style="margin: 0.6rem 0; font-family: monospace; font-size: 1.05rem; font-weight: bold; color: #047857; background: #ecfdf5; padding: 0.4rem 0.75rem; border-radius: 4px; border: 1px solid #a7f3d0;">
+                                    @string.Join(", ", MstResult.FinalTreeEdges.Select(e => $"({e.From}, {e.To})"))
+                                </div>
                                 <ol class="sol-edge-ol">
                                     @foreach (var edge in MstResult.FinalTreeEdges)
                                     {
                                         <li>
-                                            <code class="mono bold">@edge.From &ndash; @edge.To</code> (Kosten: @edge.Weight)
+                                            <code class="mono bold">(@edge.From, @edge.To)</code> &ndash; Kosten: @edge.Weight
                                         </li>
                                     }
                                 </ol>
@@ -421,9 +441,9 @@
     private bool ShowSolution = false;
     private bool IsEmbed = false;
 
-    private string SelectedAlgorithm = "Kruskal";
+    private string SelectedAlgorithm = "Prim";
     private string PrimStartNode = "A";
-    private string SelectedPresetKey = "Standard";
+    private string SelectedPresetKey = "Lecture";
 
     private List<GraphNode> Nodes = new();
     private List<GraphEdge> Edges = new();
@@ -515,28 +535,51 @@
         SelectedPresetKey = preset;
         switch (preset)
         {
-            case "Exam1":
-                // 6 Nodes (A..F) matching standard exam
+            case "Lecture":
+                // 6 Nodes (A..F) matching Vorlesung cn05image20 & tex/assignments/spanningtree3.dot
                 Nodes = new List<GraphNode>
                 {
                     new("A", 100, 220),
-                    new("B", 240, 100),
-                    new("C", 240, 340),
-                    new("D", 440, 100),
-                    new("E", 440, 340),
+                    new("B", 240, 110),
+                    new("C", 440, 110),
+                    new("D", 240, 330),
+                    new("E", 440, 330),
+                    new("F", 580, 220)
+                };
+                Edges = new List<GraphEdge>
+                {
+                    new("A", "B", 2),
+                    new("A", "D", 3),
+                    new("B", "C", 4),
+                    new("B", "D", 4),
+                    new("C", "D", 5),
+                    new("C", "F", 2),
+                    new("D", "E", 1),
+                    new("E", "F", 5)
+                };
+                break;
+
+            case "ExamSTP":
+                // 6 Nodes (A..F) with IEEE 802.1D STP port costs (2, 4, 19, 62, 100, 250)
+                Nodes = new List<GraphNode>
+                {
+                    new("A", 100, 220),
+                    new("B", 240, 110),
+                    new("C", 440, 110),
+                    new("D", 240, 330),
+                    new("E", 440, 330),
                     new("F", 580, 220)
                 };
                 Edges = new List<GraphEdge>
                 {
                     new("A", "B", 4),
-                    new("A", "C", 2),
-                    new("B", "C", 1),
-                    new("B", "D", 5),
-                    new("C", "E", 8),
-                    new("C", "D", 8),
-                    new("D", "E", 2),
-                    new("D", "F", 6),
-                    new("E", "F", 3)
+                    new("A", "D", 19),
+                    new("B", "C", 2),
+                    new("B", "D", 4),
+                    new("C", "D", 62),
+                    new("C", "F", 19),
+                    new("D", "E", 4),
+                    new("E", "F", 2)
                 };
                 break;
 
@@ -613,32 +656,34 @@
         SelectedPresetKey = "Random";
         Nodes = new List<GraphNode>
         {
-            new("A", 80, 220),
-            new("B", 220, 90),
-            new("C", 220, 350),
-            new("D", 360, 90),
-            new("E", 360, 350),
-            new("F", 500, 90),
-            new("G", 500, 350),
-            new("H", 610, 220)
+            new("A", 100, 220),
+            new("B", 240, 110),
+            new("C", 440, 110),
+            new("D", 240, 330),
+            new("E", 440, 330),
+            new("F", 580, 220)
         };
 
         var rnd = new Random();
+        var stpWeights = new double[] { 2, 4, 19, 62, 100, 250 };
+        double RndW() => stpWeights[rnd.Next(stpWeights.Length)];
+
         Edges = new List<GraphEdge>
         {
-            new("A", "B", rnd.Next(1, 10)),
-            new("A", "C", rnd.Next(2, 10)),
-            new("B", "C", rnd.Next(1, 8)),
-            new("B", "D", rnd.Next(2, 10)),
-            new("B", "E", rnd.Next(1, 9)),
-            new("C", "E", rnd.Next(2, 9)),
-            new("D", "F", rnd.Next(1, 8)),
-            new("D", "E", rnd.Next(1, 7)),
-            new("E", "G", rnd.Next(2, 10)),
-            new("E", "F", rnd.Next(1, 9)),
-            new("F", "H", rnd.Next(1, 9)),
-            new("G", "H", rnd.Next(1, 10))
+            new("A", "B", RndW()),
+            new("A", "D", RndW()),
+            new("B", "C", RndW()),
+            new("B", "D", RndW()),
+            new("C", "D", RndW()),
+            new("C", "F", RndW()),
+            new("D", "E", RndW()),
+            new("E", "F", RndW())
         };
+
+        if (rnd.Next(2) == 1)
+        {
+            Edges.Add(new("B", "E", RndW()));
+        }
 
         CurrentStepIndex = 0;
         Recalculate();

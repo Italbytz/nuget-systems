@@ -652,38 +652,50 @@
 /* Reveal.js Embedded Mode */
 .is-embedded {
     background: transparent;
+}
+
+/* Embedded Dark Mode (when is-dark is set) */
+:global(.is-dark) .is-embedded,
+.is-embedded.is-dark {
     color: #f8fafc;
 }
 
-.is-embedded .card {
+:global(.is-dark) .is-embedded .card,
+.is-embedded.is-dark .card {
     background: #0f172a;
     border-color: #1e293b;
     color: #f8fafc;
 }
 
-.is-embedded .card-header h3 {
+:global(.is-dark) .is-embedded .card-header h3,
+.is-embedded.is-dark .card-header h3 {
     color: #f8fafc;
 }
 
-.is-embedded .narrator-card {
+:global(.is-dark) .is-embedded .narrator-card,
+.is-embedded.is-dark .narrator-card {
     background: #082f49;
     border-color: #0284c7;
 }
 
-.is-embedded .narrator-title {
+:global(.is-dark) .is-embedded .narrator-title,
+.is-embedded.is-dark .narrator-title {
     color: #38bdf8;
 }
 
-.is-embedded .narrator-body {
+:global(.is-dark) .is-embedded .narrator-body,
+.is-embedded.is-dark .narrator-body {
     color: #e0f2fe;
 }
 
-.is-embedded .interactive-switch-bar {
+:global(.is-dark) .is-embedded .interactive-switch-bar,
+.is-embedded.is-dark .interactive-switch-bar {
     background: #1e293b;
     border-color: #334155;
 }
 
-.is-embedded .bar-label {
+:global(.is-dark) .is-embedded .bar-label,
+.is-embedded.is-dark .bar-label {
     color: #cbd5e1;
 }
 

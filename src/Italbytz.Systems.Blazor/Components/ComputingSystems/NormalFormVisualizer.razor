@@ -340,6 +340,10 @@
     [Parameter] public bool? SolutionParam { get; set; }
     [Parameter] public bool? Embed { get; set; }
 
+    [SupplyParameterFromQuery(Name = "values")] public string? QueryValues { get; set; }
+    [SupplyParameterFromQuery(Name = "truth")] public string? QueryTruth { get; set; }
+    [SupplyParameterFromQuery(Name = "vars")] public int? QueryVars { get; set; }
+
     private ViewMode ActiveView = ViewMode.Simulator;
     private bool ShowSolution = false;
     private bool IsEmbed = false;
@@ -382,6 +386,29 @@
                 {
                     IsEmbed = true;
                 }
+            }
+
+            var inputVals = QueryValues ?? QueryTruth;
+            if (!string.IsNullOrEmpty(inputVals))
+            {
+                TruthValuesInput = inputVals;
+                if (QueryVars.HasValue)
+                {
+                    VariableCount = QueryVars.Value;
+                }
+                else
+                {
+                    var count = inputVals.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries).Length;
+                    if (count >= 16) VariableCount = 4;
+                    else if (count >= 8) VariableCount = 3;
+                    else if (count >= 4) VariableCount = 2;
+                }
+                Recalculate();
+            }
+            else if (QueryVars.HasValue && QueryVars.Value != VariableCount)
+            {
+                VariableCount = QueryVars.Value;
+                OnVariableCountChanged();
             }
         }
         catch { }
