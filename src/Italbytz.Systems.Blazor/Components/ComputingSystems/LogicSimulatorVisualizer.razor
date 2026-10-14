@@ -44,6 +44,12 @@
             <button class="circuit-tab @(SelectedCircuit == CircuitType.Multiplexer ? "active" : "")" @onclick="() => SetCircuit(CircuitType.Multiplexer)">
                 🔀 4-zu-1 Multiplexer
             </button>
+            <button class="circuit-tab @(SelectedCircuit == CircuitType.Demultiplexer ? "active" : "")" @onclick="() => SetCircuit(CircuitType.Demultiplexer)">
+                🔄 1-zu-4 Demultiplexer
+            </button>
+            <button class="circuit-tab @(SelectedCircuit == CircuitType.SevenSegment ? "active" : "")" @onclick="() => SetCircuit(CircuitType.SevenSegment)">
+                🔢 7-Segment-Decoder
+            </button>
             <button class="circuit-tab @(SelectedCircuit == CircuitType.Gates ? "active" : "")" @onclick="() => SetCircuit(CircuitType.Gates)">
                 Elementare Gatter
             </button>
@@ -476,6 +482,391 @@
 
             </div>
         }
+        else if (SelectedCircuit == CircuitType.Demultiplexer)
+        {
+            <!-- Narrator Card -->
+            <div class="narrator-card">
+                <div class="narrator-header">
+                    <div class="step-badge badge-demux">1-zu-4 Demultiplexer</div>
+                    <div class="narrator-title">
+                        Steuereingänge: <span class="mono bold purple">S₂=@(DemuxS2 ? "1" : "0"), S₁=@(DemuxS1 ? "1" : "0")</span> (Kanal @DemuxAddress) &bull;
+                        Dateneingang: <strong class="@(DemuxE ? "emerald" : "red") mono">e = @(DemuxE ? "1" : "0")</strong> &rarr;
+                        Aktiver Ausgang: <strong class="blue mono">a<sub>@DemuxAddress</sub> = @(DemuxActiveOutput ? "1" : "0")</strong>
+                    </div>
+                </div>
+                <p class="narrator-text">
+                    Ein Demultiplexer leitet das Datensignal <em>e</em> gesteuert durch die Adressbits <em>S</em>₂, <em>S</em>₁ exklusiv auf den ausgewählten Ausgang <em>a</em><sub>@DemuxAddress</sub> weiter. Alle unadressierten Ausgänge verbleiben auf 0 (LOW).
+                </p>
+                <div class="logic-metrics-strip">
+                    <span>Funktionen: <strong class="mono">a₀ = e·¬S₂·¬S₁ &bull; a₁ = e·¬S₂·S₁ &bull; a₂ = e·S₂·¬S₁ &bull; a₃ = e·S₂·S₁</strong></span>
+                    <span>Aktiver Pfad: <strong class="mono emerald">Ausgang <em>a</em><sub>@DemuxAddress</sub> (@(DemuxActiveOutput ? "HIGH" : "LOW"))</strong></span>
+                </div>
+            </div>
+
+            <!-- Main Display: Interactive Schematic & Table -->
+            <div class="main-display-grid">
+
+                <!-- Left: Interactive Schematic SVG -->
+                <div class="circuit-card">
+                    <div class="circuit-card-header">
+                        <h3>Schaltplan (Klick auf Signale toggelt Pegel)</h3>
+                    </div>
+
+                    <!-- Input Controls Toolbar -->
+                    <div class="mux-toolbar">
+                        <div class="mux-group">
+                            <span class="toolbar-label">Steuerung (<em>S</em>):</span>
+                            <button class="toggle-btn @(DemuxS2 ? "high" : "low")" @onclick="() => DemuxS2 = !DemuxS2">
+                                S₂ (MSB): <strong>@(DemuxS2 ? "1" : "0")</strong>
+                            </button>
+                            <button class="toggle-btn @(DemuxS1 ? "high" : "low")" @onclick="() => DemuxS1 = !DemuxS1">
+                                S₁ (LSB): <strong>@(DemuxS1 ? "1" : "0")</strong>
+                            </button>
+                        </div>
+
+                        <div class="mux-group">
+                            <span class="toolbar-label">Dateneingang:</span>
+                            <button class="toggle-btn @(DemuxE ? "high" : "low")" @onclick="() => DemuxE = !DemuxE">
+                                e: <strong>@(DemuxE ? "1" : "0")</strong>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="svg-container">
+                        <svg viewBox="0 0 660 380" class="circuit-svg" xmlns="http://www.w3.org/2000/svg">
+                            @{
+                                bool s1 = DemuxS1;
+                                bool not_s1 = !DemuxS1;
+                                bool s2 = DemuxS2;
+                                bool not_s2 = !DemuxS2;
+                                bool e = DemuxE;
+                            }
+
+                            <!-- S1 Inputs & Bus (x=90, x=150) -->
+                            <g class="clickable-pin" @onclick="() => DemuxS1 = !DemuxS1" style="cursor: pointer;">
+                                <rect x="75" y="6" width="30" height="24" rx="3" class="gate-box @(s1 ? "gate-selected" : "")" />
+                                <text x="90" y="22" class="pin-label purple mono bold" text-anchor="middle" font-size="14">S₁</text>
+                            </g>
+                            <line x1="90" y1="30" x2="90" y2="360" class="wire @(s1 ? "wire-high" : "wire-low")" />
+
+                            <!-- S1 NOT Gate -->
+                            <circle cx="90" cy="45" r="3.5" class="wire-dot @(s1 ? "dot-high" : "dot-low")" />
+                            <line x1="90" y1="45" x2="110" y2="45" class="wire @(s1 ? "wire-high" : "wire-low")" />
+                            <rect x="110" y="32" width="22" height="26" rx="3" class="gate-box @(not_s1 ? "gate-selected" : "")" />
+                            <text x="121" y="46" class="gate-box-text" font-size="11">1</text>
+                            <circle cx="136" cy="45" r="3.5" class="inversion-bubble @(not_s1 ? "bubble-high" : "bubble-low")" />
+                            <line x1="139.5" y1="45" x2="150" y2="45" class="wire @(not_s1 ? "wire-high" : "wire-low")" />
+                            <line x1="150" y1="30" x2="150" y2="360" class="wire @(not_s1 ? "wire-high" : "wire-low")" />
+                            <text x="150" y="22" class="pin-label purple mono bold" text-anchor="middle" font-size="12">¬S₁</text>
+
+                            <!-- S2 Inputs & Bus (x=200, x=260) -->
+                            <g class="clickable-pin" @onclick="() => DemuxS2 = !DemuxS2" style="cursor: pointer;">
+                                <rect x="185" y="6" width="30" height="24" rx="3" class="gate-box @(s2 ? "gate-selected" : "")" />
+                                <text x="200" y="22" class="pin-label purple mono bold" text-anchor="middle" font-size="14">S₂</text>
+                            </g>
+                            <line x1="200" y1="30" x2="200" y2="360" class="wire @(s2 ? "wire-high" : "wire-low")" />
+
+                            <!-- S2 NOT Gate -->
+                            <circle cx="200" cy="45" r="3.5" class="wire-dot @(s2 ? "dot-high" : "dot-low")" />
+                            <line x1="200" y1="45" x2="220" y2="45" class="wire @(s2 ? "wire-high" : "wire-low")" />
+                            <rect x="220" y="32" width="22" height="26" rx="3" class="gate-box @(not_s2 ? "gate-selected" : "")" />
+                            <text x="231" y="46" class="gate-box-text" font-size="11">1</text>
+                            <circle cx="246" cy="45" r="3.5" class="inversion-bubble @(not_s2 ? "bubble-high" : "bubble-low")" />
+                            <line x1="249.5" y1="45" x2="260" y2="45" class="wire @(not_s2 ? "wire-high" : "wire-low")" />
+                            <line x1="260" y1="30" x2="260" y2="360" class="wire @(not_s2 ? "wire-high" : "wire-low")" />
+                            <text x="260" y="22" class="pin-label purple mono bold" text-anchor="middle" font-size="12">¬S₂</text>
+
+                            <!-- e Data Bus (x=300) -->
+                            <g class="clickable-pin" @onclick="() => DemuxE = !DemuxE" style="cursor: pointer;">
+                                <rect x="285" y="6" width="30" height="24" rx="3" class="gate-box @(e ? "gate-selected" : "")" />
+                                <text x="300" y="22" class="pin-label emerald mono bold" text-anchor="middle" font-size="14">e</text>
+                            </g>
+                            <line x1="300" y1="30" x2="300" y2="360" class="wire @(e ? "wire-high" : "wire-low")" stroke-width="2.5" />
+
+                            <!-- 4 AND Gates (y=90, 160, 230, 300) -->
+                            @{
+                                int[] demuxY = new int[] { 90, 160, 230, 300 };
+                                bool[] demuxOuts = new bool[] { DemuxA0, DemuxA1, DemuxA2, DemuxA3 };
+                            }
+
+                            @for (int i = 0; i < 4; i++)
+                            {
+                                int idx = i;
+                                int yCenter = demuxY[idx];
+                                bool isAddr = idx == DemuxAddress;
+                                bool outVal = demuxOuts[idx];
+
+                                int pinS1Y = yCenter - 10;
+                                int pinS2Y = yCenter;
+                                int pinEY = yCenter + 10;
+
+                                int s1X = (idx % 2 == 1) ? 90 : 150;
+                                bool s1BitVal = (idx % 2 == 1) ? s1 : not_s1;
+
+                                int s2X = (idx >= 2) ? 200 : 260;
+                                bool s2BitVal = (idx >= 2) ? s2 : not_s2;
+
+                                <!-- Tap lines to AND gate -->
+                                <circle cx="@s1X" cy="@pinS1Y" r="3.5" class="wire-dot @(s1BitVal ? "dot-high" : "dot-low")" />
+                                <line x1="@s1X" y1="@pinS1Y" x2="360" y2="@pinS1Y" class="wire @(s1BitVal ? "wire-high" : "wire-low")" />
+
+                                <circle cx="@s2X" cy="@pinS2Y" r="3.5" class="wire-dot @(s2BitVal ? "dot-high" : "dot-low")" />
+                                <line x1="@s2X" y1="@pinS2Y" x2="360" y2="@pinS2Y" class="wire @(s2BitVal ? "wire-high" : "wire-low")" />
+
+                                <circle cx="300" cy="@pinEY" r="3.5" class="wire-dot @(e ? "dot-high" : "dot-low")" />
+                                <line x1="300" y1="@pinEY" x2="360" y2="@pinEY" class="wire @(e ? "wire-high" : "wire-low")" />
+
+                                <!-- AND Gate Box -->
+                                <rect x="360" y="@(yCenter - 20)" width="55" height="40" rx="4" class="gate-box @(isAddr ? "gate-selected" : "")" />
+                                @((MarkupString)$"<text x=\"387\" y=\"{yCenter}\" class=\"gate-box-text\">&amp;</text>")
+
+                                <!-- Output Wire & Indicator -->
+                                <line x1="415" y1="@yCenter" x2="510" y2="@yCenter" class="wire @(outVal ? "wire-high" : "wire-low")" stroke-width="3" />
+                                <circle cx="525" cy="@yCenter" r="10" class="wire-dot @(outVal ? "dot-high" : "dot-low")" />
+                                <g>
+                                    <text x="545" y="@(yCenter + 5)" class="pin-label mono bold @(outVal ? "emerald" : "red")" font-size="16">a@ToSubscript(idx) = @(outVal ? "1" : "0")</text>
+                                </g>
+                            }
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Right: Truth Table -->
+                <div class="table-card">
+                    <div class="table-card-header">
+                        <h3>Wahrheitstabelle (GDI 07 Aufgabe 1c)</h3>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="interactive-truth-table">
+                            <thead>
+                                <tr>
+                                    <th><em>e</em></th>
+                                    <th><em>S</em>₂</th>
+                                    <th><em>S</em>₁</th>
+                                    <th class="th-out"><em>a</em>₀</th>
+                                    <th class="th-out"><em>a</em>₁</th>
+                                    <th class="th-out"><em>a</em>₂</th>
+                                    <th class="th-out"><em>a</em>₃</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int r = 0; r < 8; r++)
+                                {
+                                    int rowE = (r >> 2) & 1;
+                                    int rowS2 = (r >> 1) & 1;
+                                    int rowS1 = r & 1;
+                                    int rowAddr = (rowS2 << 1) | rowS1;
+
+                                    bool isCurrentRow = (DemuxE ? 1 : 0) == rowE && (DemuxS2 ? 1 : 0) == rowS2 && (DemuxS1 ? 1 : 0) == rowS1;
+                                    <tr class="@(isCurrentRow ? "table-row-active" : "")">
+                                        <td class="mono bold @(rowE == 1 ? "emerald" : "")">@rowE</td>
+                                        <td class="mono bold purple">@rowS2</td>
+                                        <td class="mono bold purple">@rowS1</td>
+                                        <td class="mono @(rowE == 1 && rowAddr == 0 ? "bold emerald" : "")">@(rowE == 1 && rowAddr == 0 ? "1" : "0")</td>
+                                        <td class="mono @(rowE == 1 && rowAddr == 1 ? "bold emerald" : "")">@(rowE == 1 && rowAddr == 1 ? "1" : "0")</td>
+                                        <td class="mono @(rowE == 1 && rowAddr == 2 ? "bold emerald" : "")">@(rowE == 1 && rowAddr == 2 ? "1" : "0")</td>
+                                        <td class="mono @(rowE == 1 && rowAddr == 3 ? "bold emerald" : "")">@(rowE == 1 && rowAddr == 3 ? "1" : "0")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="circuit-summary-box">
+                        <div class="summary-item">
+                            <span>Ausgewählte Adresse:</span>
+                            <strong class="mono purple">S₂S₁ = @(DemuxS2 ? "1" : "0")@(DemuxS1 ? "1" : "0") (Kanal @DemuxAddress)</strong>
+                        </div>
+                        <div class="summary-item">
+                            <span>Aktiver Ausgang:</span>
+                            <strong class="mono @(DemuxActiveOutput ? "emerald" : "red")">a<sub>@DemuxAddress</sub> = @(DemuxActiveOutput ? "1" : "0")</strong>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        }
+        else if (SelectedCircuit == CircuitType.SevenSegment)
+        {
+            <!-- Narrator Card -->
+            <div class="narrator-card">
+                <div class="narrator-header">
+                    <div class="step-badge badge-seg">BCD 7-Segment-Decoder</div>
+                    <div class="narrator-title">
+                        Binäreingänge: <span class="mono bold purple">x₄=@(SegX4 ? "1" : "0"), x₃=@(SegX3 ? "1" : "0"), x₂=@(SegX2 ? "1" : "0"), x₁=@(SegX1 ? "1" : "0")</span> &rarr;
+                        Dezimalziffer: <strong class="blue mono">@(SegDigitValue < 10 ? SegDigitValue.ToString() : $"{SegDigitValue} (Don't Care)")</strong>
+                    </div>
+                </div>
+                <p class="narrator-text">
+                    Die 4 Eingangssignale <em>x</em>₄ (Wertigkeit 8) bis <em>x</em>₁ (Wertigkeit 1) bilden eine BCD-codierte Ziffer (0 bis 9). Die Ansteuerungslogik aktiviert genau die Ausgangssignale <em>s</em>₀ bis <em>s</em>₆, deren Segmente aufleuchten müssen.
+                </p>
+                <div class="logic-metrics-strip">
+                    <span>Segmente aktiv: <strong class="mono emerald">@(GetActiveSegmentList())</strong></span>
+                    <span>Segmentanzahl: <strong class="mono">@GetActiveSegmentCount() von 7</strong></span>
+                </div>
+            </div>
+
+            <!-- Main Display: Interactive Schematic & Table -->
+            <div class="main-display-grid">
+
+                <!-- Left: 7-Segment Display SVG & Buttons -->
+                <div class="circuit-card">
+                    <div class="circuit-card-header">
+                        <h3>7-Segment-Anzeige (GDI 07 Aufgabe 2)</h3>
+                    </div>
+
+                    <!-- Input Controls Toolbar -->
+                    <div class="mux-toolbar">
+                        <div class="mux-group">
+                            <span class="toolbar-label">BCD-Eingänge:</span>
+                            <button class="toggle-btn @(SegX4 ? "high" : "low")" @onclick="() => SegX4 = !SegX4">
+                                x₄ (8): <strong>@(SegX4 ? "1" : "0")</strong>
+                            </button>
+                            <button class="toggle-btn @(SegX3 ? "high" : "low")" @onclick="() => SegX3 = !SegX3">
+                                x₃ (4): <strong>@(SegX3 ? "1" : "0")</strong>
+                            </button>
+                            <button class="toggle-btn @(SegX2 ? "high" : "low")" @onclick="() => SegX2 = !SegX2">
+                                x₂ (2): <strong>@(SegX2 ? "1" : "0")</strong>
+                            </button>
+                            <button class="toggle-btn @(SegX1 ? "high" : "low")" @onclick="() => SegX1 = !SegX1">
+                                x₁ (1): <strong>@(SegX1 ? "1" : "0")</strong>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Quick Digit Picker -->
+                    <div style="padding: 0.5rem 1rem;">
+                        <span style="font-size: 0.8rem; font-weight: 600; color: #64748b;">Schnellwahl Ziffer:</span>
+                        <div class="digit-btn-grid">
+                            @for (int d = 0; d <= 9; d++)
+                            {
+                                int digit = d;
+                                <button class="digit-btn @(SegDigitValue == digit ? "active" : "")" @onclick="() => SetDigit(digit)">
+                                    @digit
+                                </button>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="seven-seg-box">
+                        <svg viewBox="0 0 340 380" class="seven-seg-svg" xmlns="http://www.w3.org/2000/svg">
+                            <defs>
+                                <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="4" refY="3" orient="auto">
+                                    <polygon points="0 0, 6 3, 0 6" fill="#94a3b8" />
+                                </marker>
+                            </defs>
+
+                            <!-- s0: Top horizontal -->
+                            <polygon points="110,60 125,45 215,45 230,60 215,75 125,75" class="@(GetSegment(0) ? "seg-lit" : "seg-dim")" />
+                            <line x1="170" y1="20" x2="170" y2="42" class="seg-arrow" />
+                            <text x="170" y="14" class="seg-label-txt" text-anchor="middle">s₀=@(GetSegment(0) ? "1" : "0")</text>
+
+                            <!-- s1: Upper-left vertical -->
+                            <polygon points="105,65 120,80 120,150 105,165 90,150 90,80" class="@(GetSegment(1) ? "seg-lit" : "seg-dim")" />
+                            <line x1="35" y1="115" x2="88" y2="115" class="seg-arrow" />
+                            <text x="30" y="119" class="seg-label-txt" text-anchor="end">s₁=@(GetSegment(1) ? "1" : "0")</text>
+
+                            <!-- s3: Upper-right vertical -->
+                            <polygon points="235,65 250,80 250,150 235,165 220,150 220,80" class="@(GetSegment(3) ? "seg-lit" : "seg-dim")" />
+                            <line x1="305" y1="115" x2="252" y2="115" class="seg-arrow" />
+                            <text x="310" y="119" class="seg-label-txt" text-anchor="start">s₃=@(GetSegment(3) ? "1" : "0")</text>
+
+                            <!-- s2: Center horizontal -->
+                            <polygon points="110,170 125,155 215,155 230,170 215,185 125,185" class="@(GetSegment(2) ? "seg-lit" : "seg-dim")" />
+                            <line x1="170" y1="205" x2="170" y2="187" class="seg-arrow" />
+                            <text x="170" y="222" class="seg-label-txt" text-anchor="middle">s₂=@(GetSegment(2) ? "1" : "0")</text>
+
+                            <!-- s4: Lower-left vertical -->
+                            <polygon points="105,175 120,190 120,260 105,275 90,260 90,190" class="@(GetSegment(4) ? "seg-lit" : "seg-dim")" />
+                            <line x1="35" y1="225" x2="88" y2="225" class="seg-arrow" />
+                            <text x="30" y="229" class="seg-label-txt" text-anchor="end">s₄=@(GetSegment(4) ? "1" : "0")</text>
+
+                            <!-- s5: Lower-right vertical -->
+                            <polygon points="235,175 250,190 250,260 235,275 220,260 220,190" class="@(GetSegment(5) ? "seg-lit" : "seg-dim")" />
+                            <line x1="305" y1="225" x2="252" y2="225" class="seg-arrow" />
+                            <text x="310" y="229" class="seg-label-txt" text-anchor="start">s₅=@(GetSegment(5) ? "1" : "0")</text>
+
+                            <!-- s6: Bottom horizontal -->
+                            <polygon points="110,280 125,265 215,265 230,280 215,295 125,295" class="@(GetSegment(6) ? "seg-lit" : "seg-dim")" />
+                            <line x1="170" y1="330" x2="170" y2="297" class="seg-arrow" />
+                            <text x="170" y="348" class="seg-label-txt" text-anchor="middle">s₆=@(GetSegment(6) ? "1" : "0")</text>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Right: Truth Table -->
+                <div class="table-card">
+                    <div class="table-card-header">
+                        <h3>Wahrheitstabelle (TISevenSegment)</h3>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="interactive-truth-table">
+                            <thead>
+                                <tr>
+                                    <th><em>x</em>₄</th>
+                                    <th><em>x</em>₃</th>
+                                    <th><em>x</em>₂</th>
+                                    <th><em>x</em>₁</th>
+                                    <th class="th-out"><em>s</em>₆</th>
+                                    <th class="th-out"><em>s</em>₅</th>
+                                    <th class="th-out"><em>s</em>₄</th>
+                                    <th class="th-out"><em>s</em>₃</th>
+                                    <th class="th-out"><em>s</em>₂</th>
+                                    <th class="th-out"><em>s</em>₁</th>
+                                    <th class="th-out"><em>s</em>₀</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int r = 0; r < 16; r++)
+                                {
+                                    int rowVal = r;
+                                    int rx4 = (r >> 3) & 1;
+                                    int rx3 = (r >> 2) & 1;
+                                    int rx2 = (r >> 1) & 1;
+                                    int rx1 = r & 1;
+
+                                    bool isCurrent = SegDigitValue == rowVal;
+                                    <tr class="@(isCurrent ? "table-row-active" : "")">
+                                        <td class="mono bold purple">@rx4</td>
+                                        <td class="mono bold purple">@rx3</td>
+                                        <td class="mono bold purple">@rx2</td>
+                                        <td class="mono bold purple">@rx1</td>
+                                        @if (rowVal < 10)
+                                        {
+                                            <td class="mono @(SevenSegTable[rowVal, 6] ? "bold emerald" : "")">@(SevenSegTable[rowVal, 6] ? "1" : "0")</td>
+                                            <td class="mono @(SevenSegTable[rowVal, 5] ? "bold emerald" : "")">@(SevenSegTable[rowVal, 5] ? "1" : "0")</td>
+                                            <td class="mono @(SevenSegTable[rowVal, 4] ? "bold emerald" : "")">@(SevenSegTable[rowVal, 4] ? "1" : "0")</td>
+                                            <td class="mono @(SevenSegTable[rowVal, 3] ? "bold emerald" : "")">@(SevenSegTable[rowVal, 3] ? "1" : "0")</td>
+                                            <td class="mono @(SevenSegTable[rowVal, 2] ? "bold emerald" : "")">@(SevenSegTable[rowVal, 2] ? "1" : "0")</td>
+                                            <td class="mono @(SevenSegTable[rowVal, 1] ? "bold emerald" : "")">@(SevenSegTable[rowVal, 1] ? "1" : "0")</td>
+                                            <td class="mono @(SevenSegTable[rowVal, 0] ? "bold emerald" : "")">@(SevenSegTable[rowVal, 0] ? "1" : "0")</td>
+                                        }
+                                        else
+                                        {
+                                            <td class="mono muted" colspan="7" style="text-align: center;">-- (Don't Care) --</td>
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="circuit-summary-box">
+                        <div class="summary-item">
+                            <span>Dezimalziffer:</span>
+                            <strong class="mono blue">@(SegDigitValue < 10 ? SegDigitValue.ToString() : $"{SegDigitValue} (Don't Care)")</strong>
+                        </div>
+                        <div class="summary-item">
+                            <span>Segmente (s₆..s₀):</span>
+                            <strong class="mono emerald">@GetSegmentBitString()</strong>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        }
         else if (SelectedCircuit == CircuitType.Gates)
         {
             <!-- Basic Gates Grid -->
@@ -809,7 +1200,7 @@
 
 @code {
     public enum ViewMode { Simulator, Worksheet }
-    private enum CircuitType { TruthTableCircuit, Multiplexer, Gates, HalfAdder, FullAdder, DLatch }
+    private enum CircuitType { TruthTableCircuit, Multiplexer, Demultiplexer, SevenSegment, Gates, HalfAdder, FullAdder, DLatch }
 
     [Parameter] public string? View { get; set; }
     [Parameter] public bool? SolutionParam { get; set; }
@@ -869,6 +1260,90 @@
         9 => "₉",
         _ => number.ToString()
     };
+
+    // Demultiplexer state (GDI 07 Aufgabe 1)
+    private bool DemuxS2 = false; // MSB
+    private bool DemuxS1 = false; // LSB
+    private bool DemuxE = true;
+
+    private int DemuxAddress => ((DemuxS2 ? 1 : 0) << 1) | (DemuxS1 ? 1 : 0);
+    private bool DemuxA0 => DemuxE && !DemuxS1 && !DemuxS2;
+    private bool DemuxA1 => DemuxE && DemuxS1 && !DemuxS2;
+    private bool DemuxA2 => DemuxE && !DemuxS1 && DemuxS2;
+    private bool DemuxA3 => DemuxE && DemuxS1 && DemuxS2;
+    private bool DemuxActiveOutput => DemuxE;
+
+    // 7-Segment Decoder state (GDI 07 Aufgabe 2)
+    private bool SegX4 = false; // MSB (8)
+    private bool SegX3 = false; // (4)
+    private bool SegX2 = false; // (2)
+    private bool SegX1 = false; // LSB (1)
+
+    private int SegDigitValue => ((SegX4 ? 1 : 0) << 3) | ((SegX3 ? 1 : 0) << 2) | ((SegX2 ? 1 : 0) << 1) | (SegX1 ? 1 : 0);
+
+    private static readonly bool[,] SevenSegTable = new bool[16, 7]
+    {
+        // s0,   s1,    s2,    s3,    s4,    s5,    s6
+        { true,  true,  false, true,  true,  true,  true  }, // 0
+        { false, false, false, true,  false, true,  false }, // 1
+        { true,  false, true,  true,  true,  false, true  }, // 2
+        { true,  false, true,  true,  false, true,  true  }, // 3
+        { false, true,  true,  true,  false, true,  false }, // 4
+        { true,  true,  true,  false, false, true,  true  }, // 5
+        { true,  true,  true,  false, true,  true,  true  }, // 6
+        { true,  false, false, true,  false, true,  false }, // 7
+        { true,  true,  true,  true,  true,  true,  true  }, // 8
+        { true,  true,  true,  true,  false, true,  true  }, // 9
+        { false, false, false, false, false, false, false }, // 10
+        { false, false, false, false, false, false, false }, // 11
+        { false, false, false, false, false, false, false }, // 12
+        { false, false, false, false, false, false, false }, // 13
+        { false, false, false, false, false, false, false }, // 14
+        { false, false, false, false, false, false, false }, // 15
+    };
+
+    private bool GetSegment(int seg) => (SegDigitValue >= 0 && SegDigitValue < 10) ? SevenSegTable[SegDigitValue, seg] : false;
+
+    private void SetDigit(int d)
+    {
+        SegX4 = (d & 8) != 0;
+        SegX3 = (d & 4) != 0;
+        SegX2 = (d & 2) != 0;
+        SegX1 = (d & 1) != 0;
+    }
+
+    private string GetActiveSegmentList()
+    {
+        if (SegDigitValue >= 10) return "Keine (Don't Care)";
+        var active = new List<string>();
+        for (int i = 0; i <= 6; i++)
+        {
+            if (GetSegment(i)) active.Add($"s{ToSubscript(i)}");
+        }
+        return active.Count > 0 ? string.Join(", ", active) : "Keine";
+    }
+
+    private int GetActiveSegmentCount()
+    {
+        if (SegDigitValue >= 10) return 0;
+        int count = 0;
+        for (int i = 0; i <= 6; i++)
+        {
+            if (GetSegment(i)) count++;
+        }
+        return count;
+    }
+
+    private string GetSegmentBitString()
+    {
+        if (SegDigitValue >= 10) return "-------";
+        var sb = new System.Text.StringBuilder();
+        for (int i = 6; i >= 0; i--)
+        {
+            sb.Append(SevenSegTable[SegDigitValue, i] ? "1" : "0");
+        }
+        return sb.ToString();
+    }
 
     // Basic Gates state
     private bool InputA = false;
@@ -956,6 +1431,14 @@
                 else if (c.Contains("mux") || c.Contains("multiplexer"))
                 {
                     SelectedCircuit = CircuitType.Multiplexer;
+                }
+                else if (c.Contains("demux") || c.Contains("demultiplexer"))
+                {
+                    SelectedCircuit = CircuitType.Demultiplexer;
+                }
+                else if (c.Contains("seven") || c.Contains("segment") || c.Contains("bcd"))
+                {
+                    SelectedCircuit = CircuitType.SevenSegment;
                 }
                 else if (c.Contains("gate"))
                 {

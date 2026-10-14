@@ -769,6 +769,97 @@
     padding-top: 0.75rem;
 }
 
+/* Demultiplexer & 7-Segment specific styles */
+.badge-demux {
+    background: #ecfdf5;
+    color: #059669;
+    border: 1px solid #a7f3d0;
+}
+
+.badge-seg {
+    background: #eff6ff;
+    color: #2563eb;
+    border: 1px solid #bfdbfe;
+}
+
+.seven-seg-box {
+    background: #0f172a;
+    border: 2px solid #334155;
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);
+}
+
+.seven-seg-svg {
+    max-width: 340px;
+    width: 100%;
+    height: auto;
+}
+
+.seg-lit {
+    fill: #ef4444;
+    filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.85));
+    transition: fill 0.15s ease, filter 0.15s ease;
+}
+
+.seg-dim {
+    fill: #27171d;
+    stroke: rgba(239, 68, 68, 0.15);
+    stroke-width: 1;
+    transition: fill 0.15s ease;
+}
+
+.seg-label-txt {
+    fill: #94a3b8;
+    font-size: 13px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-weight: 700;
+}
+
+.seg-arrow {
+    stroke: #64748b;
+    stroke-width: 1.5;
+    marker-end: url(#arrowhead);
+}
+
+.digit-btn-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.5rem;
+}
+
+.digit-btn {
+    width: 2.25rem;
+    height: 2.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.375rem;
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #334155;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.digit-btn:hover {
+    background: #e2e8f0;
+    border-color: #94a3b8;
+}
+
+.digit-btn.active {
+    background: #3b82f6;
+    color: white;
+    border-color: #2563eb;
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
+}
+
 .exam-footer-note {
     font-size: 0.75rem;
     color: #64748b;
