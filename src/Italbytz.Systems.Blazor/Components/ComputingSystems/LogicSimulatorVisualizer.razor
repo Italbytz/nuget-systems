@@ -38,6 +38,9 @@
     {
         <!-- Circuit Selector Tabs -->
         <div class="circuit-tabs no-print">
+            <button class="circuit-tab @(SelectedCircuit == CircuitType.TruthTableCircuit ? "active" : "")" @onclick="() => SetCircuit(CircuitType.TruthTableCircuit)">
+                📋 Schaltnetz-Analyse (Aufgabe 1)
+            </button>
             <button class="circuit-tab @(SelectedCircuit == CircuitType.Multiplexer ? "active" : "")" @onclick="() => SetCircuit(CircuitType.Multiplexer)">
                 🔀 4-zu-1 Multiplexer
             </button>
@@ -55,7 +58,201 @@
             </button>
         </div>
 
-        @if (SelectedCircuit == CircuitType.Multiplexer)
+        @if (SelectedCircuit == CircuitType.TruthTableCircuit)
+        {
+            <!-- Narrator Card -->
+            <div class="narrator-card">
+                <div class="narrator-header">
+                    <div class="step-badge badge-mux">Schaltnetz-Analyse &bull; Aufgabe 1</div>
+                    <div class="narrator-title">
+                        Eingänge: <span class="mono bold purple">x₀=@(CircuitX0 ? "1" : "0"), x₁=@(CircuitX1 ? "1" : "0"), x₂=@(CircuitX2 ? "1" : "0")</span> &rarr;
+                        Ausgang: <strong class="@(CircuitY ? "emerald" : "red") mono">y = @(CircuitY ? "1" : "0")</strong>
+                    </div>
+                </div>
+                <p class="narrator-text">
+                    Dieses Schaltnetz analysiert drei Eingangsvariablen. Auffällig: Der obere Pfad bildet (<em>x</em><sub>2</sub> ∧ ¬<em>x</em><sub>0</sub>) ∧ <em>x</em><sub>0</sub> = 0 (Gesetz des Widerspruchs: ¬<em>x</em><sub>0</sub> ∧ <em>x</em><sub>0</sub> = 0). Der Ausgang wird somit allein durch den unteren Pfad bestimmt: <em>y</em> = 0 ∨ ((<em>x</em><sub>1</sub> ∧ ¬<em>x</em><sub>0</sub>) ∨ <em>x</em><sub>0</sub>) = <em>x</em><sub>1</sub> ∨ <em>x</em><sub>0</sub>. Die Eingangsvariable <em>x</em><sub>2</sub> ist für das Gesamtergebnis redundant.
+                </p>
+                <div class="logic-metrics-strip">
+                    <span>Vollständige Funktion: <strong class="mono">y = ((x₂ ∧ ¬x₀) ∧ x₀) ∨ ((x₁ ∧ ¬x₀) ∨ x₀)</strong></span>
+                    <span>Vereinfacht: <strong class="mono blue">y = x₁ ∨ x₀</strong></span>
+                    <span>Ausgangspegel: <strong class="mono @(CircuitY ? "emerald" : "red")">y = @(CircuitY ? "1 (HIGH)" : "0 (LOW)")</strong></span>
+                </div>
+            </div>
+
+            <!-- Main Display: Interactive Schematic & Table -->
+            <div class="main-display-grid">
+
+                <!-- Left: Interactive Schematic SVG -->
+                <div class="circuit-card">
+                    <div class="circuit-card-header">
+                        <h3>Schaltplan (Klick auf Eingänge toggelt Pegel)</h3>
+                    </div>
+
+                    <!-- Input Controls Toolbar -->
+                    <div class="mux-toolbar">
+                        <div class="mux-group">
+                            <span class="toolbar-label">Eingänge:</span>
+                            <button class="toggle-btn @(CircuitX0 ? "high" : "low")" @onclick="() => CircuitX0 = !CircuitX0">
+                                x₀: <strong>@(CircuitX0 ? "1" : "0")</strong>
+                            </button>
+                            <button class="toggle-btn @(CircuitX1 ? "high" : "low")" @onclick="() => CircuitX1 = !CircuitX1">
+                                x₁: <strong>@(CircuitX1 ? "1" : "0")</strong>
+                            </button>
+                            <button class="toggle-btn @(CircuitX2 ? "high" : "low")" @onclick="() => CircuitX2 = !CircuitX2">
+                                x₂: <strong>@(CircuitX2 ? "1" : "0")</strong>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="svg-container">
+                        <svg viewBox="20 115 625 285" class="circuit-svg" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Input x2 -->
+                            <g class="clickable-pin" @onclick="() => CircuitX2 = !CircuitX2" style="cursor: pointer;">
+                                <rect x="69" y="125" width="30" height="30" rx="3" class="gate-box @(CircuitX2 ? "gate-selected" : "")" />
+                                <circle cx="84" cy="140" r="9" class="wire-dot @(CircuitX2 ? "dot-high" : "dot-low")" />
+                                <text text-anchor="end" x="55" y="146" class="pin-label mono bold" font-size="20">x₂</text>
+                            </g>
+                            <!-- Wire x2 to AND1 -->
+                            <line x1="100" y1="140" x2="280" y2="140" class="wire @(CircuitX2 ? "wire-high" : "wire-low")" />
+
+                            <!-- Input x0 -->
+                            <g class="clickable-pin" @onclick="() => CircuitX0 = !CircuitX0" style="cursor: pointer;">
+                                <rect x="69" y="225" width="30" height="30" rx="3" class="gate-box @(CircuitX0 ? "gate-selected" : "")" />
+                                <circle cx="84" cy="240" r="9" class="wire-dot @(CircuitX0 ? "dot-high" : "dot-low")" />
+                                <text text-anchor="end" x="55" y="246" class="pin-label mono bold" font-size="20">x₀</text>
+                            </g>
+                            <!-- Wire x0 to junction 140,240 -->
+                            <line x1="100" y1="240" x2="140" y2="240" class="wire @(CircuitX0 ? "wire-high" : "wire-low")" />
+                            <circle cx="140" cy="240" r="4" class="wire-dot @(CircuitX0 ? "dot-high" : "dot-low")" />
+
+                            <!-- x0 branches up to AND2 (bottom input at 380,200) and down to OR1 (bottom input at 380,380) -->
+                            <line x1="140" y1="240" x2="140" y2="200" class="wire @(CircuitX0 ? "wire-high" : "wire-low")" />
+                            <line x1="140" y1="200" x2="380" y2="200" class="wire @(CircuitX0 ? "wire-high" : "wire-low")" />
+                            <line x1="140" y1="240" x2="140" y2="380" class="wire @(CircuitX0 ? "wire-high" : "wire-low")" />
+                            <line x1="140" y1="380" x2="380" y2="380" class="wire @(CircuitX0 ? "wire-high" : "wire-low")" />
+
+                            <!-- x0 into NOT Gate -->
+                            <line x1="140" y1="240" x2="181" y2="240" class="wire @(CircuitX0 ? "wire-high" : "wire-low")" />
+                            <rect x="181" y="226" width="24" height="28" rx="2" class="gate-box @(CircuitNotX0 ? "gate-selected" : "")" />
+                            <text x="193" y="240" class="gate-box-text" font-size="14">1</text>
+                            <circle cx="210" cy="240" r="4.5" class="inversion-bubble @(CircuitNotX0 ? "bubble-high" : "bubble-low")" />
+
+                            <!-- NOT output to junction 240,240 -->
+                            <line x1="214.5" y1="240" x2="240" y2="240" class="wire @(CircuitNotX0 ? "wire-high" : "wire-low")" />
+                            <circle cx="240" cy="240" r="4" class="wire-dot @(CircuitNotX0 ? "dot-high" : "dot-low")" />
+
+                            <!-- NOT output branches up to AND1 (bottom input at 280,180) and down to AND3 (bottom input at 280,360) -->
+                            <line x1="240" y1="240" x2="240" y2="180" class="wire @(CircuitNotX0 ? "wire-high" : "wire-low")" />
+                            <line x1="240" y1="180" x2="280" y2="180" class="wire @(CircuitNotX0 ? "wire-high" : "wire-low")" />
+                            <line x1="240" y1="240" x2="240" y2="360" class="wire @(CircuitNotX0 ? "wire-high" : "wire-low")" />
+                            <line x1="240" y1="360" x2="280" y2="360" class="wire @(CircuitNotX0 ? "wire-high" : "wire-low")" />
+
+                            <!-- Input x1 -->
+                            <g class="clickable-pin" @onclick="() => CircuitX1 = !CircuitX1" style="cursor: pointer;">
+                                <rect x="69" y="305" width="30" height="30" rx="3" class="gate-box @(CircuitX1 ? "gate-selected" : "")" />
+                                <circle cx="84" cy="320" r="9" class="wire-dot @(CircuitX1 ? "dot-high" : "dot-low")" />
+                                <text text-anchor="end" x="55" y="326" class="pin-label mono bold" font-size="20">x₁</text>
+                            </g>
+                            <!-- Wire x1 to AND3 -->
+                            <line x1="100" y1="320" x2="280" y2="320" class="wire @(CircuitX1 ? "wire-high" : "wire-low")" />
+
+                            <!-- Gate 1: AND (&) [x2 ∧ ¬x0] -->
+                            <rect x="281" y="130" width="58" height="60" rx="3" class="gate-box @(CircuitAnd1 ? "gate-selected" : "")" />
+                            <text text-anchor="middle" x="310" y="160" class="gate-box-text" font-size="22">&amp;</text>
+                            <line x1="339" y1="160" x2="380" y2="160" class="wire @(CircuitAnd1 ? "wire-high" : "wire-low")" />
+
+                            <!-- Gate 2: AND (&) [(x2 ∧ ¬x0) ∧ x0] -->
+                            <rect x="381" y="150" width="58" height="60" rx="3" class="gate-box @(CircuitAnd2 ? "gate-selected" : "")" />
+                            <text text-anchor="middle" x="410" y="180" class="gate-box-text" font-size="22">&amp;</text>
+                            <path d="M 439,180 L 460,180 L 460,240 L 480,240" class="wire @(CircuitAnd2 ? "wire-high" : "wire-low")" fill="none" />
+
+                            <!-- Gate 3: AND (&) [x1 ∧ ¬x0] -->
+                            <rect x="281" y="310" width="58" height="60" rx="3" class="gate-box @(CircuitAnd3 ? "gate-selected" : "")" />
+                            <text text-anchor="middle" x="310" y="340" class="gate-box-text" font-size="22">&amp;</text>
+                            <line x1="339" y1="340" x2="380" y2="340" class="wire @(CircuitAnd3 ? "wire-high" : "wire-low")" />
+
+                            <!-- Gate 4: OR (≥1) [(x1 ∧ ¬x0) ∨ x0] -->
+                            <rect x="381" y="330" width="58" height="60" rx="3" class="gate-box @(CircuitOr1 ? "gate-selected" : "")" />
+                            <text text-anchor="middle" x="410" y="360" class="gate-box-text" font-size="20">≥1</text>
+                            <path d="M 439,360 L 460,360 L 460,280 L 480,280" class="wire @(CircuitOr1 ? "wire-high" : "wire-low")" fill="none" />
+
+                            <!-- Gate 5: OR (≥1) [Output y] -->
+                            <rect x="481" y="230" width="58" height="60" rx="3" class="gate-box @(CircuitY ? "gate-selected" : "")" />
+                            <text text-anchor="middle" x="510" y="260" class="gate-box-text" font-size="20">≥1</text>
+                            <line x1="539" y1="260" x2="582" y2="260" class="wire @(CircuitY ? "wire-high" : "wire-low")" />
+
+                            <!-- Output pin y -->
+                            <circle cx="596" cy="260" r="14" class="inversion-bubble @(CircuitY ? "bubble-high" : "bubble-low")" />
+                            <circle cx="596" cy="260" r="8" class="wire-dot @(CircuitY ? "dot-high" : "dot-low")" />
+                            <text text-anchor="start" x="618" y="265" class="pin-label mono bold @(CircuitY ? "emerald" : "red")" font-size="22">y</text>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Right: Truth Table Card -->
+                <div class="table-card">
+                    <div class="table-card-header">
+                        <h3>Wahrheitstafel (8 Zeilen)</h3>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="interactive-truth-table">
+                            <thead>
+                                <tr>
+                                    <th><em>x</em>₀</th>
+                                    <th><em>x</em>₁</th>
+                                    <th><em>x</em>₂</th>
+                                    <th>Oben (∧)</th>
+                                    <th>Unten (∨)</th>
+                                    <th class="th-out">Ausgang <em>y</em></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int r = 0; r < 8; r++)
+                                {
+                                    int rowX0 = (r >> 2) & 1;
+                                    int rowX1 = (r >> 1) & 1;
+                                    int rowX2 = r & 1;
+                                    bool isCurrentRow = (CircuitX0 ? 1 : 0) == rowX0 && (CircuitX1 ? 1 : 0) == rowX1 && (CircuitX2 ? 1 : 0) == rowX2;
+                                    int rowOben = 0; // (x2 & !x0 & x0) == 0
+                                    int rowUnten = (rowX1 == 1 || rowX0 == 1) ? 1 : 0;
+                                    int rowY = (rowX1 == 1 || rowX0 == 1) ? 1 : 0;
+
+                                    <tr class="@(isCurrentRow ? "table-row-active" : "")">
+                                        <td class="mono bold purple">@rowX0</td>
+                                        <td class="mono bold purple">@rowX1</td>
+                                        <td class="mono bold purple">@rowX2</td>
+                                        <td class="mono">@rowOben</td>
+                                        <td class="mono">@rowUnten</td>
+                                        <td class="mono bold @(isCurrentRow ? (rowY == 1 ? "emerald" : "red") : "")">
+                                            @rowY
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="circuit-summary-box">
+                        <div class="summary-item">
+                            <span>Ausgangsvektor <em>y</em>:</span>
+                            <strong class="mono blue">(0, 0, 1, 1, 1, 1, 1, 1)</strong>
+                        </div>
+                        <div class="summary-item">
+                            <span>Aktueller Zustand:</span>
+                            <strong class="mono @(CircuitY ? "emerald" : "red")">y = @(CircuitY ? "1 (HIGH)" : "0 (LOW)")</strong>
+                        </div>
+                        <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px dashed #cbd5e1; text-align: center;">
+                            <a href="../normal-forms/?values=0,0,1,1,1,1,1,1" target="_blank" style="display: block; text-decoration: none; padding: 0.5rem 0.75rem; background: #8b5cf6; color: white; border-radius: 0.375rem; font-weight: 600; font-size: 0.85rem; transition: background 0.15s ease;">
+                                🚀 Weiter zu Aufgabe 2: Normalformen &amp; KV-Diagramme
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        }
+        else if (SelectedCircuit == CircuitType.Multiplexer)
         {
             <!-- Narrator Card -->
             <div class="narrator-card">
@@ -612,7 +809,7 @@
 
 @code {
     public enum ViewMode { Simulator, Worksheet }
-    private enum CircuitType { Multiplexer, Gates, HalfAdder, FullAdder, DLatch }
+    private enum CircuitType { TruthTableCircuit, Multiplexer, Gates, HalfAdder, FullAdder, DLatch }
 
     [Parameter] public string? View { get; set; }
     [Parameter] public bool? SolutionParam { get; set; }
@@ -624,6 +821,18 @@
     private CircuitType SelectedCircuit = CircuitType.Multiplexer;
     private bool ShowSolution = false;
     private bool IsEmbed = false;
+
+    // Truth Table Circuit state (GDI04 Aufgabe 1)
+    private bool CircuitX0 = false;
+    private bool CircuitX1 = false;
+    private bool CircuitX2 = false;
+
+    private bool CircuitNotX0 => !CircuitX0;
+    private bool CircuitAnd1 => CircuitX2 && CircuitNotX0;
+    private bool CircuitAnd2 => CircuitAnd1 && CircuitX0;
+    private bool CircuitAnd3 => CircuitX1 && CircuitNotX0;
+    private bool CircuitOr1 => CircuitAnd3 || CircuitX0;
+    private bool CircuitY => CircuitAnd2 || CircuitOr1;
 
     // Multiplexer state
     private bool MuxS1 = false;
@@ -740,7 +949,11 @@
             if (!string.IsNullOrEmpty(QueryCircuit))
             {
                 var c = QueryCircuit.ToLowerInvariant();
-                if (c.Contains("mux") || c.Contains("multiplexer"))
+                if (c.Contains("truth") || c.Contains("exercise") || c.Contains("schaltnetz") || c.Contains("aufgabe1"))
+                {
+                    SelectedCircuit = CircuitType.TruthTableCircuit;
+                }
+                else if (c.Contains("mux") || c.Contains("multiplexer"))
                 {
                     SelectedCircuit = CircuitType.Multiplexer;
                 }
