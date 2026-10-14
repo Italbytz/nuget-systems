@@ -169,16 +169,6 @@
                             <p><strong>KKNF:</strong> Konjunktion (&and;) aller Zeilen mit <em>y</em>=0. In den Disjunktionstermen gilt: &not;<em>x</em><sub><em>i</em></sub> wenn <em>x</em><sub><em>i</em></sub>=1, <em>x</em><sub><em>i</em></sub> wenn <em>x</em><sub><em>i</em></sub>=0.</p>
                         </div>
                     </div>
-
-                    <div class="formula-card">
-                        <div class="formula-title">LaTeX-Formeln (für Skripte &amp; Klausuren):</div>
-                        <div class="formula-display mono" style="font-size: 0.85rem; word-break: break-all; margin-bottom: 0.5rem;">
-                            <code>y_{\text{KDNF}} = @FormatDnfLatex(Solution.Dnf)</code>
-                        </div>
-                        <div class="formula-display mono" style="font-size: 0.85rem; word-break: break-all;">
-                            <code>y_{\text{KKNF}} = @FormatCnfLatex(Solution.Cnf)</code>
-                        </div>
-                    </div>
                 </div>
 
             </div>
@@ -644,21 +634,5 @@
                   .Replace(" & ", " ∧ ")
                   .Replace(" | ", " ∨ ")
                   .Replace("!x", "¬x");
-    }
-
-    private static string FormatDnfLatex(string? dnf)
-    {
-        if (string.IsNullOrWhiteSpace(dnf)) return "0";
-        var res = System.Text.RegularExpressions.Regex.Replace(dnf, @"!x_?(\d+)", @"\neg x_{$1}");
-        res = System.Text.RegularExpressions.Regex.Replace(res, @"x_?(\d+)", @"x_{$1}");
-        return res.Replace(" | ", " \\vee ").Replace(" & ", " \\wedge ");
-    }
-
-    private static string FormatCnfLatex(string? cnf)
-    {
-        if (string.IsNullOrWhiteSpace(cnf)) return "1";
-        var res = System.Text.RegularExpressions.Regex.Replace(cnf, @"!x_?(\d+)", @"\neg x_{$1}");
-        res = System.Text.RegularExpressions.Regex.Replace(res, @"x_?(\d+)", @"x_{$1}");
-        return res.Replace(" & ", " \\wedge ").Replace(" | ", " \\vee ");
     }
 }
