@@ -31,7 +31,7 @@
         <button type="button" 
                 class="switcher-pill @(SelectedTab == LectureTab.GdI ? "active pill-gdi" : "")" 
                 @onclick="() => SelectTab(LectureTab.GdI)"
-                title="Grundlagen der Informatik (17 Simulatoren)">
+                title="Grundlagen der Informatik (19 Simulatoren)">
             <span class="pill-dot dot-gdi"></span>
             <span>GdI</span>
         </button>
@@ -52,7 +52,7 @@
         <button type="button" 
                 class="switcher-pill switcher-pill-all @(SelectedTab == LectureTab.All ? "active pill-all" : "")" 
                 @onclick="() => SelectTab(LectureTab.All)"
-                title="Alle 43 Aufgaben anzeigen">
+                title="Alle 45 Aufgaben anzeigen">
             <span>Alle</span>
         </button>
     </div>
@@ -109,60 +109,15 @@
                 <div class="nav-chapter-group">
                     <div class="nav-chapter-heading">
                         <span class="chapter-num">02</span>
-                        <span class="chapter-name">Zahlendarstellung &amp; Codes</span>
+                        <span class="chapter-name">Halbleitertechnik &amp; Schalter</span>
                     </div>
                     <div class="nav-chapter-items">
                         <div class="nav-item">
-                            <NavLink class="nav-link" href="binary-to-decimal">
+                            <NavLink class="nav-link" href="cmos">
                                 <span class="nav-kicker">03</span>
                                 <span>
-                                    <strong>Binär zu Dezimal</strong>
-                                    <small>Stellenwertsystem &amp; Potenzen</small>
-                                </span>
-                            </NavLink>
-                        </div>
-                        <div class="nav-item">
-                            <NavLink class="nav-link" href="decimal-to-binary">
-                                <span class="nav-kicker">04</span>
-                                <span>
-                                    <strong>Dezimal zu Binär</strong>
-                                    <small>Divisionsverfahren &amp; Reste</small>
-                                </span>
-                            </NavLink>
-                        </div>
-                        <div class="nav-item">
-                            <NavLink class="nav-link" href="binary-arithmetic">
-                                <span class="nav-kicker">05</span>
-                                <span>
-                                    <strong>Binäraddition</strong>
-                                    <small>8-Bit-Addition &amp; Überträge</small>
-                                </span>
-                            </NavLink>
-                        </div>
-                        <div class="nav-item">
-                            <NavLink class="nav-link" href="twos-complement">
-                                <span class="nav-kicker">06</span>
-                                <span>
-                                    <strong>Zweierkomplement</strong>
-                                    <small>Vorzeichenbehaftete Ganzzahlen</small>
-                                </span>
-                            </NavLink>
-                        </div>
-                        <div class="nav-item">
-                            <NavLink class="nav-link" href="floating-point">
-                                <span class="nav-kicker">07</span>
-                                <span>
-                                    <strong>Gleitkommazahlen</strong>
-                                    <small>IEEE 754 (32-Bit Single)</small>
-                                </span>
-                            </NavLink>
-                        </div>
-                        <div class="nav-item">
-                            <NavLink class="nav-link" href="ascii-memory">
-                                <span class="nav-kicker">08</span>
-                                <span>
-                                    <strong>ASCII &amp; Endianness</strong>
-                                    <small>Little vs. Big Endian</small>
+                                    <strong>CMOS-Schaltungstechnik</strong>
+                                    <small>Transistoren, Inverter, NAND &amp; NOR</small>
                                 </span>
                             </NavLink>
                         </div>
@@ -173,33 +128,60 @@
                 <div class="nav-chapter-group">
                     <div class="nav-chapter-heading">
                         <span class="chapter-num">03</span>
-                        <span class="chapter-name">Boolesche Algebra &amp; Minimierung</span>
+                        <span class="chapter-name">Zahlendarstellung &amp; Codes</span>
                     </div>
                     <div class="nav-chapter-items">
                         <div class="nav-item">
-                            <NavLink class="nav-link" href="normal-forms">
+                            <NavLink class="nav-link" href="binary-to-decimal">
+                                <span class="nav-kicker">04</span>
+                                <span>
+                                    <strong>Binär zu Dezimal</strong>
+                                    <small>Stellenwertsystem &amp; Potenzen</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="decimal-to-binary">
+                                <span class="nav-kicker">05</span>
+                                <span>
+                                    <strong>Dezimal zu Binär</strong>
+                                    <small>Divisionsverfahren &amp; Reste</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="binary-arithmetic">
+                                <span class="nav-kicker">06</span>
+                                <span>
+                                    <strong>Binäraddition</strong>
+                                    <small>8-Bit-Addition &amp; Überträge</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="twos-complement">
+                                <span class="nav-kicker">07</span>
+                                <span>
+                                    <strong>Zweierkomplement</strong>
+                                    <small>Vorzeichenbehaftete Ganzzahlen</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="floating-point">
+                                <span class="nav-kicker">08</span>
+                                <span>
+                                    <strong>Gleitkommazahlen</strong>
+                                    <small>IEEE 754 (32-Bit Single)</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="ascii-memory">
                                 <span class="nav-kicker">09</span>
                                 <span>
-                                    <strong>Kanonische Normalformen</strong>
-                                    <small>DNF (Minterme) &amp; KNF (Maxterme)</small>
-                                </span>
-                            </NavLink>
-                        </div>
-                        <div class="nav-item">
-                            <NavLink class="nav-link" href="karnaugh-veitch">
-                                <span class="nav-kicker">10</span>
-                                <span>
-                                    <strong>KV-Diagramme</strong>
-                                    <small>Gray-Code &amp; Blockbildung</small>
-                                </span>
-                            </NavLink>
-                        </div>
-                        <div class="nav-item">
-                            <NavLink class="nav-link" href="quine-mccluskey">
-                                <span class="nav-kicker">11</span>
-                                <span>
-                                    <strong>Quine-McCluskey</strong>
-                                    <small>Primimplikanten &amp; Überdeckung</small>
+                                    <strong>ASCII &amp; Endianness</strong>
+                                    <small>Little vs. Big Endian</small>
                                 </span>
                             </NavLink>
                         </div>
@@ -210,24 +192,15 @@
                 <div class="nav-chapter-group">
                     <div class="nav-chapter-heading">
                         <span class="chapter-num">04</span>
-                        <span class="chapter-name">Schaltnetze &amp; Bausteine</span>
+                        <span class="chapter-name">Boolesche Algebra</span>
                     </div>
                     <div class="nav-chapter-items">
                         <div class="nav-item">
-                            <NavLink class="nav-link" href="logic-circuits">
-                                <span class="nav-kicker">12</span>
+                            <NavLink class="nav-link" href="normal-forms">
+                                <span class="nav-kicker">10</span>
                                 <span>
-                                    <strong>Logikgatter &amp; Schaltungen</strong>
-                                    <small>Gatter, Addierer, D-Latch</small>
-                                </span>
-                            </NavLink>
-                        </div>
-                        <div class="nav-item">
-                            <NavLink class="nav-link" href="pla">
-                                <span class="nav-kicker">13</span>
-                                <span>
-                                    <strong>Programmierbare Bausteine (PLA)</strong>
-                                    <small>AND-/OR-Matrix &amp; Espresso</small>
+                                    <strong>Kanonische Normalformen</strong>
+                                    <small>DNF (Minterme) &amp; KNF (Maxterme)</small>
                                 </span>
                             </NavLink>
                         </div>
@@ -238,24 +211,15 @@
                 <div class="nav-chapter-group">
                     <div class="nav-chapter-heading">
                         <span class="chapter-num">05</span>
-                        <span class="chapter-name">Zeitverhalten &amp; Schaltwerke</span>
+                        <span class="chapter-name">Schaltnetze</span>
                     </div>
                     <div class="nav-chapter-items">
                         <div class="nav-item">
-                            <NavLink class="nav-link" href="hazards">
-                                <span class="nav-kicker">14</span>
+                            <NavLink class="nav-link" href="logic-circuits">
+                                <span class="nav-kicker">11</span>
                                 <span>
-                                    <strong>Funktions-Hazards</strong>
-                                    <small>Glitches &amp; kürzeste Wege</small>
-                                </span>
-                            </NavLink>
-                        </div>
-                        <div class="nav-item">
-                            <NavLink class="nav-link" href="moore-machine">
-                                <span class="nav-kicker">15</span>
-                                <span>
-                                    <strong>Moore-Automaten</strong>
-                                    <small>Zustandsgraph &amp; Schaltwerk</small>
+                                    <strong>Logikgatter &amp; Schaltungen</strong>
+                                    <small>Gatter, Addierer, D-Latch</small>
                                 </span>
                             </NavLink>
                         </div>
@@ -266,21 +230,106 @@
                 <div class="nav-chapter-group">
                     <div class="nav-chapter-heading">
                         <span class="chapter-num">06</span>
-                        <span class="chapter-name">Rechnerstrukturen &amp; Software</span>
+                        <span class="chapter-name">Minimierung</span>
+                    </div>
+                    <div class="nav-chapter-items">
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="karnaugh-veitch">
+                                <span class="nav-kicker">12</span>
+                                <span>
+                                    <strong>KV-Diagramme</strong>
+                                    <small>Gray-Code &amp; Blockbildung</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="quine-mccluskey">
+                                <span class="nav-kicker">13</span>
+                                <span>
+                                    <strong>Quine-McCluskey</strong>
+                                    <small>Primimplikanten &amp; Überdeckung</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kapitel 07 -->
+                <div class="nav-chapter-group">
+                    <div class="nav-chapter-heading">
+                        <span class="chapter-num">07</span>
+                        <span class="chapter-name">Standardschaltnetze</span>
+                    </div>
+                    <div class="nav-chapter-items">
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="pla">
+                                <span class="nav-kicker">14</span>
+                                <span>
+                                    <strong>Programmierbare Bausteine (PLA)</strong>
+                                    <small>AND-/OR-Matrix &amp; Espresso</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kapitel 08 -->
+                <div class="nav-chapter-group">
+                    <div class="nav-chapter-heading">
+                        <span class="chapter-num">08</span>
+                        <span class="chapter-name">Schaltwerke</span>
+                    </div>
+                    <div class="nav-chapter-items">
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="hazards">
+                                <span class="nav-kicker">15</span>
+                                <span>
+                                    <strong>Funktions-Hazards</strong>
+                                    <small>Glitches &amp; kürzeste Wege</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="moore-machine">
+                                <span class="nav-kicker">16</span>
+                                <span>
+                                    <strong>Moore-Automaten</strong>
+                                    <small>Zustandsgraph &amp; Schaltwerk</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kapitel 10 -->
+                <div class="nav-chapter-group">
+                    <div class="nav-chapter-heading">
+                        <span class="chapter-num">10</span>
+                        <span class="chapter-name">Rechnerstrukturen</span>
                     </div>
                     <div class="nav-chapter-items">
                         <div class="nav-item">
                             <NavLink class="nav-link" href="cpu-simulator">
-                                <span class="nav-kicker">16</span>
+                                <span class="nav-kicker">17</span>
                                 <span>
                                     <strong>CPU-Simulator</strong>
                                     <small>Mikrocode &amp; Von-Neumann</small>
                                 </span>
                             </NavLink>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Kapitel 11 -->
+                <div class="nav-chapter-group">
+                    <div class="nav-chapter-heading">
+                        <span class="chapter-num">11</span>
+                        <span class="chapter-name">Software &amp; Assembler</span>
+                    </div>
+                    <div class="nav-chapter-items">
                         <div class="nav-item">
                             <NavLink class="nav-link" href="addressing">
-                                <span class="nav-kicker">17</span>
+                                <span class="nav-kicker">18</span>
                                 <span>
                                     <strong>Adressierungsarten (MIPS)</strong>
                                     <small>Register-, Basis- &amp; PC-relativ</small>
@@ -289,7 +338,7 @@
                         </div>
                         <div class="nav-item">
                             <NavLink class="nav-link" href="assembler">
-                                <span class="nav-kicker">18</span>
+                                <span class="nav-kicker">19</span>
                                 <span>
                                     <strong>MIPS-Assembler</strong>
                                     <small>Befehlsausführung &amp; Trace</small>
@@ -738,6 +787,7 @@
             // GdI Routen
             if (path == "computing-systems" || path == "gdi" ||
                 path == "abacus" || path == "napier-bones" ||
+                path == "cmos" || path == "cmos-inverter" || path == "halbleitertechnik" ||
                 path == "binary-to-decimal" || path == "decimal-to-binary" ||
                 path == "binary-arithmetic" || path == "binary-addition" || path == "addition" ||
                 path == "twos-complement" || path == "floating-point" ||

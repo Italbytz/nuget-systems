@@ -8,7 +8,7 @@
         <p class="eyebrow">Themenbereich · Grundlagen der Informatik</p>
         <h1>Grundlagen der Informatik</h1>
         <p class="hero-copy">
-            17 interaktive Simulatoren, gegliedert nach den Buchkapiteln und Foliensätzen der Vorlesung.
+            18 interaktive Simulatoren, gegliedert nach den Buchkapiteln und Foliensätzen der Vorlesung.
             Wählen Sie ein Kapitel oder steigen Sie direkt in die Übungen ein:
         </p>
     </div>
@@ -39,38 +39,13 @@
     <section class="chapter-block">
         <div class="chapter-header">
             <span class="chapter-tag">Kapitel 02</span>
-            <h2>Zahlendarstellung &amp; Codes</h2>
+            <h2>Halbleitertechnik &amp; Schaltermodell</h2>
         </div>
         <div class="card-grid card-grid-two">
-            <a class="feature-card route-card" href="binary-to-decimal">
-                <p class="feature-kicker">03 Stellenwertsystem</p>
-                <h3>Binär zu Dezimal</h3>
-                <p>Potenzsumme (Basis 2) mit schrittweiser Bit-Auswertung.</p>
-            </a>
-            <a class="feature-card route-card" href="decimal-to-binary">
-                <p class="feature-kicker">04 Divisionsverfahren</p>
-                <h3>Dezimal zu Binär</h3>
-                <p>Fortlaufende Division durch 2 mit Restwertmethode und LSB-MSB-Leserichtung.</p>
-            </a>
-            <a class="feature-card route-card" href="binary-arithmetic">
-                <p class="feature-kicker">05 Arithmetik</p>
-                <h3>Binäraddition</h3>
-                <p>8-Bit-Addition mit Schritt-für-Schritt-Überträgen (Carry).</p>
-            </a>
-            <a class="feature-card route-card" href="twos-complement">
-                <p class="feature-kicker">06 Festkomma</p>
-                <h3>Zweierkomplement</h3>
-                <p>Vorzeichenbehaftete Binärdarstellung, Invertierung und Subtraktion.</p>
-            </a>
-            <a class="feature-card route-card" href="floating-point">
-                <p class="feature-kicker">07 Gleitkomma</p>
-                <h3>IEEE 754 Gleitkomma</h3>
-                <p>32-Bit Single Precision: Vorzeichen, Exponent mit Bias 127 und normalisierte Mantisse.</p>
-            </a>
-            <a class="feature-card route-card" href="ascii-memory">
-                <p class="feature-kicker">08 Zeichenkodierung &amp; Speicher</p>
-                <h3>ASCII &amp; Endianness</h3>
-                <p>US-ASCII-Kodierung und Bytereihenfolge (Little Endian vs. Big Endian) im 32-Bit-Speicher.</p>
+            <a class="feature-card route-card" href="cmos">
+                <p class="feature-kicker">03 Halbleitertechnik</p>
+                <h3>CMOS-Schaltungstechnik</h3>
+                <p>Der Transistor als elektronischer Schalter (nMOS vs. pMOS), CMOS-Inverter (NOT), NAND- und NOR-Gatter.</p>
             </a>
         </div>
     </section>
@@ -79,23 +54,38 @@
     <section class="chapter-block">
         <div class="chapter-header">
             <span class="chapter-tag">Kapitel 03</span>
-            <h2>Boolesche Algebra &amp; Minimierung</h2>
+            <h2>Zahlendarstellung &amp; Codes</h2>
         </div>
         <div class="card-grid card-grid-two">
-            <a class="feature-card route-card" href="normal-forms">
-                <p class="feature-kicker">09 Boolesche Algebra</p>
-                <h3>Kanonische Normalformen</h3>
-                <p>DNF (Minterme) und KNF (Maxterme) aus Wahrheitstabellen.</p>
+            <a class="feature-card route-card" href="binary-to-decimal">
+                <p class="feature-kicker">04 Stellenwertsystem</p>
+                <h3>Binär zu Dezimal</h3>
+                <p>Potenzsumme (Basis 2) mit schrittweiser Bit-Auswertung.</p>
             </a>
-            <a class="feature-card route-card" href="karnaugh-veitch">
-                <p class="feature-kicker">10 Boolesche Minimierung</p>
-                <h3>KV-Diagramme</h3>
-                <p>2D-Gray-Code-Raster, 2^k-Blockbildung und disjunktive Minimalform (DMF).</p>
+            <a class="feature-card route-card" href="decimal-to-binary">
+                <p class="feature-kicker">05 Divisionsverfahren</p>
+                <h3>Dezimal zu Binär</h3>
+                <p>Fortlaufende Division durch 2 mit Restwertmethode und LSB-MSB-Leserichtung.</p>
             </a>
-            <a class="feature-card route-card" href="quine-mccluskey">
-                <p class="feature-kicker">11 Boolesche Minimierung</p>
-                <h3>Quine-McCluskey</h3>
-                <p>Tabellenverfahren zur Primimplikanten-Bestimmung und Überdeckungsanalyse.</p>
+            <a class="feature-card route-card" href="binary-arithmetic">
+                <p class="feature-kicker">06 Arithmetik</p>
+                <h3>Binäraddition</h3>
+                <p>8-Bit-Addition mit Schritt-für-Schritt-Überträgen (Carry).</p>
+            </a>
+            <a class="feature-card route-card" href="twos-complement">
+                <p class="feature-kicker">07 Festkomma</p>
+                <h3>Zweierkomplement</h3>
+                <p>Vorzeichenbehaftete Binärdarstellung, Invertierung und Subtraktion.</p>
+            </a>
+            <a class="feature-card route-card" href="floating-point">
+                <p class="feature-kicker">08 Gleitkomma</p>
+                <h3>IEEE 754 Gleitkomma</h3>
+                <p>32-Bit Single Precision: Vorzeichen, Exponent mit Bias 127 und normalisierte Mantisse.</p>
+            </a>
+            <a class="feature-card route-card" href="ascii-memory">
+                <p class="feature-kicker">09 Zeichenkodierung &amp; Speicher</p>
+                <h3>ASCII &amp; Endianness</h3>
+                <p>US-ASCII-Kodierung und Bytereihenfolge (Little Endian vs. Big Endian) im 32-Bit-Speicher.</p>
             </a>
         </div>
     </section>
@@ -104,18 +94,13 @@
     <section class="chapter-block">
         <div class="chapter-header">
             <span class="chapter-tag">Kapitel 04</span>
-            <h2>Schaltnetze &amp; Programmierbare Bausteine</h2>
+            <h2>Boolesche Algebra</h2>
         </div>
         <div class="card-grid card-grid-two">
-            <a class="feature-card route-card" href="logic-circuits">
-                <p class="feature-kicker">12 Logische Schaltungen</p>
-                <h3>Logikgatter &amp; Schaltungen</h3>
-                <p>Gatter, Halb-/Volladdierer und D-Latch interaktiv schalten.</p>
-            </a>
-            <a class="feature-card route-card" href="pla">
-                <p class="feature-kicker">13 Programmierbare Logik</p>
-                <h3>Programmierbare Bausteine (PLA)</h3>
-                <p>Disjunktive Normalform, Berkeley-Espresso-Format und Leitungsmatrix.</p>
+            <a class="feature-card route-card" href="normal-forms">
+                <p class="feature-kicker">10 Boolesche Algebra</p>
+                <h3>Kanonische Normalformen</h3>
+                <p>DNF (Minterme) und KNF (Maxterme) aus Wahrheitstabellen.</p>
             </a>
         </div>
     </section>
@@ -124,18 +109,13 @@
     <section class="chapter-block">
         <div class="chapter-header">
             <span class="chapter-tag">Kapitel 05</span>
-            <h2>Zeitverhalten &amp; Schaltwerke</h2>
+            <h2>Schaltnetze</h2>
         </div>
         <div class="card-grid card-grid-two">
-            <a class="feature-card route-card" href="hazards">
-                <p class="feature-kicker">14 Zeitverhalten</p>
-                <h3>Funktions-Hazards &amp; Glitches</h3>
-                <p>Störimpulse, Übergänge und kürzeste Wege im KV-Diagramm / Hyperwürfel.</p>
-            </a>
-            <a class="feature-card route-card" href="moore-machine">
-                <p class="feature-kicker">15 Endliche Automaten</p>
-                <h3>Moore-Zustandsautomaten</h3>
-                <p>Zustandsübergangsgraph, D-Flip-Flop-Steuerung und synchrone Synthese.</p>
+            <a class="feature-card route-card" href="logic-circuits">
+                <p class="feature-kicker">11 Logische Schaltungen</p>
+                <h3>Logikgatter &amp; Schaltungen</h3>
+                <p>Gatter, Halb-/Volladdierer und D-Latch interaktiv schalten.</p>
             </a>
         </div>
     </section>
@@ -144,21 +124,86 @@
     <section class="chapter-block">
         <div class="chapter-header">
             <span class="chapter-tag">Kapitel 06</span>
-            <h2>Rechnerstrukturen &amp; Software</h2>
+            <h2>Minimierung</h2>
+        </div>
+        <div class="card-grid card-grid-two">
+            <a class="feature-card route-card" href="karnaugh-veitch">
+                <p class="feature-kicker">12 Boolesche Minimierung</p>
+                <h3>KV-Diagramme</h3>
+                <p>2D-Gray-Code-Raster, 2^k-Blockbildung und disjunktive Minimalform (DMF).</p>
+            </a>
+            <a class="feature-card route-card" href="quine-mccluskey">
+                <p class="feature-kicker">13 Boolesche Minimierung</p>
+                <h3>Quine-McCluskey</h3>
+                <p>Tabellenverfahren zur Primimplikanten-Bestimmung und Überdeckungsanalyse.</p>
+            </a>
+        </div>
+    </section>
+
+    <!-- Kapitel 07 -->
+    <section class="chapter-block">
+        <div class="chapter-header">
+            <span class="chapter-tag">Kapitel 07</span>
+            <h2>Standardschaltnetze</h2>
+        </div>
+        <div class="card-grid card-grid-two">
+            <a class="feature-card route-card" href="pla">
+                <p class="feature-kicker">14 Programmierbare Logik</p>
+                <h3>Programmierbare Bausteine (PLA)</h3>
+                <p>Disjunktive Normalform, Berkeley-Espresso-Format und Leitungsmatrix.</p>
+            </a>
+        </div>
+    </section>
+
+    <!-- Kapitel 08 -->
+    <section class="chapter-block">
+        <div class="chapter-header">
+            <span class="chapter-tag">Kapitel 08</span>
+            <h2>Schaltwerke</h2>
+        </div>
+        <div class="card-grid card-grid-two">
+            <a class="feature-card route-card" href="hazards">
+                <p class="feature-kicker">15 Zeitverhalten</p>
+                <h3>Funktions-Hazards &amp; Glitches</h3>
+                <p>Störimpulse, Übergänge und kürzeste Wege im KV-Diagramm / Hyperwürfel.</p>
+            </a>
+            <a class="feature-card route-card" href="moore-machine">
+                <p class="feature-kicker">16 Endliche Automaten</p>
+                <h3>Moore-Zustandsautomaten</h3>
+                <p>Zustandsübergangsgraph, D-Flip-Flop-Steuerung und synchrone Synthese.</p>
+            </a>
+        </div>
+    </section>
+
+    <!-- Kapitel 10 -->
+    <section class="chapter-block">
+        <div class="chapter-header">
+            <span class="chapter-tag">Kapitel 10</span>
+            <h2>Rechnerstrukturen</h2>
         </div>
         <div class="card-grid card-grid-two">
             <a class="feature-card route-card" href="cpu-simulator">
-                <p class="feature-kicker">16 Rechnerarchitektur</p>
+                <p class="feature-kicker">17 Rechnerarchitektur</p>
                 <h3>CPU-Simulator</h3>
                 <p>Von-Neumann-Architektur, Mikrocode und Register-Transfer.</p>
             </a>
+        </div>
+    </section>
+
+    <!-- Kapitel 11 -->
+    <section class="chapter-block">
+        <div class="chapter-header">
+            <span class="chapter-tag">Kapitel 11</span>
+            <h2>Software &amp; Assembler</h2>
+        </div>
+        <div class="card-grid card-grid-two">
             <a class="feature-card route-card" href="addressing">
-                <p class="feature-kicker">17 Rechnerarchitektur</p>
+                <p class="feature-kicker">18 Rechnerarchitektur</p>
                 <h3>Adressierungsarten (MIPS)</h3>
                 <p>Register-, direkte, indirekte, Basis- und PC-relative Adressierung im Befehlssatz.</p>
             </a>
             <a class="feature-card route-card" href="assembler">
-                <p class="feature-kicker">18 Rechnerarchitektur</p>
+                <p class="feature-kicker">19 Rechnerarchitektur</p>
                 <h3>MIPS-Assembler</h3>
                 <p>Befehlsausführung, Registerbank (r0..r31, lo, hi) und Trace-Tabelle in Dez, Bin und Hex.</p>
             </a>

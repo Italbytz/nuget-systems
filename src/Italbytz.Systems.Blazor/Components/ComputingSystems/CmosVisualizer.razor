@@ -1,0 +1,894 @@
+@namespace Italbytz.Systems.Blazor.Components.ComputingSystems
+@using Microsoft.AspNetCore.Components
+
+<article class="demo-card wide-card">
+    <div class="card-heading">
+        <p class="feature-kicker">Halbleitertechnik &amp; Schaltermodell</p>
+        <h2>CMOS-Schaltungstechnik (Transistoren als Schalter)</h2>
+    </div>
+
+    <!-- Mode Switcher -->
+    <div class="circuit-switcher no-print">
+        <button type="button" class="circuit-btn @(SelectedCircuit == CircuitType.Inverter ? "active" : "")"
+                @onclick="() => SetCircuit(CircuitType.Inverter)">
+            <span class="circuit-icon">⚡</span>
+            <span><strong>CMOS-Inverter (NOT)</strong><small>2 Transistoren (1 pMOS, 1 nMOS)</small></span>
+        </button>
+        <button type="button" class="circuit-btn @(SelectedCircuit == CircuitType.Nand ? "active" : "")"
+                @onclick="() => SetCircuit(CircuitType.Nand)">
+            <span class="circuit-icon">🔌</span>
+            <span><strong>CMOS-NAND-Gatter</strong><small>4 Transistoren (2 pMOS parallel, 2 nMOS seriell)</small></span>
+        </button>
+        <button type="button" class="circuit-btn @(SelectedCircuit == CircuitType.Nor ? "active" : "")"
+                @onclick="() => SetCircuit(CircuitType.Nor)">
+            <span class="circuit-icon">🔀</span>
+            <span><strong>CMOS-NOR-Gatter</strong><small>4 Transistoren (2 pMOS seriell, 2 nMOS parallel)</small></span>
+        </button>
+        <button type="button" class="circuit-btn @(SelectedCircuit == CircuitType.SwitchModel ? "active" : "")"
+                @onclick="() => SetCircuit(CircuitType.SwitchModel)">
+            <span class="circuit-icon">🔬</span>
+            <span><strong>nMOS vs. pMOS Schaltermodell</strong><small>Elektronischer Schalter im Vergleich</small></span>
+        </button>
+    </div>
+
+    <!-- View Switcher -->
+    <div class="view-switch no-print">
+        <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                @onclick="() => SetView(ViewMode.Simulator)">
+            🚀 Interaktive Simulation &amp; Schaltbild
+        </button>
+        <button class="view-btn @(ActiveView == ViewMode.Quiz ? "active" : "")"
+                @onclick="() => SetView(ViewMode.Quiz)">
+            📝 Verständnis-Übung (Klausurfragen)
+        </button>
+    </div>
+
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Input Controls Toolbar -->
+        <div class="controls-panel no-print">
+            <div class="signal-inputs">
+                @if (SelectedCircuit == CircuitType.Inverter || SelectedCircuit == CircuitType.SwitchModel)
+                {
+                    <div class="input-group">
+                        <span class="input-label">Eingangssignal <strong>E</strong>:</span>
+                        <button type="button" class="signal-toggle-btn @(InputE ? "high" : "low")"
+                                @onclick="ToggleInputE">
+                            <span class="level-indicator">@(InputE ? "1 (High / 5 V)" : "0 (Low / 0 V)")</span>
+                            <span class="toggle-hint">Klicken zum Umschalten</span>
+                        </button>
+                    </div>
+                    <div class="preset-buttons">
+                        <span class="preset-label">Schnellwahl:</span>
+                        <button class="preset-btn @(!InputE ? "active-preset" : "")" @onclick="() => SetInputE(false)">E = 0 (Low)</button>
+                        <button class="preset-btn @(InputE ? "active-preset" : "")" @onclick="() => SetInputE(true)">E = 1 (High)</button>
+                    </div>
+                }
+                else
+                {
+                    <div class="input-group">
+                        <span class="input-label">Eingang <strong>A</strong>:</span>
+                        <button type="button" class="signal-toggle-btn @(InputA ? "high" : "low")"
+                                @onclick="ToggleInputA">
+                            <span class="level-indicator">@(InputA ? "1 (High)" : "0 (Low)")</span>
+                        </button>
+                    </div>
+                    <div class="input-group">
+                        <span class="input-label">Eingang <strong>B</strong>:</span>
+                        <button type="button" class="signal-toggle-btn @(InputB ? "high" : "low")"
+                                @onclick="ToggleInputB">
+                            <span class="level-indicator">@(InputB ? "1 (High)" : "0 (Low)")</span>
+                        </button>
+                    </div>
+                    <div class="preset-buttons">
+                        <span class="preset-label">Kombination:</span>
+                        <button class="preset-btn @(!InputA && !InputB ? "active-preset" : "")" @onclick="() => SetInputsAB(false, false)">0 0</button>
+                        <button class="preset-btn @(!InputA && InputB ? "active-preset" : "")" @onclick="() => SetInputsAB(false, true)">0 1</button>
+                        <button class="preset-btn @(InputA && !InputB ? "active-preset" : "")" @onclick="() => SetInputsAB(true, false)">1 0</button>
+                        <button class="preset-btn @(InputA && InputB ? "active-preset" : "")" @onclick="() => SetInputsAB(true, true)">1 1</button>
+                    </div>
+                }
+            </div>
+
+            <div class="output-status-pill @(OutputY ? "out-high" : "out-low")">
+                <span class="out-label">Ausgang <strong>Y</strong>:</span>
+                <span class="out-val">@(OutputY ? "1 (High · VDD)" : "0 (Low · GND)")</span>
+                <span class="out-volt">@(OutputY ? "≈ 5.0 V" : "≈ 0.0 V")</span>
+            </div>
+        </div>
+
+        <!-- Main Visualization Grid -->
+        <div class="circuit-layout-grid">
+            <!-- Left: Interactive Schematic Diagram -->
+            <div class="schematic-card">
+                <div class="schematic-header">
+                    <h3>Elektrisches Schaltbild &amp; Strompfad</h3>
+                    <div class="legend-pills">
+                        <span class="legend-item"><span class="legend-color vdd-glow"></span> VDD (+5 V)</span>
+                        <span class="legend-item"><span class="legend-color gnd-glow"></span> GND (0 V)</span>
+                        <span class="legend-item"><span class="legend-color conducting-glow"></span> Leitend</span>
+                        <span class="legend-item"><span class="legend-color blocking-dim"></span> Sperrt</span>
+                    </div>
+                </div>
+
+                <div class="svg-container">
+                    @if (SelectedCircuit == CircuitType.Inverter)
+                    {
+                        var pmosConducts = !InputE;
+                        var nmosConducts = InputE;
+                        var outHigh = pmosConducts;
+
+                        <svg viewBox="0 0 460 380" class="cmos-schematic-svg">
+                            <!-- VDD (+5V) Rail -->
+                            <line x1="160" y1="30" x2="300" y2="30" class="wire vdd-wire" />
+                            <circle cx="230" cy="30" r="4" class="node vdd-node" />
+                            <text x="230" y="20" class="svg-label vdd-text" text-anchor="middle">VDD (+5V / High)</text>
+
+                            <!-- Line from VDD to pMOS Source -->
+                            <line x1="230" y1="30" x2="230" y2="80" class="wire @(pmosConducts ? "live-vdd" : "wire-idle")" />
+
+                            <!-- pMOS Transistor Box (T1) -->
+                            <g class="transistor-group @(pmosConducts ? "t-conducting" : "t-blocking")">
+                                <rect x="180" y="80" width="100" height="70" rx="8" class="t-box pmos-box" />
+                                <text x="230" y="110" class="t-title" text-anchor="middle">pMOS (Pull-Up)</text>
+                                <text x="230" y="130" class="t-status" text-anchor="middle">@(pmosConducts ? "✔ Leitet (Zweig aktiv)" : "✖ Sperrt (Offen)")</text>
+                                <circle cx="170" cy="115" r="5" class="bubble-circle" />
+                            </g>
+
+                            <!-- Middle Output Node Y -->
+                            <line x1="230" y1="150" x2="230" y2="230" class="wire @(outHigh ? "live-vdd" : (nmosConducts ? "live-gnd" : "wire-idle"))" />
+                            <circle cx="230" cy="190" r="5" class="node out-node" />
+
+                            <!-- Output branch to right -->
+                            <line x1="230" y1="190" x2="380" y2="190" class="wire @(outHigh ? "live-vdd" : "live-gnd")" />
+                            <circle cx="380" cy="190" r="6" class="node out-node-terminal" />
+                            <g transform="translate(395, 195)">
+                                <rect x="0" y="-20" width="55" height="38" rx="6" class="out-badge @(outHigh ? "out-badge-1" : "out-badge-0")" />
+                                <text x="28" y="-2" class="out-text" text-anchor="middle">Y = @(outHigh ? "1" : "0")</text>
+                                <text x="28" y="13" class="out-sub" text-anchor="middle">@(outHigh ? "High" : "Low")</text>
+                            </g>
+
+                            <!-- nMOS Transistor Box (T2) -->
+                            <g class="transistor-group @(nmosConducts ? "t-conducting" : "t-blocking")">
+                                <rect x="180" y="230" width="100" height="70" rx="8" class="t-box nmos-box" />
+                                <text x="230" y="260" class="t-title" text-anchor="middle">nMOS (Pull-Down)</text>
+                                <text x="230" y="280" class="t-status" text-anchor="middle">@(nmosConducts ? "✔ Leitet (Zweig aktiv)" : "✖ Sperrt (Offen)")</text>
+                            </g>
+
+                            <!-- Line from nMOS Drain to GND -->
+                            <line x1="230" y1="300" x2="230" y2="340" class="wire @(nmosConducts ? "live-gnd" : "wire-idle")" />
+
+                            <!-- GND Rail bottom -->
+                            <line x1="160" y1="340" x2="300" y2="340" class="wire gnd-wire" />
+                            <line x1="180" y1="348" x2="280" y2="348" class="wire gnd-wire" />
+                            <line x1="205" y1="356" x2="255" y2="356" class="wire gnd-wire" />
+                            <text x="230" y="375" class="svg-label gnd-text" text-anchor="middle">GND (0V / Masse)</text>
+
+                            <!-- Input E Terminal and wiring -->
+                            <line x1="50" y1="190" x2="120" y2="190" class="wire in-wire @(InputE ? "live-vdd" : "live-gnd")" />
+                            <line x1="120" y1="115" x2="120" y2="265" class="wire in-wire @(InputE ? "live-vdd" : "live-gnd")" />
+                            <line x1="120" y1="115" x2="165" y2="115" class="wire in-wire @(InputE ? "live-vdd" : "live-gnd")" />
+                            <line x1="120" y1="265" x2="180" y2="265" class="wire in-wire @(InputE ? "live-vdd" : "live-gnd")" />
+                            <circle cx="120" cy="190" r="4" class="node in-node" />
+                            <circle cx="50" cy="190" r="6" class="node in-node-terminal" />
+
+                            <g transform="translate(5, 175)">
+                                <rect x="-3" y="-3" width="42" height="36" rx="6" class="in-badge @(InputE ? "in-badge-1" : "in-badge-0")" />
+                                <text x="18" y="16" class="in-text" text-anchor="middle">E = @(InputE ? "1" : "0")</text>
+                                <text x="18" y="28" class="in-sub" text-anchor="middle">@(InputE ? "5V" : "0V")</text>
+                            </g>
+                        </svg>
+                    }
+                    else if (SelectedCircuit == CircuitType.Nand)
+                    {
+                        var pmosA = !InputA;
+                        var pmosB = !InputB;
+                        var nmosA = InputA;
+                        var nmosB = InputB;
+                        var outHigh = !(InputA && InputB);
+
+                        <svg viewBox="0 0 540 430" class="cmos-schematic-svg">
+                            <!-- VDD Rail -->
+                            <line x1="140" y1="25" x2="400" y2="25" class="wire vdd-wire" />
+                            <circle cx="270" cy="25" r="4" class="node vdd-node" />
+                            <text x="270" y="16" class="svg-label vdd-text" text-anchor="middle">VDD (+5V)</text>
+
+                            <!-- VDD splits to parallel pMOS A and pMOS B -->
+                            <line x1="200" y1="25" x2="200" y2="65" class="wire @(pmosA ? "live-vdd" : "wire-idle")" />
+                            <line x1="340" y1="25" x2="340" y2="65" class="wire @(pmosB ? "live-vdd" : "wire-idle")" />
+
+                            <!-- pMOS A (Parallel Top Left) -->
+                            <g class="transistor-group @(pmosA ? "t-conducting" : "t-blocking")">
+                                <rect x="155" y="65" width="90" height="60" rx="6" class="t-box pmos-box" />
+                                <text x="200" y="90" class="t-title" text-anchor="middle">pMOS A</text>
+                                <text x="200" y="108" class="t-status" text-anchor="middle">@(pmosA ? "✔ Leitet" : "✖ Sperrt")</text>
+                                <circle cx="147" cy="95" r="4" class="bubble-circle" />
+                            </g>
+
+                            <!-- pMOS B (Parallel Top Right) -->
+                            <g class="transistor-group @(pmosB ? "t-conducting" : "t-blocking")">
+                                <rect x="295" y="65" width="90" height="60" rx="6" class="t-box pmos-box" />
+                                <text x="340" y="90" class="t-title" text-anchor="middle">pMOS B</text>
+                                <text x="340" y="108" class="t-status" text-anchor="middle">@(pmosB ? "✔ Leitet" : "✖ Sperrt")</text>
+                                <circle cx="287" cy="95" r="4" class="bubble-circle" />
+                            </g>
+
+                            <!-- Recombine after parallel pMOS -->
+                            <line x1="200" y1="125" x2="200" y2="160" class="wire @(pmosA ? "live-vdd" : "wire-idle")" />
+                            <line x1="340" y1="125" x2="340" y2="160" class="wire @(pmosB ? "live-vdd" : "wire-idle")" />
+                            <line x1="200" y1="160" x2="340" y2="160" class="wire @(outHigh ? "live-vdd" : "wire-idle")" />
+
+                            <!-- Center Output Node Y -->
+                            <circle cx="270" cy="160" r="5" class="node out-node" />
+                            <line x1="270" y1="160" x2="460" y2="160" class="wire @(outHigh ? "live-vdd" : "live-gnd")" />
+                            <circle cx="460" cy="160" r="6" class="node out-node-terminal" />
+                            <g transform="translate(475, 165)">
+                                <rect x="0" y="-20" width="58" height="38" rx="6" class="out-badge @(outHigh ? "out-badge-1" : "out-badge-0")" />
+                                <text x="29" y="-2" class="out-text" text-anchor="middle">Y = @(outHigh ? "1" : "0")</text>
+                                <text x="29" y="13" class="out-sub" text-anchor="middle">@(outHigh ? "NAND=1" : "NAND=0")</text>
+                            </g>
+
+                            <!-- Wire down to series nMOS A -->
+                            <line x1="270" y1="160" x2="270" y2="195" class="wire @(nmosA && nmosB ? "live-gnd" : "wire-idle")" />
+
+                            <!-- nMOS A (Series Upper) -->
+                            <g class="transistor-group @(nmosA ? "t-conducting" : "t-blocking")">
+                                <rect x="225" y="195" width="90" height="60" rx="6" class="t-box nmos-box" />
+                                <text x="270" y="220" class="t-title" text-anchor="middle">nMOS A</text>
+                                <text x="270" y="238" class="t-status" text-anchor="middle">@(nmosA ? "✔ Leitet" : "✖ Sperrt")</text>
+                            </g>
+
+                            <!-- Intermediate line between series nMOS -->
+                            <line x1="270" y1="255" x2="270" y2="285" class="wire @(nmosB ? "live-gnd" : "wire-idle")" />
+
+                            <!-- nMOS B (Series Lower) -->
+                            <g class="transistor-group @(nmosB ? "t-conducting" : "t-blocking")">
+                                <rect x="225" y="285" width="90" height="60" rx="6" class="t-box nmos-box" />
+                                <text x="270" y="310" class="t-title" text-anchor="middle">nMOS B</text>
+                                <text x="270" y="328" class="t-status" text-anchor="middle">@(nmosB ? "✔ Leitet" : "✖ Sperrt")</text>
+                            </g>
+
+                            <!-- Line to GND -->
+                            <line x1="270" y1="345" x2="270" y2="385" class="wire @(nmosA && nmosB ? "live-gnd" : "wire-idle")" />
+
+                            <!-- GND Rail bottom -->
+                            <line x1="200" y1="385" x2="340" y2="385" class="wire gnd-wire" />
+                            <line x1="220" y1="392" x2="320" y2="392" class="wire gnd-wire" />
+                            <line x1="245" y1="399" x2="295" y2="399" class="wire gnd-wire" />
+                            <text x="270" y="418" class="svg-label gnd-text" text-anchor="middle">GND (0V)</text>
+
+                            <!-- Inputs A and B on the left -->
+                            <g transform="translate(5, 80)">
+                                <rect x="0" y="-3" width="38" height="34" rx="6" class="in-badge @(InputA ? "in-badge-1" : "in-badge-0")" />
+                                <text x="19" y="15" class="in-text" text-anchor="middle">A=@(InputA ? "1" : "0")</text>
+                                <text x="19" y="27" class="in-sub" text-anchor="middle">@(InputA ? "5V" : "0V")</text>
+                            </g>
+                            <line x1="45" y1="95" x2="143" y2="95" class="wire in-wire @(InputA ? "live-vdd" : "live-gnd")" />
+                            <line x1="90" y1="95" x2="90" y2="225" class="wire in-wire @(InputA ? "live-vdd" : "live-gnd")" />
+                            <line x1="90" y1="225" x2="225" y2="225" class="wire in-wire @(InputA ? "live-vdd" : "live-gnd")" />
+
+                            <g transform="translate(5, 300)">
+                                <rect x="0" y="-3" width="38" height="34" rx="6" class="in-badge @(InputB ? "in-badge-1" : "in-badge-0")" />
+                                <text x="19" y="15" class="in-text" text-anchor="middle">B=@(InputB ? "1" : "0")</text>
+                                <text x="19" y="27" class="in-sub" text-anchor="middle">@(InputB ? "5V" : "0V")</text>
+                            </g>
+                            <line x1="45" y1="315" x2="70" y2="315" class="wire in-wire @(InputB ? "live-vdd" : "live-gnd")" />
+                            <line x1="70" y1="315" x2="70" y2="50" class="wire in-wire @(InputB ? "live-vdd" : "live-gnd")" />
+                            <line x1="70" y1="50" x2="283" y2="50" class="wire in-wire @(InputB ? "live-vdd" : "live-gnd")" />
+                            <line x1="283" y1="50" x2="283" y2="95" class="wire in-wire @(InputB ? "live-vdd" : "live-gnd")" />
+                            <line x1="70" y1="315" x2="225" y2="315" class="wire in-wire @(InputB ? "live-vdd" : "live-gnd")" />
+                        </svg>
+                    }
+                    else if (SelectedCircuit == CircuitType.Nor)
+                    {
+                        var pmosA = !InputA;
+                        var pmosB = !InputB;
+                        var nmosA = InputA;
+                        var nmosB = InputB;
+                        var outHigh = !(InputA || InputB);
+
+                        <svg viewBox="0 0 540 430" class="cmos-schematic-svg">
+                            <!-- VDD Rail -->
+                            <line x1="200" y1="25" x2="340" y2="25" class="wire vdd-wire" />
+                            <circle cx="270" cy="25" r="4" class="node vdd-node" />
+                            <text x="270" y="16" class="svg-label vdd-text" text-anchor="middle">VDD (+5V)</text>
+
+                            <!-- Line to series pMOS A -->
+                            <line x1="270" y1="25" x2="270" y2="55" class="wire @(pmosA ? "live-vdd" : "wire-idle")" />
+
+                            <!-- pMOS A (Series Top) -->
+                            <g class="transistor-group @(pmosA ? "t-conducting" : "t-blocking")">
+                                <rect x="225" y="55" width="90" height="55" rx="6" class="t-box pmos-box" />
+                                <text x="270" y="80" class="t-title" text-anchor="middle">pMOS A</text>
+                                <text x="270" y="98" class="t-status" text-anchor="middle">@(pmosA ? "✔ Leitet" : "✖ Sperrt")</text>
+                                <circle cx="217" cy="82" r="4" class="bubble-circle" />
+                            </g>
+
+                            <!-- Intermediate wire between series pMOS -->
+                            <line x1="270" y1="110" x2="270" y2="135" class="wire @(pmosA ? "live-vdd" : "wire-idle")" />
+
+                            <!-- pMOS B (Series Lower) -->
+                            <g class="transistor-group @(pmosB ? "t-conducting" : "t-blocking")">
+                                <rect x="225" y="135" width="90" height="55" rx="6" class="t-box pmos-box" />
+                                <text x="270" y="160" class="t-title" text-anchor="middle">pMOS B</text>
+                                <text x="270" y="178" class="t-status" text-anchor="middle">@(pmosB ? "✔ Leitet" : "✖ Sperrt")</text>
+                                <circle cx="217" cy="162" r="4" class="bubble-circle" />
+                            </g>
+
+                            <!-- Line from pMOS B to Output node -->
+                            <line x1="270" y1="190" x2="270" y2="225" class="wire @(outHigh ? "live-vdd" : "wire-idle")" />
+                            <circle cx="270" cy="225" r="5" class="node out-node" />
+
+                            <!-- Output branch to right -->
+                            <line x1="270" y1="225" x2="460" y2="225" class="wire @(outHigh ? "live-vdd" : "live-gnd")" />
+                            <circle cx="460" cy="225" r="6" class="node out-node-terminal" />
+                            <g transform="translate(475, 230)">
+                                <rect x="0" y="-20" width="58" height="38" rx="6" class="out-badge @(outHigh ? "out-badge-1" : "out-badge-0")" />
+                                <text x="29" y="-2" class="out-text" text-anchor="middle">Y = @(outHigh ? "1" : "0")</text>
+                                <text x="29" y="13" class="out-sub" text-anchor="middle">@(outHigh ? "NOR=1" : "NOR=0")</text>
+                            </g>
+
+                            <!-- Splits to parallel nMOS A and nMOS B below -->
+                            <line x1="270" y1="225" x2="200" y2="225" class="wire @(nmosA ? "live-gnd" : "wire-idle")" />
+                            <line x1="270" y1="225" x2="340" y2="225" class="wire @(nmosB ? "live-gnd" : "wire-idle")" />
+                            <line x1="200" y1="225" x2="200" y2="265" class="wire @(nmosA ? "live-gnd" : "wire-idle")" />
+                            <line x1="340" y1="225" x2="340" y2="265" class="wire @(nmosB ? "live-gnd" : "wire-idle")" />
+
+                            <!-- nMOS A (Parallel Bottom Left) -->
+                            <g class="transistor-group @(nmosA ? "t-conducting" : "t-blocking")">
+                                <rect x="155" y="265" width="90" height="60" rx="6" class="t-box nmos-box" />
+                                <text x="200" y="290" class="t-title" text-anchor="middle">nMOS A</text>
+                                <text x="200" y="308" class="t-status" text-anchor="middle">@(nmosA ? "✔ Leitet" : "✖ Sperrt")</text>
+                            </g>
+
+                            <!-- nMOS B (Parallel Bottom Right) -->
+                            <g class="transistor-group @(nmosB ? "t-conducting" : "t-blocking")">
+                                <rect x="295" y="265" width="90" height="60" rx="6" class="t-box nmos-box" />
+                                <text x="340" y="290" class="t-title" text-anchor="middle">nMOS B</text>
+                                <text x="340" y="308" class="t-status" text-anchor="middle">@(nmosB ? "✔ Leitet" : "✖ Sperrt")</text>
+                            </g>
+
+                            <!-- Recombine to GND -->
+                            <line x1="200" y1="325" x2="200" y2="360" class="wire @(nmosA ? "live-gnd" : "wire-idle")" />
+                            <line x1="340" y1="325" x2="340" y2="360" class="wire @(nmosB ? "live-gnd" : "wire-idle")" />
+                            <line x1="200" y1="360" x2="340" y2="360" class="wire @(nmosA || nmosB ? "live-gnd" : "wire-idle")" />
+                            <line x1="270" y1="360" x2="270" y2="390" class="wire @(nmosA || nmosB ? "live-gnd" : "wire-idle")" />
+
+                            <!-- GND Rail bottom -->
+                            <line x1="200" y1="390" x2="340" y2="390" class="wire gnd-wire" />
+                            <line x1="220" y1="397" x2="320" y2="397" class="wire gnd-wire" />
+                            <line x1="245" y1="404" x2="295" y2="404" class="wire gnd-wire" />
+                            <text x="270" y="422" class="svg-label gnd-text" text-anchor="middle">GND (0V)</text>
+
+                            <!-- Inputs A and B on the left -->
+                            <g transform="translate(5, 70)">
+                                <rect x="0" y="-3" width="38" height="34" rx="6" class="in-badge @(InputA ? "in-badge-1" : "in-badge-0")" />
+                                <text x="19" y="15" class="in-text" text-anchor="middle">A=@(InputA ? "1" : "0")</text>
+                                <text x="19" y="27" class="in-sub" text-anchor="middle">@(InputA ? "5V" : "0V")</text>
+                            </g>
+                            <line x1="45" y1="82" x2="213" y2="82" class="wire in-wire @(InputA ? "live-vdd" : "live-gnd")" />
+                            <line x1="100" y1="82" x2="100" y2="295" class="wire in-wire @(InputA ? "live-vdd" : "live-gnd")" />
+                            <line x1="100" y1="295" x2="155" y2="295" class="wire in-wire @(InputA ? "live-vdd" : "live-gnd")" />
+
+                            <g transform="translate(5, 150)">
+                                <rect x="0" y="-3" width="38" height="34" rx="6" class="in-badge @(InputB ? "in-badge-1" : "in-badge-0")" />
+                                <text x="19" y="15" class="in-text" text-anchor="middle">B=@(InputB ? "1" : "0")</text>
+                                <text x="19" y="27" class="in-sub" text-anchor="middle">@(InputB ? "5V" : "0V")</text>
+                            </g>
+                            <line x1="45" y1="162" x2="213" y2="162" class="wire in-wire @(InputB ? "live-vdd" : "live-gnd")" />
+                            <line x1="80" y1="162" x2="80" y2="345" class="wire in-wire @(InputB ? "live-vdd" : "live-gnd")" />
+                            <line x1="80" y1="345" x2="275" y2="345" class="wire in-wire @(InputB ? "live-vdd" : "live-gnd")" />
+                            <line x1="275" y1="345" x2="275" y2="295" class="wire in-wire @(InputB ? "live-vdd" : "live-gnd")" />
+                            <line x1="275" y1="295" x2="295" y2="295" class="wire in-wire @(InputB ? "live-vdd" : "live-gnd")" />
+                        </svg>
+                    }
+                    else
+                    {
+                        var pmosClosed = !InputE;
+                        var nmosClosed = InputE;
+
+                        <svg viewBox="0 0 520 320" class="cmos-schematic-svg">
+                            <!-- Left Side: nMOS Switch Model -->
+                            <g transform="translate(30, 20)">
+                                <rect x="0" y="0" width="210" height="270" rx="10" class="switch-card-bg" />
+                                <text x="105" y="30" class="switch-title" text-anchor="middle">nMOS Schalter</text>
+                                <text x="105" y="50" class="switch-subtitle" text-anchor="middle">Schließt bei Gate = 1 (High)</text>
+
+                                <!-- Top Terminal (Drain) -->
+                                <line x1="105" y1="65" x2="105" y2="105" class="wire @(nmosClosed ? "live-gnd" : "wire-idle")" />
+                                <circle cx="105" cy="65" r="4" class="node" />
+                                <text x="120" y="75" class="t-sub">Drain / Ausgang</text>
+
+                                <!-- Switch Visual -->
+                                <circle cx="105" cy="105" r="4" class="node" />
+                                <circle cx="105" cy="165" r="4" class="node" />
+                                @if (nmosClosed)
+                                {
+                                    <line x1="105" y1="105" x2="105" y2="165" class="wire switch-blade closed" />
+                                    <g><text x="105" y="140" class="switch-state-text closed" text-anchor="middle">GESCHLOSSEN</text></g>
+                                }
+                                else
+                                {
+                                    <line x1="105" y1="165" x2="75" y2="115" class="wire switch-blade open" />
+                                    <g><text x="135" y="140" class="switch-state-text open" text-anchor="middle">OFFEN</text></g>
+                                }
+
+                                <!-- Gate Control Line -->
+                                <line x1="20" y1="135" x2="85" y2="135" class="wire in-wire @(InputE ? "live-vdd" : "live-gnd")" />
+                                <circle cx="20" cy="135" r="4" class="node" />
+                                <text x="20" y="125" class="t-sub">Gate = @(InputE ? "1" : "0")</text>
+
+                                <!-- Bottom Terminal (Source nach Masse) -->
+                                <line x1="105" y1="165" x2="105" y2="205" class="wire @(nmosClosed ? "live-gnd" : "wire-idle")" />
+                                <line x1="85" y1="205" x2="125" y2="205" class="wire gnd-wire" />
+                                <line x1="95" y1="211" x2="115" y2="211" class="wire gnd-wire" />
+                                <text x="105" y="230" class="svg-label gnd-text" text-anchor="middle">Masse (GND)</text>
+
+                                <rect x="15" y="240" width="180" height="22" rx="4" class="role-pill" />
+                                <text x="105" y="255" class="role-pill-text" text-anchor="middle">Einsatz: Pull-Down nach GND</text>
+                            </g>
+
+                            <!-- Right Side: pMOS Switch Model -->
+                            <g transform="translate(270, 20)">
+                                <rect x="0" y="0" width="210" height="270" rx="10" class="switch-card-bg" />
+                                <text x="105" y="30" class="switch-title" text-anchor="middle">pMOS Schalter</text>
+                                <text x="105" y="50" class="switch-subtitle" text-anchor="middle">Schließt bei Gate = 0 (Low)</text>
+
+                                <!-- Top Terminal (Source an VDD) -->
+                                <line x1="85" y1="65" x2="125" y2="65" class="wire vdd-wire" />
+                                <text x="105" y="58" class="svg-label vdd-text" text-anchor="middle">VDD (+5V)</text>
+                                <line x1="105" y1="65" x2="105" y2="105" class="wire @(pmosClosed ? "live-vdd" : "wire-idle")" />
+
+                                <!-- Switch Visual -->
+                                <circle cx="105" cy="105" r="4" class="node" />
+                                <circle cx="105" cy="165" r="4" class="node" />
+                                @if (pmosClosed)
+                                {
+                                    <line x1="105" y1="105" x2="105" y2="165" class="wire switch-blade closed" />
+                                    <g><text x="105" y="140" class="switch-state-text closed" text-anchor="middle">GESCHLOSSEN</text></g>
+                                }
+                                else
+                                {
+                                    <line x1="105" y1="165" x2="75" y2="115" class="wire switch-blade open" />
+                                    <g><text x="135" y="140" class="switch-state-text open" text-anchor="middle">OFFEN</text></g>
+                                }
+
+                                <!-- Gate Control Line with Inversion Bubble -->
+                                <line x1="20" y1="135" x2="72" y2="135" class="wire in-wire @(InputE ? "live-vdd" : "live-gnd")" />
+                                <circle cx="77" cy="135" r="4" class="bubble-circle" />
+                                <circle cx="20" cy="135" r="4" class="node" />
+                                <text x="20" y="125" class="t-sub">Gate = @(InputE ? "1" : "0")</text>
+
+                                <!-- Bottom Terminal (Drain / Ausgang) -->
+                                <line x1="105" y1="165" x2="105" y2="205" class="wire @(pmosClosed ? "live-vdd" : "wire-idle")" />
+                                <circle cx="105" cy="205" r="4" class="node" />
+                                <text x="105" y="225" class="svg-label" text-anchor="middle">Ausgang Y</text>
+
+                                <rect x="15" y="240" width="180" height="22" rx="4" class="role-pill" />
+                                <text x="105" y="255" class="role-pill-text" text-anchor="middle">Einsatz: Pull-Up nach VDD</text>
+                            </g>
+                        </svg>
+                    }
+                </div>
+            </div>
+
+            <!-- Right: State Analysis & Truth Table -->
+            <div class="analysis-card">
+                <!-- State Summary -->
+                <div class="transistor-status-box">
+                    <h4>Aktueller Transistor-Schaltzustand</h4>
+                    <div class="status-items">
+                        @foreach (var t in GetTransistorStates())
+                        {
+                            <div class="transistor-state-card @(t.IsConducting ? "state-conducting" : "state-blocking")">
+                                <div class="t-name">
+                                    <span class="t-badge @(t.Type == "pMOS" ? "badge-pmos" : "badge-nmos")">@t.Type</span>
+                                    <strong>@t.Name</strong> (Gate = @(t.GateHigh ? "1" : "0"))
+                                </div>
+                                <div class="t-behavior">
+                                    <span class="state-icon">@(t.IsConducting ? "✔" : "✖")</span>
+                                    <span>@(t.IsConducting ? "Leitend (Geschlossen)" : "Sperrt (Offen)")</span>
+                                </div>
+                                <div class="t-role">@t.Role</div>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Truth Table -->
+                <div class="truth-table-box">
+                    <h4>Wahrheitstabelle &amp; Gatterlogik</h4>
+                    <table class="truth-table">
+                        <thead>
+                            <tr>
+                                @if (SelectedCircuit == CircuitType.Inverter || SelectedCircuit == CircuitType.SwitchModel)
+                                {
+                                    <th>Eingang E</th>
+                                    <th>Pull-Up (pMOS)</th>
+                                    <th>Pull-Down (nMOS)</th>
+                                    <th>Ausgang Y</th>
+                                }
+                                else
+                                {
+                                    <th>A</th>
+                                    <th>B</th>
+                                    <th>Pull-Up (pMOS)</th>
+                                    <th>Pull-Down (nMOS)</th>
+                                    <th>Ausgang Y</th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (SelectedCircuit == CircuitType.Inverter || SelectedCircuit == CircuitType.SwitchModel)
+                            {
+                                <tr class="@(!InputE ? "active-row" : "")">
+                                    <td><strong>0</strong> (Low)</td>
+                                    <td class="text-conducting">Leitet nach VDD</td>
+                                    <td class="text-blocking">Sperrt</td>
+                                    <td><strong class="text-high">1</strong> (High)</td>
+                                </tr>
+                                <tr class="@(InputE ? "active-row" : "")">
+                                    <td><strong>1</strong> (High)</td>
+                                    <td class="text-blocking">Sperrt</td>
+                                    <td class="text-conducting">Leitet nach GND</td>
+                                    <td><strong class="text-low">0</strong> (Low)</td>
+                                </tr>
+                            }
+                            else if (SelectedCircuit == CircuitType.Nand)
+                            {
+                                <tr class="@(!InputA && !InputB ? "active-row" : "")">
+                                    <td>0</td><td>0</td>
+                                    <td class="text-conducting">Beide pMOS leiten (parallel)</td>
+                                    <td class="text-blocking">Beide nMOS sperren</td>
+                                    <td><strong class="text-high">1</strong></td>
+                                </tr>
+                                <tr class="@(!InputA && InputB ? "active-row" : "")">
+                                    <td>0</td><td>1</td>
+                                    <td class="text-conducting">pMOS A leitet</td>
+                                    <td class="text-blocking">nMOS A sperrt (Reihe offen)</td>
+                                    <td><strong class="text-high">1</strong></td>
+                                </tr>
+                                <tr class="@(InputA && !InputB ? "active-row" : "")">
+                                    <td>1</td><td>0</td>
+                                    <td class="text-conducting">pMOS B leitet</td>
+                                    <td class="text-blocking">nMOS B sperrt (Reihe offen)</td>
+                                    <td><strong class="text-high">1</strong></td>
+                                </tr>
+                                <tr class="@(InputA && InputB ? "active-row" : "")">
+                                    <td>1</td><td>1</td>
+                                    <td class="text-blocking">Beide pMOS sperren</td>
+                                    <td class="text-conducting">Beide nMOS leiten (Reihe geschlossen)</td>
+                                    <td><strong class="text-low">0</strong></td>
+                                </tr>
+                            }
+                            else if (SelectedCircuit == CircuitType.Nor)
+                            {
+                                <tr class="@(!InputA && !InputB ? "active-row" : "")">
+                                    <td>0</td><td>0</td>
+                                    <td class="text-conducting">Beide pMOS leiten (Reihe geschlossen)</td>
+                                    <td class="text-blocking">Beide nMOS sperren</td>
+                                    <td><strong class="text-high">1</strong></td>
+                                </tr>
+                                <tr class="@(!InputA && InputB ? "active-row" : "")">
+                                    <td>0</td><td>1</td>
+                                    <td class="text-blocking">pMOS B sperrt (Reihe offen)</td>
+                                    <td class="text-conducting">nMOS B leitet</td>
+                                    <td><strong class="text-low">0</strong></td>
+                                </tr>
+                                <tr class="@(InputA && !InputB ? "active-row" : "")">
+                                    <td>1</td><td>0</td>
+                                    <td class="text-blocking">pMOS A sperrt (Reihe offen)</td>
+                                    <td class="text-conducting">nMOS A leitet</td>
+                                    <td><strong class="text-low">0</strong></td>
+                                </tr>
+                                <tr class="@(InputA && InputB ? "active-row" : "")">
+                                    <td>1</td><td>1</td>
+                                    <td class="text-blocking">Beide pMOS sperren</td>
+                                    <td class="text-conducting">Beide nMOS leiten (parallel)</td>
+                                    <td><strong class="text-low">0</strong></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Didactic Explanation -->
+                <div class="explanation-box">
+                    <h4>💡 Das CMOS-Prinzip im Detail</h4>
+                    <p class="explanation-text">@GetDidacticExplanation()</p>
+                    <div class="rule-highlight">
+                        <strong>Die goldene CMOS-Regel:</strong>
+                        In jedem stabilen Ruhezustand leitet stets genau ein Zweig (Pull-Up oder Pull-Down). Es gibt nie eine direkte Verbindung zwischen VDD und GND &mdash; der <em>statische Leistungsverbrauch ist nahezu 0 Watt</em>!
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Quiz / Klausurübungsansicht -->
+        <div class="quiz-container">
+            <div class="quiz-header">
+                <h3>Klausur- &amp; Verständnisfragen zur CMOS-Halbleitertechnik</h3>
+                <p>Testen Sie Ihr Wissen über Schaltermodelle, Inverter, NAND- und NOR-Gatter.</p>
+                <button class="preset-btn" @onclick="NextQuestion">🎲 Neue Frage</button>
+            </div>
+
+            <div class="quiz-card">
+                <div class="quiz-question-number">Frage @(CurrentQuestionIndex + 1) von @Questions.Count</div>
+                <h4 class="quiz-question-title">@CurrentQuestion.Question</h4>
+
+                <div class="quiz-options">
+                    @for (int i = 0; i < CurrentQuestion.Options.Length; i++)
+                    {
+                        var optIndex = i;
+                        var isSelected = SelectedAnswer == optIndex;
+                        var isCorrect = optIndex == CurrentQuestion.CorrectIndex;
+                        var btnClass = "";
+                        if (QuizSubmitted)
+                        {
+                            if (isCorrect) btnClass = "correct";
+                            else if (isSelected) btnClass = "incorrect";
+                        }
+                        else if (isSelected)
+                        {
+                            btnClass = "selected";
+                        }
+
+                        <button type="button" class="quiz-option-btn @btnClass"
+                                disabled="@QuizSubmitted"
+                                @onclick="() => SelectAnswer(optIndex)">
+                            <span class="option-marker">@((char)('A' + optIndex))</span>
+                            <span>@CurrentQuestion.Options[optIndex]</span>
+                        </button>
+                    }
+                </div>
+
+                @if (!QuizSubmitted)
+                {
+                    <div class="quiz-action-bar">
+                        <button class="player-btn primary" disabled="@(SelectedAnswer == -1)" @onclick="SubmitQuiz">
+                            Antwort prüfen
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    <div class="quiz-feedback-box @(SelectedAnswer == CurrentQuestion.CorrectIndex ? "feedback-success" : "feedback-danger")">
+                        <strong>@(SelectedAnswer == CurrentQuestion.CorrectIndex ? "🎉 Richtig!" : "❌ Leider nicht ganz richtig.")</strong>
+                        <p>@CurrentQuestion.Explanation</p>
+                        <button class="player-btn" @onclick="NextQuestion">Nächste Frage ▶</button>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</article>
+
+@code {
+    public enum CircuitType
+    {
+        Inverter,
+        Nand,
+        Nor,
+        SwitchModel
+    }
+
+    public enum ViewMode
+    {
+        Simulator,
+        Quiz
+    }
+
+    private CircuitType SelectedCircuit { get; set; } = CircuitType.Inverter;
+    private ViewMode ActiveView { get; set; } = ViewMode.Simulator;
+
+    private bool InputE { get; set; } = false;
+    private bool InputA { get; set; } = false;
+    private bool InputB { get; set; } = false;
+
+    private bool OutputY => SelectedCircuit switch
+    {
+        CircuitType.Inverter => !InputE,
+        CircuitType.Nand => !(InputA && InputB),
+        CircuitType.Nor => !(InputA || InputB),
+        CircuitType.SwitchModel => !InputE,
+        _ => false
+    };
+
+    private void SetCircuit(CircuitType circuit)
+    {
+        SelectedCircuit = circuit;
+    }
+
+    private void SetView(ViewMode view)
+    {
+        ActiveView = view;
+    }
+
+    private void ToggleInputE() => InputE = !InputE;
+    private void SetInputE(bool val) => InputE = val;
+
+    private void ToggleInputA() => InputA = !InputA;
+    private void ToggleInputB() => InputB = !InputB;
+
+    private void SetInputsAB(bool a, bool b)
+    {
+        InputA = a;
+        InputB = b;
+    }
+
+    public record TransistorState(string Name, string Type, bool GateHigh, bool IsConducting, string Role);
+
+    private List<TransistorState> GetTransistorStates()
+    {
+        var list = new List<TransistorState>();
+
+        if (SelectedCircuit == CircuitType.Inverter || SelectedCircuit == CircuitType.SwitchModel)
+        {
+            var pmosConducts = !InputE;
+            var nmosConducts = InputE;
+            list.Add(new TransistorState("T1 (Pull-Up)", "pMOS", InputE, pmosConducts, "Verbindet Ausgang mit VDD (High)"));
+            list.Add(new TransistorState("T2 (Pull-Down)", "nMOS", InputE, nmosConducts, "Zieht Ausgang auf GND (Low)"));
+        }
+        else if (SelectedCircuit == CircuitType.Nand)
+        {
+            var pmosA = !InputA;
+            var pmosB = !InputB;
+            var nmosA = InputA;
+            var nmosB = InputB;
+            list.Add(new TransistorState("T1 (Pull-Up A)", "pMOS", InputA, pmosA, "Parallel nach VDD"));
+            list.Add(new TransistorState("T2 (Pull-Up B)", "pMOS", InputB, pmosB, "Parallel nach VDD"));
+            list.Add(new TransistorState("T3 (Pull-Down A)", "nMOS", InputA, nmosA, "Seriell nach GND"));
+            list.Add(new TransistorState("T4 (Pull-Down B)", "nMOS", InputB, nmosB, "Seriell nach GND"));
+        }
+        else if (SelectedCircuit == CircuitType.Nor)
+        {
+            var pmosA = !InputA;
+            var pmosB = !InputB;
+            var nmosA = InputA;
+            var nmosB = InputB;
+            list.Add(new TransistorState("T1 (Pull-Up A)", "pMOS", InputA, pmosA, "Seriell nach VDD"));
+            list.Add(new TransistorState("T2 (Pull-Up B)", "pMOS", InputB, pmosB, "Seriell nach VDD"));
+            list.Add(new TransistorState("T3 (Pull-Down A)", "nMOS", InputA, nmosA, "Parallel nach GND"));
+            list.Add(new TransistorState("T4 (Pull-Down B)", "nMOS", InputB, nmosB, "Parallel nach GND"));
+        }
+
+        return list;
+    }
+
+    private string GetDidacticExplanation()
+    {
+        if (SelectedCircuit == CircuitType.Inverter)
+        {
+            if (!InputE)
+            {
+                return "Eingang E = 0 (Low / 0V): Am Gate liegt keine Spannung an. Der pMOS-Transistor schaltet durch (leitend) und verbindet den Ausgang Y mit VDD (+5V). Der untere nMOS-Transistor sperrt vollständig. Somit liegt Y auf High (1).";
+            }
+            else
+            {
+                return "Eingang E = 1 (High / 5V): Am Gate liegt Spannung an. Der pMOS-Transistor sperrt vollständig (isoliert). Der nMOS-Transistor schaltet durch und zieht den Ausgang Y auf Masse GND (0V). Somit liegt Y auf Low (0).";
+            }
+        }
+        else if (SelectedCircuit == CircuitType.Nand)
+        {
+            if (InputA && InputB)
+            {
+                return "Eingänge A = 1, B = 1: Beide nMOS-Transistoren schalten durch. Da sie in Reihe liegen, ist der Pfad nach GND komplett geschlossen. Beide parallelen pMOS-Transistoren sperren. Der Ausgang Y wird auf 0 (Low) gezogen.";
+            }
+            else
+            {
+                return $"Eingänge A = {(InputA ? 1 : 0)}, B = {(InputB ? 1 : 0)}: Mindestens ein pMOS-Transistor leitet und verbindet Y mit VDD. Gleichzeitig ist die nMOS-Reihenschaltung unterbrochen, da mindestens ein nMOS sperrt. Der Ausgang Y ist 1 (High).";
+            }
+        }
+        else if (SelectedCircuit == CircuitType.Nor)
+        {
+            if (!InputA && !InputB)
+            {
+                return "Eingänge A = 0, B = 0: Beide pMOS-Transistoren schalten durch. Da sie in Reihe geschaltet sind, ist der Pfad nach VDD geschlossen. Beide parallelen nMOS sperren. Der Ausgang Y ist 1 (High).";
+            }
+            else
+            {
+                return $"Eingänge A = {(InputA ? 1 : 0)}, B = {(InputB ? 1 : 0)}: Mindestens ein Eingang ist 1, wodurch mindestens ein paralleler nMOS durchschaltet und Y auf GND zieht. Die pMOS-Reihe oben ist unterbrochen. Der Ausgang Y ist 0 (Low).";
+            }
+        }
+        else
+        {
+            return "Das Schaltermodell abstrahiert die Halbleiterphysik: Der Transistor fungiert als spannungsgesteuertes Ventil ohne bewegliche Teile. nMOS schließt bei Gate=High, pMOS schließt bei Gate=Low.";
+        }
+    }
+
+    #region Quiz System
+
+    public record QuizQuestion(string Question, string[] Options, int CorrectIndex, string Explanation);
+
+    private List<QuizQuestion> Questions = new()
+    {
+        new QuizQuestion(
+            "Warum benötigt ein CMOS-Inverter stets sowohl einen nMOS- als auch einen pMOS-Transistor?",
+            new[] {
+                "Um die Versorgungsspannung zu verdoppeln.",
+                "Damit in jedem stabilen Zustand genau ein Transistor leitet und kein Querstrom von VDD nach GND fließt (statischer Verbrauch ≈ 0).",
+                "Weil pMOS-Transistoren Wechselstrom und nMOS-Transistoren Gleichstrom leiten.",
+                "Weil ein Transistor für das Vorzeichen und der andere für den Betrag zuständig ist."
+            },
+            1,
+            "CMOS steht für 'Complementary MOS'. Das komplementäre Paar stellt sicher, dass entweder VDD nach Y oder Y nach GND durchgeschaltet ist, aber niemals beide gleichzeitig."
+        ),
+        new QuizQuestion(
+            "Welcher Transistortyp leitet, wenn an seinem Gate ein Low-Pegel (0 V) anliegt?",
+            new[] {
+                "nMOS-Transistor",
+                "pMOS-Transistor",
+                "Beide Transistoren",
+                "Keiner von beiden"
+            },
+            1,
+            "Ein pMOS-Transistor leitet bei Gate=Low (0) und sperrt bei Gate=High (1). Er wird daher typischerweise im Pull-Up-Netzwerk nach VDD eingesetzt."
+        ),
+        new QuizQuestion(
+            "Wie ist das Pull-Down-Netzwerk eines CMOS-NAND-Gatters mit zwei Eingängen A und B aufgebaut?",
+            new[] {
+                "Zwei nMOS-Transistoren in Reihenschaltung (Serie)",
+                "Zwei nMOS-Transistoren in Parallelschaltung",
+                "Zwei pMOS-Transistoren in Reihenschaltung",
+                "Ein nMOS und ein pMOS in Parallelschaltung"
+            },
+            0,
+            "NAND liefert nur dann eine 0 am Ausgang, wenn A=1 UND B=1 gilt. Deshalb müssen die beiden nMOS-Transistoren in Reihe nach Masse (GND) liegen."
+        ),
+        new QuizQuestion(
+            "Wie ist das Pull-Down-Netzwerk eines CMOS-NOR-Gatters mit zwei Eingängen A und B aufgebaut?",
+            new[] {
+                "Zwei pMOS-Transistoren in Serie",
+                "Zwei nMOS-Transistoren in Parallelschaltung",
+                "Zwei nMOS-Transistoren in Serienschaltung",
+                "Ein Widerstand gegen Masse"
+            },
+            1,
+            "NOR liefert immer dann 0 am Ausgang, sobald A=1 ODER B=1 gilt. Daher liegen zwei nMOS-Transistoren parallel nach Masse (GND)."
+        ),
+        new QuizQuestion(
+            "Wann verbraucht eine CMOS-Schaltung im Idealfall elektrische Energie?",
+            new[] {
+                "Nur im statischen Zustand, wenn keine Signale wechseln.",
+                "Hauptsächlich dynamisch während des Umschaltvorgangs (Laden/Entladen parasitärer Kapazitäten und kurzzeitiger Querstrom).",
+                "Ausschließlich bei konstanter logischer 1.",
+                "Nie, CMOS-Schaltungen arbeiten völlig ohne Energie."
+            },
+            1,
+            "Im statischen Ruhezustand sperrt immer mindestens ein Zweig (statische Verlustleistung nahezu null). Energie wird vor allem beim dynamischen Umladen von Kapazitäten benötigt."
+        )
+    };
+
+    private int CurrentQuestionIndex = 0;
+    private int SelectedAnswer = -1;
+    private bool QuizSubmitted = false;
+
+    private QuizQuestion CurrentQuestion => Questions[CurrentQuestionIndex];
+
+    private void SelectAnswer(int index)
+    {
+        if (!QuizSubmitted)
+        {
+            SelectedAnswer = index;
+        }
+    }
+
+    private void SubmitQuiz()
+    {
+        if (SelectedAnswer != -1)
+        {
+            QuizSubmitted = true;
+        }
+    }
+
+    private void NextQuestion()
+    {
+        CurrentQuestionIndex = (CurrentQuestionIndex + 1) % Questions.Count;
+        SelectedAnswer = -1;
+        QuizSubmitted = false;
+    }
+
+    #endregion
+}
