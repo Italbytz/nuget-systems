@@ -99,14 +99,25 @@
                             }
                         </tr>
 
-                        <!-- Row 3: Carry Row for +1 -->
+                        <!-- Carries are shown above the column they enter. -->
                         <tr>
-                            <td class="matrix-label">3. Übertrag (+1 LSB)</td>
+                            <td class="matrix-label">Übertrag in die Stelle</td>
                             @for (var b = 7; b >= 0; b--)
                             {
                                 var carry = CarryBits[b];
                                 <td class="matrix-cell carry-cell @(CurrentStep == 3 ? "active-bit" : (CurrentStep > 3 ? "" : "dimmed"))">
-                                    @(CurrentStep >= 3 ? (b == 0 || carry == 1 ? carry.ToString() : "0") : "·")
+                                    @(CurrentStep >= 3 ? (carry == 1 ? "1" : "") : "·")
+                                </td>
+                            }
+                        </tr>
+
+                        <!-- Row 4: Add the explicit 8-bit value one -->
+                        <tr>
+                            <td class="matrix-label">3. +1 addieren</td>
+                            @for (var b = 7; b >= 0; b--)
+                            {
+                                <td class="matrix-cell @(CurrentStep == 3 ? "active-bit" : (CurrentStep > 3 ? "" : "dimmed"))">
+                                    @(CurrentStep >= 3 ? (b == 0 ? "1" : "0") : "·")
                                 </td>
                             }
                         </tr>
@@ -293,13 +304,14 @@
         get
         {
             var carries = new int[8];
-            int c = 1; // Adding +1 to LSB
+            var carryIn = 0;
             for (int b = 0; b < 8; b++)
             {
                 var invBit = (InvertedByte >> b) & 1;
-                var sum = invBit + c;
-                c = sum >> 1;
-                carries[b] = c;
+                var addendBit = b == 0 ? 1 : 0;
+                carries[b] = carryIn;
+                var sum = invBit + addendBit + carryIn;
+                carryIn = sum >> 1;
             }
             return carries;
         }
@@ -310,7 +322,7 @@
         0 => "Ausgangslage: Dezimalzahl vorgegeben",
         1 => $"Schritt 1: Positiven Betrag als 8-Bit-Dualzahl darstellen (|{InputNumber}| = {PositiveByte})",
         2 => "Schritt 2: Bitweise Invertieren (NOT / Einerkomplement)",
-        3 => "Schritt 3: +1 auf LSB addieren (Zweierkomplement)",
+        3 => "Schritt 3: Einerkomplement + 1 addieren",
         4 => "Schritt 4: Probe & Verifikation über Stellenwertsumme",
         _ => "Berechnung abgeschlossen"
     };
@@ -322,7 +334,7 @@
         ( < 0, 0) => $"Ziel: Berechnung der 8-Bit-Zweierkomplementdarstellung für die negative Zahl {InputNumber}. Klicken Sie auf 'Nächster Schritt' um die 3-stufige Wandlung durchzuführen.",
         ( < 0, 1) => $"Der Betrag |{InputNumber}| ist {PositiveByte}. Als 8-Bit-Dualzahl geschrieben: {ToBinary(PositiveByte)}₂ ({GetPositiveDecomp(PositiveByte)}).",
         ( < 0, 2) => $"Alle 8 Bits werden invertiert (0 → 1, 1 → 0). Das ergibt das Einerkomplement: NOT({ToBinary(PositiveByte)}) = {ToBinary(InvertedByte)}₂.",
-        ( < 0, 3) => $"Auf das Einerkomplement wird 1 addiert: {ToBinary(InvertedByte)}₂ + 1₂ = {ToBinary(TwosComplementByte)}₂. Dies ist das fertige 8-Bit-Zweierkomplement!",
+        ( < 0, 3) => $"Zum Einerkomplement {ToBinary(InvertedByte)}₂ wird nur 00000001₂ addiert. Der Übertrag steht jeweils über der Stelle, in die er eingeht. Das Ergebnis ist {ToBinary(TwosComplementByte)}₂, das fertige 8-Bit-Zweierkomplement.",
         ( < 0, 4) => $"Verifikation: Im Zweierkomplement hat das höchstwertige Bit (MSB, Bit 7) den negativen Stellenwert &minus;2⁷ = &minus;128. Die Summe aller aktiven Bits ergibt exakt {InputNumber}!",
         _ => ""
     };
