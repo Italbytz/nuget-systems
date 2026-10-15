@@ -28,6 +28,9 @@
                     @onclick="() => SetView(ViewMode.Worksheet)">
                 🖨️ Klausur-Arbeitsblatt (Druckansicht)
             </button>
+            <a class="view-btn pdf-link-btn" href="pdf/TCP_10.pdf" target="_blank" download="TCP_10.pdf" title="10 TCP-Übungsaufgaben als druckreifes LaTeX-PDF herunterladen">
+                📄 10 Aufgaben (PDF)
+            </a>
         </div>
     }
 
@@ -588,6 +591,18 @@
                 if (query.Contains("embed=true", StringComparison.OrdinalIgnoreCase) || query.Contains("embedded=true", StringComparison.OrdinalIgnoreCase))
                 {
                     IsEmbed = true;
+                }
+
+                var matchAlice = System.Text.RegularExpressions.Regex.Match(query, @"[?&]alice=(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                if (matchAlice.Success && int.TryParse(matchAlice.Groups[1].Value, out var a))
+                {
+                    AliceStartSeq = a;
+                }
+
+                var matchBob = System.Text.RegularExpressions.Regex.Match(query, @"[?&]bob=(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                if (matchBob.Success && int.TryParse(matchBob.Groups[1].Value, out var b))
+                {
+                    BobStartSeq = b;
                 }
             }
         }
