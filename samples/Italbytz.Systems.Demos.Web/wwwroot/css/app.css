@@ -1089,3 +1089,82 @@ body.is-dark .is-embedded,
         color: #000000 !important;
     }
 }
+
+/* -------------------------------------------------------------
+   PDF TRAINING SHEETS & SOLUTION DOWNLOAD BUTTONS
+   ------------------------------------------------------------- */
+.view-btn.pdf-link-btn {
+    text-decoration: none;
+    background: rgba(31, 93, 86, 0.08);
+    color: #1f5d56;
+    border: 1px dashed rgba(31, 93, 86, 0.4);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+}
+
+.view-btn.pdf-link-btn:hover {
+    background: #1f5d56;
+    color: #ffffff;
+    border-style: solid;
+    text-decoration: none;
+    box-shadow: 0 2px 8px rgba(31, 93, 86, 0.3);
+}
+
+.view-btn.solution-link-btn {
+    background: rgba(211, 122, 72, 0.1);
+    color: #9c4e24;
+    border-color: rgba(211, 122, 72, 0.4);
+}
+
+.view-btn.solution-link-btn:hover {
+    background: #d37a48;
+    color: #ffffff;
+    border-color: #d37a48;
+    box-shadow: 0 2px 8px rgba(211, 122, 72, 0.3);
+}
+
+/* Overview Card Badges in ComputingSystems.razor */
+.card-pdf-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.85rem;
+    padding-top: 0.65rem;
+    border-top: 1px solid rgba(20, 50, 47, 0.08);
+}
+
+.pdf-badge {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none;
+    padding: 0.3rem 0.65rem;
+    border-radius: 0.5rem;
+    background: rgba(31, 93, 86, 0.08);
+    color: #1f5d56;
+    border: 1px solid rgba(31, 93, 86, 0.25);
+    transition: all 0.15s ease-in-out;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.pdf-badge:hover {
+    background: #1f5d56;
+    color: #ffffff;
+    text-decoration: none;
+    transform: translateY(-1px);
+}
+
+.pdf-badge.solution {
+    background: rgba(211, 122, 72, 0.1);
+    color: #9c4e24;
+    border-color: rgba(211, 122, 72, 0.25);
+}
+
+.pdf-badge.solution:hover {
+    background: #d37a48;
+    color: #ffffff;
+}
