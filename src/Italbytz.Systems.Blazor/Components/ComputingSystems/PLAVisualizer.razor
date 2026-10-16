@@ -16,12 +16,8 @@
                 <button class="btn-toggle @(ActiveView == ViewMode.StepByStep ? "active" : "")" @onclick="() => SetView(ViewMode.StepByStep)">
                     ▶️ Interaktiver Simulator
                 </button>
-                <button class="btn-toggle @(ActiveView == ViewMode.Worksheet ? "active" : "")" @onclick="() => SetView(ViewMode.Worksheet)">
-                    📄 Klausur-Übungsblatt
-                </button>
-                <a class="btn-toggle pdf-link-btn" href="pdf/PLA_5.pdf" target="_blank" download="PLA_5.pdf" title="5 handrechenbare PLA-Übungsaufgaben als druckreifes LaTeX-PDF mit QR-Codes">
-                    📥 5 Aufgaben (PDF)
-                </a>
+                
+                
             </div>
         </header>
     }

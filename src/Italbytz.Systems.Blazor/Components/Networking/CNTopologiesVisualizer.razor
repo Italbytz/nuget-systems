@@ -30,13 +30,8 @@
                     @onclick="() => SetView(ViewMode.Trainer)">
                 📝 Klausur-Trainer (1:1 Zuordnungscheck)
             </button>
-            <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
-                    @onclick="() => SetView(ViewMode.Worksheet)">
-                🖨️ Klausur-Arbeitsblatt (Druckansicht 1:1)
-            </button>
-            <a class="view-btn pdf-link-btn" href="pdf/CNTopologies_5.pdf" target="_blank" download="CNTopologies_5.pdf" title="5 Übungsaufgaben zu Netzwerktopologien als druckreifes LaTeX-PDF herunterladen">
-                📄 5 Aufgaben (PDF)
-            </a>
+            
+            
         </div>
     }
 

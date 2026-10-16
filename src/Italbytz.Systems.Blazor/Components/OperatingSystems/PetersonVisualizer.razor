@@ -3,9 +3,9 @@
 @inject IJSRuntime JSRuntime
 @implements IDisposable
 
-<article class="peterson-container @(IsEmbed ? "embed-mode" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
+<article class="peterson-container @(IsEmbed ? "embed-mode" : "")">
 
-    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
+    @if (!IsEmbed)
     {
         <div class="card-heading no-print">
             <p class="feature-kicker">Betriebssysteme &bull; Interprozesskommunikation</p>
@@ -15,24 +15,6 @@
                 durch eine geschickte Kombination aus Interessens-Flags (<code>Interested[2]</code>) und einer Höflichkeits-Variable (<code>_turn</code>). 
                 Erforschen Sie schrittweise, wie aktives Warten funktioniert und wie Wettläufe symmetriebrechend aufgelöst werden.
             </p>
-        </div>
-    }
-
-    <!-- View Switcher -->
-    @if (!IsEmbed)
-    {
-        <div class="view-switch no-print">
-            <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
-                    @onclick="() => SetView(ViewMode.Simulator)">
-                🚀 Interaktiver Peterson-Simulator &amp; Interleaving
-            </button>
-            <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
-                    @onclick="() => SetView(ViewMode.Worksheet)">
-                🖨️ Klausur-Arbeitsblatt (Druckansicht 1:1)
-            </button>
-            <a class="view-btn pdf-link-btn" href="pdf/Peterson_5.pdf" target="_blank" download="Peterson_5.pdf" title="5 Übungsaufgaben zu Petersons Algorithmus als druckreifes LaTeX-PDF herunterladen">
-                📄 5 Aufgaben (PDF)
-            </a>
         </div>
     }
 

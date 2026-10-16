@@ -29,13 +29,10 @@
                     @onclick="() => SetView(ViewMode.Simulator)">
                 🚀 Interaktiver Simulator (Step-Trace)
             </button>
-            <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
-                    @onclick="() => SetView(ViewMode.Worksheet)">
-                🖨️ Klausur-Arbeitsblatt (Druckansicht)
-            </button>
+            
             <a class="view-btn pdf-link-btn" href="pdf/Netmask_50.pdf" target="_blank" download="Netmask_50.pdf" title="50 Übungsaufgaben als druckreifes LaTeX-PDF herunterladen">
-                📄 50 Aufgaben (PDF)
-            </a>
+            🎯 Freiwilliges Klausurtraining (PDF)
+        </a>
         </div>
     }
 

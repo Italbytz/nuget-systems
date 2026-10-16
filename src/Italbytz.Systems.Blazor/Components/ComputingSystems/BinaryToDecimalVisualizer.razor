@@ -13,12 +13,9 @@
                 @onclick="() => ActiveView = ViewMode.Simulator">
             🚀 Interaktiver Simulator (Step-by-Step)
         </button>
-        <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
-                @onclick="() => ActiveView = ViewMode.Worksheet">
-            📋 Einzelaufgabe (Druckansicht)
-        </button>
+        
         <a class="view-btn pdf-link-btn" href="pdf/BinaryToDecimal_100.pdf" target="_blank" download="BinaryToDecimal_100.pdf" title="100 Übungsaufgaben als druckreifes LaTeX-PDF mit QR-Codes">
-            📄 100 Aufgaben (PDF)
+            🎯 Freiwilliges Klausurtraining (PDF)
         </a>
     </div>
 
