@@ -66,6 +66,19 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
+.pdf-link-btn {
+    text-decoration: none;
+    background: #e0f2fe;
+    color: #0369a1;
+    display: inline-flex;
+    align-items: center;
+}
+
+.pdf-link-btn:hover {
+    background: #bae6fd;
+    color: #0284c7;
+}
+
 /* Cards */
 .card {
     background: #ffffff;
