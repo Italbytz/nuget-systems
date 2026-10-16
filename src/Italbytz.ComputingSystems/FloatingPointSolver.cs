@@ -26,13 +26,18 @@ public class FloatingPointSolver : IFloatingPointSolver
         var expBits = bitStr.Substring(1, 8);
         var mantBits = bitStr.Substring(9, 23);
 
+        var trimmedMant = mantBits.TrimEnd('0');
+        var normBin = string.IsNullOrEmpty(trimmedMant) ? "1" : $"1,{trimmedMant}";
+        var shiftDirection = exponentUnbiased >= 0 ? $"{exponentUnbiased} Stellen nach rechts" : $"{-exponentUnbiased} Stellen nach links";
+
         var steps = new List<string>
         {
             $"Bitmuster: {signBit} | {expBits} | {mantBits}",
             $"1. Vorzeichen: s = {sign} -> Faktor (-1)^{sign} = {(sign == 1 ? "-1" : "+1")}",
-            $"2. Exponent: e = {expBits}_2 = {exponentRaw}_10, unbiast: E = {exponentRaw} - 127 = {exponentUnbiased} -> Faktor 2^{exponentUnbiased} = {exponentFactor.ToString(CultureInfo.InvariantCulture)}",
-            $"3. Mantisse: 1 + m/2^23 = 1 + {mantissaRaw}/8388608 = {mantissaWithImplicitOne.ToString(CultureInfo.InvariantCulture)}",
-            $"4. Gesamtergebnis: f = ({signFactor}) * {mantissaWithImplicitOne.ToString(CultureInfo.InvariantCulture)} * {exponentFactor.ToString(CultureInfo.InvariantCulture)} = {value.ToString(CultureInfo.InvariantCulture)}"
+            $"2. Exponent: e = {expBits}_2 = {exponentRaw}_10 -> E = {exponentRaw} - 127 = {exponentUnbiased}",
+            $"3. Mantisse mit impliziter Eins: ({normBin})_2",
+            $"4. Binäre Kommaverschiebung ({shiftDirection}): ({normBin})_2 * 2^{exponentUnbiased}",
+            $"5. Dezimalwert: {value.ToString(CultureInfo.InvariantCulture)}"
         };
 
         return new FloatingPointSolution
