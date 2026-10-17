@@ -1,4 +1,6 @@
 @namespace Italbytz.Systems.Blazor.Components.Networking
+@using Italbytz.Graph
+@using Italbytz.Graph.Abstractions
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 
@@ -64,6 +66,10 @@
                 <label class="control-label">
                     <span>Topologie / Graph:</span>
                     <select class="form-input select" @bind="SelectedPresetKey" @bind:after="OnPresetChanged">
+                        @if (SelectedPresetKey.StartsWith("Seed_"))
+                        {
+                            <option value="@SelectedPresetKey">Aufgabe / Seed (@SelectedPresetKey.Substring(5))</option>
+                        }
                         <option value="Lecture">Vorlesung (6 Knoten, spanningtree3)</option>
                         <option value="ExamSTP">Klausur / STP-Kosten (6 Knoten, IEEE 802.1D)</option>
                         <option value="BridgeTopology">Bridge-Netzwerk (7 Bridges, B1..B7)</option>
@@ -437,6 +443,10 @@
     [Parameter] public bool? Solution { get; set; }
     [Parameter] public bool? Embed { get; set; }
 
+    [Parameter] public int? Seed { get; set; }
+    [Parameter] public string? Alg { get; set; }
+    [Parameter] public string? Start { get; set; }
+
     private ViewMode ActiveView = ViewMode.Simulator;
     private bool ShowSolution = false;
     private bool IsEmbed = false;
@@ -454,6 +464,10 @@
     protected override void OnInitialized()
     {
         ReadQueryParameters();
+        if (Seed.HasValue)
+        {
+            SelectedPresetKey = $"Seed_{Seed.Value}";
+        }
         LoadPreset(SelectedPresetKey);
     }
 
@@ -489,6 +503,20 @@
                 {
                     IsEmbed = embedBool;
                 }
+                else if (key == "seed" && int.TryParse(val, out var seedVal))
+                {
+                    Seed = seedVal;
+                    SelectedPresetKey = $"Seed_{seedVal}";
+                }
+                else if (key == "alg")
+                {
+                    if (val.Equals("prim", StringComparison.OrdinalIgnoreCase)) SelectedAlgorithm = "Prim";
+                    else if (val.Equals("kruskal", StringComparison.OrdinalIgnoreCase)) SelectedAlgorithm = "Kruskal";
+                }
+                else if (key == "start" && !string.IsNullOrWhiteSpace(val))
+                {
+                    PrimStartNode = val.Trim().ToUpperInvariant();
+                }
             }
         }
         catch
@@ -515,7 +543,9 @@
         {
             ["view"] = ActiveView == ViewMode.Worksheet ? "worksheet" : null,
             ["solution"] = ShowSolution ? "true" : null,
-            ["embed"] = IsEmbed ? "true" : null
+            ["embed"] = IsEmbed ? "true" : null,
+            ["seed"] = Seed,
+            ["alg"] = SelectedAlgorithm.ToLowerInvariant()
         });
         NavigationManager.NavigateTo(uri, replace: true);
     }
@@ -533,6 +563,32 @@
     private void LoadPreset(string preset)
     {
         SelectedPresetKey = preset;
+        if (preset.StartsWith("Seed_") || (preset == "Seed" && Seed.HasValue))
+        {
+            int seedVal = Seed ?? int.Parse(preset.Substring(5));
+            Seed = seedVal;
+            SelectedPresetKey = $"Seed_{seedVal}";
+            Nodes = new List<GraphNode>
+            {
+                new("A", 100, 220),
+                new("B", 240, 110),
+                new("C", 440, 110),
+                new("D", 240, 330),
+                new("E", 440, 330),
+                new("F", 580, 220)
+            };
+            var param = new MinimumSpanningTreeParameters(seedVal);
+            Edges = param.Graph.Edges.Select(e => new GraphEdge(e.Source, e.Target, e.Tag)).ToList();
+            if (!Nodes.Any(n => n.Id == PrimStartNode))
+            {
+                PrimStartNode = Nodes.First().Id;
+            }
+            CurrentStepIndex = 0;
+            Recalculate();
+            return;
+        }
+
+        Seed = null;
         switch (preset)
         {
             case "Lecture":
@@ -653,40 +709,10 @@
 
     private void GenerateRandomGraph()
     {
-        SelectedPresetKey = "Random";
-        Nodes = new List<GraphNode>
-        {
-            new("A", 100, 220),
-            new("B", 240, 110),
-            new("C", 440, 110),
-            new("D", 240, 330),
-            new("E", 440, 330),
-            new("F", 580, 220)
-        };
-
         var rnd = new Random();
-        var stpWeights = new double[] { 2, 4, 19, 62, 100, 250 };
-        double RndW() => stpWeights[rnd.Next(stpWeights.Length)];
-
-        Edges = new List<GraphEdge>
-        {
-            new("A", "B", RndW()),
-            new("A", "D", RndW()),
-            new("B", "C", RndW()),
-            new("B", "D", RndW()),
-            new("C", "D", RndW()),
-            new("C", "F", RndW()),
-            new("D", "E", RndW()),
-            new("E", "F", RndW())
-        };
-
-        if (rnd.Next(2) == 1)
-        {
-            Edges.Add(new("B", "E", RndW()));
-        }
-
-        CurrentStepIndex = 0;
-        Recalculate();
+        var seed = rnd.Next(1000, 999999);
+        Seed = seed;
+        LoadPreset($"Seed_{seed}");
     }
 
     // =========================================================================
@@ -705,203 +731,46 @@
     }
 
     // =========================================================================
-    // MST ALGORITHMS
+    // MST SOLVER INTEGRATION (via Italbytz.Graph)
     // =========================================================================
     private void Recalculate()
     {
-        if (SelectedAlgorithm == "Prim")
+        var genericGraph = new Italbytz.Graph.UndirectedGraph<string, ITaggedEdge<string, double>>
         {
-            MstResult = RunPrim(Nodes, Edges, PrimStartNode);
-        }
-        else
+            Edges = Edges.Select(e => (ITaggedEdge<string, double>)new Italbytz.Graph.TaggedEdge<string, double>(e.From, e.To, e.Weight)).ToList()
+        };
+
+        var parameters = new MinimumSpanningTreeParameters(genericGraph);
+        var solver = new MinimumSpanningTreeSolver();
+        var solution = solver.SolveTrace(parameters, SelectedAlgorithm, PrimStartNode);
+
+        MstResult = new MstTraceResult
         {
-            MstResult = RunKruskal(Nodes, Edges);
-        }
+            FinalTreeEdges = solution.Edges.Select(e => new GraphEdge(e.Source, e.Target, e.Tag)).ToList(),
+            FinalRejectedEdges = solution.Steps
+                .Where(s => !s.IsAccepted && s.CurrentEdge != null)
+                .Select(s => new GraphEdge(s.CurrentEdge!.Source, s.CurrentEdge!.Target, s.CurrentEdge!.Tag))
+                .ToList(),
+            FinalTotalWeight = solution.TotalWeight,
+            Steps = solution.Steps.Select(s => new MstStep
+            {
+                StepNumber = s.StepNumber,
+                Title = s.Title,
+                Explanation = s.Explanation,
+                CurrentEdge = s.CurrentEdge != null ? new GraphEdge(s.CurrentEdge.Source, s.CurrentEdge.Target, s.CurrentEdge.Tag) : null,
+                IsAccepted = s.IsAccepted,
+                IsCycle = s.IsCycle,
+                TreeEdges = s.TreeEdges.Select(e => new GraphEdge(e.Source, e.Target, e.Tag)).ToList(),
+                RejectedEdges = s.RejectedEdges.Select(e => new GraphEdge(e.Source, e.Target, e.Tag)).ToList(),
+                VisitedNodes = new HashSet<string>(s.VisitedNodes),
+                CurrentTotalWeight = s.CurrentTotalWeight
+            }).ToList()
+        };
 
         if (CurrentStepIndex >= MstResult.Steps.Count)
         {
             CurrentStepIndex = Math.Max(0, MstResult.Steps.Count - 1);
         }
-    }
-
-    private MstTraceResult RunKruskal(List<GraphNode> nodes, List<GraphEdge> edges)
-    {
-        var result = new MstTraceResult();
-        var sortedEdges = edges.OrderBy(e => e.Weight).ToList();
-
-        // Disjoint-Set Union (Union-Find)
-        var parent = new Dictionary<string, string>();
-        foreach (var n in nodes) parent[n.Id] = n.Id;
-
-        string Find(string i)
-        {
-            if (parent[i] == i) return i;
-            return parent[i] = Find(parent[i]);
-        }
-
-        void Union(string root1, string root2)
-        {
-            parent[root1] = root2;
-        }
-
-        // Step 0: Init
-        result.Steps.Add(new MstStep
-        {
-            StepNumber = 0,
-            Title = "Initialisierung (Kanten nach Gewicht aufsteigend sortiert)",
-            Explanation = $"Alle {edges.Count} Kanten wurden aufsteigend nach ihrem Gewicht sortiert. Zu Beginn bildet jeder Knoten eine eigene Zusammenhangskomponente (Wald ohne Kanten).",
-            TreeEdges = new List<GraphEdge>(),
-            RejectedEdges = new List<GraphEdge>(),
-            VisitedNodes = new HashSet<string>(),
-            CurrentTotalWeight = 0
-        });
-
-        var treeEdges = new List<GraphEdge>();
-        var rejectedEdges = new List<GraphEdge>();
-        double totalWeight = 0;
-        int stepIdx = 1;
-
-        foreach (var edge in sortedEdges)
-        {
-            string rootFrom = Find(edge.From);
-            string rootTo = Find(edge.To);
-            bool createsCycle = (rootFrom == rootTo);
-
-            if (!createsCycle)
-            {
-                Union(rootFrom, rootTo);
-                treeEdges.Add(edge);
-                totalWeight += edge.Weight;
-
-                var visited = new HashSet<string>();
-                foreach (var te in treeEdges)
-                {
-                    visited.Add(te.From);
-                    visited.Add(te.To);
-                }
-
-                result.Steps.Add(new MstStep
-                {
-                    StepNumber = stepIdx++,
-                    CurrentEdge = edge,
-                    IsAccepted = true,
-                    IsCycle = false,
-                    Title = $"Kante ({edge.From} – {edge.To}, Gewicht {edge.Weight}) in Spannbaum aufgenommen",
-                    Explanation = $"Kante ({edge.From} – {edge.To}) mit Gewicht {edge.Weight} verbindet zwei getrennte Komponenten (Wurzeln: {rootFrom} und {rootTo}). Sie erzeugt keinen Zyklus und wird in den Minimalen Spannbaum eingefügt.",
-                    TreeEdges = new List<GraphEdge>(treeEdges),
-                    RejectedEdges = new List<GraphEdge>(rejectedEdges),
-                    VisitedNodes = visited,
-                    CurrentTotalWeight = totalWeight
-                });
-            }
-            else
-            {
-                rejectedEdges.Add(edge);
-                var visited = new HashSet<string>();
-                foreach (var te in treeEdges)
-                {
-                    visited.Add(te.From);
-                    visited.Add(te.To);
-                }
-
-                result.Steps.Add(new MstStep
-                {
-                    StepNumber = stepIdx++,
-                    CurrentEdge = edge,
-                    IsAccepted = false,
-                    IsCycle = true,
-                    Title = $"Kante ({edge.From} – {edge.To}, Gewicht {edge.Weight}) erzeugt Zyklus → Verworfen",
-                    Explanation = $"Beide Endpunkte ({edge.From} und {edge.To}) liegen bereits in derselben Zusammenhangskomponente ({rootFrom}). Das Hinzufügen würde einen Kreis erzeugen; die Kante wird übersprungen.",
-                    TreeEdges = new List<GraphEdge>(treeEdges),
-                    RejectedEdges = new List<GraphEdge>(rejectedEdges),
-                    VisitedNodes = visited,
-                    CurrentTotalWeight = totalWeight
-                });
-            }
-
-            if (treeEdges.Count == nodes.Count - 1)
-            {
-                // All nodes connected
-                break;
-            }
-        }
-
-        result.FinalTreeEdges = new List<GraphEdge>(treeEdges);
-        result.FinalRejectedEdges = new List<GraphEdge>(rejectedEdges);
-        result.FinalTotalWeight = totalWeight;
-
-        return result;
-    }
-
-    private MstTraceResult RunPrim(List<GraphNode> nodes, List<GraphEdge> edges, string startNodeId)
-    {
-        var result = new MstTraceResult();
-        var visited = new HashSet<string> { startNodeId };
-        var treeEdges = new List<GraphEdge>();
-        var rejectedEdges = new List<GraphEdge>();
-        double totalWeight = 0;
-
-        // Step 0: Init
-        result.Steps.Add(new MstStep
-        {
-            StepNumber = 0,
-            Title = $"Initialisierung (Prim ab Startknoten {startNodeId})",
-            Explanation = $"Der Prim-Algorithmus startet am Knoten {startNodeId}. In jedem Schritt wird die leichteste ausgehende Kante zu einem noch unbesuchten Knoten gewählt.",
-            TreeEdges = new List<GraphEdge>(),
-            RejectedEdges = new List<GraphEdge>(),
-            VisitedNodes = new HashSet<string>(visited),
-            CurrentTotalWeight = 0
-        });
-
-        int stepIdx = 1;
-        while (visited.Count < nodes.Count)
-        {
-            // Find minimum cut edge connecting visited with unvisited
-            GraphEdge? minEdge = null;
-            double minWeight = double.PositiveInfinity;
-
-            foreach (var edge in edges)
-            {
-                bool uIn = visited.Contains(edge.From);
-                bool vIn = visited.Contains(edge.To);
-
-                if ((uIn && !vIn) || (!uIn && vIn))
-                {
-                    if (edge.Weight < minWeight)
-                    {
-                        minWeight = edge.Weight;
-                        minEdge = edge;
-                    }
-                }
-            }
-
-            if (minEdge == null) break;
-
-            treeEdges.Add(minEdge);
-            totalWeight += minEdge.Weight;
-            visited.Add(minEdge.From);
-            visited.Add(minEdge.To);
-
-            result.Steps.Add(new MstStep
-            {
-                StepNumber = stepIdx++,
-                CurrentEdge = minEdge,
-                IsAccepted = true,
-                IsCycle = false,
-                Title = $"Leichteste Schnittkante ({minEdge.From} – {minEdge.To}, Gewicht {minEdge.Weight}) gewählt",
-                Explanation = $"Unter allen Schnittkanten zwischen besuchten Knoten und unbesuchten Nachbarn besitzt ({minEdge.From} – {minEdge.To}) das minimale Gewicht von {minEdge.Weight}. Sie wird in den Spannbaum aufgenommen.",
-                TreeEdges = new List<GraphEdge>(treeEdges),
-                RejectedEdges = new List<GraphEdge>(rejectedEdges),
-                VisitedNodes = new HashSet<string>(visited),
-                CurrentTotalWeight = totalWeight
-            });
-        }
-
-        result.FinalTreeEdges = new List<GraphEdge>(treeEdges);
-        result.FinalRejectedEdges = new List<GraphEdge>(rejectedEdges);
-        result.FinalTotalWeight = totalWeight;
-
-        return result;
     }
 
     private bool IsSameEdge(GraphEdge? e1, GraphEdge? e2)
