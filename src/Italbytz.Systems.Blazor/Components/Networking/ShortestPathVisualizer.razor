@@ -1,4 +1,6 @@
 @namespace Italbytz.Systems.Blazor.Components.Networking
+@using Italbytz.Graph
+@using Italbytz.Graph.Abstractions
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 
@@ -53,6 +55,10 @@
                 <label class="control-label">
                     <span>Topologie / Graph:</span>
                     <select class="form-input select" @bind="SelectedPresetKey" @bind:after="OnPresetChanged">
+                        @if (SelectedPresetKey.StartsWith("Seed_"))
+                        {
+                            <option value="@SelectedPresetKey">Aufgabe / Seed (@SelectedPresetKey.Substring(5))</option>
+                        }
                         <option value="Standard">Netz 1 (8 Knoten, 12 Kanten)</option>
                         <option value="Exam1">Netz 2 (8 Knoten, 11 Kanten)</option>
                         <option value="Compact">Netz 3 (6 Knoten, 9 Kanten)</option>
@@ -499,6 +505,7 @@
     [Parameter] public string? View { get; set; }
     [Parameter] public bool? Solution { get; set; }
     [Parameter] public bool? Embed { get; set; }
+    [Parameter] public int? Seed { get; set; }
 
     private ViewMode ActiveView = ViewMode.Simulator;
     private bool ShowSolution = false;
@@ -509,12 +516,16 @@
     private List<GraphNode> Nodes = new();
     private List<GraphEdge> Edges = new();
 
-    private DijkstraTraceResult? DijkstraResult;
+    private IShortestPathsSolution? DijkstraResult;
     private int CurrentStepIndex = 0;
 
     protected override void OnInitialized()
     {
         ReadQueryParameters();
+        if (Seed.HasValue)
+        {
+            SelectedPresetKey = $"Seed_{Seed.Value}";
+        }
         LoadPreset(SelectedPresetKey);
     }
 
@@ -550,6 +561,11 @@
                 {
                     IsEmbed = embedBool;
                 }
+                else if (key == "seed" && int.TryParse(val, out var seedVal))
+                {
+                    Seed = seedVal;
+                    SelectedPresetKey = $"Seed_{seedVal}";
+                }
                 else if (key == "start" && !string.IsNullOrEmpty(val))
                 {
                     StartNode = val.ToUpperInvariant();
@@ -581,6 +597,7 @@
             ["view"] = ActiveView == ViewMode.Worksheet ? "worksheet" : null,
             ["solution"] = ShowSolution ? "true" : null,
             ["start"] = StartNode != "A" ? StartNode : null,
+            ["seed"] = Seed.HasValue ? Seed.Value.ToString() : null,
             ["embed"] = IsEmbed ? "true" : null
         });
         NavigationManager.NavigateTo(uri, replace: true);
@@ -610,92 +627,113 @@
     private void LoadPreset(string preset)
     {
         SelectedPresetKey = preset;
-        switch (preset)
+
+        if (preset.StartsWith("Seed_") && int.TryParse(preset.Substring(5), out var sVal))
         {
-            case "Compact":
-                // 6 Nodes (A..F)
-                Nodes = new List<GraphNode>
-                {
-                    new("A", 100, 220),
-                    new("B", 240, 100),
-                    new("C", 240, 340),
-                    new("D", 440, 100),
-                    new("E", 440, 340),
-                    new("F", 580, 220)
-                };
-                Edges = new List<GraphEdge>
-                {
-                    new("A", "B", 4),
-                    new("A", "C", 2),
-                    new("B", "C", 1),
-                    new("B", "D", 5),
-                    new("C", "E", 8),
-                    new("C", "D", 8),
-                    new("D", "E", 2),
-                    new("D", "F", 6),
-                    new("E", "F", 3)
-                };
-                break;
+            Seed = sVal;
+            Nodes = new List<GraphNode>
+            {
+                new("A", 80, 220),
+                new("B", 220, 90),
+                new("C", 220, 350),
+                new("D", 360, 90),
+                new("E", 360, 350),
+                new("F", 500, 90),
+                new("G", 500, 350),
+                new("H", 610, 220)
+            };
+            var qg = ShortestPathsParameters.CreateGraphFromSeed(sVal);
+            Edges = qg.Edges.Select(e => new GraphEdge(e.Source, e.Target, e.Tag)).ToList();
+        }
+        else
+        {
+            switch (preset)
+            {
+                case "Compact":
+                    // 6 Nodes (A..F)
+                    Nodes = new List<GraphNode>
+                    {
+                        new("A", 100, 220),
+                        new("B", 240, 100),
+                        new("C", 240, 340),
+                        new("D", 440, 100),
+                        new("E", 440, 340),
+                        new("F", 580, 220)
+                    };
+                    Edges = new List<GraphEdge>
+                    {
+                        new("A", "B", 4),
+                        new("A", "C", 2),
+                        new("B", "C", 1),
+                        new("B", "D", 5),
+                        new("C", "E", 8),
+                        new("C", "D", 8),
+                        new("D", "E", 2),
+                        new("D", "F", 6),
+                        new("E", "F", 3)
+                    };
+                    break;
 
-            case "Exam1":
-                // 8 Nodes (A..H)
-                Nodes = new List<GraphNode>
-                {
-                    new("A", 80, 220),
-                    new("B", 200, 100),
-                    new("C", 200, 340),
-                    new("D", 340, 80),
-                    new("E", 340, 360),
-                    new("F", 480, 100),
-                    new("G", 480, 340),
-                    new("H", 600, 220)
-                };
-                Edges = new List<GraphEdge>
-                {
-                    new("A", "B", 3),
-                    new("A", "C", 5),
-                    new("B", "D", 4),
-                    new("B", "C", 2),
-                    new("C", "E", 6),
-                    new("D", "F", 2),
-                    new("D", "E", 1),
-                    new("E", "G", 3),
-                    new("F", "G", 4),
-                    new("F", "H", 5),
-                    new("G", "H", 2)
-                };
-                break;
+                case "Exam1":
+                    // 8 Nodes (A..H)
+                    Nodes = new List<GraphNode>
+                    {
+                        new("A", 80, 220),
+                        new("B", 200, 100),
+                        new("C", 200, 340),
+                        new("D", 340, 80),
+                        new("E", 340, 360),
+                        new("F", 480, 100),
+                        new("G", 480, 340),
+                        new("H", 600, 220)
+                    };
+                    Edges = new List<GraphEdge>
+                    {
+                        new("A", "B", 3),
+                        new("A", "C", 5),
+                        new("B", "D", 4),
+                        new("B", "C", 2),
+                        new("C", "E", 6),
+                        new("D", "F", 2),
+                        new("D", "E", 1),
+                        new("E", "G", 3),
+                        new("F", "G", 4),
+                        new("F", "H", 5),
+                        new("G", "H", 2)
+                    };
+                    break;
 
-            case "Standard":
-            default:
-                // 8 Nodes (A..H)
-                Nodes = new List<GraphNode>
-                {
-                    new("A", 80, 220),
-                    new("B", 220, 90),
-                    new("C", 220, 350),
-                    new("D", 360, 90),
-                    new("E", 360, 350),
-                    new("F", 500, 90),
-                    new("G", 500, 350),
-                    new("H", 610, 220)
-                };
-                Edges = new List<GraphEdge>
-                {
-                    new("A", "B", 2),
-                    new("A", "C", 5),
-                    new("B", "C", 2),
-                    new("B", "D", 7),
-                    new("B", "E", 3),
-                    new("C", "E", 4),
-                    new("D", "F", 1),
-                    new("D", "E", 2),
-                    new("E", "G", 6),
-                    new("E", "F", 4),
-                    new("F", "H", 3),
-                    new("G", "H", 5)
-                };
-                break;
+                case "Standard":
+                default:
+                    // 8 Nodes (A..H)
+                    Nodes = new List<GraphNode>
+                    {
+                        new("A", 80, 220),
+                        new("B", 220, 90),
+                        new("C", 220, 350),
+                        new("D", 360, 90),
+                        new("E", 360, 350),
+                        new("F", 500, 90),
+                        new("G", 500, 350),
+                        new("H", 610, 220)
+                    };
+                    Edges = new List<GraphEdge>
+                    {
+                        new("A", "B", 2),
+                        new("A", "C", 5),
+                        new("B", "C", 2),
+                        new("B", "D", 7),
+                        new("B", "E", 3),
+                        new("C", "E", 4),
+                        new("D", "F", 1),
+                        new("D", "E", 2),
+                        new("E", "G", 6),
+                        new("E", "F", 4),
+                        new("F", "H", 3),
+                        new("G", "H", 5)
+                    };
+                    break;
+            }
         }
 
         if (!Nodes.Any(n => n.Id == StartNode))
@@ -709,38 +747,9 @@
 
     private void GenerateRandomGraph()
     {
-        SelectedPresetKey = "Random";
-        Nodes = new List<GraphNode>
-        {
-            new("A", 80, 220),
-            new("B", 220, 90),
-            new("C", 220, 350),
-            new("D", 360, 90),
-            new("E", 360, 350),
-            new("F", 500, 90),
-            new("G", 500, 350),
-            new("H", 610, 220)
-        };
-
-        var rnd = new Random();
-        Edges = new List<GraphEdge>
-        {
-            new("A", "B", rnd.Next(1, 8)),
-            new("A", "C", rnd.Next(2, 9)),
-            new("B", "C", rnd.Next(1, 6)),
-            new("B", "D", rnd.Next(2, 9)),
-            new("B", "E", rnd.Next(1, 8)),
-            new("C", "E", rnd.Next(2, 8)),
-            new("D", "F", rnd.Next(1, 7)),
-            new("D", "E", rnd.Next(1, 6)),
-            new("E", "G", rnd.Next(2, 9)),
-            new("E", "F", rnd.Next(1, 8)),
-            new("F", "H", rnd.Next(1, 8)),
-            new("G", "H", rnd.Next(1, 9))
-        };
-
-        CurrentStepIndex = 0;
-        Recalculate();
+        var seed = new Random().Next(1000, 999999);
+        Seed = seed;
+        LoadPreset($"Seed_{seed}");
     }
 
     // =========================================================================
@@ -759,159 +768,29 @@
     }
 
     // =========================================================================
-    // DIJKSTRA ALGORITHM ENGINE
+    // DIJKSTRA ALGORITHM ENGINE (Delegated to Italbytz.Graph)
     // =========================================================================
     private void Recalculate()
     {
-        DijkstraResult = RunDijkstra(Nodes, Edges, StartNode);
+        var qg = new QuikGraph.UndirectedGraph<string, QuikGraph.TaggedEdge<string, double>>();
+        foreach (var edge in Edges)
+        {
+            qg.AddVerticesAndEdge(new QuikGraph.TaggedEdge<string, double>(edge.From, edge.To, edge.Weight));
+        }
+
+        var param = new ShortestPathsParameters(Nodes.Select(n => n.Id).ToArray(), qg.ToGenericGraph());
+        var solver = new ShortestPathsSolver();
+        DijkstraResult = solver.SolveTrace(param, StartNode);
+
         if (CurrentStepIndex >= DijkstraResult.Steps.Count)
         {
             CurrentStepIndex = Math.Max(0, DijkstraResult.Steps.Count - 1);
         }
     }
 
-    private DijkstraTraceResult RunDijkstra(List<GraphNode> nodes, List<GraphEdge> edges, string startNodeId)
-    {
-        var result = new DijkstraTraceResult();
-        var allNodeIds = nodes.Select(n => n.Id).ToList();
-
-        // Distance & Predecessor maps
-        var dist = new Dictionary<string, double>();
-        var pred = new Dictionary<string, string>();
-        var settled = new HashSet<string>();
-
-        foreach (var id in allNodeIds)
-        {
-            dist[id] = double.PositiveInfinity;
-            pred[id] = "";
-        }
-        dist[startNodeId] = 0;
-
-        // Step 0: Initialization
-        result.Steps.Add(new DijkstraStep
-        {
-            StepNumber = 0,
-            Title = $"Initialisierung: Startknoten {startNodeId} hat Distanz 0",
-            Explanation = $"Der Startknoten {startNodeId} wird mit D[{startNodeId}] = 0 initialisiert. Alle anderen Knoten erhalten die Distanz ∞ (unendlich) und keinen Vorgänger.",
-            SettledNodeId = startNodeId,
-            SettledNodes = new HashSet<string>(),
-            Distances = new Dictionary<string, double>(dist),
-            Predecessors = new Dictionary<string, string>(pred)
-        });
-
-        int stepNum = 1;
-        while (settled.Count < allNodeIds.Count)
-        {
-            // Find unsettled node with minimum distance
-            string? minNode = null;
-            double minDist = double.PositiveInfinity;
-
-            foreach (var id in allNodeIds)
-            {
-                if (!settled.Contains(id) && dist[id] < minDist)
-                {
-                    minDist = dist[id];
-                    minNode = id;
-                }
-            }
-
-            if (minNode == null || double.IsPositiveInfinity(minDist))
-            {
-                // Remaining nodes are unreachable
-                break;
-            }
-
-            settled.Add(minNode);
-
-            var step = new DijkstraStep
-            {
-                StepNumber = stepNum,
-                SettledNodeId = minNode,
-                SettledNodes = new HashSet<string>(settled),
-                Title = $"Knoten {minNode} fixieren (D={minDist}) & Kanten relaxieren",
-                Explanation = $"Knoten {minNode} besitzt unter allen unbesuchten Knoten die kleinste Distanz ({minDist}) und wird nun permanent fixiert. Seine ausgehenden Kanten werden überprüft."
-            };
-
-            // Relax outgoing edges from minNode
-            var neighborEdges = edges.Where(e => e.From == minNode || e.To == minNode).ToList();
-            foreach (var edge in neighborEdges)
-            {
-                string neighbor = edge.From == minNode ? edge.To : edge.From;
-                if (!settled.Contains(neighbor))
-                {
-                    double oldDist = dist[neighbor];
-                    double calcDist = dist[minNode] + edge.Weight;
-                    bool updated = false;
-
-                    if (calcDist < oldDist)
-                    {
-                        dist[neighbor] = calcDist;
-                        pred[neighbor] = minNode;
-                        updated = true;
-                    }
-
-                    step.Relaxations.Add(new EdgeRelaxationDetail
-                    {
-                        From = minNode,
-                        To = neighbor,
-                        Weight = edge.Weight,
-                        OldDist = double.IsPositiveInfinity(oldDist) ? "∞" : oldDist.ToString(),
-                        CalcDist = calcDist.ToString(),
-                        NewDist = dist[neighbor].ToString(),
-                        Updated = updated
-                    });
-                }
-            }
-
-            step.Distances = new Dictionary<string, double>(dist);
-            step.Predecessors = new Dictionary<string, string>(pred);
-            result.Steps.Add(step);
-            stepNum++;
-        }
-
-        // Generate Routing Table from startNodeId
-        foreach (var target in allNodeIds.Where(id => id != startNodeId))
-        {
-            var cost = dist[target];
-            if (double.IsPositiveInfinity(cost))
-            {
-                result.RoutingTable.Add(new RoutingTableEntry
-                {
-                    Destination = target,
-                    Cost = "∞",
-                    NextHop = "-",
-                    PathString = "Nicht erreichbar"
-                });
-            }
-            else
-            {
-                // Trace back path
-                var pathNodes = new List<string> { target };
-                var curr = target;
-                while (curr != startNodeId && !string.IsNullOrEmpty(pred[curr]))
-                {
-                    curr = pred[curr];
-                    pathNodes.Insert(0, curr);
-                }
-
-                string nextHop = pathNodes.Count > 1 ? pathNodes[1] : target;
-                result.RoutingTable.Add(new RoutingTableEntry
-                {
-                    Destination = target,
-                    Cost = cost.ToString(),
-                    NextHop = nextHop,
-                    PathString = string.Join(" → ", pathNodes)
-                });
-            }
-        }
-
-        return result;
-    }
-
-    private bool IsEdgeInTree(DijkstraStep? step, string u, string v)
+    private bool IsEdgeInTree(IShortestPathStep? step, string u, string v)
     {
         if (step == null) return false;
-        // If v is predecessor of u, or u is predecessor of v AND both are settled (or u/v is in tree)
         if (step.Predecessors.TryGetValue(u, out var pU) && pU == v && step.SettledNodes.Contains(u)) return true;
         if (step.Predecessors.TryGetValue(v, out var pV) && pV == u && step.SettledNodes.Contains(v)) return true;
         return false;
@@ -922,41 +801,4 @@
     // =========================================================================
     public record GraphNode(string Id, int X, int Y);
     public record GraphEdge(string From, string To, double Weight);
-
-    public class DijkstraTraceResult
-    {
-        public List<DijkstraStep> Steps { get; set; } = new();
-        public List<RoutingTableEntry> RoutingTable { get; set; } = new();
-    }
-
-    public class DijkstraStep
-    {
-        public int StepNumber { get; set; }
-        public string Title { get; set; } = "";
-        public string Explanation { get; set; } = "";
-        public string SettledNodeId { get; set; } = "";
-        public HashSet<string> SettledNodes { get; set; } = new();
-        public Dictionary<string, double> Distances { get; set; } = new();
-        public Dictionary<string, string> Predecessors { get; set; } = new();
-        public List<EdgeRelaxationDetail> Relaxations { get; set; } = new();
-    }
-
-    public class EdgeRelaxationDetail
-    {
-        public string From { get; set; } = "";
-        public string To { get; set; } = "";
-        public double Weight { get; set; }
-        public string OldDist { get; set; } = "";
-        public string CalcDist { get; set; } = "";
-        public string NewDist { get; set; } = "";
-        public bool Updated { get; set; }
-    }
-
-    public class RoutingTableEntry
-    {
-        public string Destination { get; set; } = "";
-        public string Cost { get; set; } = "";
-        public string NextHop { get; set; } = "";
-        public string PathString { get; set; } = "";
-    }
 }
