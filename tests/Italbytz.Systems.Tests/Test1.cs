@@ -346,11 +346,11 @@ public sealed class ComputingSystemsTests
     public void Moore_machine_catalog_provides_valid_models()
     {
         var models = MooreMachineCatalog.GetAllModels().ToList();
-        Assert.AreEqual(3, models.Count);
+        Assert.HasCount(3, models);
 
         var model1 = MooreMachineCatalog.GetModel(1);
-        Assert.AreEqual(8, model1.Transitions.Count);
-        Assert.AreEqual(4, model1.Outputs.Count);
+        Assert.HasCount(8, model1.Transitions);
+        Assert.HasCount(4, model1.Outputs);
 
         var nextState = model1.GetNextState(0, 0, 1);
         Assert.AreEqual((0, 1), nextState);

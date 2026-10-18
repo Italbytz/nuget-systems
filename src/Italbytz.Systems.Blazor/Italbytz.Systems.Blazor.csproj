@@ -24,8 +24,8 @@
     <ProjectReference Include="..\Italbytz.Networking.Abstractions\Italbytz.Networking.Abstractions.csproj" />
     <ProjectReference Include="..\Italbytz.OperatingSystems\Italbytz.OperatingSystems.csproj" />
     <ProjectReference Include="..\Italbytz.OperatingSystems.Abstractions\Italbytz.OperatingSystems.Abstractions.csproj" />
-    <ProjectReference Include="..\..\..\nuget-graph\src\Italbytz.Graph\Italbytz.Graph.csproj" />
-    <ProjectReference Include="..\..\..\nuget-graph\src\Italbytz.Graph.Abstractions\Italbytz.Graph.Abstractions.csproj" />
+    <PackageReference Include="Italbytz.Graph" />
+    <PackageReference Include="Italbytz.Graph.Abstractions" />
   </ItemGroup>
 
 </Project>
