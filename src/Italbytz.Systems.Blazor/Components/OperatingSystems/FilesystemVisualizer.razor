@@ -9,9 +9,9 @@
             <p class="feature-kicker">Betriebssysteme &bull; Dateisysteme</p>
             <h2>Dateisysteme: UNIX Inodes &amp; File Allocation Table (FAT)</h2>
             <p class="feature-intro">
-                Erkunden Sie interaktiv die Blockhierarchie und Zeigerstrukturen klassischer Betriebssystem-Dateisysteme.
-                Berechnen Sie maximale Dateigrößen nach der UNIX-System-V-/Ext4-Inode-Formel, lokalisieren Sie Byte-Offsets Schritt für Schritt
-                über direkte und indirekte Adressierungsstufen und vergleichen Sie das Konzept mit der verketteten Allokation in FAT.
+                Interaktiver Simulator abgestimmt auf die Übungs- und Klausuraufgaben: Verfolgen Sie Schritt für Schritt,
+                wie Dateien auf der Festplatte lokalisiert werden, wie kleine vs. große Dateien organisiert sind
+                und warum FAT redundante Tabellenkopien vorhält.
             </p>
         </header>
 
@@ -19,13 +19,16 @@
         <nav class="view-switch no-print" aria-label="Ansichtsumschalter">
             <button class="view-btn @(ActiveTab == TabMode.Inode ? "active" : "")"
                     @onclick="() => SetTab(TabMode.Inode)">
-                🗂️ UNIX Inodes (ext4 / System V)
+                🗂️ 1. UNIX Inodes (ext4 / System V)
             </button>
             <button class="view-btn @(ActiveTab == TabMode.Fat ? "active" : "")"
                     @onclick="() => SetTab(TabMode.Fat)">
-                📋 FAT (File Allocation Table)
+                📋 2. FAT (File Allocation Table)
             </button>
-            
+            <button class="view-btn exam-tab-btn @(ActiveTab == TabMode.Worksheet ? "active" : "")"
+                    @onclick="() => SetTab(TabMode.Worksheet)">
+                🎯 3. Klausur- &amp; Übungsaufgaben (Klausurfokus)
+            </button>
         </nav>
     }
 
@@ -34,261 +37,275 @@
     <!-- ========================================================================= -->
     @if (ActiveTab == TabMode.Inode)
     {
-        <!-- Configuration Controls -->
-        <section class="config-panel no-print">
-            <div class="config-group">
-                <span class="config-label">Vordefiniertes Systemprofil:</span>
-                <div class="pill-group">
-                    <button class="pill-btn @(IsSysVPreset ? "active" : "")" @onclick="ApplySysVPreset">
-                        UNIX System V (1 KB / 4 B / 10 Dir)
-                    </button>
-                    <button class="pill-btn @(IsExt4Preset ? "active" : "")" @onclick="ApplyExt4Preset">
-                        Linux Ext4 (4 KB / 4 B / 12 Dir)
-                    </button>
-                    <button class="pill-btn @(IsEnterprisePreset ? "active" : "")" @onclick="ApplyEnterprisePreset">
-                        64-Bit Enterprise (8 KB / 8 B / 12 Dir)
-                    </button>
+        <!-- Focus Question 1: How to find data blocks -->
+        <section class="exam-focus-card">
+            <div class="exam-focus-header">
+                <span class="focus-badge badge-unix">Klausurfrage 1</span>
+                <h3>Wo auf der Festplatte liegen die Datenblöcke einer Datei?</h3>
+            </div>
+            <p class="focus-desc">
+                In unixoiden Systemen (UNIX System V, Linux ext2/3/4) erfolgt der Zugriff hierarchisch in 4 Schritten:
+            </p>
+
+            <!-- 4-Step Interactive Pipeline -->
+            <div class="pipeline-grid">
+                <div class="pipeline-step @(ActiveUnixStep == 1 ? "active-step" : "")" @onclick="() => SetUnixStep(1)">
+                    <div class="step-num">Schritt 1</div>
+                    <div class="step-title">Verzeichniseintrag</div>
+                    <div class="step-meta">Dateiname &rarr; Inode-Nr</div>
+                    <div class="step-badge-text">Terminal: <code>ls -i</code></div>
+                </div>
+                <div class="pipeline-step @(ActiveUnixStep == 2 ? "active-step" : "")" @onclick="() => SetUnixStep(2)">
+                    <div class="step-num">Schritt 2</div>
+                    <div class="step-title">Super-Block</div>
+                    <div class="step-meta">Start der Inode-Tabelle</div>
+                    <div class="step-badge-text">Metadaten der Partition</div>
+                </div>
+                <div class="pipeline-step @(ActiveUnixStep == 3 ? "active-step" : "")" @onclick="() => SetUnixStep(3)">
+                    <div class="step-num">Schritt 3</div>
+                    <div class="step-title">Inode im Inode-Bereich</div>
+                    <div class="step-meta">Metadaten &amp; Blockzeiger</div>
+                    <div class="step-badge-text">10–12 Direkt + Indirekt</div>
+                </div>
+                <div class="pipeline-step @(ActiveUnixStep == 4 ? "active-step" : "")" @onclick="() => SetUnixStep(4)">
+                    <div class="step-num">Schritt 4</div>
+                    <div class="step-title">Physische Datenblöcke</div>
+                    <div class="step-meta">Nutzdaten auf der Disk</div>
+                    <div class="step-badge-text">Direkt oder via Indexblock</div>
                 </div>
             </div>
 
-            <div class="config-grid">
-                <div class="param-box">
-                    <label for="block-size-select">Blockgröße ($B$):</label>
-                    <select id="block-size-select" class="form-select" @bind="BlockSize" @bind:after="Recalculate">
-                        <option value="512">512 Byte</option>
-                        <option value="1024">1 KB (1.024 Byte)</option>
-                        <option value="2048">2 KB (2.048 Byte)</option>
-                        <option value="4096">4 KB (4.096 Byte)</option>
-                        <option value="8192">8 KB (8.192 Byte)</option>
-                    </select>
-                </div>
-
-                <div class="param-box">
-                    <label for="pointer-size-select">Zeigergröße ($P$):</label>
-                    <select id="pointer-size-select" class="form-select" @bind="PointerSize" @bind:after="Recalculate">
-                        <option value="4">4 Byte (32-Bit Adressierung)</option>
-                        <option value="8">8 Byte (64-Bit Adressierung)</option>
-                    </select>
-                </div>
-
-                <div class="param-box">
-                    <label for="direct-ptr-select">Direkte Zeiger ($D$):</label>
-                    <select id="direct-ptr-select" class="form-select" @bind="DirectPointersCount" @bind:after="Recalculate">
-                        <option value="10">10 direkte Zeiger (System V)</option>
-                        <option value="12">12 direkte Zeiger (Linux ext2/3/4)</option>
-                    </select>
-                </div>
-
-                <div class="param-box highlight-box">
-                    <span class="param-title">Zeiger pro Indexblock ($N$):</span>
-                    <span class="param-value mono">$N = \frac{B}{P} = \frac{@FormatBytes(BlockSize)}{@PointerSize\text{ B}} = \mathbf{@PointersPerBlock}$</span>
-                </div>
-            </div>
-        </section>
-
-        <!-- Capacity Stage Cards -->
-        <section class="stages-grid" aria-label="Kapazitätsberechnung je Zeigerstufe">
-            <!-- Direct Blocks -->
-            <div class="stage-card @(ActiveLevel == InodeLevel.Direct ? "highlight-stage direct-highlight" : "")">
-                <div class="stage-header">
-                    <span class="stage-badge direct-badge">Stufe 1</span>
-                    <h4>Direkte Adressierung</h4>
-                </div>
-                <div class="stage-body">
-                    <p class="stage-formula mono">@DirectPointersCount \times B = @DirectPointersCount \times @FormatBytes(BlockSize)</p>
-                    <p class="stage-capacity mono"><strong>@FormatBytes(DirectBytes)</strong></p>
-                    <p class="stage-range">Blöcke: <code>0 ... @(DirectPointersCount - 1)</code></p>
-                    <div class="stage-io">
-                        <span class="io-badge">1 I/O-Zugriff</span>
-                        <span class="io-desc">Direkt im Inode eingetragen</span>
+            <!-- Step Detail Box -->
+            <div class="step-detail-box">
+                @if (ActiveUnixStep == 1)
+                {
+                    <div class="step-detail-content">
+                        <strong>1. Verzeichniseintrag:</strong>
+                        Verzeichnisse sind spezielle Dateien, die Dateinamen auf Inode-Nummern abbilden.
+                        Beispiel: Ein Eintrag verknüpft <code>"bericht.pdf"</code> mit Inode <strong>#1428</strong>.
                     </div>
-                </div>
-            </div>
-
-            <!-- Single Indirect -->
-            <div class="stage-card @(ActiveLevel == InodeLevel.SingleIndirect ? "highlight-stage single-highlight" : "")">
-                <div class="stage-header">
-                    <span class="stage-badge single-badge">Stufe 2</span>
-                    <h4>Einfach indirekt</h4>
-                </div>
-                <div class="stage-body">
-                    <p class="stage-formula mono">1 \times N \times B = @PointersPerBlock \times @FormatBytes(BlockSize)</p>
-                    <p class="stage-capacity mono"><strong>@FormatBytes(SingleIndirectBytes)</strong></p>
-                    <p class="stage-range">Blöcke: <code>@DirectPointersCount ... @(DirectPointersCount + PointersPerBlock - 1)</code></p>
-                    <div class="stage-io">
-                        <span class="io-badge">2 I/O-Zugriffe</span>
-                        <span class="io-desc">1 Zeigerblock + 1 Datenblock</span>
+                }
+                else if (ActiveUnixStep == 2)
+                {
+                    <div class="step-detail-content">
+                        <strong>2. Super-Block:</strong>
+                        Der Super-Block liegt am Anfang der Partition und speichert u.&nbsp;a. die Blockgröße, die Gesamtzahl der Inodes
+                        und die Information, ab welchem Blocksektor die Inode-Tabelle auf der Festplatte gespeichert ist.
                     </div>
-                </div>
-            </div>
-
-            <!-- Double Indirect -->
-            <div class="stage-card @(ActiveLevel == InodeLevel.DoubleIndirect ? "highlight-stage double-highlight" : "")">
-                <div class="stage-header">
-                    <span class="stage-badge double-badge">Stufe 3</span>
-                    <h4>Zweifach indirekt</h4>
-                </div>
-                <div class="stage-body">
-                    <p class="stage-formula mono">1 \times N^2 \times B = @PointersPerBlock^2 \times @FormatBytes(BlockSize)</p>
-                    <p class="stage-capacity mono"><strong>@FormatBytes(DoubleIndirectBytes)</strong></p>
-                    <p class="stage-range">Blöcke: <code>@(DirectPointersCount + PointersPerBlock) ... @FormatNumber(DoubleIndirectEndBlock)</code></p>
-                    <div class="stage-io">
-                        <span class="io-badge">3 I/O-Zugriffe</span>
-                        <span class="io-desc">2 Zeigerblöcke + 1 Datenblock</span>
+                }
+                else if (ActiveUnixStep == 3)
+                {
+                    <div class="step-detail-content">
+                        <strong>3. Inode-Bereich:</strong>
+                        Das Betriebssystem liest Inode <strong>#1428</strong> aus der Inode-Tabelle. Die Inode enthält Dateigröße, Zugriffsrechte
+                        und die Liste von Zeigern auf die Datenblöcke (Cluster) der Datei.
                     </div>
-                </div>
+                }
+                else
+                {
+                    <div class="step-detail-content">
+                        <strong>4. Datenblöcke:</strong>
+                        Über die in der Inode eingetragenen Blocknummern greift der Festplattentreiber direkt auf die Sektoren der Datei im Datenbereich zu.
+                    </div>
+                }
             </div>
 
-            <!-- Triple Indirect -->
-            <div class="stage-card @(ActiveLevel == InodeLevel.TripleIndirect ? "highlight-stage triple-highlight" : "")">
-                <div class="stage-header">
-                    <span class="stage-badge triple-badge">Stufe 4</span>
-                    <h4>Dreifach indirekt</h4>
-                </div>
-                <div class="stage-body">
-                    <p class="stage-formula mono">1 \times N^3 \times B = @PointersPerBlock^3 \times @FormatBytes(BlockSize)</p>
-                    <p class="stage-capacity mono"><strong>@FormatBytes(TripleIndirectBytes)</strong></p>
-                    <p class="stage-range">Blöcke: <code>@FormatNumber(DoubleIndirectEndBlock + 1) ... @FormatNumber(TripleIndirectEndBlock)</code></p>
-                    <div class="stage-io">
-                        <span class="io-badge">4 I/O-Zugriffe</span>
-                        <span class="io-desc">3 Zeigerblöcke + 1 Datenblock</span>
+            <!-- Partition Disk Strip -->
+            <div class="disk-strip-container">
+                <div class="disk-strip-title">Aufbau der Partition auf dem Datenträger (UNIX System V):</div>
+                <div class="disk-strip">
+                    <div class="disk-segment seg-boot @(ActiveUnixStep == 0 ? "highlight-seg" : "")">
+                        <span class="seg-name">Boot-Block</span>
+                        <span class="seg-sub">Block 0</span>
+                    </div>
+                    <div class="disk-segment seg-super @(ActiveUnixStep == 2 ? "highlight-seg" : "")">
+                        <span class="seg-name">Super-Block</span>
+                        <span class="seg-sub">Block 1</span>
+                    </div>
+                    <div class="disk-segment seg-inode @(ActiveUnixStep == 1 || ActiveUnixStep == 3 ? "highlight-seg" : "")">
+                        <span class="seg-name">Inode-Tabelle</span>
+                        <span class="seg-sub">Inodes 1 .. N</span>
+                    </div>
+                    <div class="disk-segment seg-data @(ActiveUnixStep == 4 ? "highlight-seg" : "")">
+                        <span class="seg-name">Datenbereich (Datenblöcke)</span>
+                        <span class="seg-sub">Dateiinhalte &amp; Indexblöcke</span>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- Summary Total Banner -->
-        <div class="total-summary-card">
-            <div class="total-info">
-                <span class="total-label">Theoretische maximale Dateigröße ($S_{\text{max}}$):</span>
-                <span class="total-value mono">@FormatBytes(MaxFileSizeBytes)</span>
+        <!-- Focus Question 2: Large files vs. Small files -->
+        <section class="exam-focus-card">
+            <div class="exam-focus-header">
+                <span class="focus-badge badge-unix">Klausurfrage 2</span>
+                <h3>Gibt es Besonderheiten bei großen Dateien?</h3>
             </div>
-            <div class="total-formula mono">
-                $S_{\text{max}} = @FormatBytes(DirectBytes) \text{ (Dir)} + @FormatBytes(SingleIndirectBytes) \text{ (1-fach)} + @FormatBytes(DoubleIndirectBytes) \text{ (2-fach)} + @FormatBytes(TripleIndirectBytes) \text{ (3-fach)}$
-            </div>
-        </div>
+            <p class="focus-desc">
+                <strong>Ja!</strong> Bei großen Dateien reichen die ersten 10 bzw. 12 direkten Zeiger der Inode nicht aus.
+                Das Betriebssystem verwendet dann eine hierarchische <strong>Baumstruktur aus Indexblöcken</strong>:
+            </p>
 
-        <!-- Interactive Byte-Offset / Block Resolver -->
-        <section class="resolver-card">
-            <div class="resolver-header">
-                <h3>🔍 Interaktiver Byte-Offset- &amp; Block-Resolver (Klausur-Rechentrainer)</h3>
-                <p>
-                    Geben Sie eine beliebige Dateigröße oder ein Byte-Offset ein, um den genauen Speicherblock und den Weg
-                    über die Zeigerhierarchie Schritt für Schritt nachzuvollziehen.
-                </p>
+            <!-- File Size Scenario Switcher -->
+            <div class="scenario-buttons">
+                <button class="scenario-btn @(SelectedFileSizePreset == "small" ? "active" : "")"
+                        @onclick='() => SelectFileSizePreset("small")'>
+                    🟢 Kleine Datei (&le; 12 Blöcke / 48 KB)
+                </button>
+                <button class="scenario-btn @(SelectedFileSizePreset == "medium" ? "active" : "")"
+                        @onclick='() => SelectFileSizePreset("medium")'>
+                    🔵 Mittelgroße Datei (Einfach indirekt / bis 4 MB)
+                </button>
+                <button class="scenario-btn @(SelectedFileSizePreset == "large" ? "active" : "")"
+                        @onclick='() => SelectFileSizePreset("large")'>
+                    🟣 Große Datei (Zweifach indirekt / bis 4 GB)
+                </button>
+                <button class="scenario-btn @(SelectedFileSizePreset == "huge" ? "active" : "")"
+                        @onclick='() => SelectFileSizePreset("huge")'>
+                    🟠 Sehr große Datei (Dreifach indirekt / bis 4 TB)
+                </button>
             </div>
 
-            <div class="resolver-controls">
-                <div class="input-with-presets">
-                    <div class="input-field">
-                        <label for="offset-input">Gesuchtes Byte-Offset (in Bytes):</label>
-                        <div class="input-row">
-                            <input id="offset-input" type="number" min="0" class="form-control"
-                                   @bind="QueryOffset" @bind:after="ResolveOffset" />
-                            <span class="unit-tag">Bytes (@FormatBytes(QueryOffset))</span>
+            <!-- Scenario Explanation & Graphic -->
+            <div class="scenario-display">
+                @if (SelectedFileSizePreset == "small")
+                {
+                    <div class="scenario-banner direct-banner">
+                        <div class="scenario-badge">Stufe 1: Direkte Zeiger</div>
+                        <h4>Nur direkte Adressierung (1 I/O-Zugriff)</h4>
+                        <p>
+                            Dateien mit maximal @DirectPointersCount Blöcken (&le; @FormatBytes(DirectBytes)) belegen ausschließlich die
+                            <strong>direkten Zeiger</strong> in der Inode. Der Datenblock wird sofort mit <strong>1 Plattenzugriff</strong> gelesen.
+                        </p>
+                    </div>
+                }
+                else if (SelectedFileSizePreset == "medium")
+                {
+                    <div class="scenario-banner single-banner">
+                        <div class="scenario-badge">Stufe 2: Einfach indirekt</div>
+                        <h4>Auslagerung in einen Zeigerblock (2 I/O-Zugriffe)</h4>
+                        <p>
+                            Reichen die direkten Zeiger nicht aus, verweist der <strong>einfach indirekte Zeiger</strong> auf einen zusätzlichen Block,
+                            der selbst ausschließlich Adressen weiterer Datenblöcke enthält. Zugriff: <strong>2 I/Os</strong> (1&times; Zeigerblock + 1&times; Datenblock).
+                        </p>
+                    </div>
+                }
+                else if (SelectedFileSizePreset == "large")
+                {
+                    <div class="scenario-banner double-banner">
+                        <div class="scenario-badge">Stufe 3: Zweifach indirekt</div>
+                        <h4>Zweistufiger Zeigerbaum (3 I/O-Zugriffe)</h4>
+                        <p>
+                            Der <strong>zweifach indirekte Zeiger</strong> verweist auf einen Block von Zeigerblöcken.
+                            Zugriff benötigt <strong>3 I/Os</strong> (2&times; Zeigerblock + 1&times; Datenblock).
+                        </p>
+                    </div>
+                }
+                else
+                {
+                    <div class="scenario-banner triple-banner">
+                        <div class="scenario-badge">Stufe 4: Dreifach indirekt</div>
+                        <h4>Dreistufiger Zeigerbaum (4 I/O-Zugriffe)</h4>
+                        <p>
+                            Drei Indirektionsebenen für gigantische Dateien im Terabyte-Bereich.
+                            Zugriff benötigt <strong>4 I/Os</strong> (3&times; Zeigerblock + 1&times; Datenblock).
+                        </p>
+                    </div>
+                }
+
+                <!-- Inode Visual Tree Representation -->
+                <div class="inode-visual-box">
+                    <div class="inode-card-header">
+                        <span class="inode-tag">UNIX Inode #1428</span>
+                        <span class="inode-sub">Dateigröße: <strong>@FormatBytes(QueryOffset)</strong></span>
+                    </div>
+                    <div class="ptr-list">
+                        <div class="ptr-item @(ActiveLevel == InodeLevel.Direct ? "ptr-active direct-active" : "")">
+                            <span class="ptr-label">Direkte Zeiger [0..@(DirectPointersCount - 1)]</span>
+                            <span class="ptr-conn">&rarr;</span>
+                            <span class="ptr-dest">Direkt auf Datenblöcke 0 .. @(DirectPointersCount - 1) (1 I/O)</span>
+                        </div>
+                        <div class="ptr-item @(ActiveLevel == InodeLevel.SingleIndirect ? "ptr-active single-active" : "")">
+                            <span class="ptr-label">Einfach indirekt [1 Zeiger]</span>
+                            <span class="ptr-conn">&rarr;</span>
+                            <span class="ptr-dest">1 Indexblock mit @PointersPerBlock Datenblock-Zeigern (2 I/Os)</span>
+                        </div>
+                        <div class="ptr-item @(ActiveLevel == InodeLevel.DoubleIndirect ? "ptr-active double-active" : "")">
+                            <span class="ptr-label">Zweifach indirekt [1 Zeiger]</span>
+                            <span class="ptr-conn">&rarr;</span>
+                            <span class="ptr-dest">1 Indexblock &rarr; @PointersPerBlock Indexblöcke &rarr; Datenblöcke (3 I/Os)</span>
+                        </div>
+                        <div class="ptr-item @(ActiveLevel == InodeLevel.TripleIndirect ? "ptr-active triple-active" : "")">
+                            <span class="ptr-label">Dreifach indirekt [1 Zeiger]</span>
+                            <span class="ptr-conn">&rarr;</span>
+                            <span class="ptr-dest">3 Stufen Indirektion für Terabyte-Dateien (4 I/Os)</span>
                         </div>
                     </div>
-                    <div class="quick-presets">
-                        <span class="preset-label">Schnellwahl:</span>
-                        <button class="preset-btn" @onclick="() => SetQueryOffset(35000)">35 KB</button>
-                        <button class="preset-btn" @onclick="() => SetQueryOffset(2500000)">2,5 MB</button>
-                        <button class="preset-btn" @onclick="() => SetQueryOffset(50000000)">50 MB</button>
-                        <button class="preset-btn" @onclick="() => SetQueryOffset(1500000000)">1,5 GB</button>
-                        <button class="preset-btn" @onclick="() => SetQueryOffset(100000000000)">100 GB</button>
-                    </div>
                 </div>
             </div>
+        </section>
 
-            <!-- Resolution Steps Panel -->
-            @if (Resolution != null)
+        <!-- Optional Deep Dive Collapsible Section -->
+        <section class="collapsible-section">
+            <div class="collapsible-header" @onclick="ToggleAdvancedCalculator">
+                <span class="collapsible-icon">@(ShowAdvancedCalculator ? "▼" : "▶")</span>
+                <h4>📐 Vertiefung (optional): Kapazitätsformel &amp; Byte-Offset-Rechner</h4>
+                <span class="collapsible-hint">Kein Klausurstoff, für Hintergrundwissen</span>
+            </div>
+
+            @if (ShowAdvancedCalculator)
             {
-                <div class="resolution-result @Resolution.CssClass">
-                    <div class="resolution-banner">
-                        <span class="res-icon">@Resolution.Icon</span>
-                        <div class="res-summary">
-                            <h4>Offset @FormatNumber(QueryOffset) Byte liegt in: <strong>@Resolution.LevelName</strong></h4>
-                            <p>Logische Blocknummer: <code>Block #@FormatNumber(Resolution.BlockNumber)</code> &bull; Offset im Block: <code>@Resolution.OffsetInBlock Byte</code></p>
+                <div class="collapsible-body">
+                    <div class="exam-note-box">
+                        <strong>💡 Hinweis für die Klausur:</strong> In der Klausur wird kein Ausrechnen von 3-fach indirekten
+                        Modulo-Offsets verlangt. Das Verständnis der vier Zeigerstufen und der Adressierungslogik (Fragen 1 &amp; 2) reicht vollständig aus!
+                    </div>
+
+                    <div class="advanced-grid">
+                        <div class="adv-col">
+                            <label>Blockgröße ($B$):</label>
+                            <select class="form-select" @bind="BlockSize" @bind:after="Recalculate">
+                                <option value="1024">1 KB (1.024 B)</option>
+                                <option value="2048">2 KB (2.048 B)</option>
+                                <option value="4096">4 KB (4.096 B)</option>
+                                <option value="8192">8 KB (8.192 B)</option>
+                            </select>
                         </div>
-                        <div class="res-io-tag">
-                            <span>@Resolution.IOCount I/O-Zugriff(e)</span>
+                        <div class="adv-col">
+                            <label>Zeigergröße ($P$):</label>
+                            <select class="form-select" @bind="PointerSize" @bind:after="Recalculate">
+                                <option value="4">4 Byte (32-Bit)</option>
+                                <option value="8">8 Byte (64-Bit)</option>
+                            </select>
+                        </div>
+                        <div class="adv-col">
+                            <label>Direkte Zeiger ($D$):</label>
+                            <select class="form-select" @bind="DirectPointersCount" @bind:after="Recalculate">
+                                <option value="10">10 (System V)</option>
+                                <option value="12">12 (Linux ext)</option>
+                            </select>
                         </div>
                     </div>
 
-                    <div class="resolution-steps">
-                        <h5>Rechenschritte im Detail (Klausurrechenweg):</h5>
-                        <ol class="steps-list">
-                            <li>
-                                <strong>Logischer Blockindex:</strong>
-                                <span class="mono">\text{Blocknummer} = \lfloor \frac{\text{Offset}}{B} \rfloor = \lfloor \frac{@FormatNumber(QueryOffset)}{@BlockSize} \rfloor = \mathbf{@FormatNumber(Resolution.BlockNumber)}</span>
-                            </li>
-                            <li>
-                                <strong>Offset im Zielblock:</strong>
-                                <span class="mono">\text{Offset im Block} = \text{Offset} \pmod B = @FormatNumber(QueryOffset) \pmod{@BlockSize} = \mathbf{@Resolution.OffsetInBlock\text{ Byte}}</span>
-                            </li>
-                            <li>
-                                <strong>Adressierungsstufe &amp; Relativer Index:</strong>
-                                <div class="step-explanation">@Resolution.StepExplanation</div>
-                            </li>
-                            <li>
-                                <strong>Pfad über Zeigerblöcke:</strong>
-                                <div class="pointer-path mono">@Resolution.PointerPath</div>
-                            </li>
-                            <li>
-                                <strong>Benötigte Festplattenoperationen:</strong>
-                                <div class="step-io-details">
-                                    <em>@Resolution.IODescription</em>
-                                </div>
-                            </li>
-                        </ol>
+                    <div class="formula-banner">
+                        <div class="formula-line mono">
+                            $S_{\text{max}} = D \cdot B + N \cdot B + N^2 \cdot B + N^3 \cdot B = \mathbf{@FormatBytes(MaxFileSizeBytes)}$
+                        </div>
+                        <div class="formula-sub mono">
+                            (mit $N = \frac{B}{P} = \frac{@FormatBytes(BlockSize)}{@PointerSize\text{ B}} = @PointersPerBlock$ Zeiger pro Indexblock)
+                        </div>
+                    </div>
+
+                    <div class="offset-search-box">
+                        <label for="adv-offset">Byte-Offset testen:</label>
+                        <div class="offset-input-row">
+                            <input id="adv-offset" type="number" min="0" class="form-control"
+                                   @bind="QueryOffset" @bind:after="ResolveOffset" />
+                            <span class="unit-tag">@FormatBytes(QueryOffset)</span>
+                            <span class="res-tag @Resolution?.CssClass">Stufe: @Resolution?.LevelName (@Resolution?.IOCount I/Os)</span>
+                        </div>
                     </div>
                 </div>
             }
-        </section>
-
-        <!-- Visual Inode Tree Architecture Diagram -->
-        <section class="diagram-section">
-            <div class="diagram-header">
-                <h3>🏛️ Grafische Inode-Zeigerarchitektur</h3>
-                <p>Die Inode enthält direkte Datenzeiger und hierarchisch verzweigte Indexblöcke:</p>
-            </div>
-
-            <div class="tree-canvas">
-                <!-- Inode Box -->
-                <div class="inode-box">
-                    <div class="inode-header">
-                        <span class="inode-title">UNIX Inode (z. B. #1428)</span>
-                        <span class="inode-badge">128 / 256 Bytes</span>
-                    </div>
-                    <div class="inode-fields">
-                        <div class="meta-field"><span>Typ &amp; Rechte:</span><code>-rw-r--r--</code></div>
-                        <div class="meta-field"><span>Dateigröße:</span><code>@FormatBytes(QueryOffset)</code></div>
-                        <div class="meta-field"><span>UID / GID:</span><code>1000 / 1000</code></div>
-                        <div class="meta-field"><span>Link-Zähler:</span><code>1</code></div>
-                    </div>
-                    <div class="inode-pointers">
-                        <div class="ptr-row direct-row @(ActiveLevel == InodeLevel.Direct ? "active-ptr" : "")">
-                            <span class="ptr-name">Direkte Zeiger [0..@(DirectPointersCount - 1)]</span>
-                            <span class="ptr-arrow">&rarr;</span>
-                            <span class="ptr-target">Datenblöcke #0 .. #@(DirectPointersCount - 1)</span>
-                        </div>
-                        <div class="ptr-row single-row @(ActiveLevel == InodeLevel.SingleIndirect ? "active-ptr" : "")">
-                            <span class="ptr-name">Einfach Indirekt [1 Zeiger]</span>
-                            <span class="ptr-arrow">&rarr;</span>
-                            <span class="ptr-target">Zeigerblock &rarr; @PointersPerBlock Datenblöcke</span>
-                        </div>
-                        <div class="ptr-row double-row @(ActiveLevel == InodeLevel.DoubleIndirect ? "active-ptr" : "")">
-                            <span class="ptr-name">Zweifach Indirekt [1 Zeiger]</span>
-                            <span class="ptr-arrow">&rarr;</span>
-                            <span class="ptr-target">Zeigerblock &rarr; @PointersPerBlock Zeigerblöcke &rarr; @FormatNumber(PointersPerBlock * PointersPerBlock) Datenblöcke</span>
-                        </div>
-                        <div class="ptr-row triple-row @(ActiveLevel == InodeLevel.TripleIndirect ? "active-ptr" : "")">
-                            <span class="ptr-name">Dreifach Indirekt [1 Zeiger]</span>
-                            <span class="ptr-arrow">&rarr;</span>
-                            <span class="ptr-target">Zeigerblock &rarr; 3 Stufen Indirektion</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </section>
     }
 
@@ -297,238 +314,392 @@
     <!-- ========================================================================= -->
     @if (ActiveTab == TabMode.Fat)
     {
-        <section class="fat-section">
-            <div class="fat-intro-card">
-                <h3>📋 File Allocation Table (FAT12 / FAT16 / FAT32)</h3>
-                <p>
-                    Im Gegensatz zum Inode-Konzept mit Baum-Indirektion nutzt FAT eine <strong>eindimensionale Verkettungsliste</strong>
-                    im Dateisystemkopf. Jeder Eintrag in der FAT entspricht genau einem Cluster (Datenblock) auf der Festplatte
-                    und speichert die Nummer des Nachfolge-Clusters oder das Dateiende-Zeichen (<code>EOF</code>).
-                </p>
+        <!-- Focus Question 1: How to find data blocks in FAT -->
+        <section class="exam-focus-card">
+            <div class="exam-focus-header">
+                <span class="focus-badge badge-fat">Klausurfrage 1</span>
+                <h3>Wo auf der Festplatte liegen die Datenblöcke einer Datei (in FAT)?</h3>
+            </div>
+            <p class="focus-desc">
+                Im Gegensatz zu UNIX Inodes nutzt FAT eine <strong>zentrale verkettete Liste</strong>:
+            </p>
+
+            <!-- 3-Step Interactive Pipeline for FAT -->
+            <div class="pipeline-grid fat-pipeline">
+                <div class="pipeline-step @(ActiveFatStep == 1 ? "active-step" : "")" @onclick="() => SetFatStep(1)">
+                    <div class="step-num">Schritt 1</div>
+                    <div class="step-title">Verzeichniseintrag</div>
+                    <div class="step-meta">Dateiname &amp; Start-Cluster</div>
+                    <div class="step-badge-text">z. B. Start = #@FatChain.FirstOrDefault()</div>
+                </div>
+                <div class="pipeline-step @(ActiveFatStep == 2 ? "active-step" : "")" @onclick="() => SetFatStep(2)">
+                    <div class="step-num">Schritt 2</div>
+                    <div class="step-title">File Allocation Table</div>
+                    <div class="step-meta">Verkettete Liste ablaufen</div>
+                    <div class="step-badge-text">Clusterkette bis EOF</div>
+                </div>
+                <div class="pipeline-step @(ActiveFatStep == 3 ? "active-step" : "")" @onclick="() => SetFatStep(3)">
+                    <div class="step-num">Schritt 3</div>
+                    <div class="step-title">Datencluster</div>
+                    <div class="step-meta">Nutzdaten auf der Disk</div>
+                    <div class="step-badge-text">Cluster 1:1 im Datenbereich</div>
+                </div>
             </div>
 
-            <!-- FAT Control & Preset -->
-            <div class="fat-controls no-print">
-                <div class="fat-param-group">
-                    <span class="fat-label">Clustergröße:</span>
-                    <button class="pill-btn @(FatClusterSize == 2048 ? "active" : "")" @onclick="() => SetFatClusterSize(2048)">2 KB</button>
-                    <button class="pill-btn @(FatClusterSize == 4096 ? "active" : "")" @onclick="() => SetFatClusterSize(4096)">4 KB</button>
+            <!-- Step Detail Box -->
+            <div class="step-detail-box">
+                @if (ActiveFatStep == 1)
+                {
+                    <div class="step-detail-content">
+                        <strong>1. Verzeichniseintrag:</strong>
+                        Im Verzeichnis (Stammverzeichnis oder Unterordner) steht der Dateiname zusammen mit dem <strong>Start-Cluster</strong> (z. B. <code>#4</code>).
+                        Der Verzeichniseintrag kennt <em>nur diesen einen</em> Cluster!
+                    </div>
+                }
+                else if (ActiveFatStep == 2)
+                {
+                    <div class="step-detail-content">
+                        <strong>2. File Allocation Table:</strong>
+                        Ausgehend von Cluster <code>#4</code> schlägt das Betriebssystem in der FAT nach:
+                        Index <code>#4</code> enthält <code>#7</code> &rarr; Index <code>#7</code> enthält <code>#9</code> &rarr;
+                        Index <code>#9</code> enthält <code>#12</code> &rarr; Index <code>#12</code> enthält <code>EOF</code> (Dateiende).
+                    </div>
+                }
+                else
+                {
+                    <div class="step-detail-content">
+                        <strong>3. Datencluster im Datenbereich:</strong>
+                        Die Kette aus der FAT (Cluster 4, 7, 9, 12) wird nun sequentiell im Datenbereich ausgelesen.
+                    </div>
+                }
+            </div>
+
+            <!-- FAT Partition Disk Strip -->
+            <div class="disk-strip-container">
+                <div class="disk-strip-title">Gesamtaufbau der FAT-Partition auf dem Datenträger:</div>
+                <div class="disk-strip">
+                    <div class="disk-segment seg-boot @(ActiveFatStep == 0 ? "highlight-seg" : "")">
+                        <span class="seg-name">Bootsektor</span>
+                        <span class="seg-sub">Reservierte Sektoren</span>
+                    </div>
+                    <div class="disk-segment seg-fat @(ActiveFatStep == 2 && !IsFat1Corrupted ? "highlight-seg" : "")">
+                        <span class="seg-name">FAT 1</span>
+                        <span class="seg-sub">Primäre Tabelle</span>
+                    </div>
+                    <div class="disk-segment seg-fat2 @(ActiveFatStep == 2 && IsFat1Corrupted ? "highlight-seg" : "")">
+                        <span class="seg-name">FAT 2</span>
+                        <span class="seg-sub">Redundante Kopie</span>
+                    </div>
+                    <div class="disk-segment seg-root @(ActiveFatStep == 1 ? "highlight-seg" : "")">
+                        <span class="seg-name">Stammverzeichnis</span>
+                        <span class="seg-sub">Directory Entries</span>
+                    </div>
+                    <div class="disk-segment seg-data @(ActiveFatStep == 3 ? "highlight-seg" : "")">
+                        <span class="seg-name">Datenbereich (Cluster)</span>
+                        <span class="seg-sub">Cluster 2 .. N</span>
+                    </div>
                 </div>
-                <div class="fat-file-info">
-                    <span class="file-tag">Beispieldatei: <strong>vorlesung.pdf</strong></span>
-                    <span class="file-size-tag">Größe: <strong>@FormatBytes(FatChain.Count * FatClusterSize)</strong> (@FatChain.Count Cluster)</span>
-                    <span class="file-start-tag">Start-Cluster im Verzeichnis: <strong>#@FatChain.FirstOrDefault()</strong></span>
+            </div>
+        </section>
+
+        <!-- Focus Question 2: Large files in FAT -->
+        <section class="exam-focus-card">
+            <div class="exam-focus-header">
+                <span class="focus-badge badge-fat">Klausurfrage 2</span>
+                <h3>Gibt es Besonderheiten bei großen Dateien?</h3>
+            </div>
+            <div class="exam-answer-callout">
+                <div class="callout-icon">💡</div>
+                <div class="callout-body">
+                    <h4>Musterantwort aus der Klausur:</h4>
+                    <p class="callout-text">
+                        <strong>Nein!</strong> Bei FAT werden große und kleine Dateien gleich behandelt.
+                        Die Kette der Cluster in der File Allocation Table wird einfach fortgesetzt, bis die Datei endet (<code>EOF</code>).
+                    </p>
+                    <span class="callout-sub">Im Gegensatz zu UNIX Inodes existieren keine Indirektionsstufen.</span>
                 </div>
             </div>
 
-            <!-- Directory Entry Box -->
-            <div class="directory-entry-card">
-                <h4>Verzeichniseintrag (Directory Entry):</h4>
-                <div class="dir-table-wrap">
-                    <table class="dir-table">
-                        <thead>
-                            <tr>
-                                <th>Dateiname</th>
-                                <th>Erweiterung</th>
-                                <th>Attribute</th>
-                                <th>Start-Cluster</th>
-                                <th>Dateigröße</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td class="bold">vorlesung</td>
-                                <td>pdf</td>
-                                <td>Archiv (0x20)</td>
-                                <td class="bold text-green mono">#@FatChain.FirstOrDefault()</td>
-                                <td class="mono">@FormatNumber(FatChain.Count * FatClusterSize) Bytes</td>
-                            </tr>
-                        </tbody>
-                    </table>
+            <!-- Interactive FAT Chain Visualization -->
+            <div class="chain-box">
+                <div class="chain-box-header">
+                    <span class="chain-title">Cluster-Kette für Beispieldatei <code>vorlesung.pdf</code> (@FormatBytes(FatChain.Count * FatClusterSize)):</span>
+                    <div class="chain-size-toggle">
+                        <button class="pill-btn @(FatChain.Count <= 3 ? "active" : "")" @onclick="SetShortFatChain">Kleine Datei (2 Cluster)</button>
+                        <button class="pill-btn @(FatChain.Count > 3 ? "active" : "")" @onclick="SetLongFatChain">Größere Datei (5 Cluster)</button>
+                    </div>
                 </div>
-                <p class="dir-note">
-                    💡 <em>Der Verzeichniseintrag kennt nur den allerersten Datencluster. Alle weiteren Cluster müssen
-                    durch lineares Durchwandern der FAT-Tabelle ermittelt werden.</em>
-                </p>
-            </div>
-
-            <!-- Visual Cluster Chain -->
-            <div class="chain-display">
-                <h4>Aktive Cluster-Kette (Verkettung in der FAT):</h4>
-                <div class="chain-items">
+                <div class="chain-flow">
+                    <div class="chain-node start-node">
+                        <span class="node-tag">Verzeichnis</span>
+                        <span class="node-val">Start = #@FatChain.FirstOrDefault()</span>
+                    </div>
+                    <span class="flow-arrow">&rarr;</span>
                     @for (int i = 0; i < FatChain.Count; i++)
                     {
                         var cluster = FatChain[i];
                         var isLast = i == FatChain.Count - 1;
-                        <div class="cluster-node @(SelectedCluster == cluster ? "selected-node" : "")"
+                        <div class="chain-node cluster-node @(SelectedCluster == cluster ? "selected" : "")"
                              @onclick="() => SelectFatCluster(cluster)">
-                            <span class="node-num">Cluster #@cluster</span>
-                            <span class="node-bytes">Bytes @FormatNumber(i * FatClusterSize) &ndash; @FormatNumber((i + 1) * FatClusterSize - 1)</span>
-                            <span class="node-next mono">@(isLast ? "EOF (0xFFF8)" : $"&rarr; #{FatChain[i + 1]}")</span>
+                            <span class="node-tag">Cluster #@cluster</span>
+                            <span class="node-val mono">@(isLast ? "EOF (0xFFFF)" : $"&rarr; #{FatChain[i + 1]}")</span>
                         </div>
                         @if (!isLast)
                         {
-                            <span class="chain-arrow">&rarr;</span>
+                            <span class="flow-arrow">&rarr;</span>
                         }
                     }
                 </div>
             </div>
+        </section>
 
-            <!-- Interactive FAT Array Table -->
-            <div class="fat-table-card">
-                <div class="fat-table-header">
-                    <h4>Ausschnitt der File Allocation Table (Array):</h4>
-                    <span class="fat-legend">
-                        <span class="legend-box cluster-in-use"></span> Datei-Cluster
-                        <span class="legend-box cluster-free"></span> Freier Cluster
-                        <span class="legend-box cluster-reserved"></span> Reserviert
-                    </span>
+        <!-- Focus Question 3: Why multiple FATs -->
+        <section class="exam-focus-card">
+            <div class="exam-focus-header">
+                <span class="focus-badge badge-fat">Klausurfrage 3</span>
+                <h3>Warum gibt es mehr als eine File Allocation Table?</h3>
+            </div>
+            <div class="fat-redundancy-demo">
+                <div class="redundancy-text">
+                    <p>
+                        <strong>Redundanz &amp; Ausfallsicherheit:</strong> Die FAT ist die zentrale Lebensader des Dateisystems.
+                        Kommt es zu einem fehlerhaften Sektor in der primären Tabelle (FAT 1), kann der Schaden anhand der
+                        Kopie (FAT 2&hellip;n) behoben oder von dort weitergelesen werden.
+                    </p>
+                    <button class="fail-sim-btn @(IsFat1Corrupted ? "repaired" : "corrupted")" @onclick="ToggleFat1Corruption">
+                        @(IsFat1Corrupted ? "🔄 FAT 1 über Kopie (FAT 2) reparieren" : "⚠️ Lesefehler in FAT 1 simulieren")
+                    </button>
                 </div>
 
-                <div class="fat-grid">
-                    @for (int c = 0; c < 16; c++)
-                    {
-                        var clusterId = c;
-                        var isInChain = FatChain.Contains(clusterId);
-                        var isEof = clusterId == FatChain.LastOrDefault();
-                        var nextInChain = isInChain && !isEof ? FatChain[FatChain.IndexOf(clusterId) + 1] : (int?)null;
-
-                        <div class="fat-cell @(c < 2 ? "cell-reserved" : isInChain ? "cell-active" : "cell-free") @(SelectedCluster == c ? "cell-selected" : "")"
-                             @onclick="() => SelectFatCluster(clusterId)">
-                            <div class="cell-idx">Cluster #@c</div>
-                            <div class="cell-val mono">
-                                @if (c == 0)
-                                {
-                                    <span>0xFFFFFFF8 (Media)</span>
-                                }
-                                else if (c == 1)
-                                {
-                                    <span>0xFFFFFFFF (Dirty)</span>
-                                }
-                                else if (isEof)
-                                {
-                                    <span class="val-eof">EOF</span>
-                                }
-                                else if (nextInChain.HasValue)
-                                {
-                                    <span class="val-next">&rarr; #@nextInChain.Value</span>
-                                }
-                                else
-                                {
-                                    <span class="val-free">FREE (0)</span>
-                                }
-                            </div>
+                <div class="fat-tables-pair">
+                    <div class="fat-table-col @(IsFat1Corrupted ? "table-damaged" : "table-ok")">
+                        <div class="col-head">
+                            <span>FAT 1 (Primär)</span>
+                            <span class="status-badge">@(IsFat1Corrupted ? "❌ Beschädigt" : "✓ Aktiv")</span>
                         </div>
-                    }
+                        <div class="col-body mono">
+                            @if (IsFat1Corrupted)
+                            {
+                                <div class="error-msg">Lesefehler: Sektor unlesbar!</div>
+                            }
+                            else
+                            {
+                                <div>[#4 &rarr; 7] [#7 &rarr; 9] [#9 &rarr; 12] [#12 &rarr; EOF]</div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="fat-table-col @(IsFat1Corrupted ? "table-rescuer" : "table-standby")">
+                        <div class="col-head">
+                            <span>FAT 2 (Kopie)</span>
+                            <span class="status-badge">@(IsFat1Corrupted ? "🛡️ Eingesprungen (Rettung)" : "✓ Standby")</span>
+                        </div>
+                        <div class="col-body mono">
+                            <div>[#4 &rarr; 7] [#7 &rarr; 9] [#9 &rarr; 12] [#12 &rarr; EOF]</div>
+                        </div>
+                    </div>
                 </div>
             </div>
+        </section>
 
-            <!-- Architectural Comparison Card -->
-            <div class="comparison-card">
-                <h4>Architektur-Vergleich: UNIX Inodes vs. File Allocation Table (FAT)</h4>
-                <div class="compare-grid">
-                    <div class="compare-col">
-                        <h5>🗂️ UNIX Inodes (ext4 / System V)</h5>
-                        <ul>
-                            <li><strong>Direkte Adressierung:</strong> Für kleine Dateien genügt 1 I/O-Zugriff direkt aus der Inode.</li>
-                            <li><strong>Mehrstufige Indirektion:</strong> Riesige Dateien skaliere über $O(\log N)$ Zeigerbäume.</li>
-                            <li><strong>Dateiende / Sparse Files:</strong> Nicht zugewiesene Blöcke belegen keinen Speicherplatz (Löcher).</li>
-                            <li><strong>Zugriffszeit:</strong> Schneller wahlfreier Zugriff (Random Access) auf beliebiges Byte-Offset ohne sequentielles Suchen.</li>
-                        </ul>
-                    </div>
-                    <div class="compare-col">
-                        <h5>📋 File Allocation Table (FAT)</h5>
-                        <ul>
-                            <li><strong>Verkettete Liste:</strong> Alle Cluster-Zuweisungen liegen zentral in einer einzigen Tabelle (FAT).</li>
-                            <li><strong>Fragmentierung:</strong> Dateien können quer über das Speichermedium verstreut sein.</li>
-                            <li><strong>Zugriffszeit:</strong> Schlechter wahlfreier Zugriff; um das Ende einer großen Datei zu lesen, muss die Kette von Cluster zu Cluster abgelaufen werden.</li>
-                            <li><strong>Redundanz:</strong> FAT1 und FAT2 liegen doppelt vor, um Tabellenkorruption abzufedern.</li>
-                        </ul>
-                    </div>
-                </div>
+        <!-- Direct Comparison Summary -->
+        <section class="comparison-card">
+            <h4>Direkter Vergleich: UNIX Inodes vs. FAT (Klausur-Merktabelle)</h4>
+            <div class="comp-table-wrap">
+                <table class="comp-table">
+                    <thead>
+                        <tr>
+                            <th>Kriterium</th>
+                            <th>UNIX Inodes (ext4 / System V)</th>
+                            <th>File Allocation Table (FAT)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Auffinden der Datenblöcke</strong></td>
+                            <td>Verzeichnis &rarr; Inode &rarr; Liste direkter/indirekter Blockzeiger</td>
+                            <td>Verzeichnis &rarr; Start-Cluster &rarr; Kette in FAT bis EOF</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Große Dateien</strong></td>
+                            <td>Mehrstufige Indirektion (Einfach, Zweifach, Dreifach indirekte Zeiger)</td>
+                            <td>Keine Sonderbehandlung; verkettete Liste wird einfach fortgesetzt</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Zugriffsart</strong></td>
+                            <td>Schneller wahlfreier Zugriff (Random Access) über Zeigerbaum</td>
+                            <td>Sequentielles Ablaufen der FAT-Kette nötig (langsamer bei großem Offset)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Ausfallsicherheit</strong></td>
+                            <td>Journaling / Superblock-Backups</td>
+                            <td>Mehrere identische Kopien der FAT (FAT 1 &amp; FAT 2)</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </section>
     }
 
     <!-- ========================================================================= -->
-    <!-- TAB 3: KLAUSUR-ARBEITSBLATT (BS 03)                                       -->
+    <!-- TAB 3: KLAUSUR- & ÜBUNGSAUFGABEN (EXAM REPLICA)                          -->
     <!-- ========================================================================= -->
     @if (ActiveTab == TabMode.Worksheet)
     {
         <section class="worksheet-view">
             <div class="sheet-header">
                 <div class="sheet-title-row">
-                    <span class="sheet-lecture">Betriebssysteme</span>
+                    <span class="sheet-lecture">Betriebssysteme &bull; Übungs- und Klausurtraining</span>
                     <span class="sheet-name">Globalübung Dateisysteme (BS 03)</span>
                 </div>
+                <p class="sheet-sub">
+                    Exakt die Fragestellungen und Musterlösungen aus den Vorlesungs- und Klausur-PDFs (<code>BSDateisystemeUnix</code> und <code>BSDateisystemeFAT</code>).
+                </p>
             </div>
 
+            <!-- Task 1: UNIX System V / ext Inodes -->
             <div class="sheet-task">
-                <h3>Aufgabe 1: UNIX System V</h3>
+                <div class="task-head">
+                    <span class="task-badge">Aufgabe 1</span>
+                    <h3>UNIX System V / Inode-Dateisystem</h3>
+                </div>
                 <p>Der grundsätzliche Aufbau eines Dateisystems geht in unixoiden Systemen weiterhin auf UNIX System V zurück:</p>
 
-                <div class="sheet-diagram-mock">
-                    <div class="disk-layout">
-                        <div class="disk-block boot-block">Boot-Block (0)</div>
-                        <div class="disk-block super-block">Super-Block (1)</div>
-                        <div class="disk-block inode-blocks">Inode-Liste (2 .. isize)</div>
-                        <div class="disk-block data-blocks">Datenblöcke (Dateien, Verzeichnisse, Indexblöcke)</div>
+                <div class="disk-strip-container">
+                    <div class="disk-strip">
+                        <div class="disk-segment seg-boot">Boot-Block (0)</div>
+                        <div class="disk-segment seg-super">Super-Block (1)</div>
+                        <div class="disk-segment seg-inode">Inode-Liste (2 .. isize)</div>
+                        <div class="disk-segment seg-data">Datenblöcke</div>
                     </div>
                 </div>
 
-                <p>Der Zugriff auf Dateien wird über Verzeichnisse organisiert. Bis auf kleinere Erweiterungen ist auch diese noch wie bei UNIX System V:</p>
-
-                <div class="dir-mock">
-                    <div class="dir-entry-box">
-                        <span class="d-inode">Inode-Nummer</span>
-                        <span class="d-name">Dateiname (max. 14 Zeichen)</span>
-                    </div>
+                <p>Der Zugriff auf Dateien wird über Verzeichnisse organisiert:</p>
+                <div class="dir-preview-pill">
+                    <span class="pill-head">Verzeichniseintrag:</span>
+                    <code>[ Inode-Nummer (z. B. #1428) | Dateiname ]</code>
                 </div>
 
-                <!-- Subtask a -->
-                <div class="subtask-block">
+                <!-- Subtask 1a -->
+                <div class="subtask-card">
                     <h4>a) Geben Sie an, wie Sie herausfinden können, wo auf der Festplatte die Datenblöcke einer Datei gespeichert sind.</h4>
-                    <div class="answer-box">
-                        <button class="solution-toggle-btn no-print" @onclick="() => ToggleSolution(1)">
-                            @(ShowSolution1 ? "👁️ Musterlösung ausblenden" : "💡 Interaktive Musterlösung einblenden")
+                    <textarea class="exam-textarea" rows="3" placeholder="Ihre Antwort hier formulieren..."></textarea>
+                    <div class="sol-wrap">
+                        <button class="sol-toggle-btn" @onclick="() => ToggleSolution(1)">
+                            @(ShowSolution1 ? "Musterlösung verbergen" : "💡 Offizielle Musterlösung anzeigen")
                         </button>
                         @if (ShowSolution1)
                         {
-                            <div class="solution-content">
-                                <p><strong>Lösungsschritte aus der Vorlesung:</strong></p>
-                                <ol>
-                                    <li>Im Verzeichnis steht der Dateiname zusammen mit seiner <strong>Inode-Nummer</strong> (kann z. B. im Terminal mit <code>ls -i &lt;datei&gt;</code> ermittelt werden).</li>
-                                    <li>Aus dem <strong>Super-Block</strong> liest das Betriebssystem aus, ab welchem Blocksektor auf dem Datenträger die Inode-Tabelle beginnt.</li>
-                                    <li>Aus der <strong>Inode-Tabelle</strong> wird die konkrete Inode der Datei geladen.</li>
-                                    <li>In der Inode befinden sich die <strong>Listen von direkten und indirekten Blocknummern</strong>. Diese Blocknummern verweisen direkt bzw. über Indexblöcke auf die physischen Datenblöcke auf der Festplatte.</li>
-                                </ol>
+                            <div class="official-solution-box">
+                                <div class="sol-title">Musterlösung aus dem Vorlesungs-PDF:</div>
+                                <p>
+                                    „In Verzeichnissen lassen sich die Inodes von Dateien ausgeben (z.&nbsp;B. mit <code>ls -i</code>).
+                                    Im Super Block steht normalerweise ab welcher Stelle auf der Festplatte die Inodes gespeichert sind.
+                                    In den Inodes finden sich Listen von Clustern / Blöcken der Datei. Die dort angegebenen Cluster können wir dann in den Datenblöcken auslesen.“
+                                </p>
                             </div>
                         }
                     </div>
                 </div>
 
-                <!-- Subtask b -->
-                <div class="subtask-block">
+                <!-- Subtask 1b -->
+                <div class="subtask-card">
                     <h4>b) Gibt es Besonderheiten bei großen Dateien?</h4>
-                    <div class="answer-box">
-                        <button class="solution-toggle-btn no-print" @onclick="() => ToggleSolution(2)">
-                            @(ShowSolution2 ? "👁️ Musterlösung ausblenden" : "💡 Interaktive Musterlösung einblenden")
+                    <textarea class="exam-textarea" rows="3" placeholder="Ihre Antwort hier formulieren..."></textarea>
+                    <div class="sol-wrap">
+                        <button class="sol-toggle-btn" @onclick="() => ToggleSolution(2)">
+                            @(ShowSolution2 ? "Musterlösung verbergen" : "💡 Offizielle Musterlösung anzeigen")
                         </button>
                         @if (ShowSolution2)
                         {
-                            <div class="solution-content">
-                                <p><strong>Lösungsschritte aus der Vorlesung:</strong></p>
-                                <ul>
-                                    <li>Bei großen Dateien reichen die ersten 10 bzw. 12 direkten Datenzeiger in der Inode nicht aus.</li>
-                                    <li>Daher verwendet das Dateisystem <strong>mehrstufige Indirektionszeiger</strong>:
-                                        <ul>
-                                            <li><strong>Einfach indirekter Zeiger:</strong> Verweist auf einen Block, der ausschließlich Zeiger auf Datenblöcke enthält.</li>
-                                            <li><strong>Zweifach indirekter Zeiger:</strong> Verweist auf einen Block von Zeigerblöcken (zwei Indirektionsebenen).</li>
-                                            <li><strong>Dreifach indirekter Zeiger:</strong> Drei Indirektionsebenen für Dateien im Terabyte-Bereich.</li>
-                                        </ul>
-                                    </li>
-                                    <li><em>Konsequenz:</em> Der Zugriff auf Datenblöcke großer Dateien benötigt mehrere aufeinanderfolgende Festplatten-Lesezugriffe (I/Os).</li>
-                                </ul>
+                            <div class="official-solution-box">
+                                <div class="sol-title">Musterlösung aus dem Vorlesungs-PDF:</div>
+                                <p>
+                                    „Bei großen Dateien reichen die ersten 12 eingetragenen Cluster in der Inode nicht aus.
+                                    Es gibt noch weitere Einträge, die auf Clusterlisten verweisen. Insgesamt gibt es direkte,
+                                    indirekte, zweifach indirekte und dreifach indirekte Verweise auf Cluster, die bei großen Dateien genutzt werden können.“
+                                </p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Task 2: File Allocation Table (FAT) -->
+            <div class="sheet-task">
+                <div class="task-head">
+                    <span class="task-badge badge-fat">Aufgabe 2</span>
+                    <h3>File Allocation Table (FAT) Dateisystem</h3>
+                </div>
+                <p>Ein FAT-Dateisystem ist grundsätzlich folgendermaßen aufgebaut:</p>
+
+                <div class="disk-strip-container">
+                    <div class="disk-strip">
+                        <div class="disk-segment seg-boot">Bootsektor</div>
+                        <div class="disk-segment seg-super">Infobereich (FAT32)</div>
+                        <div class="disk-segment seg-fat">Erste FAT</div>
+                        <div class="disk-segment seg-fat2">FAT 2...n</div>
+                        <div class="disk-segment seg-root">Stammverzeichnis</div>
+                        <div class="disk-segment seg-data">Daten</div>
+                    </div>
+                </div>
+
+                <!-- Subtask 2a -->
+                <div class="subtask-card">
+                    <h4>a) Geben Sie an, wie Sie herausfinden können, wo auf der Festplatte die Datenblöcke einer Datei gespeichert sind.</h4>
+                    <textarea class="exam-textarea" rows="3" placeholder="Ihre Antwort hier formulieren..."></textarea>
+                    <div class="sol-wrap">
+                        <button class="sol-toggle-btn" @onclick="() => ToggleSolution(3)">
+                            @(ShowSolutionFat1 ? "Musterlösung verbergen" : "💡 Offizielle Musterlösung anzeigen")
+                        </button>
+                        @if (ShowSolutionFat1)
+                        {
+                            <div class="official-solution-box">
+                                <div class="sol-title">Musterlösung aus dem Vorlesungs-PDF:</div>
+                                <p>
+                                    „In Verzeichnissen sind die Start-Cluster einer Datei festgehalten. In der File Allocation Table
+                                    sind ausgehend von diesem Cluster alle anderen Clusternummern als verkettete Liste auslesbar.“
+                                </p>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Subtask 2b -->
+                <div class="subtask-card">
+                    <h4>b) Gibt es Besonderheiten bei großen Dateien?</h4>
+                    <textarea class="exam-textarea" rows="2" placeholder="Ihre Antwort hier formulieren..."></textarea>
+                    <div class="sol-wrap">
+                        <button class="sol-toggle-btn" @onclick="() => ToggleSolution(4)">
+                            @(ShowSolutionFat2 ? "Musterlösung verbergen" : "💡 Offizielle Musterlösung anzeigen")
+                        </button>
+                        @if (ShowSolutionFat2)
+                        {
+                            <div class="official-solution-box">
+                                <div class="sol-title">Musterlösung aus dem Vorlesungs-PDF:</div>
+                                <p>
+                                    „Nein, bei FAT werden große und kleine Dateien gleich behandelt.“
+                                </p>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Subtask 2c -->
+                <div class="subtask-card">
+                    <h4>c) Warum gibt es mehr als eine File Allocation Table?</h4>
+                    <textarea class="exam-textarea" rows="2" placeholder="Ihre Antwort hier formulieren..."></textarea>
+                    <div class="sol-wrap">
+                        <button class="sol-toggle-btn" @onclick="() => ToggleSolution(5)">
+                            @(ShowSolutionFat3 ? "Musterlösung verbergen" : "💡 Offizielle Musterlösung anzeigen")
+                        </button>
+                        @if (ShowSolutionFat3)
+                        {
+                            <div class="official-solution-box">
+                                <div class="sol-title">Musterlösung aus dem Vorlesungs-PDF:</div>
+                                <p>
+                                    „Wenn es zu einem Fehler in einer Tabelle kommt, kann dieser durch Auslesen einer Kopie behoben werden.“
+                                </p>
                             </div>
                         }
                     </div>
@@ -549,6 +720,13 @@
     private TabMode ActiveTab = TabMode.Inode;
     private InodeLevel ActiveLevel = InodeLevel.Direct;
 
+    // Interactive step trackers
+    private int ActiveUnixStep = 1;
+    private int ActiveFatStep = 1;
+    private string SelectedFileSizePreset = "small";
+    private bool IsFat1Corrupted = false;
+    private bool ShowAdvancedCalculator = false;
+
     // Inode parameters
     private long BlockSize = 4096;
     private int PointerSize = 4;
@@ -561,25 +739,21 @@
     private long TripleIndirectBytes => PointersPerBlock * PointersPerBlock * PointersPerBlock * BlockSize;
     private long MaxFileSizeBytes => DirectBytes + SingleIndirectBytes + DoubleIndirectBytes + TripleIndirectBytes;
 
-    private long DoubleIndirectEndBlock => DirectPointersCount + PointersPerBlock + (PointersPerBlock * PointersPerBlock) - 1;
-    private long TripleIndirectEndBlock => DoubleIndirectEndBlock + (PointersPerBlock * PointersPerBlock * PointersPerBlock);
-
-    private bool IsSysVPreset => BlockSize == 1024 && PointerSize == 4 && DirectPointersCount == 10;
-    private bool IsExt4Preset => BlockSize == 4096 && PointerSize == 4 && DirectPointersCount == 12;
-    private bool IsEnterprisePreset => BlockSize == 8192 && PointerSize == 8 && DirectPointersCount == 12;
-
     // Offset Resolver
-    private long QueryOffset = 4500000;
+    private long QueryOffset = 24000;
     private OffsetResolution? Resolution;
 
     // FAT state
     private int FatClusterSize = 4096;
-    private List<int> FatChain = new() { 4, 7, 9, 12, 15 };
+    private List<int> FatChain = new() { 4, 7, 9, 12 };
     private int? SelectedCluster = 4;
 
     // Worksheet solutions
     private bool ShowSolution1 = false;
     private bool ShowSolution2 = false;
+    private bool ShowSolutionFat1 = false;
+    private bool ShowSolutionFat2 = false;
+    private bool ShowSolutionFat3 = false;
 
     protected override void OnInitialized()
     {
@@ -609,7 +783,7 @@
                 else if (key == "tab")
                 {
                     if (val == "fat") ActiveTab = TabMode.Fat;
-                    else if (val == "worksheet") ActiveTab = TabMode.Worksheet;
+                    else if (val == "worksheet" || val == "exam" || val == "klausur") ActiveTab = TabMode.Worksheet;
                     else if (val == "inode") ActiveTab = TabMode.Inode;
                 }
                 else if (key == "offset" && long.TryParse(val, out var off))
@@ -633,38 +807,66 @@
         ActiveTab = tab;
     }
 
-    private void ApplySysVPreset()
+    private void SetUnixStep(int step)
     {
-        BlockSize = 1024;
-        PointerSize = 4;
-        DirectPointersCount = 10;
+        ActiveUnixStep = step;
+    }
+
+    private void SetFatStep(int step)
+    {
+        ActiveFatStep = step;
+    }
+
+    private void SelectFileSizePreset(string preset)
+    {
+        SelectedFileSizePreset = preset;
+        switch (preset)
+        {
+            case "small":
+                QueryOffset = 24000; // 24 KB (fits into direct blocks)
+                break;
+            case "medium":
+                QueryOffset = 500000; // 500 KB (single indirect)
+                break;
+            case "large":
+                QueryOffset = 20000000; // 20 MB (double indirect)
+                break;
+            case "huge":
+                QueryOffset = 5000000000; // 5 GB (triple indirect)
+                break;
+        }
         Recalculate();
     }
 
-    private void ApplyExt4Preset()
+    private void ToggleAdvancedCalculator()
     {
-        BlockSize = 4096;
-        PointerSize = 4;
-        DirectPointersCount = 12;
-        Recalculate();
+        ShowAdvancedCalculator = !ShowAdvancedCalculator;
     }
 
-    private void ApplyEnterprisePreset()
+    private void ToggleFat1Corruption()
     {
-        BlockSize = 8192;
-        PointerSize = 8;
-        DirectPointersCount = 12;
-        Recalculate();
+        IsFat1Corrupted = !IsFat1Corrupted;
+    }
+
+    private void SetShortFatChain()
+    {
+        FatChain = new List<int> { 4, 7 };
+        SelectedCluster = 4;
+    }
+
+    private void SetLongFatChain()
+    {
+        FatChain = new List<int> { 4, 7, 9, 12, 15 };
+        SelectedCluster = 4;
+    }
+
+    private void SelectFatCluster(int clusterId)
+    {
+        SelectedCluster = clusterId;
     }
 
     private void Recalculate()
     {
-        ResolveOffset();
-    }
-
-    private void SetQueryOffset(long offset)
-    {
-        QueryOffset = offset;
         ResolveOffset();
     }
 
@@ -738,20 +940,13 @@
         }
     }
 
-    private void SetFatClusterSize(int size)
-    {
-        FatClusterSize = size;
-    }
-
-    private void SelectFatCluster(int clusterId)
-    {
-        SelectedCluster = clusterId;
-    }
-
     private void ToggleSolution(int num)
     {
         if (num == 1) ShowSolution1 = !ShowSolution1;
         if (num == 2) ShowSolution2 = !ShowSolution2;
+        if (num == 3) ShowSolutionFat1 = !ShowSolutionFat1;
+        if (num == 4) ShowSolutionFat2 = !ShowSolutionFat2;
+        if (num == 5) ShowSolutionFat3 = !ShowSolutionFat3;
     }
 
     private static string FormatBytes(long bytes)
@@ -762,8 +957,6 @@
         if (bytes < 1024L * 1024L * 1024L * 1024L) return $"{(bytes / (1024.0 * 1024.0 * 1024.0)):F2} GB";
         return $"{(bytes / (1024.0 * 1024.0 * 1024.0 * 1024.0)):F2} TB";
     }
-
-    private static string FormatNumber(long val) => val.ToString("N0");
 
     private record OffsetResolution(
         long BlockNumber,
