@@ -325,6 +325,7 @@
     display: grid;
     grid-template-columns: 1.15fr 1fr;
     gap: 1.25rem;
+    align-items: start;
 }
 
 @media (max-width: 990px) {
@@ -342,6 +343,8 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     display: flex;
     flex-direction: column;
+    position: sticky;
+    top: 0.75rem;
 }
 
 .graph-header {
@@ -386,12 +389,11 @@
 .leg-dot.active { background: #d97706; }
 
 .svg-container {
-    padding: 1rem;
+    padding: 0.5rem;
     background: #fafafa;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
-    flex: 1;
 }
 
 .graph-svg {
@@ -910,7 +912,7 @@
 /* ========================================================================= */
 
 .embed-mode {
-    gap: 0.75rem;
+    gap: 0.5rem;
     max-width: 100%;
 }
 
@@ -918,12 +920,81 @@
     display: none;
 }
 
-.embed-mode .player-toolbar {
+.embed-mode .controls-panel {
     padding: 0.5rem 0.75rem;
+    gap: 0.4rem;
+}
+
+.embed-mode .config-grid {
+    gap: 0.5rem;
+}
+
+.embed-mode .control-label {
+    gap: 0.2rem;
+    font-size: 0.8rem;
+}
+
+.embed-mode .form-input {
+    padding: 0.35rem 0.6rem;
+    font-size: 0.85rem;
+}
+
+.embed-mode .preset-bar {
+    padding-top: 0.25rem;
+    gap: 0.35rem;
+}
+
+.embed-mode .preset-btn {
+    padding: 0.2rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+.embed-mode .player-toolbar {
+    padding: 0.4rem 0.75rem;
+    gap: 0.5rem;
+}
+
+.embed-mode .player-btn {
+    padding: 0.35rem 0.6rem;
+    font-size: 0.8rem;
 }
 
 .embed-mode .narrator-card {
-    padding: 0.6rem 0.85rem;
+    padding: 0.5rem 0.75rem;
+    gap: 0.35rem;
+}
+
+.embed-mode .narrator-text {
+    font-size: 0.85rem;
+    margin-bottom: 0.25rem;
+}
+
+.embed-mode .relax-item {
+    padding: 0.2rem 0.45rem;
+    font-size: 0.8rem;
+}
+
+.embed-mode .main-display-grid {
+    gap: 0.75rem;
+    align-items: start;
+}
+
+.embed-mode .graph-card {
+    position: sticky;
+    top: 0.25rem;
+}
+
+.embed-mode .graph-header {
+    padding: 0.4rem 0.75rem;
+}
+
+.embed-mode .svg-container {
+    padding: 0.25rem;
+    align-items: flex-start;
+}
+
+.embed-mode .graph-svg {
+    max-height: 340px;
 }
 
 /* ========================================================================= */
