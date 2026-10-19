@@ -203,15 +203,19 @@
                                 var predVal = currentStep != null && currentStep.Predecessors.ContainsKey(node.Id) && !string.IsNullOrEmpty(currentStep.Predecessors[node.Id])
                                     ? $"({currentStep.Predecessors[node.Id]})"
                                     : "";
+                                bool hasFiniteDist = (distVal != "∞");
+                                int badgeW = string.IsNullOrEmpty(predVal) ? 44 : 58;
+                                int badgeX = -badgeW / 2;
+                                string badgeState = isCurrent ? "current" : (isSettled ? "settled" : (hasFiniteDist ? "tentative" : "unvisited"));
 
                                 <g class="node-group" @onclick="() => SelectNodeAsStart(node.Id)" title="Knoten @node.Id (Klicken zum Starten)">
                                     <circle cx="@node.X" cy="@node.Y" r="22" class="@nodeCls" />
                                     @((MarkupString)$"<text x=\"{node.X}\" y=\"{node.Y + 6}\" text-anchor=\"middle\" class=\"node-label\">{node.Id}</text>")
                                     
                                     <!-- Distance Tag above node -->
-                                    <g transform="translate(@node.X, @(node.Y - 28))">
-                                        <rect x="-24" y="-12" width="48" height="18" rx="4" class="dist-badge-bg @(isSettled ? "bg-settled" : "")" />
-                                        @((MarkupString)$"<text y=\"1\" text-anchor=\"middle\" class=\"dist-badge-text\">D={distVal} {predVal}</text>")
+                                    <g transform="translate(@node.X, @(node.Y - 29))">
+                                        <rect x="@badgeX" y="-10" width="@badgeW" height="20" rx="10" class="dist-badge-bg bg-@badgeState" />
+                                        @((MarkupString)$"<text y=\"4\" text-anchor=\"middle\" class=\"dist-badge-text text-{badgeState}\">D={distVal} {predVal}</text>")
                                     </g>
                                 </g>
                             }

@@ -474,18 +474,63 @@
 }
 
 .dist-badge-bg {
-    fill: #0f172a;
+    fill: #ffffff;
+    stroke: #cbd5e1;
+    stroke-width: 1.5;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.08));
+    transition: all 0.2s ease;
+}
+
+.dist-badge-bg.bg-unvisited {
+    fill: #f8fafc;
+    stroke: #e2e8f0;
+}
+
+.dist-badge-bg.bg-tentative {
+    fill: #eff6ff;
+    stroke: #93c5fd;
+    stroke-width: 1.5;
+}
+
+.dist-badge-bg.bg-current {
+    fill: #fef3c7;
+    stroke: #f59e0b;
+    stroke-width: 2;
 }
 
 .dist-badge-bg.bg-settled {
-    fill: #065f46;
+    fill: #ecfdf5;
+    stroke: #10b981;
+    stroke-width: 1.5;
 }
 
 .dist-badge-text {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 700;
-    fill: #ffffff;
+    fill: #64748b;
+    pointer-events: none;
+    letter-spacing: -0.02em;
+}
+
+.dist-badge-text.text-unvisited {
+    fill: #94a3b8;
+    font-weight: 600;
+}
+
+.dist-badge-text.text-tentative {
+    fill: #1d4ed8;
+    font-weight: 800;
+}
+
+.dist-badge-text.text-current {
+    fill: #b45309;
+    font-weight: 800;
+}
+
+.dist-badge-text.text-settled {
+    fill: #047857;
+    font-weight: 800;
 }
 
 /* Tables Panel */
