@@ -145,12 +145,38 @@
                     </div>
                 </div>
 
-                <!-- Right: Construction Steps & Details -->
+                <!-- Right: Construction Rules & Details -->
                 <div class="traces-panel">
-                    <div class="sub-card">
-                        <div class="sub-card-header">
-                            <h4>Konstruktionsschritte</h4>
+                    <div class="formula-card">
+                        <div class="formula-title">📐 Vorgehensweise zur Aufstellung (Vorlesungsregeln)</div>
+                        <div class="rule-box">
+                            <div class="rule-block rule-kdnf">
+                                <strong>1. Kanonische DNF (KDNF) &bull; Einsmenge <em>L</em><sub>ein</sub>:</strong>
+                                <ol>
+                                    <li>Alle Zeilen mit Ausgang <em>y</em> = 1 betrachten.</li>
+                                    <li>Für jede dieser Zeilen einen <strong>Minterm</strong> (Konjunktion) bilden:
+                                        <div class="rule-sub">&bull; Variable = 1 &rArr; nicht negiert (<em>x</em><sub><em>j</em></sub>) &bull; Variable = 0 &rArr; negiert (&not;<em>x</em><sub><em>j</em></sub>)</div>
+                                    </li>
+                                    <li>Alle Minterme mit Disjunktion (&or;) verknüpfen.</li>
+                                </ol>
+                            </div>
+                            <div class="rule-block rule-kknf">
+                                <strong>2. Kanonische KNF (KKNF) &bull; Nullmenge <em>L</em><sub>null</sub>:</strong>
+                                <ol>
+                                    <li>Alle Zeilen mit Ausgang <em>y</em> = 0 betrachten.</li>
+                                    <li>Für jede dieser Zeilen einen <strong>Maxterm</strong> (Disjunktion) bilden:
+                                        <div class="rule-sub">&bull; Variable = 1 &rArr; negiert (&not;<em>x</em><sub><em>j</em></sub>) &bull; Variable = 0 &rArr; nicht negiert (<em>x</em><sub><em>j</em></sub>)</div>
+                                    </li>
+                                    <li>Alle Maxterme mit Konjunktion (&and;) verknüpfen.</li>
+                                </ol>
+                            </div>
                         </div>
+                    </div>
+
+                    <details class="steps-details">
+                        <summary class="steps-summary">
+                            🔍 Zeilenweise Konstruktionsschritte anzeigen (@(Solution.Steps.Count) Einzelschritte)
+                        </summary>
                         <div class="trace-list">
                             @for (int i = 0; i < Solution.Steps.Count; i++)
                             {
@@ -160,15 +186,7 @@
                                 </div>
                             }
                         </div>
-                    </div>
-
-                    <div class="formula-card">
-                        <div class="formula-title">Regeln zur Aufstellung:</div>
-                        <div class="rule-box">
-                            <p><strong>KDNF:</strong> Disjunktion (&or;) aller Zeilen mit <em>y</em>=1. In den Konjunktionstermen gilt: <em>x</em><sub><em>i</em></sub> wenn <em>x</em><sub><em>i</em></sub>=1, &not;<em>x</em><sub><em>i</em></sub> wenn <em>x</em><sub><em>i</em></sub>=0.</p>
-                            <p><strong>KKNF:</strong> Konjunktion (&and;) aller Zeilen mit <em>y</em>=0. In den Disjunktionstermen gilt: &not;<em>x</em><sub><em>i</em></sub> wenn <em>x</em><sub><em>i</em></sub>=1, <em>x</em><sub><em>i</em></sub> wenn <em>x</em><sub><em>i</em></sub>=0.</p>
-                        </div>
-                    </div>
+                    </details>
                 </div>
 
             </div>
@@ -630,6 +648,19 @@
     {
         if (string.IsNullOrEmpty(step)) return string.Empty;
         var res = System.Text.RegularExpressions.Regex.Replace(step, @"x_?(\d+)", m => "x" + ToSubscript(int.Parse(m.Groups[1].Value)));
+
+        // German translations for solver trace logs
+        res = System.Text.RegularExpressions.Regex.Replace(res, @"Row (\d+): assignment (.*?) -> y=(\d+)\.", m =>
+            $"Zeile {m.Groups[1].Value}: Belegung {m.Groups[2].Value} → y = {m.Groups[3].Value}");
+        res = System.Text.RegularExpressions.Regex.Replace(res, @"Row (\d+) contributes minterm (.*?) to DNF\.", m =>
+            $"Zeile {m.Groups[1].Value}: y = 1 ⇒ Minterm {m.Groups[2].Value} geht in KDNF ein");
+        res = System.Text.RegularExpressions.Regex.Replace(res, @"Row (\d+) contributes maxterm (.*?) to CNF\.", m =>
+            $"Zeile {m.Groups[1].Value}: y = 0 ⇒ Maxterm {m.Groups[2].Value} geht in KKNF ein");
+        res = System.Text.RegularExpressions.Regex.Replace(res, @"Final DNF: (.*?)\.", m =>
+            $"Ergebnis KDNF (Disjunktion aller Minterme): {m.Groups[1].Value}");
+        res = System.Text.RegularExpressions.Regex.Replace(res, @"Final CNF: (.*?)\.", m =>
+            $"Ergebnis KKNF (Konjunktion aller Maxterme): {m.Groups[1].Value}");
+
         return res.Replace(" -> ", " → ")
                   .Replace(" & ", " ∧ ")
                   .Replace(" | ", " ∨ ")
