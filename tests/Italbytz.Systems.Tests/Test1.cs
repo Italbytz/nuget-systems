@@ -422,6 +422,27 @@ public sealed class ComputingSystemsTests
         Assert.HasCount(3, m7Usage.PairedWithMinterms);
     }
 
+    [TestMethod]
+    public void Round_robin_solver_matches_exam_score()
+    {
+        ISchedulingSolver solver = new RoundRobinSolver();
+        // Values: 4, 3, 8, 1, 5
+        var parameters = new SchedulingParameters([4, 3, 8, 1, 5], ["sehr hoch", "mittel", "sehr niedrig", "hoch", "niedrig"]);
+        var solution = solver.Solve(parameters);
+
+        Assert.AreEqual(14.6, solution.Time, 0.001);
+    }
+
+    [TestMethod]
+    public void Round_robin_solver_matches_preset1_score()
+    {
+        ISchedulingSolver solver = new RoundRobinSolver();
+        // Values: 6, 2, 8, 3, 5
+        var parameters = new SchedulingParameters([6, 2, 8, 3, 5], ["mittel", "sehr hoch", "niedrig", "hoch", "sehr niedrig"]);
+        var solution = solver.Solve(parameters);
+
+        Assert.AreEqual(18.0, solution.Time, 0.001);
+    }
 }
 
 

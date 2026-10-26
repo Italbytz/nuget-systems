@@ -63,6 +63,39 @@
                 </label>
             </div>
 
+            @if (SelectedSchedulingPolicy == "RoundRobin")
+            {
+                <div class="rr-controls-bar">
+                    <div class="rr-mode-switch">
+                        <span class="rr-mode-label">Modus:</span>
+                        <button type="button" class="rr-btn @(RoundRobinMode == RoundRobinSubMode.TimeSlices ? "active" : "")"
+                                @onclick="() => SetRoundRobinMode(RoundRobinSubMode.TimeSlices)">
+                            🔄 Zeitscheiben (Gantt-Trace mit <em>q</em>)
+                        </button>
+                        <button type="button" class="rr-btn @(RoundRobinMode == RoundRobinSubMode.ProcessorSharing ? "active" : "")"
+                                @onclick="() => SetRoundRobinMode(RoundRobinSubMode.ProcessorSharing)">
+                            📊 Prozessor-Sharing (Phasenmodell <em>q</em> &rarr; 0)
+                        </button>
+                    </div>
+
+                    @if (RoundRobinMode == RoundRobinSubMode.TimeSlices)
+                    {
+                        <div class="rr-quantum-group">
+                            <label class="quantum-label">
+                                <span>Zeitscheibe <em>q</em>:</span>
+                                <input type="number" min="1" max="20" class="form-input quantum-input" @bind="Quantum" @bind:after="OnConfigurationChanged" />
+                            </label>
+                            <div class="quantum-quick-btns">
+                                <button type="button" class="q-btn @(Quantum == 1 ? "active" : "")" @onclick="() => SetQuantum(1)">q=1</button>
+                                <button type="button" class="q-btn @(Quantum == 2 ? "active" : "")" @onclick="() => SetQuantum(2)">q=2</button>
+                                <button type="button" class="q-btn @(Quantum == 3 ? "active" : "")" @onclick="() => SetQuantum(3)">q=3</button>
+                                <button type="button" class="q-btn @(Quantum == 4 ? "active" : "")" @onclick="() => SetQuantum(4)">q=4</button>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+
             <!-- Presets Bar -->
             <div class="preset-bar">
                 <span class="preset-label">Beispiele:</span>
@@ -80,7 +113,16 @@
             var fcfsScore = new FCFSSolver().Solve(new SchedulingParameters(procList.Select(p => p.Duration).ToArray(), procList.Select(p => p.Priority).ToArray())).Time;
             var rrScore = new RoundRobinSolver().Solve(new SchedulingParameters(procList.Select(p => p.Duration).ToArray(), procList.Select(p => p.Priority).ToArray())).Time;
 
-            var activeSchedule = GetScheduleForPolicy(SelectedSchedulingPolicy, procList);
+            var (rrSlices, rrProcResults, rrSliceTurnaround, rrSliceWaiting) = CalculateRoundRobin(procList, Math.Max(1, Quantum));
+            var (psPhases, psPhaseResults, psScore) = CalculateProcessorSharing(procList);
+
+            var activeSchedule = SelectedSchedulingPolicy switch
+            {
+                "RoundRobin" when RoundRobinMode == RoundRobinSubMode.ProcessorSharing => psPhases,
+                "RoundRobin" => rrSlices,
+                _ => GetScheduleForPolicy(SelectedSchedulingPolicy, procList)
+            };
+
             var totalExecutionTime = procList.Sum(p => p.Duration);
             var maxSteps = activeSchedule.Count;
 
@@ -103,7 +145,14 @@
                         else
                         {
                             var activeItem = activeSchedule[CurrentStepIndex - 1];
-                            <strong>Schritt @CurrentStepIndex / @maxSteps:</strong> <span>@activeItem.ProcessName ausgeführt (Dauer: @activeItem.Duration)</span>
+                            <strong>Schritt @CurrentStepIndex / @maxSteps:</strong> 
+                            <span>
+                                @activeItem.ProcessName ausgeführt (Dauer: @activeItem.Duration, Zeit: @activeItem.StartTime &rarr; @activeItem.EndTime)
+                                @if (activeItem.IsCompletion)
+                                {
+                                    <strong class="text-success"> &bull; Fertiggestellt!</strong>
+                                }
+                            </span>
                         }
                     </span>
                     <input type="range" min="0" max="@maxSteps" value="@CurrentStepIndex" @oninput="OnSliderChanged" class="step-slider" />
@@ -139,7 +188,7 @@
 
                 <div class="narrator-body">
                     <p class="narrator-text">
-                        @GetSchedulingNarratorText(CurrentStepIndex, activeSchedule, procList.Count, SelectedSchedulingPolicy)
+                        @GetSchedulingNarratorText(CurrentStepIndex, activeSchedule, procList.Count, SelectedSchedulingPolicy, psPhaseResults)
                     </p>
                 </div>
             </div>
@@ -147,7 +196,15 @@
             <!-- Gantt Chart Container -->
             <div class="gantt-card">
                 <div class="gantt-header">
-                    <h4 class="gantt-title">Gantt-Diagramm (CPU-Ausführungsreihenfolge)</h4>
+                    <h4 class="gantt-title">
+                        Gantt-Diagramm (CPU-Ausführungsreihenfolge)
+                        @if (SelectedSchedulingPolicy == "RoundRobin")
+                        {
+                            <span class="text-amber">
+                                @(RoundRobinMode == RoundRobinSubMode.TimeSlices ? $"(Round Robin mit Zeitscheibe q={Quantum})" : "(Prozessor-Sharing Phasenmodell q → 0)")
+                            </span>
+                        }
+                    </h4>
                     <span class="gantt-total-time">Gesamtlaufzeit: <strong>@totalExecutionTime Zeiteinheiten</strong></span>
                 </div>
 
@@ -164,7 +221,8 @@
                             var colorClass = GetProcessColorClass(item.ProcessIndex);
 
                             <div class="gantt-block @colorClass @(isExecuted ? "executed" : "pending") @(isCurrentlyActive ? "active-gantt-block" : "")"
-                                 style="width: @widthPercent.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)%;">
+                                 style="width: @widthPercent.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)%;"
+                                 title="@($"{item.ProcessName}: t={item.StartTime} → {item.EndTime} (Dauer: {item.Duration})")">
                                 <span class="gantt-pname">@item.ProcessName</span>
                                 <span class="gantt-duration">t=@item.Duration</span>
                             </div>
@@ -177,54 +235,165 @@
                         @for (int i = 0; i < activeSchedule.Count; i++)
                         {
                             var item = activeSchedule[i];
-                            var leftPercent = totalExecutionTime > 0 ? (double)item.EndTime / totalExecutionTime * 100.0 : 0.0;
-                            <span class="gantt-tick" style="left: @leftPercent.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)%;">
-                                @item.EndTime
-                            </span>
+                            if (ShouldShowTick(i, activeSchedule))
+                            {
+                                var leftPercent = totalExecutionTime > 0 ? (double)item.EndTime / totalExecutionTime * 100.0 : 0.0;
+                                <span class="gantt-tick" style="left: @leftPercent.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)%;">
+                                    @item.EndTime
+                                </span>
+                            }
                         }
                     </div>
                 </div>
 
                 <!-- Process Details Table -->
                 <div class="process-table-wrapper">
-                    <table class="scheduling-data-table">
-                        <thead>
-                            <tr>
-                                <th>Rang</th>
-                                <th>Prozess</th>
-                                <th>Bedienzeit (t<sub>i</sub>)</th>
-                                <th>Priorität</th>
-                                <th>Startzeit</th>
-                                <th>Endzeit (C<sub>i</sub>)</th>
-                                <th>Verweilzeit-Beitrag (ΔT̄)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @for (int i = 0; i < activeSchedule.Count; i++)
-                            {
-                                var item = activeSchedule[i];
-                                var stepNum = i + 1;
-                                var isExecuted = stepNum <= CurrentStepIndex;
-                                var isCurrentlyActive = stepNum == CurrentStepIndex;
-                                var remaining = procList.Count - i;
-                                var contribution = (double)remaining * item.Duration / procList.Count;
-
-                                <tr class="@(isCurrentlyActive ? "row-active" : "") @(!isExecuted ? "row-pending" : "")">
-                                    <td><strong>#@stepNum</strong></td>
-                                    <td>
-                                        <span class="proc-badge @GetProcessColorClass(item.ProcessIndex)">@item.ProcessName</span>
-                                    </td>
-                                    <td>@item.Duration</td>
-                                    <td>@item.Priority</td>
-                                    <td>@item.StartTime</td>
-                                    <td><strong>@item.EndTime</strong></td>
-                                    <td>
-                                        <code>@remaining / @procList.Count &times; @item.Duration = @contribution.ToString("F2")</code>
-                                    </td>
+                    @if (SelectedSchedulingPolicy == "RoundRobin" && RoundRobinMode == RoundRobinSubMode.TimeSlices)
+                    {
+                        <table class="scheduling-data-table">
+                            <thead>
+                                <tr>
+                                    <th>Prozess</th>
+                                    <th>Bedienzeit (t<sub>i</sub>)</th>
+                                    <th>Priorität</th>
+                                    <th>Erste Zuteilung</th>
+                                    <th>Endzeit (C<sub>i</sub>)</th>
+                                    <th>Wartezeit (T<sub>w</sub>)</th>
+                                    <th>Verweilzeit (T<sub>tr</sub>)</th>
+                                    <th>Zeitscheiben</th>
+                                    <th>Status (Schritt @CurrentStepIndex)</th>
                                 </tr>
-                            }
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                @foreach (var res in rrProcResults)
+                                {
+                                    var isFinishedNow = CurrentStepIndex > 0 && activeSchedule[CurrentStepIndex - 1].EndTime >= res.CompletionTime;
+                                    var isCurrentlyRunning = CurrentStepIndex > 0 && activeSchedule[CurrentStepIndex - 1].ProcessIndex == res.OriginalIndex;
+
+                                    <tr class="@(isCurrentlyRunning ? "row-active" : "")">
+                                        <td>
+                                            <span class="proc-badge @GetProcessColorClass(res.OriginalIndex)">@res.Name</span>
+                                        </td>
+                                        <td>@res.Duration</td>
+                                        <td>@res.Priority</td>
+                                        <td>@(res.FirstStartTime >= 0 ? res.FirstStartTime.ToString() : "-")</td>
+                                        <td><strong>@res.CompletionTime</strong></td>
+                                        <td>@res.WaitingTime</td>
+                                        <td><strong>@res.TurnaroundTime</strong></td>
+                                        <td>@res.SliceCount &times; q</td>
+                                        <td>
+                                            @if (isFinishedNow)
+                                            {
+                                                <span class="completed-badge">✓ Fertiggestellt (t=@res.CompletionTime)</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="pending-badge">⏳ Wartend / Aktiv</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-summary-row">
+                                    <td colspan="4"><strong>Durchschnitt (n = @procList.Count)</strong></td>
+                                    <td>-</td>
+                                    <td><strong>T̄<sub>w</sub> = @rrSliceWaiting.ToString("F2")</strong></td>
+                                    <td><strong class="text-amber">T̄<sub>tr</sub> = @rrSliceTurnaround.ToString("F2")</strong></td>
+                                    <td colspan="2"><span class="metric-sub">Klausurformel (q &rarr; 0): @rrScore.ToString("F2")</span></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    }
+                    else if (SelectedSchedulingPolicy == "RoundRobin" && RoundRobinMode == RoundRobinSubMode.ProcessorSharing)
+                    {
+                        <table class="scheduling-data-table">
+                            <thead>
+                                <tr>
+                                    <th>Phase</th>
+                                    <th>Terminierender Prozess</th>
+                                    <th>Bedienzeit (t<sub>i</sub>)</th>
+                                    <th>Intervall (&Delta;t)</th>
+                                    <th>Aktive Prozesse (k)</th>
+                                    <th>Phasen-Laufzeit (k &middot; &Delta;t)</th>
+                                    <th>Fertigstellung (C<sub>i</sub>)</th>
+                                    <th>Verweilzeit-Beitrag (&Delta;T̄)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int i = 0; i < psPhaseResults.Count; i++)
+                                {
+                                    var item = psPhaseResults[i];
+                                    var stepNum = i + 1;
+                                    var isExecuted = stepNum <= CurrentStepIndex;
+                                    var isCurrentlyActive = stepNum == CurrentStepIndex;
+
+                                    <tr class="@(isCurrentlyActive ? "row-active" : "") @(!isExecuted ? "row-pending" : "")">
+                                        <td><strong>Phase #@item.PhaseIndex</strong></td>
+                                        <td>
+                                            <span class="proc-badge @GetProcessColorClass(item.ProcessIndex)">@item.ProcessName</span>
+                                        </td>
+                                        <td>@item.Duration</td>
+                                        <td>&Delta;t = @item.Delta</td>
+                                        <td>k = @item.ActiveProcesses</td>
+                                        <td>@item.WallDuration</td>
+                                        <td><strong>t = @item.CompletionTime</strong></td>
+                                        <td>
+                                            <code>@item.ActiveProcesses&sup2; / @procList.Count &times; @item.Delta = @item.Contribution.ToString("F2")</code>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-summary-row">
+                                    <td colspan="6"><strong>Gesamt-Verweilzeit T̄<sub>RR</sub> (Klausurformel)</strong></td>
+                                    <td>-</td>
+                                    <td><strong class="text-amber">@rrScore.ToString("F2") Zeiteinheiten</strong></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    }
+                    else
+                    {
+                        <table class="scheduling-data-table">
+                            <thead>
+                                <tr>
+                                    <th>Rang</th>
+                                    <th>Prozess</th>
+                                    <th>Bedienzeit (t<sub>i</sub>)</th>
+                                    <th>Priorität</th>
+                                    <th>Startzeit</th>
+                                    <th>Endzeit (C<sub>i</sub>)</th>
+                                    <th>Verweilzeit-Beitrag (ΔT̄)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int i = 0; i < activeSchedule.Count; i++)
+                                {
+                                    var item = activeSchedule[i];
+                                    var stepNum = i + 1;
+                                    var isExecuted = stepNum <= CurrentStepIndex;
+                                    var isCurrentlyActive = stepNum == CurrentStepIndex;
+                                    var remaining = procList.Count - i;
+                                    var contribution = (double)remaining * item.Duration / procList.Count;
+
+                                    <tr class="@(isCurrentlyActive ? "row-active" : "") @(!isExecuted ? "row-pending" : "")">
+                                        <td><strong>#@stepNum</strong></td>
+                                        <td>
+                                            <span class="proc-badge @GetProcessColorClass(item.ProcessIndex)">@item.ProcessName</span>
+                                        </td>
+                                        <td>@item.Duration</td>
+                                        <td>@item.Priority</td>
+                                        <td>@item.StartTime</td>
+                                        <td><strong>@item.EndTime</strong></td>
+                                        <td>
+                                            <code>@remaining / @procList.Count &times; @item.Duration = @contribution.ToString("F2")</code>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
                 </div>
             </div>
 
@@ -251,9 +420,9 @@
                     </div>
 
                     <div class="metric-card @(SelectedSchedulingPolicy == "RoundRobin" ? "highlight-strategy" : "")">
-                        <span class="metric-label">Round Robin (q → 0)</span>
-                        <strong class="metric-val text-amber">@rrScore.ToString("F2")</strong>
-                        <span class="metric-sub">Prozessor-Sharing</span>
+                        <span class="metric-label">Round Robin @(SelectedSchedulingPolicy == "RoundRobin" && RoundRobinMode == RoundRobinSubMode.TimeSlices ? $"(q={Quantum})" : "(q → 0)")</span>
+                        <strong class="metric-val text-amber">@(SelectedSchedulingPolicy == "RoundRobin" && RoundRobinMode == RoundRobinSubMode.TimeSlices ? rrSliceTurnaround.ToString("F2") : rrScore.ToString("F2"))</strong>
+                        <span class="metric-sub">@(SelectedSchedulingPolicy == "RoundRobin" && RoundRobinMode == RoundRobinSubMode.TimeSlices ? $"Zeitscheibe q={Quantum} (q→0: {rrScore:F2})" : "Prozessor-Sharing")</span>
                     </div>
                 </div>
             </div>
@@ -395,10 +564,11 @@
                             @if (ShowSolution)
                             {
                                 var sortedDurations = wsProcList.Select(p => p.Duration).OrderBy(d => d).ToArray();
+                                var wsRR = CalculateRoundRobin(wsProcList, 1);
                                 <div class="ws-sol-calc">
                                     <p><strong>Phasen (nach sortierten Dauern):</strong> @string.Join(" ≤ ", sortedDurations)</p>
-                                    <p><strong>Berechnung:</strong> T̄<sub>RR</sub> = &sum;<sub>i=1..n</sub> (n - i + 1)&sup2; / n &times; &Delta;t<sub>i</sub></p>
-                                    <p><strong>Ergebnis:</strong> T̄<sub>RR</sub> = <strong>@rrScore.ToString("F2") Zeiteinheiten</strong></p>
+                                    <p><strong>Berechnung (Klausurformel q &rarr; 0):</strong> T̄<sub>RR</sub> = &sum;<sub>i=1..n</sub> (n - i + 1)&sup2; / n &times; &Delta;t<sub>i</sub> = <strong>@rrScore.ToString("F2") Zeiteinheiten</strong></p>
+                                    <p><strong>Vergleich mit diskreten Zeitscheiben (q = 1):</strong> T̄<sub>RR(q=1)</sub> = <strong>@wsRR.AverageTurnaround.ToString("F2") Zeiteinheiten</strong> (Wartezeit T̄<sub>w</sub> = @wsRR.AverageWaiting.ToString("F2"))</p>
                                 </div>
                             }
                         </div>
@@ -417,8 +587,47 @@
         Worksheet
     }
 
+    public enum RoundRobinSubMode
+    {
+        TimeSlices,
+        ProcessorSharing
+    }
+
     public sealed record ProcessItem(string Name, int Duration, string Priority, int OriginalIndex);
-    public sealed record ScheduleBlock(string ProcessName, int ProcessIndex, int Duration, string Priority, int StartTime, int EndTime);
+    public sealed record ScheduleBlock(
+        string ProcessName, 
+        int ProcessIndex, 
+        int Duration, 
+        string Priority, 
+        int StartTime, 
+        int EndTime, 
+        int RemainingDuration = 0, 
+        bool IsCompletion = false
+    );
+
+    public sealed record ProcessResult(
+        string Name,
+        int OriginalIndex,
+        int Duration,
+        string Priority,
+        int FirstStartTime,
+        int CompletionTime,
+        int WaitingTime,
+        int TurnaroundTime,
+        int SliceCount
+    );
+
+    public sealed record PhaseResult(
+        int PhaseIndex,
+        string ProcessName,
+        int ProcessIndex,
+        int Duration,
+        int Delta,
+        int ActiveProcesses,
+        int WallDuration,
+        int CompletionTime,
+        double Contribution
+    );
 
     [Parameter]
     public string SelectedSchedulingPolicy { get; set; } = "SJF";
@@ -431,6 +640,15 @@
 
     [Parameter]
     public bool IsEmbed { get; set; } = false;
+
+    [Parameter]
+    public int Quantum { get; set; } = 1;
+
+    public RoundRobinSubMode RoundRobinMode { get; set; } = RoundRobinSubMode.TimeSlices;
+
+    [SupplyParameterFromQuery(Name = "q")] public int? QueryQuantum { get; set; }
+    [SupplyParameterFromQuery(Name = "quantum")] public int? QueryQuantumLong { get; set; }
+    [SupplyParameterFromQuery(Name = "rrmode")] public string? QueryRrMode { get; set; }
 
     private ViewMode ActiveView { get; set; } = ViewMode.Simulator;
     private bool ShowSolution { get; set; } = false;
@@ -492,6 +710,41 @@
                 {
                     SchedulingPrioritiesInput = val;
                 }
+                else if (key == "q" || key == "quantum")
+                {
+                    if (int.TryParse(val, out var qParsed) && qParsed > 0)
+                    {
+                        Quantum = qParsed;
+                    }
+                }
+                else if (key == "rrmode" || key == "rr_mode" || key == "mode")
+                {
+                    if (val.Equals("phases", StringComparison.OrdinalIgnoreCase) || val.Equals("sharing", StringComparison.OrdinalIgnoreCase))
+                    {
+                        RoundRobinMode = RoundRobinSubMode.ProcessorSharing;
+                    }
+                    else
+                    {
+                        RoundRobinMode = RoundRobinSubMode.TimeSlices;
+                    }
+                }
+            }
+
+            var effQuantum = QueryQuantum ?? QueryQuantumLong;
+            if (effQuantum.HasValue && effQuantum.Value > 0)
+            {
+                Quantum = effQuantum.Value;
+            }
+            if (!string.IsNullOrEmpty(QueryRrMode))
+            {
+                if (QueryRrMode.Equals("phases", StringComparison.OrdinalIgnoreCase) || QueryRrMode.Equals("sharing", StringComparison.OrdinalIgnoreCase))
+                {
+                    RoundRobinMode = RoundRobinSubMode.ProcessorSharing;
+                }
+                else
+                {
+                    RoundRobinMode = RoundRobinSubMode.TimeSlices;
+                }
             }
         }
         catch { }
@@ -505,6 +758,18 @@
     private void ToggleSolution()
     {
         ShowSolution = !ShowSolution;
+    }
+
+    private void SetRoundRobinMode(RoundRobinSubMode mode)
+    {
+        RoundRobinMode = mode;
+        CurrentStepIndex = 0;
+    }
+
+    private void SetQuantum(int q)
+    {
+        Quantum = q;
+        CurrentStepIndex = 0;
     }
 
     private async Task PrintWorksheet()
@@ -581,6 +846,15 @@
         }
     }
 
+    private bool ShouldShowTick(int index, List<ScheduleBlock> schedule)
+    {
+        if (schedule.Count <= 12) return true;
+        var item = schedule[index];
+        if (index == schedule.Count - 1) return true;
+        if (item.IsCompletion) return true;
+        return false;
+    }
+
     private bool TryGetParsedScheduling(out List<ProcessItem> processes, out string errorMessage)
     {
         try
@@ -602,7 +876,6 @@
 
             if (priorities.Length != durations.Length)
             {
-                // Fallback / pad priorities
                 var defaultPrios = new[] { "sehr hoch", "hoch", "mittel", "niedrig", "sehr niedrig" };
                 priorities = Enumerable.Range(0, durations.Length)
                     .Select(i => i < priorities.Length ? priorities[i] : (i < defaultPrios.Length ? defaultPrios[i] : "mittel"))
@@ -624,8 +897,136 @@
         }
     }
 
+    private (List<ScheduleBlock> Slices, List<ProcessResult> ProcessResults, double AverageTurnaround, double AverageWaiting) 
+        CalculateRoundRobin(List<ProcessItem> processes, int quantum)
+    {
+        var slices = new List<ScheduleBlock>();
+        var queue = new Queue<(ProcessItem Proc, int Rem)>();
+        foreach (var p in processes)
+        {
+            queue.Enqueue((p, p.Duration));
+        }
+
+        var currentTime = 0;
+        var resultsMap = new Dictionary<int, ProcessResult>();
+        var sliceCountMap = processes.ToDictionary(p => p.OriginalIndex, _ => 0);
+        var firstStartMap = processes.ToDictionary(p => p.OriginalIndex, _ => -1);
+
+        while (queue.Count > 0)
+        {
+            var (proc, rem) = queue.Dequeue();
+            if (firstStartMap[proc.OriginalIndex] < 0)
+            {
+                firstStartMap[proc.OriginalIndex] = currentTime;
+            }
+
+            var runDuration = Math.Min(quantum, rem);
+            var start = currentTime;
+            var end = currentTime + runDuration;
+            currentTime = end;
+            sliceCountMap[proc.OriginalIndex]++;
+
+            var nextRem = rem - runDuration;
+            var isComp = nextRem == 0;
+            slices.Add(new ScheduleBlock(proc.Name, proc.OriginalIndex, runDuration, proc.Priority, start, end, nextRem, isComp));
+
+            if (isComp)
+            {
+                var completion = end;
+                var turnaround = completion;
+                var waiting = turnaround - proc.Duration;
+                resultsMap[proc.OriginalIndex] = new ProcessResult(
+                    proc.Name,
+                    proc.OriginalIndex,
+                    proc.Duration,
+                    proc.Priority,
+                    firstStartMap[proc.OriginalIndex],
+                    completion,
+                    waiting,
+                    turnaround,
+                    sliceCountMap[proc.OriginalIndex]
+                );
+            }
+            else
+            {
+                queue.Enqueue((proc, nextRem));
+            }
+        }
+
+        var processResults = processes.Select(p => resultsMap[p.OriginalIndex]).ToList();
+        var avgTurnaround = processResults.Count > 0 ? processResults.Average(r => r.TurnaroundTime) : 0.0;
+        var avgWaiting = processResults.Count > 0 ? processResults.Average(r => r.WaitingTime) : 0.0;
+
+        return (slices, processResults, avgTurnaround, avgWaiting);
+    }
+
+    private (List<ScheduleBlock> Phases, List<PhaseResult> PhaseResults, double AverageTurnaround)
+        CalculateProcessorSharing(List<ProcessItem> processes)
+    {
+        var sorted = processes.OrderBy(p => p.Duration).ToList();
+        var phases = new List<ScheduleBlock>();
+        var phaseResults = new List<PhaseResult>();
+        var totalProcesses = processes.Count;
+        var remainingProcesses = totalProcesses;
+        var sharedTime = 0;
+        var currentTime = 0;
+        var totalScore = 0.0;
+
+        for (int i = 0; i < sorted.Count; i++)
+        {
+            var proc = sorted[i];
+            var delta = proc.Duration - sharedTime;
+            var wallDuration = remainingProcesses * delta;
+            var start = currentTime;
+            var end = currentTime + wallDuration;
+            currentTime = end;
+            sharedTime = proc.Duration;
+
+            var contribution = totalProcesses > 0 
+                ? (double)remainingProcesses * delta * remainingProcesses / totalProcesses 
+                : 0.0;
+            totalScore += contribution;
+
+            phases.Add(new ScheduleBlock(
+                proc.Name,
+                proc.OriginalIndex,
+                wallDuration,
+                proc.Priority,
+                start,
+                end,
+                0,
+                true
+            ));
+
+            phaseResults.Add(new PhaseResult(
+                i + 1,
+                proc.Name,
+                proc.OriginalIndex,
+                proc.Duration,
+                delta,
+                remainingProcesses,
+                wallDuration,
+                end,
+                contribution
+            ));
+
+            remainingProcesses--;
+        }
+
+        return (phases, phaseResults, totalScore);
+    }
+
     private List<ScheduleBlock> GetScheduleForPolicy(string policy, List<ProcessItem> processes)
     {
+        if (policy == "RoundRobin")
+        {
+            if (RoundRobinMode == RoundRobinSubMode.ProcessorSharing)
+            {
+                return CalculateProcessorSharing(processes).Phases;
+            }
+            return CalculateRoundRobin(processes, Math.Max(1, Quantum)).Slices;
+        }
+
         var result = new List<ScheduleBlock>();
         var currentTime = 0;
 
@@ -633,7 +1034,6 @@
         {
             "SJF" => processes.OrderBy(p => p.Duration).ToList(),
             "Priority" => OrderByPriority(processes),
-            "RoundRobin" => processes.OrderBy(p => p.Duration).ToList(), // RR phase view by completion
             _ => processes.ToList() // FCFS
         };
 
@@ -642,7 +1042,7 @@
             var p = ordered[i];
             var start = currentTime;
             var end = currentTime + p.Duration;
-            result.Add(new ScheduleBlock(p.Name, p.OriginalIndex, p.Duration, p.Priority, start, end));
+            result.Add(new ScheduleBlock(p.Name, p.OriginalIndex, p.Duration, p.Priority, start, end, 0, true));
             currentTime = end;
         }
 
@@ -663,7 +1063,6 @@
             }
         }
 
-        // Add any remaining
         foreach (var p in processes)
         {
             if (!ordered.Contains(p)) ordered.Add(p);
@@ -678,7 +1077,7 @@
         return colors[procIndex % colors.Length];
     }
 
-    private string GetSchedulingNarratorText(int stepIndex, List<ScheduleBlock> schedule, int totalProcesses, string policy)
+    private string GetSchedulingNarratorText(int stepIndex, List<ScheduleBlock> schedule, int totalProcesses, string policy, List<PhaseResult>? phaseResults = null)
     {
         if (stepIndex == 0)
         {
@@ -686,12 +1085,34 @@
             {
                 "SJF" => $"Alle {totalProcesses} Prozesse stehen zur Zeit t=0 in der Bereit-Warteschlange. Shortest Job First wählt als Nächstes den Prozess mit der kürzesten Bedienzeit.",
                 "Priority" => $"Alle {totalProcesses} Prozesse stehen zur Zeit t=0 in der Bereit-Warteschlange. Prioritätsscheduling wählt stets den Prozess mit der höchsten Prioritätsstufe.",
-                "RoundRobin" => $"Alle {totalProcesses} Prozesse teilen sich die CPU gleichmäßig im Zeitschlitz-Verfahren (Prozessor-Sharing). Prozesse mit kürzerer Laufzeit terminieren früher.",
+                "RoundRobin" when RoundRobinMode == RoundRobinSubMode.ProcessorSharing => $"Alle {totalProcesses} Prozesse teilen sich die CPU gleichmäßig im Prozessor-Sharing (q → 0). Prozesse mit kürzerer Bedienzeit terminieren früher.",
+                "RoundRobin" => $"Alle {totalProcesses} Prozesse stehen zur Zeit t=0 in der Bereit-Warteschlange. Round Robin teilt die CPU reihum in Zeitscheiben von q={Quantum} Zeiteinheit(en) zu.",
                 _ => $"Alle {totalProcesses} Prozesse stehen zur Zeit t=0 in der Bereit-Warteschlange. FCFS arbeitet die Prozesse streng in der Eingangsreihenfolge ab."
             };
         }
 
         var item = schedule[stepIndex - 1];
+
+        if (policy == "RoundRobin")
+        {
+            if (RoundRobinMode == RoundRobinSubMode.ProcessorSharing && phaseResults != null && stepIndex - 1 < phaseResults.Count)
+            {
+                var pRes = phaseResults[stepIndex - 1];
+                return $"Phase {pRes.PhaseIndex}: Von t={item.StartTime} bis t={item.EndTime} (Laufzeit: {pRes.WallDuration}) teilten sich {pRes.ActiveProcesses} Prozesse gleichmäßig die CPU (Δt = {pRes.Delta}). Bei t={item.EndTime} terminiert {pRes.ProcessName}. Beitrag zur mittleren Verweilzeit: {pRes.ActiveProcesses}²/{totalProcesses} × {pRes.Delta} = {pRes.Contribution:F2}.";
+            }
+            else
+            {
+                if (item.IsCompletion)
+                {
+                    return $"Schritt {stepIndex}: {item.ProcessName} erhält die letzte Zeitscheibe von t={item.StartTime} bis t={item.EndTime} (Dauer: {item.Duration}). 🎉 {item.ProcessName} ist damit vollständig fertiggestellt (Fertigstellung C={item.EndTime}, Verweilzeit T_tr={item.EndTime})!";
+                }
+                else
+                {
+                    return $"Schritt {stepIndex}: {item.ProcessName} erhält die CPU für {item.Duration} Zeiteinheit(en) von t={item.StartTime} bis t={item.EndTime}. Restbedienzeit: {item.RemainingDuration}. Da {item.ProcessName} noch nicht fertig ist, wird er am Ende der Bereit-Warteschlange eingereiht.";
+                }
+            }
+        }
+
         var remaining = totalProcesses - (stepIndex - 1);
         var contribution = (double)remaining * item.Duration / totalProcesses;
 
@@ -699,7 +1120,6 @@
         {
             "SJF" => $"Schritt {stepIndex}: {item.ProcessName} besitzt mit t={item.Duration} die kürzeste verbleibende Bedienzeit. Seine Abarbeitung von t={item.StartTime} bis t={item.EndTime} hält noch {remaining} Prozesse im System auf. Verweilzeit-Beitrag: {remaining}/{totalProcesses} \u00d7 {item.Duration} = {contribution:F2}.",
             "Priority" => $"Schritt {stepIndex}: {item.ProcessName} hat die höchste Priorität ('{item.Priority}') unter den noch wartenden Prozessen. Ausführung von t={item.StartTime} bis t={item.EndTime}. Verweilzeit-Beitrag: {remaining}/{totalProcesses} \u00d7 {item.Duration} = {contribution:F2}.",
-            "RoundRobin" => $"Schritt {stepIndex}: Phase bis zur Fertigstellung von {item.ProcessName} bei t={item.EndTime}. {remaining} Prozesse teilten sich bisher gleichmäßig die Rechenzeit. Verweilzeit-Beitrag: {contribution:F2}.",
             _ => $"Schritt {stepIndex}: {item.ProcessName} steht an Position {stepIndex} der Eingangswarteschlange (FCFS). Ausführung von t={item.StartTime} bis t={item.EndTime}. Verweilzeit-Beitrag: {remaining}/{totalProcesses} \u00d7 {item.Duration} = {contribution:F2}."
         };
     }
