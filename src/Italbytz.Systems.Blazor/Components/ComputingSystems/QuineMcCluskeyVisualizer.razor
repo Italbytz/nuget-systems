@@ -391,6 +391,7 @@
     [Parameter] public bool? Embed { get; set; }
 
     [SupplyParameterFromQuery(Name = "values")] public string? QueryValues { get; set; }
+    [SupplyParameterFromQuery(Name = "truth")] public string? QueryTruth { get; set; }
     [SupplyParameterFromQuery(Name = "vars")] public int? QueryVars { get; set; }
 
     private ViewMode ActiveView = ViewMode.Simulator;
@@ -436,16 +437,17 @@
                 }
             }
 
-            if (!string.IsNullOrEmpty(QueryValues))
+            var effectiveValues = QueryValues ?? QueryTruth;
+            if (!string.IsNullOrEmpty(effectiveValues))
             {
-                TruthValuesInput = QueryValues;
+                TruthValuesInput = effectiveValues;
                 if (QueryVars.HasValue)
                 {
                     VariableCount = QueryVars.Value;
                 }
                 else
                 {
-                    var count = QueryValues.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries).Length;
+                    var count = effectiveValues.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries).Length;
                     if (count >= 16) VariableCount = 4;
                     else if (count >= 8) VariableCount = 3;
                 }
