@@ -1,0 +1,468 @@
+@namespace Italbytz.Systems.Blazor.Components.ComputingSystems
+@using Italbytz.ComputingSystems
+@using Italbytz.ComputingSystems.Abstractions
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<article class="alg-container @(IsEmbed ? "embed-mode" : "")">
+
+    @if (!IsEmbed)
+    {
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Grundlagen der Informatik &bull; Boolesche Algebra &amp; Minimierung</p>
+            <h2>Algebraische Minimierung (Idempotenz &amp; Komplement)</h2>
+            <p class="feature-intro">
+                Systematische Minimierung boolescher Funktionen ausgehend von Mintermen (KDNF) über das
+                <strong>Komplementgesetz</strong> (<em>u</em> &and; <em>v</em>) &or; (<em>u</em> &and; &not;<em>v</em>) = <em>u</em>
+                und das <strong>Idempotenzgesetz</strong> <em>m</em><sub><em>i</em></sub> = <em>m</em><sub><em>i</em></sub> &or; <em>m</em><sub><em>i</em></sub>
+                zur mehrfachen Nutzung von Mintermen.
+            </p>
+        </div>
+    }
+
+    <!-- Controls Panel -->
+    <div class="controls-panel no-print">
+        <div class="config-grid">
+            <label class="control-label">
+                <span>Anzahl Variablen:</span>
+                <select class="form-input select" @bind="VariableCount" @bind:after="OnVariableCountChanged">
+                    <option value="2">2 Variablen (a, b &rarr; 4 Zeilen)</option>
+                    <option value="3">3 Variablen (a, b, c &rarr; 8 Zeilen)</option>
+                    <option value="4">4 Variablen (a, b, c, d &rarr; 16 Zeilen)</option>
+                </select>
+            </label>
+
+            <label class="control-label wide-label">
+                <span>Wertevektor y = f(x) (0/1 kommagetrennt):</span>
+                <input type="text" class="form-input mono" @bind="TruthValuesInput" @bind:after="Recalculate" />
+            </label>
+        </div>
+
+        <!-- Presets Bar -->
+        <div class="preset-bar">
+            <span class="preset-label">Vorlesungsbeispiele:</span>
+            <button class="preset-btn highlight" @onclick='() => LoadPreset("SlideY")'>⭐ Beispiel 1: Folie y (1,1,0,0,1,1,0,0)</button>
+            <button class="preset-btn highlight" @onclick='() => LoadPreset("SlideZ")'>⭐ Beispiel 2: Folie z (1,1,0,0,0,0,0,0)</button>
+            <button class="preset-btn" @onclick='() => LoadPreset("Majority3")'>Mehrheitsfunktion (Majority-3)</button>
+            <button class="preset-btn" @onclick='() => LoadPreset("Xor2")'>XOR 2-Bit</button>
+            <button class="preset-btn random" @onclick="GenerateRandomFunction">🎲 Zufallsfunktion</button>
+        </div>
+    </div>
+
+    @if (Solution != null)
+    {
+        <!-- Summary Strip -->
+        <div class="narrator-card">
+            <div class="narrator-header">
+                <div class="step-badge badge-alg">Algebraisches Ergebnis</div>
+                <div class="narrator-title">
+                    KDNF: <strong class="mono blue">@Solution.Kdnf</strong>
+                </div>
+            </div>
+            <div class="alg-metrics-strip">
+                <div class="metric-item">
+                    <span class="metric-label">Minimalform (DMF):</span>
+                    <div class="metric-val mono bold emerald">y = @Solution.MinimalDnf</div>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Eingänge / Literale:</span>
+                    <div class="metric-val mono">
+                        <span class="red">@Solution.InitialLiteralCount Literale</span> &rarr;
+                        <span class="emerald bold">@Solution.MinimalLiteralCount Literale</span>
+                        @if (Solution.InitialLiteralCount > 0)
+                        {
+                            var saving = Math.Round((1.0 - (double)Solution.MinimalLiteralCount / Solution.InitialLiteralCount) * 100);
+                            <small class="saving-tag">(&minus;@saving%)</small>
+                        }
+                    </div>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Gatteranzahl (C<sub>A</sub>):</span>
+                    <div class="metric-val mono">
+                        <span>@Solution.InitialGateCount Gatter</span> &rarr;
+                        <span class="emerald bold">@Solution.MinimalGateCount Gatter</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="main-display-grid">
+
+            <!-- Left: Truth Table -->
+            <div class="table-card">
+                <div class="table-card-header">
+                    <h3>Wahrheitstabelle</h3>
+                    <small>Klick auf <em>y</em> wechselt 0 &harr; 1</small>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="interactive-truth-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                @for (int v = 0; v < VariableCount; v++)
+                                {
+                                    <th>@GetVarLetter(v)</th>
+                                }
+                                <th class="th-out">y</th>
+                                <th>Minterm</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (int r = 0; r < TruthValues.Length; r++)
+                            {
+                                int rowIdx = r;
+                                bool isOne = TruthValues[r] == 1;
+                                <tr class="@(isOne ? "row-active" : "")">
+                                    <td class="mono">m<sub>@rowIdx</sub></td>
+                                    @for (int v = 0; v < VariableCount; v++)
+                                    {
+                                        var bitShift = VariableCount - 1 - v;
+                                        var bitVal = (rowIdx >> bitShift) & 1;
+                                        <td class="mono">@bitVal</td>
+                                    }
+                                    <td class="td-out">
+                                        <button class="out-toggle-btn @(isOne ? "val-1" : "val-0")"
+                                                @onclick="() => ToggleOutputBit(rowIdx)"
+                                                title="Klicken zum Umschalten (0 / 1)">
+                                            @TruthValues[rowIdx]
+                                        </button>
+                                    </td>
+                                    <td class="mono minterm-col">
+                                        @if (isOne)
+                                        {
+                                            <span class="minterm-text">@FormatMintermPlain(rowIdx)</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="dim">&ndash;</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Right: Step-by-Step Derivation -->
+            <div class="derivation-card">
+                <div class="derivation-card-header">
+                    <h3>Algebraischer Lösungsweg</h3>
+                </div>
+
+                <div class="derivation-content">
+                    
+                    <!-- Step 1: KDNF -->
+                    <section class="step-section">
+                        <div class="step-title">
+                            <span class="step-num">1</span>
+                            <strong>Kanonische Disjunktive Normalform (KDNF)</strong>
+                        </div>
+                        <p class="step-desc">Disjunktion aller Minterme der Einsmenge <em>L</em><sub>ein</sub> = &#123;@string.Join(", ", Solution.MintermIndices)&#125;:</p>
+                        <div class="formula-box mono blue">
+                            y = @Solution.Kdnf
+                        </div>
+                    </section>
+
+                    <!-- Step 2: 1st Order Pairings -->
+                    <section class="step-section">
+                        <div class="step-title">
+                            <span class="step-num">2</span>
+                            <strong>Paarweise Zusammenfassung (Komplementgesetz)</strong>
+                        </div>
+                        <p class="step-desc">
+                            Zusammenfassung benachbarter Minterme mit Hamming-Distanz 1 über
+                            (<em>u</em> &and; <em>x</em>) &or; (<em>u</em> &and; &not;<em>x</em>) = <em>u</em> &and; (<em>x</em> &or; &not;<em>x</em>) = <em>u</em>:
+                        </p>
+
+                        @if (Solution.FirstOrderPairings.Count > 0)
+                        {
+                            <div class="pairings-list">
+                                @foreach (var pair in Solution.FirstOrderPairings)
+                                {
+                                    <div class="pairing-item">
+                                        <div class="pairing-header">
+                                            <span class="badge-pair">m<sub>@pair.MintermA</sub> &or; m<sub>@pair.MintermB</sub></span>
+                                            <span class="diff-var-tag">Variable @pair.DifferingVariable f&auml;llt weg (@pair.DifferingVariable &or; &not;@pair.DifferingVariable = 1)</span>
+                                        </div>
+                                        <div class="pairing-math mono">
+                                            @pair.TermA &or; @pair.TermB
+                                            &rarr; @pair.CommonFactor &and; (@pair.DifferingVariable &or; &not;@pair.DifferingVariable)
+                                            = <strong class="emerald">@pair.CombinedTerm</strong>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="info-alert">
+                                Keine Minterme mit Hamming-Distanz 1 vorhanden. Minterme lassen sich nicht paarweise algebraisch kürzen.
+                            </div>
+                        }
+                    </section>
+
+                    <!-- Step 3: Idempotence Notes -->
+                    @if (Solution.IdempotenceUsages.Count > 0)
+                    {
+                        <section class="step-section idempotence-section">
+                            <div class="step-title">
+                                <span class="step-num step-idempotence">💡</span>
+                                <strong>Rolle des Idempotenzgesetzes (a &or; a = a)</strong>
+                            </div>
+                            <p class="step-desc">
+                                Wenn ein Minterm mit mehreren Nachbarn zusammengefasst wird, wird er algebraisch durch Idempotenz dupliziert.
+                                Dies entspricht im sp&auml;teren KV-Diagramm <strong>&uuml;berlappenden Bl&ouml;cken</strong>:
+                            </p>
+                            <div class="idempotence-list">
+                                @foreach (var usage in Solution.IdempotenceUsages)
+                                {
+                                    <div class="idempotence-box">
+                                        <span class="idempotence-badge">@usage.MintermName</span>
+                                        <span>@usage.Explanation</span>
+                                    </div>
+                                }
+                            </div>
+                        </section>
+                    }
+
+                    <!-- Step 4: 2nd Order Reductions -->
+                    @if (Solution.SecondOrderPairings.Count > 0)
+                    {
+                        <section class="step-section">
+                            <div class="step-title">
+                                <span class="step-num">3</span>
+                                <strong>H&ouml;here Reduktion (2. Ordnung)</strong>
+                            </div>
+                            <p class="step-desc">Erneute Zusammenfassung der entstandenen 2-Literal-Terme:</p>
+                            <div class="pairings-list">
+                                @foreach (var pair in Solution.SecondOrderPairings)
+                                {
+                                    <div class="pairing-item">
+                                        <div class="pairing-header">
+                                            <span class="badge-pair">2. Ordnung</span>
+                                            <span class="diff-var-tag">Variable @pair.DifferingVariable f&auml;llt weg</span>
+                                        </div>
+                                        <div class="pairing-math mono">
+                                            @pair.TermA &or; @pair.TermB
+                                            &rarr; <strong class="emerald">@pair.CombinedTerm</strong>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </section>
+                    }
+
+                    <!-- Step 5: Final Result -->
+                    <section class="step-section final-section">
+                        <div class="step-title">
+                            <span class="step-num step-final">✓</span>
+                            <strong>Disjunktive Minimalform (DMF)</strong>
+                        </div>
+                        <div class="final-formula-box mono emerald">
+                            y = @Solution.MinimalDnf
+                        </div>
+                    </section>
+
+                </div>
+            </div>
+
+        </div>
+    }
+
+</article>
+
+@code {
+    [Parameter]
+    public bool IsEmbed { get; set; } = false;
+
+    [Parameter]
+    public int? QueryVars { get; set; }
+
+    [Parameter]
+    public string? QueryTruth { get; set; }
+
+    [Parameter]
+    public string? QueryValues { get; set; }
+
+    [Parameter]
+    public string? QueryPreset { get; set; }
+
+    private int VariableCount { get; set; } = 3;
+    private int[] TruthValues { get; set; } = [1, 1, 0, 0, 1, 1, 0, 0];
+    private string TruthValuesInput { get; set; } = "1,1,0,0,1,1,0,0";
+
+    private IAlgebraicMinimizationSolution? Solution { get; set; }
+    private readonly IAlgebraicMinimizationSolver Solver = new AlgebraicMinimizationSolver();
+
+    protected override void OnInitialized()
+    {
+        ParseQueryParameters();
+        Recalculate();
+    }
+
+    private void ParseQueryParameters()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query;
+
+            if (!string.IsNullOrEmpty(query))
+            {
+                if (query.Contains("embed=true", StringComparison.OrdinalIgnoreCase) || query.Contains("embedded=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsEmbed = true;
+                }
+            }
+
+            var inputVals = QueryValues ?? QueryTruth;
+            if (!string.IsNullOrEmpty(inputVals))
+            {
+                TruthValuesInput = inputVals;
+                if (QueryVars.HasValue)
+                {
+                    VariableCount = QueryVars.Value;
+                }
+                else
+                {
+                    var count = inputVals.Split([',', ';', ' '], StringSplitOptions.RemoveEmptyEntries).Length;
+                    if (count >= 16) VariableCount = 4;
+                    else if (count >= 8) VariableCount = 3;
+                    else if (count >= 4) VariableCount = 2;
+                }
+            }
+            else if (!string.IsNullOrEmpty(QueryPreset))
+            {
+                LoadPreset(QueryPreset);
+                return;
+            }
+            else if (QueryVars.HasValue && QueryVars.Value != VariableCount)
+            {
+                VariableCount = QueryVars.Value;
+                OnVariableCountChanged();
+                return;
+            }
+
+            ParseInputToTruthValues();
+        }
+        catch { }
+    }
+
+    private void OnVariableCountChanged()
+    {
+        int count = 1 << VariableCount;
+        TruthValues = new int[count];
+        if (VariableCount == 2)
+        {
+            TruthValues = [0, 1, 1, 0];
+        }
+        else if (VariableCount == 3)
+        {
+            TruthValues = [1, 1, 0, 0, 1, 1, 0, 0]; // Beispiel 1
+        }
+        else
+        {
+            TruthValues = [0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0];
+        }
+        TruthValuesInput = string.Join(",", TruthValues);
+        Recalculate();
+    }
+
+    private void LoadPreset(string preset)
+    {
+        switch (preset)
+        {
+            case "SlideY":
+            case "Exam1":
+                VariableCount = 3;
+                TruthValues = [1, 1, 0, 0, 1, 1, 0, 0]; // y = ¬b
+                break;
+            case "SlideZ":
+            case "Exam2":
+                VariableCount = 3;
+                TruthValues = [1, 1, 0, 0, 0, 0, 0, 0]; // z = ¬a ∧ ¬b
+                break;
+            case "Majority3":
+                VariableCount = 3;
+                TruthValues = [0, 0, 0, 1, 0, 1, 1, 1];
+                break;
+            case "Xor2":
+                VariableCount = 2;
+                TruthValues = [0, 1, 1, 0];
+                break;
+        }
+        TruthValuesInput = string.Join(",", TruthValues);
+        Recalculate();
+    }
+
+    private void GenerateRandomFunction()
+    {
+        var rand = new Random();
+        int len = 1 << VariableCount;
+        TruthValues = new int[len];
+        for (int i = 0; i < len; i++)
+        {
+            TruthValues[i] = rand.Next(2);
+        }
+        TruthValuesInput = string.Join(",", TruthValues);
+        Recalculate();
+    }
+
+    private void ToggleOutputBit(int row)
+    {
+        if (row >= 0 && row < TruthValues.Length)
+        {
+            TruthValues[row] = TruthValues[row] == 1 ? 0 : 1;
+            TruthValuesInput = string.Join(",", TruthValues);
+            Recalculate();
+        }
+    }
+
+    private void ParseInputToTruthValues()
+    {
+        int expected = 1 << VariableCount;
+        var parts = TruthValuesInput.Split([',', ';', ' '], StringSplitOptions.RemoveEmptyEntries);
+        var list = new List<int>();
+        foreach (var p in parts)
+        {
+            if (int.TryParse(p.Trim(), out int val))
+            {
+                list.Add(val == 0 ? 0 : 1);
+            }
+        }
+
+        while (list.Count < expected)
+        {
+            list.Add(0);
+        }
+
+        TruthValues = list.Take(expected).ToArray();
+    }
+
+    private void Recalculate()
+    {
+        ParseInputToTruthValues();
+        Solution = Solver.Solve(new AlgebraicMinimizationParameters(VariableCount, TruthValues));
+    }
+
+    private string GetVarLetter(int v)
+    {
+        string[] letters = ["a", "b", "c", "d"];
+        return v < letters.Length ? letters[v] : $"x{v}";
+    }
+
+    private string FormatMintermPlain(int minterm)
+    {
+        var lits = new List<string>();
+        for (int bit = VariableCount - 1; bit >= 0; bit--)
+        {
+            bool high = ((minterm >> bit) & 1) == 1;
+            string letter = GetVarLetter(VariableCount - 1 - bit);
+            lits.Add(high ? letter : $"¬{letter}");
+        }
+        return string.Join(" ∧ ", lits);
+    }
+}

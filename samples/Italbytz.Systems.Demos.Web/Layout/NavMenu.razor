@@ -31,7 +31,7 @@
         <button type="button" 
                 class="switcher-pill @(SelectedTab == LectureTab.GdI ? "active pill-gdi" : "")" 
                 @onclick="() => SelectTab(LectureTab.GdI)"
-                title="Grundlagen der Informatik (19 Simulatoren)">
+                title="Grundlagen der Informatik (20 Simulatoren)">
             <span class="pill-dot dot-gdi"></span>
             <span>GdI</span>
         </button>
@@ -52,7 +52,7 @@
         <button type="button" 
                 class="switcher-pill switcher-pill-all @(SelectedTab == LectureTab.All ? "active pill-all" : "")" 
                 @onclick="() => SelectTab(LectureTab.All)"
-                title="Alle 45 Aufgaben anzeigen">
+                title="Alle 46 Aufgaben anzeigen">
             <span>Alle</span>
         </button>
     </div>
@@ -234,8 +234,17 @@
                     </div>
                     <div class="nav-chapter-items">
                         <div class="nav-item">
-                            <NavLink class="nav-link" href="karnaugh-veitch">
+                            <NavLink class="nav-link" href="algebraic-minimization">
                                 <span class="nav-kicker">12</span>
+                                <span>
+                                    <strong>Algebraische Minimierung</strong>
+                                    <small>Idempotenz &amp; Komplement</small>
+                                </span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="karnaugh-veitch">
+                                <span class="nav-kicker">13</span>
                                 <span>
                                     <strong>KV-Diagramme</strong>
                                     <small>Gray-Code &amp; Blockbildung</small>
@@ -244,7 +253,7 @@
                         </div>
                         <div class="nav-item">
                             <NavLink class="nav-link" href="quine-mccluskey">
-                                <span class="nav-kicker">13</span>
+                                <span class="nav-kicker">14</span>
                                 <span>
                                     <strong>Quine-McCluskey</strong>
                                     <small>Primimplikanten &amp; Überdeckung</small>
@@ -793,6 +802,7 @@
                 path == "twos-complement" || path == "floating-point" ||
                 path == "ascii-memory" || path == "ascii-endianness" || path == "endianness" ||
                 path == "normal-forms" || path == "boolean-normal-forms" ||
+                path == "algebraic-minimization" || path == "algebraische-minimierung" || path == "boolean-minimization" || path == "boolean-algebra" ||
                 path == "karnaugh-veitch" || path == "kv" ||
                 path == "quine-mccluskey" || path == "qmc" ||
                 path == "logic-circuits" || path == "logic-simulator" || path == "circuits" ||

@@ -382,5 +382,46 @@ public sealed class ComputingSystemsTests
         var resD = HazardEngine.Analyze(model1.FunctionVector, 4, 13);
         Assert.IsFalse(resD.HasAnyHazard);
     }
+
+    [TestMethod]
+    public void Algebraic_minimization_solver_minimizes_beispiel1_y()
+    {
+        IAlgebraicMinimizationSolver solver = new AlgebraicMinimizationSolver();
+        // Beispiel 1 (y): m0, m1, m4, m5 -> y = ¬b
+        var solution = solver.Solve(new AlgebraicMinimizationParameters(3, [1, 1, 0, 0, 1, 1, 0, 0]));
+
+        Assert.AreEqual("¬b", solution.MinimalDnf);
+        Assert.HasCount(4, solution.FirstOrderPairings);
+        Assert.IsNotEmpty(solution.SecondOrderPairings);
+        Assert.IsNotEmpty(solution.IdempotenceUsages);
+    }
+
+    [TestMethod]
+    public void Algebraic_minimization_solver_minimizes_beispiel2_z()
+    {
+        IAlgebraicMinimizationSolver solver = new AlgebraicMinimizationSolver();
+        // Beispiel 2 (z): m0, m1 -> z = (¬a ∧ ¬b)
+        var solution = solver.Solve(new AlgebraicMinimizationParameters(3, [1, 1, 0, 0, 0, 0, 0, 0]));
+
+        Assert.AreEqual("(¬a ∧ ¬b)", solution.MinimalDnf);
+        Assert.HasCount(1, solution.FirstOrderPairings);
+        Assert.AreEqual("c", solution.FirstOrderPairings[0].DifferingVariable);
+    }
+
+    [TestMethod]
+    public void Algebraic_minimization_solver_detects_idempotence_in_majority3()
+    {
+        IAlgebraicMinimizationSolver solver = new AlgebraicMinimizationSolver();
+        // Majority-3: m3 (011), m5 (101), m6 (110), m7 (111)
+        var solution = solver.Solve(new AlgebraicMinimizationParameters(3, [0, 0, 0, 1, 0, 1, 1, 1]));
+
+        Assert.HasCount(4, solution.MintermIndices);
+        // Minterm 7 (111) is neighbor of 3 (011), 5 (101), and 6 (110) -> Idempotence applied 3 times!
+        var m7Usage = solution.IdempotenceUsages.FirstOrDefault(u => u.MintermIndex == 7);
+        Assert.IsNotNull(m7Usage);
+        Assert.HasCount(3, m7Usage.PairedWithMinterms);
+    }
+
 }
+
 
