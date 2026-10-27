@@ -384,6 +384,27 @@ public sealed class ComputingSystemsTests
     }
 
     [TestMethod]
+    public void Hazard_engine_detects_lecture_example_function_hazard()
+    {
+        var lectureModel = HazardCatalog.GetModel(0);
+        // Lecture transition: 1010 to 1100 (10 to 12) -> Static 1-hazard on path via 1000 (8)
+        var res = HazardEngine.Analyze(lectureModel.FunctionVector, 10, 12);
+        Assert.IsTrue(res.HasAnyHazard);
+        Assert.AreEqual(2, res.ShortestPaths.Count);
+
+        // Path A: 1010 -> 1110 -> 1100 (Values: 1, 1, 1) -> Safe
+        var pathA = res.ShortestPaths.FirstOrDefault(p => p.States.SequenceEqual(new[] { 10, 14, 12 }));
+        Assert.IsNotNull(pathA);
+        Assert.IsFalse(pathA.HasHazard);
+
+        // Path B: 1010 -> 1000 -> 1100 (Values: 1, 0, 1) -> Static 1-hazard
+        var pathB = res.ShortestPaths.FirstOrDefault(p => p.States.SequenceEqual(new[] { 10, 8, 12 }));
+        Assert.IsNotNull(pathB);
+        Assert.IsTrue(pathB.HasHazard);
+        Assert.AreEqual("Statischer 1-Hazard", pathB.HazardType);
+    }
+
+    [TestMethod]
     public void Algebraic_minimization_solver_minimizes_beispiel1_y()
     {
         IAlgebraicMinimizationSolver solver = new AlgebraicMinimizationSolver();

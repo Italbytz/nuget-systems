@@ -33,6 +33,7 @@ public static class HazardCatalog
 {
     private static readonly Dictionary<int, HazardModel> Models = new()
     {
+        [0] = CreateLectureModel(),
         [1] = CreateModel1(),
         [2] = CreateModel2(),
         [3] = CreateModel3()
@@ -48,6 +49,31 @@ public static class HazardCatalog
         }
 
         throw new ArgumentOutOfRangeException(nameof(question), $"Unknown HazardModel question id: {question}");
+    }
+
+    private static HazardModel CreateLectureModel()
+    {
+        return new HazardModel
+        {
+            Id = 0,
+            Name = "Vorlesung: Diagonalschritt",
+            FunctionVector = new int[]
+            {
+                0, 0, 1, 0,
+                0, 0, 1, 0,
+                0, 0, 1, 0,
+                1, 1, 1, 0
+            },
+            Minterms = new List<int> { 2, 6, 10, 12, 13, 14 },
+            DecouplingRowsHint = "Zeile $00$: $0, 0, 0, 1$; Zeile $01$: $0, 0, 0, 1$; Zeile $11$: $1, 1, 0, 1$; Zeile $10$: $0, 0, 0, 1$; alle übrigen Zellen sind $0$",
+            Questions = new List<HazardTransitionQuestion>
+            {
+                new(10, 12, "Ja, beim Weg 1010 -> 1000 -> 1100 tritt ein statischer 1-Hazard auf (Werteübergang 1 -> 0 -> 1)."),
+                new(10, 14, "Nein, direkter Nachbarzustand (Hamming-Distanz 1), kein Glitch möglich."),
+                new(10, 8, "Nein, direkter Nachbarzustand (Hamming-Distanz 1), kein Glitch möglich."),
+                new(14, 12, "Nein, direkter Nachbarzustand (Hamming-Distanz 1), kein Glitch möglich.")
+            }
+        };
     }
 
     private static HazardModel CreateModel1()
