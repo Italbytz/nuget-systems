@@ -1,0 +1,573 @@
+@namespace Italbytz.Systems.Blazor.Components.ComputingSystems
+@using Italbytz.ComputingSystems
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<article class="circuit-cost-container @(IsEmbed ? "embed-mode" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
+
+    @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
+    {
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Grundlagen der Informatik &bull; Schaltnetze</p>
+            <h2>Komplexitätsanalyse &amp; Kostenmaße ($C_S, C_A, C_A'$)</h2>
+            <p class="feature-intro">
+                Analyse von Schaltungstiefe ($C_S$), Gatteranzahl ($C_A$), Transistoraufwand ($C_A'$) und kritischem Signalpfad. 
+                Vergleich unterschiedlicher Schaltungsarchitekturen (Kaskade vs. Baumstruktur, DNF vs. Faktorisierung) 
+                und Überführung in vollständige Operatorensysteme (NAND-Netze).
+            </p>
+        </div>
+    }
+
+    <!-- View Switcher -->
+    @if (!IsEmbed)
+    {
+        <div class="view-switch no-print">
+            <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Simulator)">
+                🚀 Interaktiver Simulator &amp; Architekturvergleich
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.Worksheet ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Worksheet)">
+                🎯 Klausurtraining (Aufgabe &amp; Musterlösung)
+            </button>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- SIMULATOR VIEW                                                            -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Simulator)
+    {
+        <!-- Controls Panel: Circuit Selection & Input Signals -->
+        <div class="controls-panel no-print">
+            <div class="preset-selector-row">
+                <span class="control-title">Schaltungsbeispiel:</span>
+                <div class="preset-pill-group">
+                    @foreach (var model in CircuitCostCatalog.GetAllModels())
+                    {
+                        <button type="button" class="preset-pill-btn @(ActiveModelId == model.Id ? "active" : "")"
+                                @onclick="() => SelectModel(model.Id)">
+                            @(model.Name.Split(':')[0])
+                        </button>
+                    }
+                </div>
+            </div>
+
+            <!-- Signal Inputs Toggle Bar -->
+            <div class="signals-toolbar">
+                <span class="control-title">Eingangssignale:</span>
+                <div class="inputs-strip">
+                    @for (int i = 0; i < ActiveModel.VariableCount; i++)
+                    {
+                        int bitIdx = i;
+                        var varName = ActiveModel.VariableNames.Length > bitIdx ? ActiveModel.VariableNames[bitIdx] : $"x{bitIdx}";
+                        bool val = InputValues[bitIdx];
+                        <button type="button" class="bit-toggle-btn @(val ? "is-high" : "is-low")"
+                                @onclick="() => ToggleInput(bitIdx)"
+                                title="Klicken zum Umschalten von @varName">
+                            <span class="var-name"><em>@varName</em></span>
+                            <span class="bit-value">@(val ? "1 (High)" : "0 (Low)")</span>
+                        </button>
+                    }
+                    <button type="button" class="random-btn" @onclick="RandomizeInputs" title="Zufällige Eingangssignale anlegen">
+                        🎲 Zufallswerte
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Didactic Function Card -->
+        <div class="function-banner">
+            <div class="banner-badge">Boolesche Funktion</div>
+            <div class="banner-body">
+                <strong>@ActiveModel.Name</strong>
+                <p class="mono banner-formula">@ActiveModel.FunctionDescription</p>
+            </div>
+        </div>
+
+        <!-- Comparison Grid: Variant A vs Variant B -->
+        <div class="comparison-grid">
+
+            <!-- Card Variant A -->
+            <div class="variant-card @(SelectedTab == "A" ? "highlight-variant" : "")">
+                <div class="variant-header">
+                    <div class="badge-stage badge-arch-a">@ActiveModel.VariantA.Architecture</div>
+                    <h3>@ActiveModel.VariantA.Name</h3>
+                    <div class="formula-line mono">@ActiveModel.VariantA.Formula</div>
+                </div>
+
+                <!-- Metrics Strip -->
+                <div class="metrics-grid">
+                    <div class="metric-box">
+                        <span class="metric-label">Schaltungstiefe <em>C</em><sub>S</sub></span>
+                        <span class="metric-val blue">@ActiveModel.VariantA.CircuitDepth Stufen</span>
+                        <span class="metric-sub">Laufzeit &prop; @ActiveModel.VariantA.CircuitDepth &middot; <em>t</em><sub>pd</sub></span>
+                    </div>
+                    <div class="metric-box">
+                        <span class="metric-label">Gatteranzahl <em>C</em><sub>A</sub></span>
+                        <span class="metric-val">@ActiveModel.VariantA.GateCount</span>
+                        <span class="metric-sub">Logikgatter gesamt</span>
+                    </div>
+                    <div class="metric-box">
+                        <span class="metric-label">Fan-In <em>C</em><sub>A</sub>'</span>
+                        <span class="metric-val">@ActiveModel.VariantA.TotalFanIn</span>
+                        <span class="metric-sub">Summe Eingänge</span>
+                    </div>
+                    <div class="metric-box">
+                        <span class="metric-label">Gesamtkosten <em>C</em><sub>S</sub>'</span>
+                        <span class="metric-val emerald mono">@ActiveModel.VariantA.WeightedCost</span>
+                        <span class="metric-sub">100 &middot; <em>C</em><sub>S</sub> + <em>C</em><sub>A</sub>'</span>
+                    </div>
+                </div>
+
+                <!-- Circuit Schematic Card -->
+                <div class="schematic-container">
+                    <div class="schematic-title">Gatterstufen &amp; Signalpfade:</div>
+                    <div class="stages-flow">
+                        @for (int st = 1; st <= ActiveModel.VariantA.CircuitDepth; st++)
+                        {
+                            int stageNum = st;
+                            var stageGates = ActiveModel.VariantA.Gates.Where(g => g.Stage == stageNum).ToList();
+                            <div class="stage-column">
+                                <div class="stage-tag">Stufe @stageNum</div>
+                                <div class="stage-gates-list">
+                                    @foreach (var gate in stageGates)
+                                    {
+                                        <div class="gate-chip @(gate.IsCritical ? "is-critical" : "")">
+                                            <span class="gate-type">@gate.Type.ToString().ToUpperInvariant()</span>
+                                            <span class="gate-lbl">@gate.Label</span>
+                                            <span class="gate-inputs mono">(@string.Join(", ", gate.Inputs))</span>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Output Indicator -->
+                    <div class="output-strip">
+                        <span class="output-label">Ausgang <em>y</em>:</span>
+                        <span class="output-pill @(OutputA ? "out-high" : "out-low")">
+                            @(OutputA ? "1 (High)" : "0 (Low)")
+                        </span>
+                    </div>
+
+                    <div class="critical-path-note">
+                        <strong>Kritischer Pfad:</strong> <span class="mono">@ActiveModel.VariantA.CriticalPathDescription</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card Variant B -->
+            <div class="variant-card @(SelectedTab == "B" ? "highlight-variant" : "")">
+                <div class="variant-header">
+                    <div class="badge-stage badge-arch-b">@ActiveModel.VariantB.Architecture</div>
+                    <h3>@ActiveModel.VariantB.Name</h3>
+                    <div class="formula-line mono">@ActiveModel.VariantB.Formula</div>
+                </div>
+
+                <!-- Metrics Strip -->
+                <div class="metrics-grid">
+                    <div class="metric-box">
+                        <span class="metric-label">Schaltungstiefe <em>C</em><sub>S</sub></span>
+                        <span class="metric-val purple">@ActiveModel.VariantB.CircuitDepth Stufen</span>
+                        <span class="metric-sub">Laufzeit &prop; @ActiveModel.VariantB.CircuitDepth &middot; <em>t</em><sub>pd</sub></span>
+                    </div>
+                    <div class="metric-box">
+                        <span class="metric-label">Gatteranzahl <em>C</em><sub>A</sub></span>
+                        <span class="metric-val">@ActiveModel.VariantB.GateCount</span>
+                        <span class="metric-sub">Logikgatter gesamt</span>
+                    </div>
+                    <div class="metric-box">
+                        <span class="metric-label">Fan-In <em>C</em><sub>A</sub>'</span>
+                        <span class="metric-val">@ActiveModel.VariantB.TotalFanIn</span>
+                        <span class="metric-sub">Summe Eingänge</span>
+                    </div>
+                    <div class="metric-box">
+                        <span class="metric-label">Gesamtkosten <em>C</em><sub>S</sub>'</span>
+                        <span class="metric-val emerald mono">@ActiveModel.VariantB.WeightedCost</span>
+                        <span class="metric-sub">100 &middot; <em>C</em><sub>S</sub> + <em>C</em><sub>A</sub>'</span>
+                    </div>
+                </div>
+
+                <!-- Circuit Schematic Card -->
+                <div class="schematic-container">
+                    <div class="schematic-title">Gatterstufen &amp; Signalpfade:</div>
+                    <div class="stages-flow">
+                        @for (int st = 1; st <= ActiveModel.VariantB.CircuitDepth; st++)
+                        {
+                            int stageNum = st;
+                            var stageGates = ActiveModel.VariantB.Gates.Where(g => g.Stage == stageNum).ToList();
+                            <div class="stage-column">
+                                <div class="stage-tag">Stufe @stageNum</div>
+                                <div class="stage-gates-list">
+                                    @foreach (var gate in stageGates)
+                                    {
+                                        <div class="gate-chip @(gate.IsCritical ? "is-critical" : "")">
+                                            <span class="gate-type">@gate.Type.ToString().ToUpperInvariant()</span>
+                                            <span class="gate-lbl">@gate.Label</span>
+                                            <span class="gate-inputs mono">(@string.Join(", ", gate.Inputs))</span>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Output Indicator -->
+                    <div class="output-strip">
+                        <span class="output-label">Ausgang <em>y</em>:</span>
+                        <span class="output-pill @(OutputB ? "out-high" : "out-low")">
+                            @(OutputB ? "1 (High)" : "0 (Low)")
+                        </span>
+                    </div>
+
+                    <div class="critical-path-note">
+                        <strong>Kritischer Pfad:</strong> <span class="mono">@ActiveModel.VariantB.CriticalPathDescription</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Didactic Synthesis & Trade-off Card -->
+        <div class="tradeoff-card">
+            <div class="tradeoff-header">
+                <div class="badge-tradeoff">Komplexitäts- &amp; Kostenanalyse</div>
+                <h4>Architekturvergleich &amp; Trade-off</h4>
+            </div>
+            <p class="tradeoff-text">
+                @ActiveModel.TradeoffExplanation
+            </p>
+            <div class="nand-info-box">
+                <span class="nand-title">Reines NAND-Netz (De Morgan):</span>
+                <span class="mono bold blue">@ActiveModel.NandFormula</span>
+                <span class="nand-metrics">Gatteranzahl: <strong>@ActiveModel.NandGateCount</strong> &bull; Schaltungstiefe: <strong>@ActiveModel.NandDepth</strong></span>
+            </div>
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- WORKSHEET VIEW (1:1 EXAM REPLICA)                                         -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Worksheet)
+    {
+        <div class="worksheet-paper">
+
+            <!-- Exam Header -->
+            <div class="exam-header">
+                <div class="exam-title-block">
+                    <span class="exam-sub">Grundlagen der Informatik &bull; Schaltnetze</span>
+                    <h1 class="exam-main-title">Übungs- und Klausuraufgabe: Kostenmaße digitaler Schaltnetze</h1>
+                </div>
+                <div class="exam-meta-box no-print">
+                    <button class="toggle-sol-btn @(ShowSolution ? "active" : "")" @onclick="ToggleSolution">
+                        @(ShowSolution ? "👁️ Musterlösung ausblenden" : "💡 Musterlösung einblenden")
+                    </button>
+                    <button class="print-btn" @onclick="TriggerPrint">
+                        🖨️ Seite drucken / PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Student Info Fields -->
+            <div class="student-info-strip">
+                <div class="info-field">
+                    <span class="info-label">Name, Vorname:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field">
+                    <span class="info-label">Matrikelnummer:</span>
+                    <div class="info-line"></div>
+                </div>
+                <div class="info-field points-field">
+                    <span class="info-label">Punkte:</span>
+                    <div class="points-box">/ 8 P.</div>
+                </div>
+            </div>
+
+            <!-- Task Prompt -->
+            <div class="task-prompt-box">
+                <p class="task-text">
+                    Die gleiche Boolesche Funktion kann durch unterschiedliche Schaltungen realisiert werden. 
+                    Die Schaltungen unterscheiden sich in Geschwindigkeit (Signallaufzeit, bestimmt durch die <strong>Schaltungstiefe <em>C</em><sub>S</sub></strong>) 
+                    sowie im Bauteil- und Platzbedarf (bestimmt durch die <strong>Gatteranzahl <em>C</em><sub>A</sub></strong> und den <strong>Transistor-/Fan-In-Aufwand <em>C</em><sub>A</sub>'</strong>).
+                </p>
+                <p class="task-text">
+                    Gegeben seien zwei Realisierungen einer 4-Bit-Paritätsfunktion 
+                    <span class="mono bold"><em>y</em> = <em>x</em><sub>3</sub> &oplus; <em>x</em><sub>2</sub> &oplus; <em>x</em><sub>1</sub> &oplus; <em>x</em><sub>0</sub></span>:
+                </p>
+                <div class="ws-circuits-preview">
+                    <div class="ws-circuit-item">
+                        <strong>Schaltung A (Serielle Kette / Kaskade):</strong>
+                        <p class="mono"><em>y</em> = ((<em>x</em><sub>0</sub> &oplus; <em>x</em><sub>1</sub>) &oplus; <em>x</em><sub>2</sub>) &oplus; <em>x</em><sub>3</sub></p>
+                    </div>
+                    <div class="ws-circuit-item">
+                        <strong>Schaltung B (Paritätsbaum / Baumstruktur):</strong>
+                        <p class="mono"><em>y</em> = (<em>x</em><sub>0</sub> &oplus; <em>x</em><sub>1</sub>) &oplus; (<em>x</em><sub>2</sub> &oplus; <em>x</em><sub>3</sub>)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Teilaufgabe 1: CS and CA -->
+            <div class="task-section">
+                <div class="task-sub-title">
+                    <span>Teilaufgabe 1 (2 Punkte)</span>
+                </div>
+                <p class="task-text">
+                    Bestimmen Sie für beide Schaltungen die <strong>Schaltungstiefe <em>C</em><sub>S</sub></strong> 
+                    (maximale Anzahl von Gattern auf einem Pfad von den Eingängen zum Ausgang) und die <strong>Gatteranzahl <em>C</em><sub>A</sub></strong>:
+                </p>
+
+                @if (ShowSolution)
+                {
+                    <div class="ws-solution-box">
+                        <ul>
+                            <li><strong>Schaltung A (Kette):</strong> <em>C</em><sub>A</sub> = 3 Gatter, <em>C</em><sub>S</sub> = 3 Stufen (längster Pfad führt über alle 3 XOR-Gatter).</li>
+                            <li><strong>Schaltung B (Baum):</strong> <em>C</em><sub>A</sub> = 3 Gatter, <em>C</em><sub>S</sub> = 2 Stufen (Stufe 1 parallel, Stufe 2 Zusammenführung).</li>
+                        </ul>
+                    </div>
+                }
+                else
+                {
+                    <div class="ws-answer-lines">
+                        <div class="ws-answer-line">Schaltung A: <em>C</em><sub>A</sub> = _______ , <em>C</em><sub>S</sub> = _______</div>
+                        <div class="ws-answer-line">Schaltung B: <em>C</em><sub>A</sub> = _______ , <em>C</em><sub>S</sub> = _______</div>
+                    </div>
+                }
+            </div>
+
+            <!-- Teilaufgabe 2: CA' and CS' -->
+            <div class="task-section">
+                <div class="task-sub-title">
+                    <span>Teilaufgabe 2 (2 Punkte)</span>
+                </div>
+                <p class="task-text">
+                    Berechnen Sie den verfeinerten <strong>Transistor-/Fan-In-Aufwand <em>C</em><sub>A</sub>'</strong> 
+                    (Summe aller Gattereingänge) sowie das gewichtete Gesamtkostenmaß 
+                    <span class="mono"><em>C</em><sub>S</sub>' = 100 &middot; <em>C</em><sub>S</sub> + <em>C</em><sub>A</sub>'</span>:
+                </p>
+
+                @if (ShowSolution)
+                {
+                    <div class="ws-solution-box">
+                        <ul>
+                            <li><strong>Schaltung A (Kette):</strong> Alle 3 XOR-Gatter haben jeweils 2 Eingänge &rarr; <em>C</em><sub>A</sub>' = 2 + 2 + 2 = 6.<br/>
+                            <em>C</em><sub>S</sub>' = 100 &middot; 3 + 6 = <strong>306</strong>.</li>
+                            <li><strong>Schaltung B (Baum):</strong> Alle 3 XOR-Gatter haben jeweils 2 Eingänge &rarr; <em>C</em><sub>A</sub>' = 2 + 2 + 2 = 6.<br/>
+                            <em>C</em><sub>S</sub>' = 100 &middot; 2 + 6 = <strong>206</strong>.</li>
+                        </ul>
+                    </div>
+                }
+                else
+                {
+                    <div class="ws-answer-lines">
+                        <div class="ws-answer-line">Schaltung A: <em>C</em><sub>A</sub>' = _______ , <em>C</em><sub>S</sub>' = 100 &middot; _____ + _____ = _______</div>
+                        <div class="ws-answer-line">Schaltung B: <em>C</em><sub>A</sub>' = _______ , <em>C</em><sub>S</sub>' = 100 &middot; _____ + _____ = _______</div>
+                    </div>
+                }
+            </div>
+
+            <!-- Teilaufgabe 3: Trade-off Comparison -->
+            <div class="task-section">
+                <div class="task-sub-title">
+                    <span>Teilaufgabe 3 (2 Punkte)</span>
+                </div>
+                <p class="task-text">
+                    Vergleichen und bewerten Sie beide Schaltungsvarianten hinsichtlich <strong>Signallaufzeit (Geschwindigkeit)</strong> und <strong>Chipflächenbedarf</strong>:
+                </p>
+
+                @if (ShowSolution)
+                {
+                    <div class="ws-solution-box">
+                        <p>
+                            Beide Schaltungen besitzen den gleichen Bauteil- und Chipflächenbedarf (<em>C</em><sub>A</sub> = 3, <em>C</em><sub>A</sub>' = 6). 
+                            Die Baumstruktur B besitzt jedoch eine geringere Schaltungstiefe (<em>C</em><sub>S</sub> = 2 statt 3) und schaltet daher um 33 % schneller 
+                            (Signallaufzeit 2 &middot; <em>t</em><sub>pd</sub> statt 3 &middot; <em>t</em><sub>pd</sub>). Für zeitkritische Schaltungen ist der Baum klar überlegen.
+                        </p>
+                    </div>
+                }
+                else
+                {
+                    <div class="ws-ruled-lines">
+                        <div class="ruled-line"></div>
+                        <div class="ruled-line"></div>
+                        <div class="ruled-line"></div>
+                    </div>
+                }
+            </div>
+
+            <!-- Teilaufgabe 4: NAND Synthesis (De Morgan) -->
+            <div class="task-section">
+                <div class="task-sub-title">
+                    <span>Teilaufgabe 4 (2 Punkte)</span>
+                </div>
+                <p class="task-text">
+                    Gegeben sei die zweistufige DNF 
+                    <span class="mono bold"><em>y</em> = (<em>x</em><sub>1</sub> &and; <em>x</em><sub>0</sub>) &or; (<em>x</em><sub>2</sub> &and; <em>x</em><sub>1</sub>)</span>.
+                    Wandeln Sie diese Schaltung nach den De Morganschen Regeln in ein äquivalentes <strong>reines NAND-Gatternetz</strong> um. 
+                    Wie viele NAND-Gatter werden benötigt und welche Schaltungstiefe <em>C</em><sub>S</sub> ergibt sich?
+                </p>
+
+                @if (ShowSolution)
+                {
+                    <div class="ws-solution-box">
+                        <p class="mono bold">
+                            y = &not;&not;((x1 &and; x0) &or; (x2 &and; x1)) = &not;(&not;(x1 &and; x0) &and; &not;(x2 &and; x1)) = (x1 NAND x0) NAND (x2 NAND x1)
+                        </p>
+                        <p>
+                            Es werden <strong>3 NAND-Gatter</strong> benötigt (zwei in Stufe 1, eins in Stufe 2). 
+                            Die Schaltungstiefe bleibt <strong><em>C</em><sub>S</sub> = 2</strong>.
+                        </p>
+                    </div>
+                }
+                else
+                {
+                    <div class="ws-ruled-lines">
+                        <div class="ruled-line"></div>
+                        <div class="ruled-line"></div>
+                    </div>
+                }
+            </div>
+
+            <!-- Footer -->
+            <div class="exam-footer">
+                <div class="exam-footer-note">
+                    Hinweis: Zweistufige DNF-Schaltungen (AND-OR) lassen sich direkt durch Ersetzen aller UND- und ODER-Gatter durch NAND-Gatter in ein reines NAND-Netz überführen.
+                </div>
+            </div>
+
+        </div>
+    }
+
+</article>
+
+@code {
+    public enum ViewMode { Simulator, Worksheet }
+
+    [Parameter] public string? View { get; set; }
+    [Parameter] public int? CircuitId { get; set; }
+    [Parameter] public bool? Embed { get; set; }
+
+    [SupplyParameterFromQuery(Name = "circuit")] public string? QueryCircuit { get; set; }
+    [SupplyParameterFromQuery(Name = "view")] public string? QueryView { get; set; }
+    [SupplyParameterFromQuery(Name = "solution")] public bool? QuerySolution { get; set; }
+
+    private ViewMode ActiveView = ViewMode.Simulator;
+    private bool ShowSolution = false;
+    private bool IsEmbed = false;
+
+    private int ActiveModelId = 0;
+    private CircuitComparisonModel ActiveModel => CircuitCostCatalog.GetModel(ActiveModelId);
+
+    private bool[] InputValues = new bool[] { true, false, true, false };
+    private string SelectedTab = "A";
+
+    private bool OutputA => ActiveModel.VariantA.Evaluate(InputValues);
+    private bool OutputB => ActiveModel.VariantB.Evaluate(InputValues);
+
+    protected override void OnInitialized()
+    {
+        ReadQueryParameters();
+        ApplyModel(ActiveModelId);
+    }
+
+    protected override void OnParametersSet()
+    {
+        ReadQueryParameters();
+    }
+
+    private void ReadQueryParameters()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query;
+            if (!string.IsNullOrEmpty(query))
+            {
+                if (query.Contains("view=worksheet", StringComparison.OrdinalIgnoreCase))
+                {
+                    ActiveView = ViewMode.Worksheet;
+                }
+                if (query.Contains("solution=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    ShowSolution = true;
+                }
+                if (query.Contains("embed=true", StringComparison.OrdinalIgnoreCase) || query.Contains("embedded=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsEmbed = true;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(QueryCircuit))
+            {
+                if (QueryCircuit.Contains("majority", StringComparison.OrdinalIgnoreCase) || QueryCircuit == "1")
+                {
+                    ActiveModelId = 1;
+                }
+                else if (QueryCircuit.Contains("comp", StringComparison.OrdinalIgnoreCase) || QueryCircuit == "2")
+                {
+                    ActiveModelId = 2;
+                }
+                else
+                {
+                    ActiveModelId = 0;
+                }
+            }
+            else if (CircuitId.HasValue)
+            {
+                ActiveModelId = CircuitId.Value;
+            }
+        }
+        catch { }
+    }
+
+    private void SetView(ViewMode mode)
+    {
+        ActiveView = mode;
+    }
+
+    private void SelectModel(int id)
+    {
+        ActiveModelId = id;
+        ApplyModel(id);
+    }
+
+    private void ApplyModel(int id)
+    {
+        var model = CircuitCostCatalog.GetModel(id);
+        InputValues = new bool[model.VariableCount];
+        // Set sample default inputs
+        for (int i = 0; i < model.VariableCount; i++)
+        {
+            InputValues[i] = (i % 2 == 0);
+        }
+    }
+
+    private void ToggleInput(int index)
+    {
+        if (index >= 0 && index < InputValues.Length)
+        {
+            InputValues[index] = !InputValues[index];
+        }
+    }
+
+    private void RandomizeInputs()
+    {
+        var rnd = new Random();
+        for (int i = 0; i < InputValues.Length; i++)
+        {
+            InputValues[i] = rnd.Next(2) == 1;
+        }
+    }
+
+    private void ToggleSolution()
+    {
+        ShowSolution = !ShowSolution;
+    }
+
+    private async Task TriggerPrint()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+}

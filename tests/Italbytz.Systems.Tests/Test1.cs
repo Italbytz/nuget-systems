@@ -464,6 +464,38 @@ public sealed class ComputingSystemsTests
 
         Assert.AreEqual(18.0, solution.Time, 0.001);
     }
+
+    [TestMethod]
+    public void Circuit_cost_catalog_contains_parity_and_majority_models()
+    {
+        var parityModel = CircuitCostCatalog.GetModel(0);
+        Assert.IsNotNull(parityModel);
+        Assert.AreEqual(4, parityModel.VariableCount);
+
+        // Variant A (Chain): Depth = 3, GateCount = 3, FanIn = 6, Cost = 306
+        Assert.AreEqual(3, parityModel.VariantA.CircuitDepth);
+        Assert.AreEqual(3, parityModel.VariantA.GateCount);
+        Assert.AreEqual(6, parityModel.VariantA.TotalFanIn);
+        Assert.AreEqual(306, parityModel.VariantA.WeightedCost);
+
+        // Variant B (Tree): Depth = 2, GateCount = 3, FanIn = 6, Cost = 206
+        Assert.AreEqual(2, parityModel.VariantB.CircuitDepth);
+        Assert.AreEqual(3, parityModel.VariantB.GateCount);
+        Assert.AreEqual(6, parityModel.VariantB.TotalFanIn);
+        Assert.AreEqual(206, parityModel.VariantB.WeightedCost);
+
+        // Evaluation consistency for parity (odd parity)
+        Assert.IsTrue(parityModel.VariantA.Evaluate([true, false, false, false]));
+        Assert.IsFalse(parityModel.VariantA.Evaluate([true, true, false, false]));
+        Assert.AreEqual(parityModel.VariantA.Evaluate([true, true, true, false]), parityModel.VariantB.Evaluate([true, true, true, false]));
+
+        var majorityModel = CircuitCostCatalog.GetModel(1);
+        Assert.IsNotNull(majorityModel);
+        Assert.AreEqual(2, majorityModel.VariantA.CircuitDepth);
+        Assert.AreEqual(3, majorityModel.VariantB.CircuitDepth);
+        Assert.AreEqual(9, majorityModel.VariantA.TotalFanIn);
+        Assert.AreEqual(8, majorityModel.VariantB.TotalFanIn);
+    }
 }
 
 
