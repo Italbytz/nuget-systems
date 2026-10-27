@@ -1,0 +1,155 @@
+@namespace Italbytz.Systems.Blazor.Components.ComputingSystems
+
+<table class="kv-diagram-table @CssClass">
+    <thead>
+        <tr>
+            <th class="kv-corner">
+                <div class="corner-diag">
+                    <span class="var-top">@EffectiveColVariables</span>
+                    <span class="var-left">@EffectiveRowVariables</span>
+                </div>
+            </th>
+            @for (int c = 0; c < ColumnCount; c++)
+            {
+                int cIdx = c;
+                <th class="kv-col-header">@GetColumnCode(cIdx)</th>
+            }
+        </tr>
+    </thead>
+    <tbody>
+        @for (int r = 0; r < RowCount; r++)
+        {
+            int rIdx = r;
+            <tr>
+                <th class="kv-row-header">@GetRowCode(rIdx)</th>
+                @for (int c = 0; c < ColumnCount; c++)
+                {
+                    int cIdx = c;
+                    var ctx = CreateCellContext(rIdx, cIdx);
+                    <td class="kv-cell @GetCellCssClass(ctx)"
+                        @onclick="() => HandleCellClick(ctx)">
+                        @if (CellTemplate != null)
+                        {
+                            @CellTemplate(ctx)
+                        }
+                        else
+                        {
+                            <span class="cell-val @(ctx.Value == 1 ? "val-one" : (ctx.Value == 0 ? "val-zero" : "val-dc"))">
+                                @(ctx.Value == -1 ? "-" : ctx.Value.ToString())
+                            </span>
+                            <span class="cell-minterm">m@(ctx.MintermIndex)</span>
+                        }
+                    </td>
+                }
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [Parameter] public int VariableCount { get; set; } = 4;
+    [Parameter] public MarkupString? RowVariables { get; set; }
+    [Parameter] public MarkupString? ColVariables { get; set; }
+    [Parameter] public string[]? RowCodes { get; set; }
+    [Parameter] public string[]? ColCodes { get; set; }
+    [Parameter] public Func<int, int, int>? MintermResolver { get; set; }
+    [Parameter] public Func<int, int>? ValueResolver { get; set; }
+    [Parameter] public Func<KvDiagramCellContext, string>? CellClassResolver { get; set; }
+    [Parameter] public EventCallback<KvDiagramCellContext> OnCellClick { get; set; }
+    [Parameter] public RenderFragment<KvDiagramCellContext>? CellTemplate { get; set; }
+    [Parameter] public string? CssClass { get; set; }
+
+    public int RowCount => VariableCount switch
+    {
+        2 => 2,
+        3 => 2,
+        4 => 4,
+        _ => 4
+    };
+
+    public int ColumnCount => VariableCount switch
+    {
+        2 => 2,
+        3 => 4,
+        4 => 4,
+        _ => 4
+    };
+
+    private static readonly int[] Gray2 = new[] { 0, 1 };
+    private static readonly int[] Gray4 = new[] { 0, 1, 3, 2 };
+
+    private static readonly string[] DefaultRowCodes2 = new[] { "0", "1" };
+    private static readonly string[] DefaultRowCodes4 = new[] { "00", "01", "11", "10" };
+
+    private static readonly string[] DefaultColCodes2 = new[] { "0", "1" };
+    private static readonly string[] DefaultColCodes4 = new[] { "00", "01", "11", "10" };
+
+    private MarkupString EffectiveRowVariables => RowVariables ?? (MarkupString)(VariableCount switch
+    {
+        2 => "<em>x</em><sub>1</sub>",
+        3 => "<em>x</em><sub>2</sub>",
+        4 => "<em>x</em><sub>3</sub><em>x</em><sub>2</sub>",
+        _ => "<em>x</em><sub>row</sub>"
+    });
+
+    private MarkupString EffectiveColVariables => ColVariables ?? (MarkupString)(VariableCount switch
+    {
+        2 => "<em>x</em><sub>0</sub>",
+        3 => "<em>x</em><sub>1</sub><em>x</em><sub>0</sub>",
+        4 => "<em>x</em><sub>1</sub><em>x</em><sub>0</sub>",
+        _ => "<em>x</em><sub>col</sub>"
+    });
+
+    private string GetRowCode(int rowIndex)
+    {
+        if (RowCodes != null && rowIndex < RowCodes.Length) return RowCodes[rowIndex];
+        return RowCount == 2 ? DefaultRowCodes2[rowIndex] : DefaultRowCodes4[rowIndex];
+    }
+
+    private string GetColumnCode(int colIndex)
+    {
+        if (ColCodes != null && colIndex < ColCodes.Length) return ColCodes[colIndex];
+        return ColumnCount == 2 ? DefaultColCodes2[colIndex] : DefaultColCodes4[colIndex];
+    }
+
+    private int ResolveDefaultMinterm(int r, int c)
+    {
+        if (VariableCount == 2)
+        {
+            return (r << 1) | c;
+        }
+        if (VariableCount == 3)
+        {
+            return (r << 2) | Gray4[c];
+        }
+        return (Gray4[r] << 2) | Gray4[c];
+    }
+
+    private KvDiagramCellContext CreateCellContext(int r, int c)
+    {
+        int m = MintermResolver != null ? MintermResolver(r, c) : ResolveDefaultMinterm(r, c);
+        int val = ValueResolver != null ? ValueResolver(m) : 0;
+        return new KvDiagramCellContext
+        {
+            RowIndex = r,
+            ColumnIndex = c,
+            RowCode = GetRowCode(r),
+            ColumnCode = GetColumnCode(c),
+            MintermIndex = m,
+            Value = val
+        };
+    }
+
+    private string GetCellCssClass(KvDiagramCellContext ctx)
+    {
+        return CellClassResolver?.Invoke(ctx) ?? string.Empty;
+    }
+
+    private async Task HandleCellClick(KvDiagramCellContext ctx)
+    {
+        if (OnCellClick.HasDelegate)
+        {
+            await OnCellClick.InvokeAsync(ctx);
+        }
+    }
+}

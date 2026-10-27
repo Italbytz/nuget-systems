@@ -142,52 +142,13 @@
                     </div>
 
                     <div class="kv-matrix-container">
-                        <table class="kv-interactive-table">
-                            <thead>
-                                <tr>
-                                    <th class="axis-header">
-                                        <div class="axis-split">
-                                            <span class="axis-row-var">@GetRowVariablesLabel()</span>
-                                            <span class="axis-slash">\</span>
-                                            <span class="axis-col-var">@GetColVariablesLabel()</span>
-                                        </div>
-                                    </th>
-                                    @for (int c = 0; c < Solution.ColumnCount; c++)
-                                    {
-                                        var colCode = GetColumnCode(c);
-                                        <th class="col-gray-header">
-                                            <span class="mono bold">@colCode</span>
-                                        </th>
-                                    }
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @for (int r = 0; r < Solution.RowCount; r++)
-                                {
-                                    var rowCode = GetRowCode(r);
-                                    <tr>
-                                        <th class="row-gray-header">
-                                            <span class="mono bold">@rowCode</span>
-                                        </th>
-                                        @for (int c = 0; c < Solution.ColumnCount; c++)
-                                        {
-                                            var cell = Solution.Cells.FirstOrDefault(cl => cl.RowIndex == r && cl.ColumnIndex == c);
-                                            if (cell != null)
-                                            {
-                                                bool isInCurrentGroup = currentGroup != null && currentGroup.CoveredMintermIndices.Contains(cell.MintermIndex);
-                                                string cellClass = cell.Value == 1 ? "cell-one" : (cell.Value == -1 ? "cell-dc" : "cell-zero");
-                                                if (isInCurrentGroup) cellClass += " cell-highlight";
-
-                                                <td class="kv-cell @cellClass" @onclick="() => ToggleCell(cell.MintermIndex)">
-                                                    <div class="cell-minterm">m@(cell.MintermIndex)</div>
-                                                    <div class="cell-val">@(cell.Value == -1 ? "-" : cell.Value.ToString())</div>
-                                                </td>
-                                            }
-                                        }
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
+                        <KvDiagramTable VariableCount="VariableCount"
+                                        RowVariables="GetRowVariablesLabel()"
+                                        ColVariables="GetColVariablesLabel()"
+                                        MintermResolver="GetKarnaughMinterm"
+                                        ValueResolver="GetKarnaughValue"
+                                        CellClassResolver="GetKarnaughCellClass"
+                                        OnCellClick="HandleKarnaughCellClick" />
                     </div>
                 </div>
 
@@ -647,5 +608,33 @@
                   .Replace(" \\wedge ", " ∧ ")
                   .Replace(" | ", " ∨ ")
                   .Replace(" \\vee ", " ∨ ");
+    }
+
+    private int GetKarnaughMinterm(int r, int c)
+    {
+        var cell = Solution?.Cells.FirstOrDefault(cl => cl.RowIndex == r && cl.ColumnIndex == c);
+        return cell?.MintermIndex ?? 0;
+    }
+
+    private int GetKarnaughValue(int m)
+    {
+        var cell = Solution?.Cells.FirstOrDefault(cl => cl.MintermIndex == m);
+        return cell?.Value ?? 0;
+    }
+
+    private string GetKarnaughCellClass(KvDiagramCellContext ctx)
+    {
+        var currentGroup = (Solution != null && CurrentGroupIndex >= 0 && CurrentGroupIndex < Solution.Groups.Length)
+            ? Solution.Groups[CurrentGroupIndex]
+            : null;
+        bool isInCurrentGroup = currentGroup != null && currentGroup.CoveredMintermIndices.Contains(ctx.MintermIndex);
+        string cellClass = ctx.Value == 1 ? "cell-one" : (ctx.Value == -1 ? "cell-dc" : "cell-zero");
+        if (isInCurrentGroup) cellClass += " cell-highlight";
+        return cellClass;
+    }
+
+    private void HandleKarnaughCellClick(KvDiagramCellContext ctx)
+    {
+        ToggleCell(ctx.MintermIndex);
     }
 }

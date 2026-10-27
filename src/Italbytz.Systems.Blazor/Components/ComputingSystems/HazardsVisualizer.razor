@@ -111,60 +111,29 @@
                     </div>
 
                     <div class="kv-grid-wrapper">
-                        <table class="sim-kv-table">
-                            <thead>
-                                <tr>
-                                    <th class="kv-corner">
-                                        <div class="corner-diag">
-                                            <span class="var-top"><em>x</em><sub>3</sub><em>x</em><sub>4</sub></span>
-                                            <span class="var-left"><em>x</em><sub>1</sub><em>x</em><sub>2</sub></span>
-                                        </div>
-                                    </th>
-                                    <th>00</th>
-                                    <th>01</th>
-                                    <th>11</th>
-                                    <th>10</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                        <KvDiagramTable VariableCount="4"
+                                        RowVariables="@((MarkupString)"<em>x</em><sub>1</sub><em>x</em><sub>2</sub>")"
+                                        ColVariables="@((MarkupString)"<em>x</em><sub>3</sub><em>x</em><sub>4</sub>")"
+                                        ValueResolver="(m) => FunctionVector[m]"
+                                        CellClassResolver="GetHazardCellClass"
+                                        OnCellClick="(ctx) => HandleCellClick(ctx.MintermIndex)">
+                            <CellTemplate Context="ctx">
                                 @{
-                                    string[] rowCodes = new[] { "00", "01", "11", "10" };
-                                    string[] colCodes = new[] { "00", "01", "11", "10" };
-                                    int[] rowGray = new[] { 0, 1, 3, 2 };
-                                    int[] colGray = new[] { 0, 1, 3, 2 };
+                                    bool isStart = (ctx.MintermIndex == StartState);
+                                    bool isEnd = (ctx.MintermIndex == EndState);
                                 }
-                                @for (int r = 0; r < 4; r++)
+                                <span class="cell-val @(ctx.Value == 1 ? "val-one" : "val-zero")">@ctx.Value</span>
+                                <span class="cell-minterm">m@(ctx.MintermIndex)</span>
+                                @if (isStart)
                                 {
-                                    int rIdx = r;
-                                    <tr>
-                                        <th class="kv-row-header">@rowCodes[rIdx]</th>
-                                        @for (int c = 0; c < 4; c++)
-                                        {
-                                            int cIdx = c;
-                                            int m = (rowGray[rIdx] << 2) | colGray[cIdx];
-                                            int val = FunctionVector[m];
-                                            bool isStart = (m == StartState);
-                                            bool isEnd = (m == EndState);
-                                            bool isOnSelectedPath = IsMintermOnSelectedPath(m);
-
-                                            <td class="kv-cell @(isStart ? "is-start" : "") @(isEnd ? "is-end" : "") @(isOnSelectedPath ? "on-path" : "")"
-                                                @onclick="() => HandleCellClick(m)">
-                                                <span class="cell-val @(val == 1 ? "val-one" : "val-zero")">@val</span>
-                                                <span class="cell-minterm">m@(m)</span>
-                                                @if (isStart)
-                                                {
-                                                    <span class="cell-badge badge-start">Start</span>
-                                                }
-                                                @if (isEnd)
-                                                {
-                                                    <span class="cell-badge badge-end">Ziel</span>
-                                                }
-                                            </td>
-                                        }
-                                    </tr>
+                                    <span class="cell-badge badge-start">Start</span>
                                 }
-                            </tbody>
-                        </table>
+                                @if (isEnd)
+                                {
+                                    <span class="cell-badge badge-end">Ziel</span>
+                                }
+                            </CellTemplate>
+                        </KvDiagramTable>
                     </div>
 
                     <div class="kv-footer-notes">
@@ -739,6 +708,14 @@
         {
             EndState = m;
         }
+    }
+
+    private string GetHazardCellClass(KvDiagramCellContext ctx)
+    {
+        bool isStart = (ctx.MintermIndex == StartState);
+        bool isEnd = (ctx.MintermIndex == EndState);
+        bool isOnSelectedPath = IsMintermOnSelectedPath(ctx.MintermIndex);
+        return $"{(isStart ? "is-start" : "")} {(isEnd ? "is-end" : "")} {(isOnSelectedPath ? "on-path" : "")}".Trim();
     }
 
     private void RandomizeStates()

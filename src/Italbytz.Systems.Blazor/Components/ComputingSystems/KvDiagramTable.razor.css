@@ -1,0 +1,240 @@
+.kv-diagram-table {
+    border-collapse: collapse;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    user-select: none;
+    margin: 0 auto;
+}
+
+.kv-diagram-table th,
+.kv-diagram-table td {
+    border: 1px solid #cbd5e1;
+    text-align: center;
+}
+
+.kv-col-header,
+.kv-row-header {
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 0.4rem 0.65rem;
+    font-family: ui-monospace, monospace;
+}
+
+.kv-corner {
+    position: relative;
+    width: 68px;
+    height: 40px;
+    padding: 0 !important;
+    background: #f8fafc;
+}
+
+.corner-diag {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to top right, transparent calc(50% - 0.5px), #cbd5e1 50%, transparent calc(50% + 0.5px));
+}
+
+.var-top {
+    position: absolute;
+    top: 2px;
+    right: 5px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: #0284c7;
+}
+
+.var-left {
+    position: absolute;
+    bottom: 2px;
+    left: 5px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: #0284c7;
+}
+
+.var-top sub,
+.var-left sub {
+    font-size: 0.72em;
+    line-height: 0;
+    vertical-align: baseline;
+    position: relative;
+    bottom: -0.22em;
+}
+
+.kv-cell {
+    width: 64px;
+    height: 58px;
+    position: relative;
+    cursor: pointer;
+    background: #ffffff;
+    transition: all 0.15s ease;
+    user-select: none;
+}
+
+.kv-cell:hover {
+    background: #f1f5f9;
+}
+
+.cell-val {
+    font-size: 1.25rem;
+    font-weight: 800;
+    font-family: ui-monospace, monospace;
+    display: block;
+    line-height: 1;
+}
+
+.cell-val.val-one {
+    color: #0284c7;
+}
+
+.cell-val.val-zero {
+    color: #94a3b8;
+}
+
+.cell-val.val-dc {
+    color: #ca8a04;
+}
+
+.cell-minterm {
+    position: absolute;
+    top: 2px;
+    left: 4px;
+    font-size: 0.65rem;
+    color: #94a3b8;
+    font-weight: 600;
+    font-family: ui-monospace, monospace;
+}
+
+/* Prime Implicant Highlights */
+.cell-highlight {
+    background: #e0f2fe !important;
+    box-shadow: inset 0 0 0 2px #0284c7;
+}
+
+.cell-one {
+    background: #f8fafc;
+}
+
+.cell-zero {
+    background: #ffffff;
+}
+
+.cell-dc {
+    background: #fefce8;
+}
+
+/* Hazard Path Highlights */
+.is-start {
+    background: #dcfce7 !important;
+    box-shadow: inset 0 0 0 2px #16a34a;
+}
+
+.is-end {
+    background: #fee2e2 !important;
+    box-shadow: inset 0 0 0 2px #ef4444;
+}
+
+.on-path:not(.is-start):not(.is-end) {
+    background: #fef3c7 !important;
+    box-shadow: inset 0 0 0 2px #f59e0b;
+}
+
+.cell-badge {
+    position: absolute;
+    bottom: 2px;
+    right: 3px;
+    font-size: 0.6rem;
+    font-weight: 800;
+    padding: 1px 4px;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+.badge-start {
+    background: #16a34a;
+    color: #ffffff;
+}
+
+.badge-end {
+    background: #ef4444;
+    color: #ffffff;
+}
+
+/* Dark Mode Support */
+:global(.is-dark) .kv-diagram-table th,
+:global(.is-dark) .kv-diagram-table td,
+:global(.dark) .kv-diagram-table th,
+:global(.dark) .kv-diagram-table td {
+    border-color: #374151;
+}
+
+:global(.is-dark) .kv-col-header,
+:global(.is-dark) .kv-row-header,
+:global(.is-dark) .kv-corner,
+:global(.dark) .kv-col-header,
+:global(.dark) .kv-row-header,
+:global(.dark) .kv-corner {
+    background: #1f2937;
+    color: #94a3b8;
+    border-color: #374151;
+}
+
+:global(.is-dark) .corner-diag,
+:global(.dark) .corner-diag {
+    background: linear-gradient(to top right, transparent calc(50% - 0.5px), #475569 50%, transparent calc(50% + 0.5px));
+}
+
+:global(.is-dark) .var-top,
+:global(.is-dark) .var-left,
+:global(.dark) .var-top,
+:global(.dark) .var-left {
+    color: #38bdf8;
+}
+
+:global(.is-dark) .kv-cell,
+:global(.dark) .kv-cell {
+    background: #111827;
+}
+
+:global(.is-dark) .kv-cell:hover,
+:global(.dark) .kv-cell:hover {
+    background: #1e293b;
+}
+
+:global(.is-dark) .cell-one,
+:global(.dark) .cell-one {
+    background: #1e293b;
+}
+
+:global(.is-dark) .cell-zero,
+:global(.dark) .cell-zero {
+    background: #111827;
+}
+
+:global(.is-dark) .cell-val.val-one,
+:global(.dark) .cell-val.val-one {
+    color: #38bdf8;
+}
+
+:global(.is-dark) .cell-val.val-zero,
+:global(.dark) .cell-val.val-zero {
+    color: #64748b;
+}
+
+:global(.is-dark) .cell-val.val-dc,
+:global(.dark) .cell-val.val-dc {
+    color: #facc15;
+}
+
+:global(.is-dark) .cell-minterm,
+:global(.dark) .cell-minterm {
+    color: #64748b;
+}
+
+:global(.is-dark) .cell-highlight,
+:global(.dark) .cell-highlight {
+    background: #0c4a6e !important;
+    box-shadow: inset 0 0 0 2px #38bdf8;
+}
