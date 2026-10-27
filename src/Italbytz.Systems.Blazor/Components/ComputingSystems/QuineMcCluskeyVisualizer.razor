@@ -1,6 +1,10 @@
 @namespace Italbytz.Systems.Blazor.Components.ComputingSystems
+@using System.Net
+@using System.Text.RegularExpressions
+@using System.Threading
 @using Italbytz.ComputingSystems
 @using Italbytz.ComputingSystems.Abstractions
+@implements IDisposable
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 
@@ -69,23 +73,67 @@
 
         @if (QmcSolution != null)
         {
+            var totalSteps = QmcSolution.Steps.Count;
+            var activeStep = (CurrentStepIndex >= 0 && CurrentStepIndex < totalSteps) ? QmcSolution.Steps[CurrentStepIndex] : "";
+            var stepAnalysis = AnalyzeStep(activeStep);
+            bool isEndState = CurrentStepIndex >= totalSteps - 1;
+
+            <!-- Player Toolbar -->
+            <div class="player-toolbar no-print">
+                <div class="player-controls">
+                    <button class="player-btn" title="Start" disabled="@(CurrentStepIndex == 0)" @onclick="GoToStart">⏮ Start</button>
+                    <button class="player-btn" title="Zurück" disabled="@(CurrentStepIndex <= 0)" @onclick="PreviousStep">◀ Zurück</button>
+                    <button class="player-btn primary" title="@(IsPlaying ? "Pause" : "Abspielen")" @onclick="TogglePlay">
+                        @(IsPlaying ? "⏸ Pause" : "▶ Play")
+                    </button>
+                    <button class="player-btn" title="Weiter" disabled="@(CurrentStepIndex >= totalSteps - 1)" @onclick="NextStep">▶ Weiter</button>
+                    <button class="player-btn" title="Ende / Gesamtlösung" disabled="@(CurrentStepIndex >= totalSteps - 1)" @onclick="GoToEnd">⏭ Ende</button>
+                    <button class="player-btn reset" title="Zurücksetzen" @onclick="GoToStart">🔄 Reset</button>
+                </div>
+
+                <div class="player-progress">
+                    <div class="step-indicator">
+                        <strong>Schritt @(Math.Min(totalSteps, CurrentStepIndex + 1)) / @totalSteps:</strong>
+                        <span class="step-headline">@FormatTermMarkup(activeStep)</span>
+                    </div>
+                    <input type="range" min="0" max="@(Math.Max(0, totalSteps - 1))" value="@Math.Max(0, CurrentStepIndex)" @oninput="OnStepSliderInput" class="step-slider" />
+                </div>
+            </div>
+
             <!-- Narrator Card -->
-            <div class="narrator-card">
+            <div class="narrator-card @(isEndState ? "narrator-finished" : "")">
                 <div class="narrator-header">
-                    <div class="step-badge badge-qmc">QMC-Ergebnis</div>
+                    <div class="step-badge @stepAnalysis.BadgeClass">@stepAnalysis.BadgeText</div>
                     <div class="narrator-title">
-                        Minimale DNF: <strong class="emerald mono">@QmcSolution.MinimalDnf</strong>
+                        @if (isEndState)
+                        {
+                            <span>Minimale DNF: <strong class="emerald mono"><em>y</em> = @FormatTermMarkup(QmcSolution.MinimalDnf)</strong></span>
+                        }
+                        else
+                        {
+                            <span>@FormatTermMarkup(activeStep)</span>
+                        }
                     </div>
                 </div>
                 <p class="narrator-text">
-                    Aus @QmcSolution.PrimeImplicants.Length Primimplikanten wurden 
-                    <strong>@QmcSolution.EssentialPrimeImplicants.Length essenzielle Primimplikanten</strong> identifiziert, 
-                    die alle Eins-Minterme minimal überdecken.
+                    @if (isEndState)
+                    {
+                        <span>
+                            Aus @QmcSolution.PrimeImplicants.Length Primimplikanten wurden 
+                            <strong>@QmcSolution.EssentialPrimeImplicants.Length essenzielle Primimplikanten</strong> identifiziert, 
+                            die alle @(TruthValues.Count(v => v == 1)) Eins-Minterme minimal überdecken.
+                        </span>
+                    }
+                    else
+                    {
+                        <span>@stepAnalysis.Explanation</span>
+                    }
                 </p>
                 <div class="qmc-metrics-strip">
-                    <span>Primimplikanten: <strong class="mono blue">@string.Join(", ", QmcSolution.PrimeImplicants)</strong></span>
-                    <span>Essenziell: <strong class="mono emerald">@string.Join(", ", QmcSolution.EssentialPrimeImplicants)</strong></span>
-                    <span>QMC-Schritte: <strong class="mono">@QmcSolution.Steps.Count</strong></span>
+                    <span>Eins-Minterme: <strong class="mono bold">@(TruthValues.Count(v => v == 1))</strong></span>
+                    <span>Primimplikanten: <strong class="mono bold blue">@QmcSolution.PrimeImplicants.Length</strong></span>
+                    <span>Essenziell: <strong class="mono bold emerald">@QmcSolution.EssentialPrimeImplicants.Length</strong></span>
+                    <span>Aktiver Schritt: <strong class="mono">@(CurrentStepIndex + 1) / @totalSteps</strong></span>
                 </div>
             </div>
 
@@ -146,7 +194,7 @@
                                         bool isEss = QmcSolution.EssentialPrimeImplicants.Contains(pi);
                                         <tr>
                                             <td>@(i + 1)</td>
-                                            <td class="mono bold blue">@pi</td>
+                                            <td class="mono bold blue">@FormatTermMarkup(pi)</td>
                                             <td>
                                                 @if (isEss)
                                                 {
@@ -164,6 +212,83 @@
                         </div>
 
                     </div>
+
+                    <!-- Primimplikantentabelle (Überdeckungsanalyse) -->
+                    <div class="order-table-box coverage-box">
+                        <div class="order-title">
+                            <span>Primimplikantentabelle (Überdeckung der Eins-Minterme)</span>
+                        </div>
+                        <div class="coverage-table-wrapper">
+                            <table class="qmc-coverage-table">
+                                <thead>
+                                    <tr>
+                                        <th class="pi-col">Primimplikant</th>
+                                        <th class="type-col">Typ</th>
+                                        @for (int i = 0; i < TruthValues.Length; i++)
+                                        {
+                                            if (TruthValues[i] == 1)
+                                            {
+                                                int m = i;
+                                                int coverCount = QmcSolution.PrimeImplicants.Count(pi => DoesImplicantCoverMinterm(pi, m, VariableCount));
+                                                bool isUnique = coverCount == 1;
+                                                <th class="minterm-col @(isUnique ? "col-unique" : "")" title="Minterm m_@m (@(Convert.ToString(m, 2).PadLeft(VariableCount, '0'))): @(isUnique ? "Nur von EINEM Primimplikanten überdeckt (Essenziell!)" : $"{coverCount} Überdeckungen")">
+                                                    <em>m</em><sub>@m</sub>
+                                                    @if (isUnique)
+                                                    {
+                                                        <span class="unique-star" title="Essentieller Kern">★</span>
+                                                    }
+                                                </th>
+                                            }
+                                        }
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @for (int pIdx = 0; pIdx < QmcSolution.PrimeImplicants.Length; pIdx++)
+                                    {
+                                        var pi = QmcSolution.PrimeImplicants[pIdx];
+                                        bool isEss = QmcSolution.EssentialPrimeImplicants.Contains(pi);
+                                        bool isStepFocusPi = !string.IsNullOrEmpty(activeStep) && activeStep.Contains(pi);
+                                        <tr class="@(isEss ? "row-essential" : "") @(isStepFocusPi ? "row-focus" : "")">
+                                            <td class="pi-name mono bold">
+                                                @FormatTermMarkup(pi)
+                                            </td>
+                                            <td>
+                                                @if (isEss)
+                                                {
+                                                    <span class="status-tag tag-ess">★ Essenziell</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="status-tag tag-opt">Optional</span>
+                                                }
+                                            </td>
+                                            @for (int i = 0; i < TruthValues.Length; i++)
+                                            {
+                                                if (TruthValues[i] == 1)
+                                                {
+                                                    int m = i;
+                                                    bool covers = DoesImplicantCoverMinterm(pi, m, VariableCount);
+                                                    int coverCount = QmcSolution.PrimeImplicants.Count(other => DoesImplicantCoverMinterm(other, m, VariableCount));
+                                                    bool isUnique = coverCount == 1 && covers;
+                                                    bool isStepFocusMinterm = !string.IsNullOrEmpty(activeStep) && 
+                                                        (activeStep.Contains($"minterm {m}") || activeStep.Contains($"covering {m}") || activeStep.Contains($" {m},") || activeStep.Contains($" {m}."));
+
+                                                    <td class="cov-cell @(covers ? "is-covered" : "") @(isUnique ? "unique-cov" : "") @(isStepFocusMinterm && covers ? "focus-cov" : "")">
+                                                        @if (covers)
+                                                        {
+                                                            <span class="cov-mark @(isUnique ? "cov-star" : "")">
+                                                                @(isUnique ? "★" : "✕")
+                                                            </span>
+                                                        }
+                                                    </td>
+                                                }
+                                            }
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Right: Step Traces & Summary -->
@@ -175,9 +300,17 @@
                         <div class="trace-list">
                             @for (int i = 0; i < QmcSolution.Steps.Count; i++)
                             {
-                                <div class="trace-item">
-                                    <span class="trace-num">@(i + 1).</span>
-                                    <span class="trace-text">@QmcSolution.Steps[i]</span>
+                                int stepIdx = i;
+                                bool isCurrent = (stepIdx == CurrentStepIndex);
+                                bool isPast = (stepIdx < CurrentStepIndex);
+                                <div class="trace-item @(isCurrent ? "active-trace" : "") @(isPast ? "past-trace" : "")"
+                                     @onclick="() => SetStep(stepIdx)">
+                                    <span class="trace-num">@(stepIdx + 1).</span>
+                                    <span class="trace-text">@FormatTermMarkup(QmcSolution.Steps[stepIdx])</span>
+                                    @if (isCurrent)
+                                    {
+                                        <span class="trace-pointer">👉</span>
+                                    }
                                 </div>
                             }
                         </div>
@@ -186,7 +319,7 @@
                     <div class="formula-card">
                         <div class="formula-title">Ergebnis der Minimierung:</div>
                         <div class="formula-display mono bold emerald">
-                            <em>y</em> = @QmcSolution.MinimalDnf
+                            <em>y</em> = @FormatTermMarkup(QmcSolution.MinimalDnf)
                         </div>
                     </div>
                 </div>
@@ -404,6 +537,11 @@
 
     private IQuineMcCluskeySolution? QmcSolution;
 
+    // Player State
+    private int CurrentStepIndex = 0;
+    private bool IsPlaying = false;
+    private CancellationTokenSource? PlayCts;
+
     protected override void OnInitialized()
     {
         ReadQueryParameters();
@@ -479,6 +617,7 @@
 
     private void OnVariableCountChanged()
     {
+        StopPlay();
         int requiredLength = 1 << VariableCount;
         if (VariableCount == 4)
         {
@@ -494,6 +633,7 @@
 
     private void LoadPreset(string preset)
     {
+        StopPlay();
         switch (preset)
         {
             case "Exam1":
@@ -515,6 +655,7 @@
 
     private void GenerateRandomFunction()
     {
+        StopPlay();
         var rand = new Random();
         int len = 1 << VariableCount;
         TruthValues = new int[len];
@@ -528,6 +669,7 @@
 
     private void Recalculate()
     {
+        StopPlay();
         try
         {
             var parsed = TruthValuesInput
@@ -546,7 +688,205 @@
             TruthValues = parsed;
             var solver = new QuineMcCluskeySolver();
             QmcSolution = solver.Solve(new QuineMcCluskeyParameters(VariableCount, TruthValues));
+            CurrentStepIndex = Math.Max(0, (QmcSolution?.Steps.Count ?? 1) - 1);
         }
         catch { }
+    }
+
+    // Step Player Actions
+    private void PreviousStep()
+    {
+        StopPlay();
+        if (CurrentStepIndex > 0)
+        {
+            CurrentStepIndex--;
+        }
+    }
+
+    private void NextStep()
+    {
+        StopPlay();
+        if (QmcSolution != null && CurrentStepIndex < QmcSolution.Steps.Count - 1)
+        {
+            CurrentStepIndex++;
+        }
+    }
+
+    private void GoToStart()
+    {
+        StopPlay();
+        CurrentStepIndex = 0;
+    }
+
+    private void GoToEnd()
+    {
+        StopPlay();
+        if (QmcSolution != null)
+        {
+            CurrentStepIndex = QmcSolution.Steps.Count - 1;
+        }
+    }
+
+    private void SetStep(int step)
+    {
+        StopPlay();
+        if (QmcSolution != null && step >= 0 && step < QmcSolution.Steps.Count)
+        {
+            CurrentStepIndex = step;
+        }
+    }
+
+    private void OnStepSliderInput(ChangeEventArgs e)
+    {
+        StopPlay();
+        if (int.TryParse(e.Value?.ToString(), out int val))
+        {
+            CurrentStepIndex = val;
+        }
+    }
+
+    private async Task TogglePlay()
+    {
+        if (IsPlaying)
+        {
+            StopPlay();
+        }
+        else
+        {
+            await StartPlay();
+        }
+    }
+
+    private async Task StartPlay()
+    {
+        if (QmcSolution == null || QmcSolution.Steps.Count == 0) return;
+        if (CurrentStepIndex >= QmcSolution.Steps.Count - 1)
+        {
+            CurrentStepIndex = 0;
+        }
+        IsPlaying = true;
+        PlayCts = new CancellationTokenSource();
+        var token = PlayCts.Token;
+
+        try
+        {
+            while (!token.IsCancellationRequested && CurrentStepIndex < QmcSolution.Steps.Count - 1)
+            {
+                await Task.Delay(1000, token);
+                CurrentStepIndex++;
+                StateHasChanged();
+            }
+        }
+        catch (TaskCanceledException) { }
+        finally
+        {
+            IsPlaying = false;
+            StateHasChanged();
+        }
+    }
+
+    private void StopPlay()
+    {
+        IsPlaying = false;
+        PlayCts?.Cancel();
+        PlayCts?.Dispose();
+        PlayCts = null;
+    }
+
+    public void Dispose()
+    {
+        StopPlay();
+    }
+
+    // Didactic Step Analysis
+    private (string BadgeClass, string BadgeText, string Explanation) AnalyzeStep(string stepText)
+    {
+        if (string.IsNullOrWhiteSpace(stepText))
+        {
+            return ("badge-qmc", "QMC-Initialisierung", "Bereit zur Berechnung des Quine-McCluskey-Verfahrens.");
+        }
+
+        if (stepText.StartsWith("Start QMC", StringComparison.OrdinalIgnoreCase) || 
+            stepText.StartsWith("Minterms:", StringComparison.OrdinalIgnoreCase) ||
+            stepText.StartsWith("Function is", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("badge-phase1", "Phase 1: Einsmenge", 
+                "Alle Minterme (0. Ordnung), für die die Funktion f = 1 annimmt, werden ermittelt und in die Ausgangstabelle eingetragen.");
+        }
+        if (stepText.StartsWith("Round", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("badge-phase2", "Phase 2: Ordnungsrunde", 
+                "Start einer neuen Reduktionsrunde: Alle Terme der aktuellen Ordnung werden systematisch auf paarweise Nachbarschaft geprüft.");
+        }
+        if (stepText.StartsWith("Combine", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("badge-phase2", "Phase 2: Nachbarschafts-Verschmelzung", 
+                "Zwei Nachbar-Terme unterscheiden sich in genau einer Variablen (Hamming-Distanz = 1) und werden zusammengefasst. Das redundante Literal entfällt.");
+        }
+        if (stepText.StartsWith("Prime implicant found:", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("badge-phase3", "Phase 3: Primimplikant", 
+                "Dieser Implikant kann mit keinem weiteren Partner mehr zusammengefasst werden. Er bildet einen maximal großen Block (Primimplikant).");
+        }
+        if (stepText.StartsWith("Essential prime implicant:", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("badge-phase4", "Phase 4: Essenzieller Primimplikant", 
+                "Dieser Primimplikant deckt als einziger einen bestimmten Eins-Minterm ab. Er ist unersetzlich und muss zwingend in das Minimalpolynom (DMF) aufgenommen werden!");
+        }
+        if (stepText.StartsWith("Petrick", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("badge-phase4", "Phase 4: Petrick-Verfahren", 
+                "Überdeckungsauswahl: Mehrere optionale Primimplikanten stehen zur Verfügung. Das algebraische Petrick-Verfahren bestimmt die minimal nötige Auswahl.");
+        }
+        if (stepText.StartsWith("Minimal DNF:", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("badge-phase5", "Phase 5: Minimale DNF (DMF)", 
+                "Das fertige Minimalpolynom entsteht durch Disjunktion (ODER-Verknüpfung) aller essenziellen und ausgewählten Primimplikanten.");
+        }
+
+        return ("badge-qmc", "QMC-Schritt", stepText);
+    }
+
+    private static bool DoesImplicantCoverMinterm(string implicant, int minterm, int varCount)
+    {
+        if (string.IsNullOrWhiteSpace(implicant)) return false;
+        implicant = implicant.Trim();
+        if (implicant == "1") return true;
+        if (implicant == "0") return false;
+
+        var clean = implicant.Replace("(", "").Replace(")", "").Trim();
+        var parts = clean.Split('&', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        foreach (var part in parts)
+        {
+            bool negated = part.StartsWith("!");
+            string varStr = negated ? part[1..] : part;
+            if (varStr.StartsWith("x") && int.TryParse(varStr[1..], out int bitIndex))
+            {
+                int bit = (minterm >> bitIndex) & 1;
+                if (negated && bit != 0) return false;
+                if (!negated && bit != 1) return false;
+            }
+        }
+        return true;
+    }
+
+    private static MarkupString FormatTermMarkup(string? text)
+    {
+        if (string.IsNullOrEmpty(text)) return new MarkupString(string.Empty);
+
+        var s = WebUtility.HtmlEncode(text);
+
+        // Replace !x3 with &not;<em>x</em><sub>3</sub>
+        s = Regex.Replace(s, @"!x(\d+)", "&not;<em>x</em><sub>$1</sub>");
+        // Replace x3 with <em>x</em><sub>3</sub>
+        s = Regex.Replace(s, @"(?<![a-zA-Z0-9_])x(\d+)", "<em>x</em><sub>$1</sub>");
+        // Replace arrows
+        s = s.Replace("-&gt;", "&rarr;").Replace("->", "&rarr;");
+        // Replace & with middle dot
+        s = s.Replace(" &amp; ", " &sdot; ").Replace(" & ", " &sdot; ");
+        // Replace | with OR symbol
+        s = s.Replace(" | ", " &or; ");
+
+        return new MarkupString(s);
     }
 }
