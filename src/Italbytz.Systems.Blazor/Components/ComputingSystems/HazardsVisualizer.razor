@@ -114,7 +114,7 @@
                         <table class="sim-kv-table">
                             <thead>
                                 <tr>
-                                    <th class="kv-corner" colspan="2" rowspan="2">
+                                    <th class="kv-corner">
                                         <div class="corner-diag">
                                             <span class="var-top">x₃x₄</span>
                                             <span class="var-left">x₁x₂</span>
@@ -138,7 +138,6 @@
                                     int rIdx = r;
                                     <tr>
                                         <th class="kv-row-header">@rowCodes[rIdx]</th>
-                                        <td class="kv-stub"></td>
                                         @for (int c = 0; c < 4; c++)
                                         {
                                             int cIdx = c;
@@ -276,10 +275,7 @@
                     <table class="exam-kv-table">
                         <thead>
                             <tr>
-                                <th colspan="2" rowspan="2"></th>
-                                <th colspan="4">x₃x₄</th>
-                            </tr>
-                            <tr>
+                                <th class="exam-corner-hdr">x₁x₂ \ x₃x₄</th>
                                 <th>00</th>
                                 <th>01</th>
                                 <th>11</th>
@@ -288,7 +284,6 @@
                         </thead>
                         <tbody>
                             <tr>
-                                <th rowspan="4">x₁x₂</th>
                                 <th>00</th>
                                 <td>0</td><td>0</td><td>0</td><td>1</td>
                             </tr>
@@ -321,10 +316,7 @@
                 <table class="exam-kv-table">
                     <thead>
                         <tr>
-                            <th colspan="2" rowspan="2"></th>
-                            <th colspan="4">x₃x₄</th>
-                        </tr>
-                        <tr>
+                            <th class="exam-corner-hdr">x₁x₂ \ x₃x₄</th>
                             <th>00</th>
                             <th>01</th>
                             <th>11</th>
@@ -341,10 +333,6 @@
                         {
                             int row = r;
                             <tr>
-                                @if (row == 0)
-                                {
-                                    <th rowspan="4">x₁x₂</th>
-                                }
                                 <th>@rNames[row]</th>
                                 @for (int c = 0; c < 4; c++)
                                 {

@@ -298,21 +298,23 @@
 
 .kv-corner {
     position: relative;
-    width: 65px;
+    width: 68px;
     height: 38px;
     padding: 0 !important;
+    background: #f8fafc;
 }
 
 .corner-diag {
     position: relative;
     width: 100%;
     height: 100%;
+    background: linear-gradient(to top right, transparent calc(50% - 0.5px), #cbd5e1 50%, transparent calc(50% + 0.5px));
 }
 
 .var-top {
     position: absolute;
-    top: 3px;
-    right: 6px;
+    top: 2px;
+    right: 5px;
     font-size: 0.75rem;
     font-weight: 800;
     color: #0284c7;
@@ -320,8 +322,8 @@
 
 .var-left {
     position: absolute;
-    bottom: 3px;
-    left: 6px;
+    bottom: 2px;
+    left: 5px;
     font-size: 0.75rem;
     font-weight: 800;
     color: #0284c7;
@@ -333,10 +335,6 @@
     font-weight: 700;
     font-size: 0.85rem;
     padding: 0.4rem 0.6rem;
-}
-
-.kv-stub {
-    display: none;
 }
 
 .kv-cell {
@@ -659,11 +657,18 @@
 
 :global(.is-dark) .is-embedded .sim-kv-table thead th,
 :global(.is-dark) .is-embedded .kv-row-header,
+:global(.is-dark) .is-embedded .kv-corner,
 .is-embedded.is-dark .sim-kv-table thead th,
-.is-embedded.is-dark .kv-row-header {
+.is-embedded.is-dark .kv-row-header,
+.is-embedded.is-dark .kv-corner {
     background: #1f2937;
     color: #94a3b8;
     border-color: #374151;
+}
+
+:global(.is-dark) .is-embedded .corner-diag,
+.is-embedded.is-dark .corner-diag {
+    background: linear-gradient(to top right, transparent calc(50% - 0.5px), #475569 50%, transparent calc(50% + 0.5px));
 }
 
 :global(.is-dark) .is-embedded .sim-kv-table th,
@@ -884,6 +889,13 @@
 .exam-kv-table tbody th {
     background: #f1f5f9;
     font-weight: bold;
+}
+
+.exam-corner-hdr {
+    background: #f1f5f9;
+    font-weight: bold;
+    padding: 0.35rem 0.6rem;
+    white-space: nowrap;
 }
 
 .exam-kv-slot.blank-slot {

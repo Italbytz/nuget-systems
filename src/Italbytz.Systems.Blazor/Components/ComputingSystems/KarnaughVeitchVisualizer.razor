@@ -145,7 +145,7 @@
                         <table class="kv-interactive-table">
                             <thead>
                                 <tr>
-                                    <th class="axis-header" colspan="2">
+                                    <th class="axis-header">
                                         <div class="axis-split">
                                             <span class="axis-row-var">@GetRowVariablesLabel()</span>
                                             <span class="axis-slash">\</span>
@@ -166,7 +166,7 @@
                                 {
                                     var rowCode = GetRowCode(r);
                                     <tr>
-                                        <th class="row-gray-header" colspan="2">
+                                        <th class="row-gray-header">
                                             <span class="mono bold">@rowCode</span>
                                         </th>
                                         @for (int c = 0; c < Solution.ColumnCount; c++)
@@ -287,7 +287,7 @@
                         <table class="ws-matrix-table">
                             <thead>
                                 <tr>
-                                    <th class="ws-axis" colspan="2"><em>x</em><sub>2</sub> \ <em>x</em><sub>1</sub><em>x</em><sub>0</sub></th>
+                                    <th class="ws-axis"><em>x</em><sub>2</sub> \ <em>x</em><sub>1</sub><em>x</em><sub>0</sub></th>
                                     <th class="ws-gray-hdr">00</th>
                                     <th class="ws-gray-hdr">01</th>
                                     <th class="ws-gray-hdr">11</th>
@@ -298,7 +298,7 @@
                                 @for (int r = 0; r < (Solution?.RowCount ?? 2); r++)
                                 {
                                     <tr>
-                                        <th class="ws-gray-hdr" colspan="2">@(r == 0 ? "0" : "1")</th>
+                                        <th class="ws-gray-hdr">@(r == 0 ? "0" : "1")</th>
                                         @for (int c = 0; c < (Solution?.ColumnCount ?? 4); c++)
                                         {
                                             var cell = Solution?.Cells.FirstOrDefault(cl => cl.RowIndex == r && cl.ColumnIndex == c);
