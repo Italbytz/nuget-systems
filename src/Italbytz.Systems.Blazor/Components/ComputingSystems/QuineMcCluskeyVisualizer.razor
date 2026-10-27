@@ -1,5 +1,6 @@
 @namespace Italbytz.Systems.Blazor.Components.ComputingSystems
 @using System.Net
+@using System.Text
 @using System.Text.RegularExpressions
 @using System.Threading
 @using Italbytz.ComputingSystems
@@ -77,6 +78,7 @@
             var activeStep = (CurrentStepIndex >= 0 && CurrentStepIndex < totalSteps) ? QmcSolution.Steps[CurrentStepIndex] : "";
             var stepAnalysis = AnalyzeStep(activeStep);
             bool isEndState = CurrentStepIndex >= totalSteps - 1;
+            var currentSnapshot = (CurrentStepIndex >= 0 && CurrentStepIndex < Snapshots.Count) ? Snapshots[CurrentStepIndex] : null;
 
             <!-- Player Toolbar -->
             <div class="player-toolbar no-print">
@@ -143,150 +145,241 @@
                 <!-- Left: Multi-Order Reduction Tables -->
                 <div class="orders-card">
                     <div class="orders-header">
-                        <h3>Schritt 1 &amp; 2: Paarweise Nachbarschafts-Verschmelzung</h3>
+                        <h3>Schritt 1 &amp; 2: Ordnungstabellen &amp; Paarweise Nachbarschafts-Verschmelzung</h3>
+                        <span class="orders-badge">@GetActiveOrderDescription(currentSnapshot)</span>
                     </div>
 
                     <div class="orders-grid">
                         
-                        <!-- 0. Ordnung (Einsmenge) -->
-                        <div class="order-table-box">
-                            <div class="order-title">0. Ordnung (Einsmenge)</div>
-                            <table class="qmc-mini-table">
-                                <thead>
-                                    <tr>
-                                        <th><em>i</em></th>
-                                        <th>Binär</th>
-                                        <th>✓</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @for (int i = 0; i < TruthValues.Length; i++)
-                                    {
-                                        if (TruthValues[i] == 1)
-                                        {
-                                            var bin = Convert.ToString(i, 2).PadLeft(VariableCount, '0');
-                                            <tr>
-                                                <td class="mono bold">@i</td>
-                                                <td class="mono">@bin</td>
-                                                <td class="chk">✓</td>
-                                            </tr>
-                                        }
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
+                        <!-- Dynamische Ordnungstabellen (0. Ordnung, 1. Ordnung, 2. Ordnung, ...) -->
+                        @if (currentSnapshot != null)
+                        {
+                            @foreach (var orderKv in currentSnapshot.Orders.OrderBy(k => k.Key))
+                            {
+                                var orderNum = orderKv.Key;
+                                var entries = orderKv.Value;
+                                <div class="order-table-box @(IsOrderActive(orderNum, currentSnapshot) ? "order-box-active" : "")">
+                                    <div class="order-title">
+                                        <span>@GetOrderTitle(orderNum)</span>
+                                        <span class="count-badge">@entries.Count Term@(entries.Count != 1 ? "e" : "")</span>
+                                    </div>
+                                    <div class="table-scroll-wrap">
+                                        <table class="qmc-mini-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>@(orderNum == 0 ? "i" : "Minterme")</th>
+                                                    <th>Binär</th>
+                                                    <th>Term</th>
+                                                    <th title="Verschmolzen (✓) / Primimplikant (PI)">✓ / PI</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var entry in entries)
+                                                {
+                                                    <tr class="@(entry.IsActiveSource ? "row-active-source" : "") @(entry.IsActiveTarget ? "row-active-target" : "") @(entry.IsPrime ? "row-is-prime" : "")">
+                                                        <td class="mono bold minterm-cell">
+                                                            @if (orderNum == 0)
+                                                            {
+                                                                <span>@entry.Minterms[0]</span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span>(@string.Join(",", entry.Minterms))</span>
+                                                            }
+                                                        </td>
+                                                        <td class="mono binary-cell">
+                                                            @FormatBinaryMarkup(entry.BinaryPattern)
+                                                        </td>
+                                                        <td class="mono term-cell">
+                                                            @FormatTermMarkup(entry.Term)
+                                                        </td>
+                                                        <td class="status-cell">
+                                                            @if (entry.IsPrime)
+                                                            {
+                                                                <span class="badge-pi" title="Primimplikant (nicht weiter reduzierbar)">PI</span>
+                                                            }
+                                                            else if (entry.IsCombined)
+                                                            {
+                                                                <span class="chk-active" title="In höhere Ordnung verschmolzen">✓</span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="slot-empty">&minus;</span>
+                                                            }
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            }
 
-                        <!-- Primimplikanten Übersicht -->
-                        <div class="order-table-box">
-                            <div class="order-title">Gefundene Primimplikanten</div>
-                            <table class="qmc-mini-table">
-                                <thead>
-                                    <tr>
-                                        <th>#</th>
-                                        <th>Term</th>
-                                        <th>Essenziell</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @for (int i = 0; i < QmcSolution.PrimeImplicants.Length; i++)
+                            <!-- Gefundene Primimplikanten Übersicht -->
+                            <div class="order-table-box pi-summary-box">
+                                <div class="order-title">
+                                    <span>Gefundene Primimplikanten</span>
+                                    <span class="count-badge blue">@currentSnapshot.FoundPrimeImplicants.Count</span>
+                                </div>
+                                <div class="table-scroll-wrap">
+                                    @if (currentSnapshot.FoundPrimeImplicants.Count == 0)
                                     {
-                                        var pi = QmcSolution.PrimeImplicants[i];
-                                        bool isEss = QmcSolution.EssentialPrimeImplicants.Contains(pi);
-                                        <tr>
-                                            <td>@(i + 1)</td>
-                                            <td class="mono bold blue">@FormatTermMarkup(pi)</td>
-                                            <td>
-                                                @if (isEss)
-                                                {
-                                                    <span class="status-tag tag-ess">★ Ja</span>
-                                                }
-                                                else
-                                                {
-                                                    <span class="status-tag tag-opt">Optional</span>
-                                                }
-                                            </td>
-                                        </tr>
+                                        <div class="empty-state-notice">
+                                            <p>Noch keine Primimplikanten gefunden.</p>
+                                            <small>Terme ohne weiteren Fusionspartner (ohne ✓) werden hier nach Abschluss der Runden gesammelt.</small>
+                                        </div>
                                     }
-                                </tbody>
-                            </table>
-                        </div>
+                                    else
+                                    {
+                                        <table class="qmc-mini-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>#</th>
+                                                    <th>Term</th>
+                                                    <th>Ordnung</th>
+                                                    <th>Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var pi in currentSnapshot.FoundPrimeImplicants)
+                                                {
+                                                    bool isEss = currentSnapshot.EssentialPrimeImplicants.Contains(pi.Term);
+                                                    bool isSel = currentSnapshot.SelectedPrimeImplicants.Contains(pi.Term);
+                                                    <tr class="@(pi.IsActive ? "row-focus" : "") @(isEss ? "row-essential" : "")">
+                                                        <td>@pi.Index</td>
+                                                        <td class="mono bold blue">@FormatTermMarkup(pi.Term)</td>
+                                                        <td class="mono text-muted">@pi.Order. Ord.</td>
+                                                        <td>
+                                                            @if (isEss)
+                                                            {
+                                                                <span class="status-tag tag-ess">★ Essenziell</span>
+                                                            }
+                                                            else if (isSel)
+                                                            {
+                                                                <span class="status-tag tag-selected">✓ Ausgewählt</span>
+                                                            }
+                                                            else if (currentSnapshot.IsCoveragePhaseActive)
+                                                            {
+                                                                <span class="status-tag tag-opt">Optional</span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="status-tag tag-pi">Primimplikant</span>
+                                                            }
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    }
+                                </div>
+                            </div>
+                        }
 
                     </div>
 
                     <!-- Primimplikantentabelle (Überdeckungsanalyse) -->
-                    <div class="order-table-box coverage-box">
+                    <div class="order-table-box coverage-box @(currentSnapshot?.IsCoveragePhaseActive == true ? "coverage-active" : "coverage-pending")">
                         <div class="order-title">
-                            <span>Primimplikantentabelle (Überdeckung der Eins-Minterme)</span>
+                            <span>Schritt 3: Primimplikantentabelle (Überdeckung der Eins-Minterme)</span>
+                            @if (currentSnapshot?.IsCoveragePhaseActive == true)
+                            {
+                                <span class="coverage-active-tag">Überdeckungsanalyse aktiv</span>
+                            }
+                            else
+                            {
+                                <span class="coverage-hint-tag">Wird nach Abschluss der Verschmelzungsrunden analysiert</span>
+                            }
                         </div>
                         <div class="coverage-table-wrapper">
-                            <table class="qmc-coverage-table">
-                                <thead>
-                                    <tr>
-                                        <th class="pi-col">Primimplikant</th>
-                                        <th class="type-col">Typ</th>
-                                        @for (int i = 0; i < TruthValues.Length; i++)
-                                        {
-                                            if (TruthValues[i] == 1)
-                                            {
-                                                int m = i;
-                                                int coverCount = QmcSolution.PrimeImplicants.Count(pi => DoesImplicantCoverMinterm(pi, m, VariableCount));
-                                                bool isUnique = coverCount == 1;
-                                                <th class="minterm-col @(isUnique ? "col-unique" : "")" title="Minterm m_@m (@(Convert.ToString(m, 2).PadLeft(VariableCount, '0'))): @(isUnique ? "Nur von EINEM Primimplikanten überdeckt (Essenziell!)" : $"{coverCount} Überdeckungen")">
-                                                    <em>m</em><sub>@m</sub>
-                                                    @if (isUnique)
-                                                    {
-                                                        <span class="unique-star" title="Essentieller Kern">★</span>
-                                                    }
-                                                </th>
-                                            }
-                                        }
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @for (int pIdx = 0; pIdx < QmcSolution.PrimeImplicants.Length; pIdx++)
-                                    {
-                                        var pi = QmcSolution.PrimeImplicants[pIdx];
-                                        bool isEss = QmcSolution.EssentialPrimeImplicants.Contains(pi);
-                                        bool isStepFocusPi = !string.IsNullOrEmpty(activeStep) && activeStep.Contains(pi);
-                                        <tr class="@(isEss ? "row-essential" : "") @(isStepFocusPi ? "row-focus" : "")">
-                                            <td class="pi-name mono bold">
-                                                @FormatTermMarkup(pi)
-                                            </td>
-                                            <td>
-                                                @if (isEss)
-                                                {
-                                                    <span class="status-tag tag-ess">★ Essenziell</span>
-                                                }
-                                                else
-                                                {
-                                                    <span class="status-tag tag-opt">Optional</span>
-                                                }
-                                            </td>
+                            @if (currentSnapshot?.FoundPrimeImplicants.Count == 0)
+                            {
+                                <div class="empty-state-notice">
+                                    <p>Tabelle wird befüllt, sobald Primimplikanten gefunden werden.</p>
+                                    <small>In Phase 4 werden hier alle Eins-Minterme den Primimplikanten gegenübergestellt.</small>
+                                </div>
+                            }
+                            else
+                            {
+                                <table class="qmc-coverage-table">
+                                    <thead>
+                                        <tr>
+                                            <th class="pi-col">Primimplikant</th>
+                                            <th class="type-col">Status</th>
                                             @for (int i = 0; i < TruthValues.Length; i++)
                                             {
                                                 if (TruthValues[i] == 1)
                                                 {
                                                     int m = i;
-                                                    bool covers = DoesImplicantCoverMinterm(pi, m, VariableCount);
-                                                    int coverCount = QmcSolution.PrimeImplicants.Count(other => DoesImplicantCoverMinterm(other, m, VariableCount));
-                                                    bool isUnique = coverCount == 1 && covers;
-                                                    bool isStepFocusMinterm = !string.IsNullOrEmpty(activeStep) && 
-                                                        (activeStep.Contains($"minterm {m}") || activeStep.Contains($"covering {m}") || activeStep.Contains($" {m},") || activeStep.Contains($" {m}."));
-
-                                                    <td class="cov-cell @(covers ? "is-covered" : "") @(isUnique ? "unique-cov" : "") @(isStepFocusMinterm && covers ? "focus-cov" : "")">
-                                                        @if (covers)
+                                                    bool isCurrentUnique = (currentSnapshot?.ActiveUniqueMinterm == m);
+                                                    int coverCount = currentSnapshot?.FoundPrimeImplicants.Count(pi => DoesImplicantCoverMinterm(pi.Term, m, VariableCount)) ?? 0;
+                                                    bool isUnique = coverCount == 1;
+                                                    <th class="minterm-col @(isUnique ? "col-unique" : "") @(isCurrentUnique ? "active-col-unique" : "")"
+                                                        title="Minterm m_@m (@(Convert.ToString(m, 2).PadLeft(VariableCount, '0'))): @(isUnique ? "Nur von EINEM Primimplikanten überdeckt (Essenziell!)" : $"{coverCount} Überdeckungen")">
+                                                        <em>m</em><sub>@m</sub>
+                                                        @if (isUnique)
                                                         {
-                                                            <span class="cov-mark @(isUnique ? "cov-star" : "")">
-                                                                @(isUnique ? "★" : "✕")
-                                                            </span>
+                                                            <span class="unique-star" title="Essentieller Kern">★</span>
                                                         }
-                                                    </td>
+                                                    </th>
                                                 }
                                             }
                                         </tr>
-                                    }
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var pi in (currentSnapshot?.FoundPrimeImplicants ?? new List<QmcPrimeEntry>()))
+                                        {
+                                            bool isEss = currentSnapshot?.EssentialPrimeImplicants.Contains(pi.Term) ?? false;
+                                            bool isSel = currentSnapshot?.SelectedPrimeImplicants.Contains(pi.Term) ?? false;
+                                            bool isStepFocusPi = (currentSnapshot?.ActivePrimeImplicantTerm == pi.Term);
+
+                                            <tr class="@(isEss ? "row-essential" : "") @(isSel ? "row-selected" : "") @(isStepFocusPi ? "row-focus" : "")">
+                                                <td class="pi-name mono bold">
+                                                    @FormatTermMarkup(pi.Term)
+                                                </td>
+                                                <td>
+                                                    @if (isEss)
+                                                    {
+                                                        <span class="status-tag tag-ess">★ Essenziell</span>
+                                                    }
+                                                    else if (isSel)
+                                                    {
+                                                        <span class="status-tag tag-selected">✓ Ausgewählt</span>
+                                                    }
+                                                    else if (currentSnapshot?.IsCoveragePhaseActive == true)
+                                                    {
+                                                        <span class="status-tag tag-opt">Optional</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="status-tag tag-pi">Primimplikant</span>
+                                                    }
+                                                </td>
+                                                @for (int i = 0; i < TruthValues.Length; i++)
+                                                {
+                                                    if (TruthValues[i] == 1)
+                                                    {
+                                                        int m = i;
+                                                        bool covers = DoesImplicantCoverMinterm(pi.Term, m, VariableCount);
+                                                        bool isUniqueCol = (currentSnapshot?.ActiveUniqueMinterm == m);
+                                                        bool isUniqueCov = isEss && isUniqueCol && covers;
+                                                        bool isStepFocusMinterm = isUniqueCol && covers;
+
+                                                        <td class="cov-cell @(covers ? "is-covered" : "") @(isUniqueCov ? "active-unique-cov" : "") @(isStepFocusMinterm ? "focus-cov" : "")">
+                                                            @if (covers)
+                                                            {
+                                                                <span class="cov-mark @(isUniqueCov ? "cov-star" : "")">
+                                                                    @(isUniqueCov ? "★" : "✕")
+                                                                </span>
+                                                            }
+                                                        </td>
+                                                    }
+                                                }
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            }
                         </div>
                     </div>
                 </div>
@@ -536,6 +629,7 @@
     private int[] TruthValues = new int[] { 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0 };
 
     private IQuineMcCluskeySolution? QmcSolution;
+    private List<QmcStepSnapshot> Snapshots = new();
 
     // Player State
     private int CurrentStepIndex = 0;
@@ -648,6 +742,10 @@
                 VariableCount = 3;
                 TruthValues = new int[] { 0, 0, 0, 1, 0, 1, 1, 1 };
                 break;
+            case "Prime4":
+                VariableCount = 4;
+                TruthValues = new int[] { 0, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0 };
+                break;
         }
         TruthValuesInput = string.Join(",", TruthValues);
         Recalculate();
@@ -688,6 +786,7 @@
             TruthValues = parsed;
             var solver = new QuineMcCluskeySolver();
             QmcSolution = solver.Solve(new QuineMcCluskeyParameters(VariableCount, TruthValues));
+            Snapshots = BuildSnapshots();
             CurrentStepIndex = Math.Max(0, (QmcSolution?.Steps.Count ?? 1) - 1);
         }
         catch { }
@@ -888,5 +987,414 @@
         s = s.Replace(" | ", " &or; ");
 
         return new MarkupString(s);
+    }
+
+    public class QmcOrderEntry
+    {
+        public int Order { get; set; }
+        public string Term { get; set; } = string.Empty;
+        public string BinaryPattern { get; set; } = string.Empty;
+        public int[] Minterms { get; set; } = Array.Empty<int>();
+        public bool IsCombined { get; set; }
+        public bool IsPrime { get; set; }
+        public bool IsActiveSource { get; set; }
+        public bool IsActiveTarget { get; set; }
+    }
+
+    public class QmcPrimeEntry
+    {
+        public int Index { get; set; }
+        public string Term { get; set; } = string.Empty;
+        public int Order { get; set; }
+        public int[] Minterms { get; set; } = Array.Empty<int>();
+        public bool IsEssential { get; set; }
+        public bool IsSelected { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    public class QmcStepSnapshot
+    {
+        public int StepIndex { get; set; }
+        public Dictionary<int, List<QmcOrderEntry>> Orders { get; set; } = new();
+        public List<QmcPrimeEntry> FoundPrimeImplicants { get; set; } = new();
+        public HashSet<string> EssentialPrimeImplicants { get; set; } = new();
+        public HashSet<string> SelectedPrimeImplicants { get; set; } = new();
+        public int? ActiveUniqueMinterm { get; set; }
+        public string? ActivePrimeImplicantTerm { get; set; }
+        public bool IsCoveragePhaseActive { get; set; }
+    }
+
+    private List<QmcStepSnapshot> BuildSnapshots()
+    {
+        var snapshots = new List<QmcStepSnapshot>();
+        if (QmcSolution == null || QmcSolution.Steps.Count == 0) return snapshots;
+
+        var state = new QmcStepSnapshot();
+        var order0 = new List<QmcOrderEntry>();
+
+        for (int i = 0; i < TruthValues.Length; i++)
+        {
+            if (TruthValues[i] == 1 || TruthValues[i] == 2)
+            {
+                int m = i;
+                var term = FormatImplicant(VariableCount, m, 0);
+                var bin = Convert.ToString(m, 2).PadLeft(VariableCount, '0');
+                order0.Add(new QmcOrderEntry
+                {
+                    Order = 0,
+                    Term = term,
+                    BinaryPattern = bin,
+                    Minterms = new[] { m },
+                    IsCombined = false,
+                    IsPrime = false
+                });
+            }
+        }
+        state.Orders[0] = order0;
+
+        for (int s = 0; s < QmcSolution.Steps.Count; s++)
+        {
+            var stepText = QmcSolution.Steps[s];
+            state = CloneSnapshot(state, s);
+
+            if (stepText.StartsWith("Round ", StringComparison.OrdinalIgnoreCase))
+            {
+                // New round begins
+            }
+            else if (stepText.StartsWith("Combine ", StringComparison.OrdinalIgnoreCase))
+            {
+                var match = Regex.Match(stepText, @"Combine\s+(.+?)\s+with\s+(.+?)\s+->\s+(.+?)\.");
+                if (match.Success)
+                {
+                    var termA = match.Groups[1].Value.Trim();
+                    var termB = match.Groups[2].Value.Trim();
+                    var termC = match.Groups[3].Value.Trim();
+
+                    var (fixedA, maskA) = ParseImplicantTerm(termA, VariableCount);
+                    int orderA = BitCount(maskA);
+
+                    if (state.Orders.TryGetValue(orderA, out var orderAList))
+                    {
+                        var entryA = orderAList.FirstOrDefault(e => e.Term == termA);
+                        if (entryA != null)
+                        {
+                            entryA.IsCombined = true;
+                            entryA.IsActiveSource = true;
+                        }
+                        var entryB = orderAList.FirstOrDefault(e => e.Term == termB);
+                        if (entryB != null)
+                        {
+                            entryB.IsCombined = true;
+                            entryB.IsActiveSource = true;
+                        }
+                    }
+
+                    var (fixedC, maskC) = ParseImplicantTerm(termC, VariableCount);
+                    int orderC = BitCount(maskC);
+                    if (!state.Orders.TryGetValue(orderC, out var orderCList))
+                    {
+                        orderCList = new List<QmcOrderEntry>();
+                        state.Orders[orderC] = orderCList;
+                    }
+
+                    var entryC = orderCList.FirstOrDefault(e => e.Term == termC);
+                    if (entryC == null)
+                    {
+                        entryC = new QmcOrderEntry
+                        {
+                            Order = orderC,
+                            Term = termC,
+                            BinaryPattern = FormatBinaryPattern(fixedC, maskC, VariableCount),
+                            Minterms = ComputeCoveredMinterms(fixedC, maskC, VariableCount, TruthValues),
+                            IsCombined = false,
+                            IsPrime = false,
+                            IsActiveTarget = true
+                        };
+                        orderCList.Add(entryC);
+                    }
+                    else
+                    {
+                        entryC.IsActiveTarget = true;
+                    }
+                }
+            }
+            else if (stepText.StartsWith("Prime implicant found: ", StringComparison.OrdinalIgnoreCase))
+            {
+                var match = Regex.Match(stepText, @"Prime implicant found:\s+(.+?)\s+covering\s+(.+?)\.");
+                if (match.Success)
+                {
+                    var termP = match.Groups[1].Value.Trim();
+                    var (fixedP, maskP) = ParseImplicantTerm(termP, VariableCount);
+                    int orderP = BitCount(maskP);
+
+                    if (state.Orders.TryGetValue(orderP, out var orderPList))
+                    {
+                        var entryP = orderPList.FirstOrDefault(e => e.Term == termP);
+                        if (entryP != null)
+                        {
+                            entryP.IsPrime = true;
+                            entryP.IsActiveTarget = true;
+                        }
+                    }
+
+                    var primeEntry = state.FoundPrimeImplicants.FirstOrDefault(p => p.Term == termP);
+                    if (primeEntry == null)
+                    {
+                        primeEntry = new QmcPrimeEntry
+                        {
+                            Index = state.FoundPrimeImplicants.Count + 1,
+                            Term = termP,
+                            Order = orderP,
+                            Minterms = ComputeCoveredMinterms(fixedP, maskP, VariableCount, TruthValues),
+                            IsActive = true
+                        };
+                        state.FoundPrimeImplicants.Add(primeEntry);
+                    }
+                    else
+                    {
+                        primeEntry.IsActive = true;
+                    }
+                }
+            }
+            else if (stepText.StartsWith("Essential prime implicant: ", StringComparison.OrdinalIgnoreCase))
+            {
+                state.IsCoveragePhaseActive = true;
+                var match = Regex.Match(stepText, @"Essential prime implicant:\s+(.+?)\s+uniquely covers minterm\s+(\d+)");
+                if (match.Success)
+                {
+                    var termP = match.Groups[1].Value.Trim();
+                    int minterm = int.Parse(match.Groups[2].Value);
+                    state.EssentialPrimeImplicants.Add(termP);
+                    state.ActiveUniqueMinterm = minterm;
+                    state.ActivePrimeImplicantTerm = termP;
+
+                    var primeEntry = state.FoundPrimeImplicants.FirstOrDefault(p => p.Term == termP);
+                    if (primeEntry != null)
+                    {
+                        primeEntry.IsEssential = true;
+                        primeEntry.IsActive = true;
+                    }
+                }
+            }
+            else if (stepText.StartsWith("Petrick selection required", StringComparison.OrdinalIgnoreCase))
+            {
+                state.IsCoveragePhaseActive = true;
+            }
+            else if (stepText.StartsWith("Petrick selected ", StringComparison.OrdinalIgnoreCase))
+            {
+                state.IsCoveragePhaseActive = true;
+                var match = Regex.Match(stepText, @"Petrick selected\s+(.+?)\.");
+                if (match.Success)
+                {
+                    var terms = match.Groups[1].Value.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    foreach (var t in terms)
+                    {
+                        var cleanTerm = t.Trim();
+                        state.SelectedPrimeImplicants.Add(cleanTerm);
+                        var pe = state.FoundPrimeImplicants.FirstOrDefault(p => p.Term == cleanTerm);
+                        if (pe != null)
+                        {
+                            pe.IsSelected = true;
+                            pe.IsActive = true;
+                        }
+                    }
+                }
+            }
+            else if (stepText.StartsWith("Minimal DNF: ", StringComparison.OrdinalIgnoreCase))
+            {
+                state.IsCoveragePhaseActive = true;
+                foreach (var p in state.FoundPrimeImplicants)
+                {
+                    if (state.EssentialPrimeImplicants.Contains(p.Term) || state.SelectedPrimeImplicants.Contains(p.Term))
+                    {
+                        p.IsSelected = true;
+                    }
+                }
+            }
+
+            snapshots.Add(state);
+        }
+
+        return snapshots;
+    }
+
+    private static QmcStepSnapshot CloneSnapshot(QmcStepSnapshot prev, int stepIndex)
+    {
+        var next = new QmcStepSnapshot
+        {
+            StepIndex = stepIndex,
+            IsCoveragePhaseActive = prev.IsCoveragePhaseActive,
+            ActiveUniqueMinterm = null,
+            ActivePrimeImplicantTerm = null,
+            EssentialPrimeImplicants = new HashSet<string>(prev.EssentialPrimeImplicants),
+            SelectedPrimeImplicants = new HashSet<string>(prev.SelectedPrimeImplicants)
+        };
+
+        foreach (var (order, list) in prev.Orders)
+        {
+            next.Orders[order] = list.Select(e => new QmcOrderEntry
+            {
+                Order = e.Order,
+                Term = e.Term,
+                BinaryPattern = e.BinaryPattern,
+                Minterms = e.Minterms,
+                IsCombined = e.IsCombined,
+                IsPrime = e.IsPrime,
+                IsActiveSource = false,
+                IsActiveTarget = false
+            }).ToList();
+        }
+
+        next.FoundPrimeImplicants = prev.FoundPrimeImplicants.Select(p => new QmcPrimeEntry
+        {
+            Index = p.Index,
+            Term = p.Term,
+            Order = p.Order,
+            Minterms = p.Minterms,
+            IsEssential = p.IsEssential,
+            IsSelected = p.IsSelected,
+            IsActive = false
+        }).ToList();
+
+        return next;
+    }
+
+    private static (int fixedBits, int mask) ParseImplicantTerm(string term, int variableCount)
+    {
+        term = term.Trim();
+        if (term == "1") return (0, (1 << variableCount) - 1);
+        if (term == "0") return (0, 0);
+
+        var clean = term.Trim('(', ')', ' ');
+        var literals = clean.Split('&', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+
+        var mask = (1 << variableCount) - 1;
+        var fixedBits = 0;
+
+        foreach (var literal in literals)
+        {
+            var isNegated = literal.StartsWith("!");
+            var varName = isNegated ? literal[1..] : literal;
+            if (varName.StartsWith("x") && int.TryParse(varName[1..], out int bitIndex) && bitIndex < variableCount)
+            {
+                var bitFlag = 1 << bitIndex;
+                mask &= ~bitFlag;
+                if (!isNegated)
+                {
+                    fixedBits |= bitFlag;
+                }
+            }
+        }
+
+        return (fixedBits, mask);
+    }
+
+    private static int[] ComputeCoveredMinterms(int fixedBits, int mask, int variableCount, int[] truthValues)
+    {
+        var minterms = new List<int>();
+        int max = 1 << variableCount;
+        for (int m = 0; m < max; m++)
+        {
+            if ((m & ~mask) == fixedBits && (truthValues[m] == 1 || truthValues[m] == 2))
+            {
+                minterms.Add(m);
+            }
+        }
+        return minterms.ToArray();
+    }
+
+    private static string FormatBinaryPattern(int fixedBits, int mask, int variableCount)
+    {
+        var sb = new StringBuilder(variableCount);
+        for (int i = 0; i < variableCount; i++)
+        {
+            int bitIndex = variableCount - i - 1;
+            int bitFlag = 1 << bitIndex;
+            if ((mask & bitFlag) != 0)
+            {
+                sb.Append('-');
+            }
+            else if ((fixedBits & bitFlag) != 0)
+            {
+                sb.Append('1');
+            }
+            else
+            {
+                sb.Append('0');
+            }
+        }
+        return sb.ToString();
+    }
+
+    private static MarkupString FormatBinaryMarkup(string pattern)
+    {
+        if (string.IsNullOrEmpty(pattern)) return new MarkupString(string.Empty);
+        var sb = new StringBuilder();
+        foreach (var ch in pattern)
+        {
+            if (ch == '-')
+            {
+                sb.Append("<span class=\"bin-dash\">&minus;</span>");
+            }
+            else
+            {
+                sb.Append(ch);
+            }
+        }
+        return new MarkupString(sb.ToString());
+    }
+
+    private static int BitCount(int value)
+    {
+        int count = 0;
+        while (value != 0)
+        {
+            count += value & 1;
+            value >>= 1;
+        }
+        return count;
+    }
+
+    private static string FormatImplicant(int variableCount, int fixedBits, int mask)
+    {
+        var literals = new List<string>();
+        for (var position = 0; position < variableCount; position++)
+        {
+            var bitIndex = variableCount - position - 1;
+            var bitFlag = 1 << bitIndex;
+            if ((mask & bitFlag) != 0) continue;
+
+            var isOne = (fixedBits & bitFlag) != 0;
+            literals.Add(isOne ? $"x{bitIndex}" : $"!x{bitIndex}");
+        }
+
+        return literals.Count == 0 ? "1" : "(" + string.Join(" & ", literals) + ")";
+    }
+
+    private static string GetOrderTitle(int orderNum) => orderNum switch
+    {
+        0 => "0. Ordnung (Einsmenge)",
+        1 => "1. Ordnung (2er-Blöcke)",
+        2 => "2. Ordnung (4er-Blöcke)",
+        3 => "3. Ordnung (8er-Blöcke)",
+        _ => $"{orderNum}. Ordnung"
+    };
+
+    private static bool IsOrderActive(int orderNum, QmcStepSnapshot? snapshot)
+    {
+        if (snapshot == null || !snapshot.Orders.TryGetValue(orderNum, out var list)) return false;
+        return list.Any(e => e.IsActiveSource || e.IsActiveTarget);
+    }
+
+    private static string GetActiveOrderDescription(QmcStepSnapshot? snapshot)
+    {
+        if (snapshot == null) return "Initialisierung";
+        if (snapshot.IsCoveragePhaseActive) return "Phase 4: Überdeckungsanalyse";
+        foreach (var (order, list) in snapshot.Orders)
+        {
+            if (list.Any(e => e.IsActiveTarget)) return $"Verschmelzung zu {order}. Ordnung";
+            if (list.Any(e => e.IsActiveSource)) return $"Prüfung {order}. Ordnung";
+        }
+        return "Ordnungstabellen & Primimplikanten";
     }
 }
