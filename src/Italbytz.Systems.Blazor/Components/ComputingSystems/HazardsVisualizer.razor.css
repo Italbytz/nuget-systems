@@ -329,6 +329,15 @@
     color: #0284c7;
 }
 
+.var-top sub,
+.var-left sub {
+    font-size: 0.72em;
+    line-height: 0;
+    vertical-align: baseline;
+    position: relative;
+    bottom: -0.22em;
+}
+
 .kv-row-header {
     background: #f8fafc;
     color: #475569;
@@ -896,6 +905,14 @@
     font-weight: bold;
     padding: 0.35rem 0.6rem;
     white-space: nowrap;
+}
+
+.exam-corner-hdr sub {
+    font-size: 0.72em;
+    line-height: 0;
+    vertical-align: baseline;
+    position: relative;
+    bottom: -0.22em;
 }
 
 .exam-kv-slot.blank-slot {

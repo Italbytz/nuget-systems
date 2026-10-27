@@ -275,7 +275,7 @@
             <!-- Task Section -->
             <div class="task-section">
                 <p class="task-text">
-                    Der Ausgang einer Funktion <em>y</em> = <em>f</em>(<em>x</em><sub>2</sub>, <em>x</em><sub>1</sub>, <em>x</em><sub>0</sub>) ist durch folgenden Wertevektor beschrieben:
+                    Der Ausgang einer Funktion <em>y</em> = <em>f</em>(@GetFunctionSignature()) ist durch folgenden Wertevektor beschrieben:
                     <div class="mono bold text-center" style="margin: 0.5rem 0;"><strong>f</strong> = (@string.Join(", ", TruthValues))</div>
                     Ermitteln Sie die Ausgangsfunktion mit Hilfe des folgenden KV-Diagramms und geben Sie die <strong>disjunktive Minimalform (DMF)</strong> an:
                 </p>
@@ -287,7 +287,7 @@
                         <table class="ws-matrix-table">
                             <thead>
                                 <tr>
-                                    <th class="ws-axis"><em>x</em><sub>2</sub> \ <em>x</em><sub>1</sub><em>x</em><sub>0</sub></th>
+                                    <th class="ws-axis">@GetRowVariablesLabel() \ @GetColVariablesLabel()</th>
                                     <th class="ws-gray-hdr">00</th>
                                     <th class="ws-gray-hdr">01</th>
                                     <th class="ws-gray-hdr">11</th>
@@ -567,26 +567,32 @@
     private void PreviousGroup() { if (CurrentGroupIndex > 0) CurrentGroupIndex--; }
     private void NextGroup() { if (Solution != null && CurrentGroupIndex < Solution.Groups.Length - 1) CurrentGroupIndex++; }
 
-    private string GetRowVariablesLabel()
+    private MarkupString GetRowVariablesLabel()
     {
-        return VariableCount switch
+        return (MarkupString)(VariableCount switch
         {
-            2 => "x_1",
-            3 => "x_2",
-            4 => "x_3 x_2",
-            _ => "x_row"
-        };
+            2 => "<em>x</em><sub>1</sub>",
+            3 => "<em>x</em><sub>2</sub>",
+            4 => "<em>x</em><sub>3</sub><em>x</em><sub>2</sub>",
+            _ => "<em>x</em><sub>row</sub>"
+        });
     }
 
-    private string GetColVariablesLabel()
+    private MarkupString GetColVariablesLabel()
     {
-        return VariableCount switch
+        return (MarkupString)(VariableCount switch
         {
-            2 => "x_0",
-            3 => "x_1 x_0",
-            4 => "x_1 x_0",
-            _ => "x_col"
-        };
+            2 => "<em>x</em><sub>0</sub>",
+            3 => "<em>x</em><sub>1</sub><em>x</em><sub>0</sub>",
+            4 => "<em>x</em><sub>1</sub><em>x</em><sub>0</sub>",
+            _ => "<em>x</em><sub>col</sub>"
+        });
+    }
+
+    private MarkupString GetFunctionSignature()
+    {
+        var vars = Enumerable.Range(0, VariableCount).Reverse().Select(i => $"<em>x</em><sub>{i}</sub>");
+        return (MarkupString)string.Join(", ", vars);
     }
 
     private string GetRowCode(int rowIndex)

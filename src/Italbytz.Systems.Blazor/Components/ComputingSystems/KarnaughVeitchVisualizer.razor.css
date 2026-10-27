@@ -355,6 +355,15 @@
     gap: 0.2rem;
 }
 
+.axis-split sub,
+.ws-axis sub {
+    font-size: 0.72em;
+    line-height: 0;
+    vertical-align: baseline;
+    position: relative;
+    bottom: -0.25em;
+}
+
 .col-gray-header,
 .row-gray-header {
     background: #f8fafc;
