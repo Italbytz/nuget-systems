@@ -425,6 +425,18 @@
                 </div>
 
             </div>
+
+            <StepPlayerHud CurrentStepIndex="@CurrentStepIndex"
+                           TotalSteps="@totalSteps"
+                           StepHeadline="@activeStep"
+                           IsPlaying="@IsPlaying"
+                           IsEmbed="@IsEmbed"
+                           OnStart="GoToStart"
+                           OnPrevious="PreviousStep"
+                           OnTogglePlay="TogglePlay"
+                           OnNext="NextStep"
+                           OnEnd="GoToEnd"
+                           OnReset="GoToStart" />
         }
     }
 
