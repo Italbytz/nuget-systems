@@ -30,18 +30,21 @@
                         @onclick="HandlePrevious">
                     ◀
                 </button>
-                <button type="button" 
-                        class="hud-btn hud-btn-play @(IsPlaying ? "is-playing" : "")" 
-                        title="@(IsPlaying ? "Pause (Leertaste)" : "Play (Leertaste)")" 
-                        @onclick="HandleTogglePlay">
-                    @(IsPlaying ? "⏸" : "▶")
-                </button>
+                @if (ShowPlay)
+                {
+                    <button type="button" 
+                            class="hud-btn hud-btn-play @(IsPlaying ? "is-playing" : "")" 
+                            title="@(IsPlaying ? "Pause (Leertaste)" : "Play (Leertaste)")" 
+                            @onclick="HandleTogglePlay">
+                        @(IsPlaying ? "⏸" : "▶")
+                    </button>
+                }
                 <button type="button" 
                         class="hud-btn hud-btn-next primary" 
-                        title="Weiter (→ / ] / j)" 
+                        title="Weiter (→ / ] / j / Leertaste)" 
                         disabled="@(CurrentStepIndex >= TotalSteps - 1)" 
                         @onclick="HandleNext">
-                    ▶ Weiter
+                    ▶
                 </button>
                 <button type="button" 
                         class="hud-btn" 
@@ -94,6 +97,7 @@
     [Parameter] public int TotalSteps { get; set; } = 1;
     [Parameter] public string? StepHeadline { get; set; }
     [Parameter] public bool IsPlaying { get; set; }
+    [Parameter] public bool ShowPlay { get; set; } = false;
     [Parameter] public bool IsEmbed { get; set; }
     [Parameter] public bool EnableKeyboardShortcuts { get; set; } = true;
     [Parameter] public bool EnableRevealBridge { get; set; } = true;
@@ -213,8 +217,16 @@ if (!window.italbytzRegisterHudListener) {
     [JSInvokable]
     public async Task OnShortcutTogglePlay()
     {
-        await HandleTogglePlay();
-        StateHasChanged();
+        if (ShowPlay)
+        {
+            await HandleTogglePlay();
+            StateHasChanged();
+        }
+        else
+        {
+            // When Play is disabled, Space acts as Next step (standard presenter behavior)
+            await OnShortcutNext();
+        }
     }
 
     [JSInvokable]
@@ -245,3 +257,4 @@ if (!window.italbytzRegisterHudListener) {
         _dotNetRef?.Dispose();
     }
 }
+
