@@ -65,6 +65,8 @@
             <div class="preset-bar">
                 <span class="preset-label">Beispiele:</span>
                 <button class="preset-btn" @onclick='() => LoadPreset("Lecture")'>Vorlesung (1,3,5,7,11,13)</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("LectureX")'>DC Bsp. x (3-Bit)</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("LectureY")'>DC Bsp. y (3-Bit)</button>
                 <button class="preset-btn" @onclick='() => LoadPreset("Exam1")'>Beispiel 3-Bit</button>
                 <button class="preset-btn" @onclick='() => LoadPreset("Majority3")'>Mehrheitsentscheid</button>
                 <button class="preset-btn" @onclick='() => LoadPreset("Exam2")'>Beispiel 4-Bit</button>
@@ -182,6 +184,10 @@
                                                             @if (orderNum == 0)
                                                             {
                                                                 <span>@entry.Minterms[0]</span>
+                                                                @if (entry.Minterms.Length > 0 && entry.Minterms[0] < TruthValues.Length && TruthValues[entry.Minterms[0]] == 2)
+                                                                {
+                                                                    <span class="badge-dc" title="Don't Care Minterm (X / -)">DC</span>
+                                                                }
                                                             }
                                                             else
                                                             {
@@ -617,6 +623,8 @@
     [Parameter] public bool? SolutionParam { get; set; }
     [Parameter] public bool? Embed { get; set; }
     [Parameter] public string? Minterms { get; set; }
+    [Parameter] public string? Dc { get; set; }
+    [Parameter] public string? DontCares { get; set; }
     [Parameter] public string? Values { get; set; }
     [Parameter] public string? Preset { get; set; }
     [Parameter] public int? Vars { get; set; }
@@ -626,6 +634,8 @@
     [SupplyParameterFromQuery(Name = "minterms")] public string? QueryMinterms { get; set; }
     [SupplyParameterFromQuery(Name = "ones")] public string? QueryOnes { get; set; }
     [SupplyParameterFromQuery(Name = "einsmenge")] public string? QueryEinsmenge { get; set; }
+    [SupplyParameterFromQuery(Name = "dc")] public string? QueryDc { get; set; }
+    [SupplyParameterFromQuery(Name = "dontcares")] public string? QueryDontCares { get; set; }
     [SupplyParameterFromQuery(Name = "preset")] public string? QueryPreset { get; set; }
     [SupplyParameterFromQuery(Name = "vars")] public int? QueryVars { get; set; }
 
@@ -663,6 +673,7 @@
             var uri = new Uri(NavigationManager.Uri);
             var query = uri.Query;
             string? mintermsParam = QueryMinterms ?? QueryOnes ?? QueryEinsmenge ?? Minterms;
+            string? dcParam = QueryDc ?? QueryDontCares ?? Dc ?? DontCares;
             string? valuesParam = QueryValues ?? QueryTruth ?? Values;
             string? presetParam = QueryPreset ?? Preset;
             int? varsParam = QueryVars ?? Vars;
@@ -689,6 +700,11 @@
                     else if (queryDict.TryGetValue("ones", out var oVal)) mintermsParam = oVal;
                     else if (queryDict.TryGetValue("einsmenge", out var eVal)) mintermsParam = eVal;
                 }
+                if (string.IsNullOrEmpty(dcParam))
+                {
+                    if (queryDict.TryGetValue("dc", out var dVal)) dcParam = dVal;
+                    else if (queryDict.TryGetValue("dontcares", out var dVal2)) dcParam = dVal2;
+                }
                 if (string.IsNullOrEmpty(valuesParam))
                 {
                     if (queryDict.TryGetValue("values", out var vVal)) valuesParam = vVal;
@@ -712,18 +728,18 @@
 
             if (!string.IsNullOrEmpty(mintermsParam))
             {
-                ApplyMinterms(mintermsParam, varsParam);
+                ApplyMinterms(mintermsParam, dcParam, varsParam);
                 return;
             }
 
             if (!string.IsNullOrEmpty(valuesParam))
             {
                 var parts = valuesParam.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                var nums = parts.Select(p => int.TryParse(p.Trim(), out var v) ? v : -1).Where(v => v >= 0).ToList();
+                bool hasNumbersGreaterThanTwo = parts.Any(p => int.TryParse(p.Trim(), out var v) && v > 2);
 
-                if (nums.Any(n => n > 1))
+                if (hasNumbersGreaterThanTwo)
                 {
-                    ApplyMinterms(string.Join(",", nums), varsParam);
+                    ApplyMinterms(string.Join(",", parts), dcParam, varsParam);
                     return;
                 }
 
@@ -774,7 +790,32 @@
         return dict;
     }
 
-    private void ApplyMinterms(string mintermsStr, int? explicitVars = null)
+    private static int ParseTruthToken(string t)
+    {
+        var trimmed = t.Trim();
+        if (int.TryParse(trimmed, out var val))
+        {
+            if (val == 2) return 2;
+            return val != 0 ? 1 : 0;
+        }
+        if (trimmed == "-" || trimmed.Equals("x", StringComparison.OrdinalIgnoreCase) || trimmed.Equals("d", StringComparison.OrdinalIgnoreCase))
+        {
+            return 2;
+        }
+        return 0;
+    }
+
+    private static string FormatTruthValue(int val) => val switch
+    {
+        2 => "-",
+        1 => "1",
+        _ => "0"
+    };
+
+    private static string FormatTruthValues(IEnumerable<int> values) =>
+        string.Join(",", values.Select(FormatTruthValue));
+
+    private void ApplyMinterms(string mintermsStr, string? dcStr = null, int? explicitVars = null)
     {
         StopPlay();
         var parts = mintermsStr.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries);
@@ -787,7 +828,20 @@
             }
         }
 
-        int maxM = mintermList.Count > 0 ? mintermList.Max() : 0;
+        var dcList = new List<int>();
+        if (!string.IsNullOrEmpty(dcStr))
+        {
+            var dParts = dcStr.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (var p in dParts)
+            {
+                if (int.TryParse(p.Trim(), out var d) && d >= 0)
+                {
+                    dcList.Add(d);
+                }
+            }
+        }
+
+        int maxM = Math.Max(mintermList.Count > 0 ? mintermList.Max() : 0, dcList.Count > 0 ? dcList.Max() : 0);
         if (explicitVars.HasValue && explicitVars.Value is >= 2 and <= 4)
         {
             VariableCount = explicitVars.Value;
@@ -810,8 +864,15 @@
                 TruthValues[m] = 1;
             }
         }
+        foreach (var d in dcList)
+        {
+            if (d < len)
+            {
+                TruthValues[d] = 2;
+            }
+        }
 
-        TruthValuesInput = string.Join(",", TruthValues);
+        TruthValuesInput = FormatTruthValues(TruthValues);
         Recalculate();
     }
 
@@ -842,7 +903,7 @@
         {
             TruthValues = new int[] { 1, 1, 1, 0, 0, 1, 0, 0 };
         }
-        TruthValuesInput = string.Join(",", TruthValues);
+        TruthValuesInput = FormatTruthValues(TruthValues);
         Recalculate();
     }
 
@@ -855,6 +916,18 @@
             case "vorlesung":
                 VariableCount = 4;
                 TruthValues = new int[] { 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0 };
+                break;
+            case "lecturex":
+            case "vorlesungx":
+                VariableCount = 3;
+                // Minterms: 0, 2, 3, 4, 5, 7. Don't Cares: 1, 6
+                TruthValues = new int[] { 1, 2, 1, 1, 1, 1, 2, 1 };
+                break;
+            case "lecturey":
+            case "vorlesungy":
+                VariableCount = 3;
+                // Minterms: 0, 1, 4. Don't Cares: 5, 7
+                TruthValues = new int[] { 1, 1, 0, 0, 1, 2, 0, 2 };
                 break;
             case "exam1":
                 VariableCount = 4;
@@ -873,7 +946,7 @@
                 TruthValues = new int[] { 0, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0 };
                 break;
         }
-        TruthValuesInput = string.Join(",", TruthValues);
+        TruthValuesInput = FormatTruthValues(TruthValues);
         Recalculate();
     }
 
@@ -887,7 +960,7 @@
         {
             TruthValues[i] = rand.Next(2);
         }
-        TruthValuesInput = string.Join(",", TruthValues);
+        TruthValuesInput = FormatTruthValues(TruthValues);
         Recalculate();
     }
 
@@ -898,7 +971,7 @@
         {
             var parsed = TruthValuesInput
                 .Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Select(t => int.TryParse(t, out var val) ? val : 0)
+                .Select(ParseTruthToken)
                 .ToArray();
 
             int requiredLength = 1 << VariableCount;
@@ -1497,9 +1570,9 @@
         return literals.Count == 0 ? "1" : "(" + string.Join(" & ", literals) + ")";
     }
 
-    private static string GetOrderTitle(int orderNum) => orderNum switch
+    private string GetOrderTitle(int orderNum) => orderNum switch
     {
-        0 => "0. Ordnung (Einsmenge)",
+        0 => TruthValues.Any(v => v == 2) ? "0. Ordnung (Einsmenge & Don't Cares)" : "0. Ordnung (Einsmenge)",
         1 => "1. Ordnung (2er-Blöcke)",
         2 => "2. Ordnung (4er-Blöcke)",
         3 => "3. Ordnung (8er-Blöcke)",

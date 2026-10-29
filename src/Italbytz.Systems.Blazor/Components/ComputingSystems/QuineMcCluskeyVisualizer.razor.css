@@ -394,6 +394,26 @@
     letter-spacing: 0.05em;
 }
 
+.badge-dc {
+    display: inline-block;
+    background: #fef3c7;
+    color: #b45309;
+    border: 1px solid #fcd34d;
+    font-size: 0.62rem;
+    font-weight: 700;
+    padding: 0.1rem 0.3rem;
+    border-radius: 0.25rem;
+    margin-left: 0.3rem;
+    vertical-align: middle;
+}
+
+:global(.is-dark) .badge-dc,
+:global(.dark) .badge-dc {
+    background: #78350f;
+    color: #fde68a;
+    border-color: #b45309;
+}
+
 .slot-empty {
     color: #cbd5e1;
     font-weight: 600;

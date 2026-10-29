@@ -35,7 +35,7 @@
                         else
                         {
                             <span class="cell-val @(ctx.Value == 1 ? "val-one" : (ctx.Value == 0 ? "val-zero" : "val-dc"))">
-                                @(ctx.Value == -1 ? "-" : ctx.Value.ToString())
+                                @(ctx.Value == -1 || ctx.Value == 2 ? "-" : ctx.Value.ToString())
                             </span>
                             <span class="cell-minterm">m@(ctx.MintermIndex)</span>
                         }
