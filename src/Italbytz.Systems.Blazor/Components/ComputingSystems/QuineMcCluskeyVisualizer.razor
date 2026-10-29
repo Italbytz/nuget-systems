@@ -83,28 +83,6 @@
             bool isEndState = CurrentStepIndex >= totalSteps - 1;
             var currentSnapshot = (CurrentStepIndex >= 0 && CurrentStepIndex < Snapshots.Count) ? Snapshots[CurrentStepIndex] : null;
 
-            <!-- Player Toolbar -->
-            <div class="player-toolbar no-print">
-                <div class="player-controls">
-                    <button class="player-btn" title="Start" disabled="@(CurrentStepIndex == 0)" @onclick="GoToStart">⏮ Start</button>
-                    <button class="player-btn" title="Zurück" disabled="@(CurrentStepIndex <= 0)" @onclick="PreviousStep">◀ Zurück</button>
-                    <button class="player-btn primary" title="@(IsPlaying ? "Pause" : "Abspielen")" @onclick="TogglePlay">
-                        @(IsPlaying ? "⏸ Pause" : "▶ Play")
-                    </button>
-                    <button class="player-btn" title="Weiter" disabled="@(CurrentStepIndex >= totalSteps - 1)" @onclick="NextStep">▶ Weiter</button>
-                    <button class="player-btn" title="Ende / Gesamtlösung" disabled="@(CurrentStepIndex >= totalSteps - 1)" @onclick="GoToEnd">⏭ Ende</button>
-                    <button class="player-btn reset" title="Zurücksetzen" @onclick="GoToStart">🔄 Reset</button>
-                </div>
-
-                <div class="player-progress">
-                    <div class="step-indicator">
-                        <strong>Schritt @(Math.Min(totalSteps, CurrentStepIndex + 1)) / @totalSteps:</strong>
-                        <span class="step-headline">@FormatTermMarkup(activeStep)</span>
-                    </div>
-                    <input type="range" min="0" max="@(Math.Max(0, totalSteps - 1))" value="@Math.Max(0, CurrentStepIndex)" @oninput="OnStepSliderInput" class="step-slider" />
-                </div>
-            </div>
-
             <!-- Narrator Card -->
             <div class="narrator-card @(isEndState ? "narrator-finished" : "")">
                 <div class="narrator-header">
@@ -434,7 +412,7 @@
                            OnPrevious="PreviousStep"
                            OnNext="NextStep"
                            OnEnd="GoToEnd"
-                           OnReset="GoToStart" />
+                           OnRandom="GenerateRandomFunction" />
         }
     }
 
