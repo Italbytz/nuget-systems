@@ -64,6 +64,7 @@
             <!-- Presets Bar -->
             <div class="preset-bar">
                 <span class="preset-label">Beispiele:</span>
+                <button class="preset-btn" @onclick='() => LoadPreset("Lecture")'>Vorlesung (1,3,5,7,11,13)</button>
                 <button class="preset-btn" @onclick='() => LoadPreset("Exam1")'>Beispiel 3-Bit</button>
                 <button class="preset-btn" @onclick='() => LoadPreset("Majority3")'>Mehrheitsentscheid</button>
                 <button class="preset-btn" @onclick='() => LoadPreset("Exam2")'>Beispiel 4-Bit</button>
@@ -615,9 +616,17 @@
     [Parameter] public string? View { get; set; }
     [Parameter] public bool? SolutionParam { get; set; }
     [Parameter] public bool? Embed { get; set; }
+    [Parameter] public string? Minterms { get; set; }
+    [Parameter] public string? Values { get; set; }
+    [Parameter] public string? Preset { get; set; }
+    [Parameter] public int? Vars { get; set; }
 
     [SupplyParameterFromQuery(Name = "values")] public string? QueryValues { get; set; }
     [SupplyParameterFromQuery(Name = "truth")] public string? QueryTruth { get; set; }
+    [SupplyParameterFromQuery(Name = "minterms")] public string? QueryMinterms { get; set; }
+    [SupplyParameterFromQuery(Name = "ones")] public string? QueryOnes { get; set; }
+    [SupplyParameterFromQuery(Name = "einsmenge")] public string? QueryEinsmenge { get; set; }
+    [SupplyParameterFromQuery(Name = "preset")] public string? QueryPreset { get; set; }
     [SupplyParameterFromQuery(Name = "vars")] public int? QueryVars { get; set; }
 
     private ViewMode ActiveView = ViewMode.Simulator;
@@ -653,6 +662,11 @@
         {
             var uri = new Uri(NavigationManager.Uri);
             var query = uri.Query;
+            string? mintermsParam = QueryMinterms ?? QueryOnes ?? QueryEinsmenge ?? Minterms;
+            string? valuesParam = QueryValues ?? QueryTruth ?? Values;
+            string? presetParam = QueryPreset ?? Preset;
+            int? varsParam = QueryVars ?? Vars;
+
             if (!string.IsNullOrEmpty(query))
             {
                 if (query.Contains("view=worksheet", StringComparison.OrdinalIgnoreCase))
@@ -667,31 +681,138 @@
                 {
                     IsEmbed = true;
                 }
+
+                var queryDict = ParseQueryString(query);
+                if (string.IsNullOrEmpty(mintermsParam))
+                {
+                    if (queryDict.TryGetValue("minterms", out var mVal)) mintermsParam = mVal;
+                    else if (queryDict.TryGetValue("ones", out var oVal)) mintermsParam = oVal;
+                    else if (queryDict.TryGetValue("einsmenge", out var eVal)) mintermsParam = eVal;
+                }
+                if (string.IsNullOrEmpty(valuesParam))
+                {
+                    if (queryDict.TryGetValue("values", out var vVal)) valuesParam = vVal;
+                    else if (queryDict.TryGetValue("truth", out var tVal)) valuesParam = tVal;
+                }
+                if (string.IsNullOrEmpty(presetParam) && queryDict.TryGetValue("preset", out var pVal))
+                {
+                    presetParam = pVal;
+                }
+                if (!varsParam.HasValue && queryDict.TryGetValue("vars", out var varsStr) && int.TryParse(varsStr, out var parsedVars))
+                {
+                    varsParam = parsedVars;
+                }
             }
 
-            var effectiveValues = QueryValues ?? QueryTruth;
-            if (!string.IsNullOrEmpty(effectiveValues))
+            if (!string.IsNullOrEmpty(presetParam))
             {
-                TruthValuesInput = effectiveValues;
-                if (QueryVars.HasValue)
+                LoadPreset(presetParam);
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(mintermsParam))
+            {
+                ApplyMinterms(mintermsParam, varsParam);
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(valuesParam))
+            {
+                var parts = valuesParam.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                var nums = parts.Select(p => int.TryParse(p.Trim(), out var v) ? v : -1).Where(v => v >= 0).ToList();
+
+                if (nums.Any(n => n > 1))
                 {
-                    VariableCount = QueryVars.Value;
+                    ApplyMinterms(string.Join(",", nums), varsParam);
+                    return;
+                }
+
+                TruthValuesInput = valuesParam;
+                if (varsParam.HasValue)
+                {
+                    VariableCount = varsParam.Value;
                 }
                 else
                 {
-                    var count = effectiveValues.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries).Length;
-                    if (count >= 16) VariableCount = 4;
-                    else if (count >= 8) VariableCount = 3;
+                    if (parts.Length >= 16) VariableCount = 4;
+                    else if (parts.Length >= 8) VariableCount = 3;
                 }
                 Recalculate();
+                return;
             }
-            else if (QueryVars.HasValue && QueryVars.Value != VariableCount)
+
+            if (varsParam.HasValue && varsParam.Value != VariableCount)
             {
-                VariableCount = QueryVars.Value;
+                VariableCount = varsParam.Value;
                 OnVariableCountChanged();
             }
         }
         catch { }
+    }
+
+    private static Dictionary<string, string> ParseQueryString(string query)
+    {
+        var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrEmpty(query)) return dict;
+        if (query.StartsWith("?")) query = query.Substring(1);
+        var pairs = query.Split('&', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var pair in pairs)
+        {
+            var idx = pair.IndexOf('=');
+            if (idx >= 0)
+            {
+                var key = Uri.UnescapeDataString(pair.Substring(0, idx));
+                var val = Uri.UnescapeDataString(pair.Substring(idx + 1));
+                dict[key] = val;
+            }
+            else
+            {
+                var key = Uri.UnescapeDataString(pair);
+                dict[key] = "";
+            }
+        }
+        return dict;
+    }
+
+    private void ApplyMinterms(string mintermsStr, int? explicitVars = null)
+    {
+        StopPlay();
+        var parts = mintermsStr.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        var mintermList = new List<int>();
+        foreach (var p in parts)
+        {
+            if (int.TryParse(p.Trim(), out var m) && m >= 0)
+            {
+                mintermList.Add(m);
+            }
+        }
+
+        int maxM = mintermList.Count > 0 ? mintermList.Max() : 0;
+        if (explicitVars.HasValue && explicitVars.Value is >= 2 and <= 4)
+        {
+            VariableCount = explicitVars.Value;
+        }
+        else if (maxM >= 8)
+        {
+            VariableCount = 4;
+        }
+        else
+        {
+            VariableCount = 3;
+        }
+
+        int len = 1 << VariableCount;
+        TruthValues = new int[len];
+        foreach (var m in mintermList)
+        {
+            if (m < len)
+            {
+                TruthValues[m] = 1;
+            }
+        }
+
+        TruthValuesInput = string.Join(",", TruthValues);
+        Recalculate();
     }
 
     private void SetView(ViewMode mode)
@@ -728,21 +849,26 @@
     private void LoadPreset(string preset)
     {
         StopPlay();
-        switch (preset)
+        switch (preset.ToLowerInvariant())
         {
-            case "Exam1":
+            case "lecture":
+            case "vorlesung":
+                VariableCount = 4;
+                TruthValues = new int[] { 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0 };
+                break;
+            case "exam1":
                 VariableCount = 4;
                 TruthValues = new int[] { 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0 };
                 break;
-            case "Exam2":
+            case "exam2":
                 VariableCount = 4;
                 TruthValues = new int[] { 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 0 };
                 break;
-            case "Majority3":
+            case "majority3":
                 VariableCount = 3;
                 TruthValues = new int[] { 0, 0, 0, 1, 0, 1, 1, 1 };
                 break;
-            case "Prime4":
+            case "prime4":
                 VariableCount = 4;
                 TruthValues = new int[] { 0, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0 };
                 break;
