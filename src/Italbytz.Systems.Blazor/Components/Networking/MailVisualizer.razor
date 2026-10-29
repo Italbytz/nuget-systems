@@ -41,12 +41,6 @@
         <!-- S1: Interactive SMTP Protocol Flow Simulator -->
         <section class="simulator-section">
             <div class="sim-toolbar">
-                <div class="dialogue-stepper">
-                    <button class="btn-ctrl" @onclick="PrevStep" disabled="@(CurrentStepIndex == 0)">◀ Zurück</button>
-                    <button class="btn-ctrl btn-primary" @onclick="NextStep" disabled="@(CurrentStepIndex >= Steps.Count - 1)">Weiter ▶</button>
-                    <button class="btn-ctrl btn-secondary" @onclick="ResetSimulation">↺ Zurücksetzen</button>
-                    <span class="step-counter">Schritt @(CurrentStepIndex + 1) / @Steps.Count</span>
-                </div>
                 <div class="sim-preset-group">
                     <span class="ctrl-label">Beispiel-Mail:</span>
                     <button class="btn-sm @(SelectedMailIndex == 0 ? "active" : "")" @onclick="() => SelectMailPreset(0)">Standard-Mail</button>
@@ -185,6 +179,17 @@
                     </div>
                 </div>
             </div>
+
+            <StepPlayerHud CurrentStepIndex="@CurrentStepIndex"
+                           TotalSteps="@Steps.Count"
+                           ProgressLabel="@($"{CurrentStepIndex + 1} / {Steps.Count}")"
+                           CanGoPrevious="@(CurrentStepIndex > 0)"
+                           CanGoNext="@(CurrentStepIndex < Steps.Count - 1)"
+                           IsEmbed="@IsEmbed"
+                           OnStart="ResetSimulation"
+                           OnPrevious="PrevStep"
+                           OnNext="NextStep"
+                           OnEnd="() => CurrentStepIndex = Steps.Count - 1" />
         </section>
     }
     else if (ActiveView == ViewMode.Protocols)

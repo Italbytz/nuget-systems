@@ -91,27 +91,6 @@
             var currentRate = CurrentStepIndex > 0 ? (double)currentFaults / CurrentStepIndex * 100.0 : 0.0;
             var finalFaults = steps.Last().Count;
 
-            <!-- Player Toolbar -->
-            <div class="player-toolbar no-print">
-                <div class="player-controls">
-                    <button class="player-btn" title="Start" disabled="@(CurrentStepIndex == 0)" @onclick="GoToStart">⏮ Start</button>
-                    <button class="player-btn" title="Zurück" disabled="@(CurrentStepIndex == 0)" @onclick="PreviousStep">◀ Zurück</button>
-                    <button class="player-btn primary" title="Nächster Schritt" disabled="@(CurrentStepIndex >= totalRequests)" @onclick="NextStep">▶ Weiter</button>
-                    <button class="player-btn" title="Ende" disabled="@(CurrentStepIndex >= totalRequests)" @onclick="GoToEnd">⏭ Ende</button>
-                    <button class="player-btn reset" title="Zurücksetzen" @onclick="GoToStart">🔄 Reset</button>
-                    <button class="player-btn theme-toggle-btn" title="Design wechseln (Hell/Dunkel)" @onclick="ToggleTheme">
-                        @(IsDarkEffective ? "☀️ Hell" : "🌙 Dunkel")
-                    </button>
-                </div>
-
-                <div class="player-progress">
-                    <span class="step-indicator">
-                        <strong>Schritt @CurrentStepIndex / @totalRequests</strong>
-                    </span>
-                    <input type="range" min="0" max="@totalRequests" value="@CurrentStepIndex" @oninput="OnSliderChanged" class="step-slider" />
-                </div>
-            </div>
-
             <!-- 2D Horizontal Timeline Matrix Card -->
             <div class="matrix-card">
                 <div class="matrix-card-header">
@@ -320,6 +299,18 @@
                     </table>
                 </div>
             </div>
+
+            <StepPlayerHud CurrentStepIndex="@CurrentStepIndex"
+                           TotalSteps="@(totalRequests + 1)"
+                           ProgressLabel="@($"{CurrentStepIndex} / {totalRequests}")"
+                           CanGoPrevious="@(CurrentStepIndex > 0)"
+                           CanGoNext="@(CurrentStepIndex < totalRequests)"
+                           IsEmbed="@IsEmbed"
+                           OnStart="GoToStart"
+                           OnPrevious="PreviousStep"
+                           OnNext="NextStep"
+                           OnEnd="GoToEnd"
+                           OnRandom="GenerateRandomSequence" />
         }
         else
         {

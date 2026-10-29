@@ -67,34 +67,6 @@
             </div>
         </div>
 
-        <!-- Step-by-Step Player Controls -->
-        <div class="player-toolbar no-print">
-            <div class="player-controls">
-                <button class="player-btn" title="Zum Start" disabled="@(CurrentStep == 0)" @onclick="ResetPlayer">
-                    ⏮ Start
-                </button>
-                <button class="player-btn" title="Vorheriger Schritt" disabled="@(CurrentStep == 0)" @onclick="PreviousStep">
-                    ◀ Zurück
-                </button>
-                <button class="player-btn primary" title="Nächster Schritt" disabled="@(CurrentStep >= TotalBytes)" @onclick="NextStep">
-                    ▶ Nächster Schritt
-                </button>
-                <button class="player-btn" title="Gesamtlösung anzeigen" disabled="@(CurrentStep >= TotalBytes)" @onclick="CompleteSolution">
-                    ⏭ Ende
-                </button>
-            </div>
-            <div class="player-progress">
-                @if (CurrentStep == 0)
-                {
-                    <span>Bereit: Dekodierung bei Adresse 0x00 starten</span>
-                }
-                else
-                {
-                    <span>Schritt @CurrentStep von @TotalBytes (Adresse 0x@((CurrentStep - 1).ToString("X2")): '@(GetStepChar(CurrentStep - 1))')</span>
-                }
-            </div>
-        </div>
-
         @if (Solution != null)
         {
             <!-- Narrator Card -->
@@ -214,6 +186,18 @@
                 </div>
 
             </div>
+
+            <StepPlayerHud CurrentStepIndex="@CurrentStep"
+                           TotalSteps="@(TotalBytes + 1)"
+                           ProgressLabel="@($"{CurrentStep} / {TotalBytes}")"
+                           CanGoPrevious="@(CurrentStep > 0)"
+                           CanGoNext="@(CurrentStep < TotalBytes)"
+                           IsEmbed="@IsEmbed"
+                           OnStart="ResetPlayer"
+                           OnPrevious="PreviousStep"
+                           OnNext="NextStep"
+                           OnEnd="CompleteSolution"
+                           OnRandom="RandomizeWord" />
         }
     }
 

@@ -38,24 +38,6 @@
         <!-- Controls & Presets Panel -->
         <div class="controls-panel no-print">
             <div class="toolbar-grid">
-                <div class="btn-group">
-                    <button class="action-btn" @onclick="GoToStart" disabled="@(CurrentStepIndex == 0)" title="An den Anfang">
-                        ⏮️ Anfang
-                    </button>
-                    <button class="action-btn" @onclick="StepBack" disabled="@(CurrentStepIndex == 0)" title="Einen Schritt zurück">
-                        ◀️ Zurück
-                    </button>
-                    <button class="action-btn primary" @onclick="ToggleAutoPlay">
-                        @(IsPlaying ? "⏸️ Pause" : "▶️ Auto-Play")
-                    </button>
-                    <button class="action-btn primary" @onclick="StepForward" disabled="@(CurrentStepIndex >= Instructions.Count)" title="Nächster Befehl">
-                        Nächster Schritt (@(CurrentStepIndex)/@Instructions.Count) ⏭️
-                    </button>
-                    <button class="action-btn" @onclick="ResetSimulation" title="Simulation zurücksetzen">
-                        🔄 Reset
-                    </button>
-                </div>
-
                 <div class="preset-group">
                     <span class="preset-label">Beispiele:</span>
                     <button class="preset-btn @(SelectedPreset == "Exam1" ? "active" : "")" @onclick='() => LoadPreset("Exam1")'>Beispiel 1 (TIMIPS_01)</button>
@@ -309,6 +291,17 @@
                 </table>
             </div>
         </div>
+
+        <StepPlayerHud CurrentStepIndex="@CurrentStepIndex"
+                       TotalSteps="@(Instructions.Count + 1)"
+                       ProgressLabel="@($"{CurrentStepIndex} / {Instructions.Count}")"
+                       CanGoPrevious="@(CurrentStepIndex > 0)"
+                       CanGoNext="@(CurrentStepIndex < Instructions.Count)"
+                       IsEmbed="@IsEmbed"
+                       OnStart="GoToStart"
+                       OnPrevious="StepBack"
+                       OnNext="StepForward"
+                       OnEnd="() => CurrentStepIndex = Instructions.Count" />
     }
 
     <!-- ========================================================================= -->

@@ -184,13 +184,6 @@
                 Schritt-für-Schritt-Darstellung, wie die drei weltweit eindeutigen Identifikatoren beim Zugriff ineinandergreifen:
             </p>
 
-            <div class="flow-stepper-controls">
-                <button class="btn-ctrl" @onclick="PrevFlowStep" disabled="@(CurrentFlowStep == 0)">◀ Vorheriger Schritt</button>
-                <button class="btn-ctrl btn-primary" @onclick="NextFlowStep" disabled="@(CurrentFlowStep >= 3)">Nächster Schritt ▶</button>
-                <button class="btn-ctrl btn-secondary" @onclick="ResetFlowStep">↺ Zurücksetzen</button>
-                <span class="step-indicator">Schritt @(CurrentFlowStep + 1) von 4</span>
-            </div>
-
             <div class="flow-pipeline-grid">
                 <!-- Step 0: URL & DNS Name -->
                 <div class="pipeline-step @(CurrentFlowStep == 0 ? "step-active" : (CurrentFlowStep > 0 ? "step-done" : ""))">
@@ -236,6 +229,17 @@
                     </p>
                 </div>
             </div>
+
+            <StepPlayerHud CurrentStepIndex="@CurrentFlowStep"
+                           TotalSteps="4"
+                           ProgressLabel="@($"{CurrentFlowStep + 1} / 4")"
+                           CanGoPrevious="@(CurrentFlowStep > 0)"
+                           CanGoNext="@(CurrentFlowStep < 3)"
+                           IsEmbed="@IsEmbed"
+                           OnStart="ResetFlowStep"
+                           OnPrevious="PrevFlowStep"
+                           OnNext="NextFlowStep"
+                           OnEnd="() => CurrentFlowStep = 3" />
         </section>
     }
     else if (ActiveView == ViewMode.ComparisonMatrix)

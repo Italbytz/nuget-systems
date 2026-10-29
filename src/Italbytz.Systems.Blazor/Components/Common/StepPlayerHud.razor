@@ -19,14 +19,14 @@
                 <button type="button" 
                         class="hud-btn" 
                         title="Start (Pos 1)" 
-                        disabled="@(CurrentStepIndex <= 0)" 
+                        disabled="@IsStartDisabled" 
                         @onclick="HandleStart">
                     ⏮
                 </button>
                 <button type="button" 
                         class="hud-btn" 
                         title="Zurück (← / [ / k)" 
-                        disabled="@(CurrentStepIndex <= 0)" 
+                        disabled="@IsPreviousDisabled" 
                         @onclick="HandlePrevious">
                     ◀
                 </button>
@@ -42,14 +42,14 @@
                 <button type="button" 
                         class="hud-btn hud-btn-next primary" 
                         title="Weiter (→ / ] / j / Leertaste)" 
-                        disabled="@(CurrentStepIndex >= TotalSteps - 1)" 
+                        disabled="@IsNextDisabled" 
                         @onclick="HandleNext">
                     ▶
                 </button>
                 <button type="button" 
                         class="hud-btn" 
                         title="Ende (Ende)" 
-                        disabled="@(CurrentStepIndex >= TotalSteps - 1)" 
+                        disabled="@IsEndDisabled" 
                         @onclick="HandleEnd">
                     ⏭
                 </button>
@@ -65,7 +65,7 @@
             </div>
 
             <div class="hud-status">
-                <span class="hud-step-badge">@(Math.Min(TotalSteps, CurrentStepIndex + 1)) / @TotalSteps</span>
+                <span class="hud-step-badge">@DisplayProgress</span>
             </div>
 
             <button type="button" 
@@ -84,12 +84,12 @@
                     title="Fernbedienung ausklappen" 
                     @onclick="ToggleCollapse">
                 <span class="hud-icon">🎮</span>
-                <span class="hud-chip-step">@(Math.Min(TotalSteps, CurrentStepIndex + 1)) / @TotalSteps</span>
+                <span class="hud-chip-step">@DisplayProgress</span>
             </button>
             <button type="button" 
                     class="hud-chip-quick-next" 
                     title="Weiter" 
-                    disabled="@(CurrentStepIndex >= TotalSteps - 1)" 
+                    disabled="@IsNextDisabled" 
                     @onclick="HandleNext">
                 ▶
             </button>
@@ -109,6 +109,11 @@
 @code {
     [Parameter] public int CurrentStepIndex { get; set; } = 0;
     [Parameter] public int TotalSteps { get; set; } = 1;
+    [Parameter] public string? ProgressLabel { get; set; }
+    [Parameter] public bool? CanGoPrevious { get; set; }
+    [Parameter] public bool? CanGoNext { get; set; }
+    [Parameter] public bool? CanGoStart { get; set; }
+    [Parameter] public bool? CanGoEnd { get; set; }
     [Parameter] public bool IsPlaying { get; set; }
     [Parameter] public bool ShowPlay { get; set; } = false;
     [Parameter] public bool IsEmbed { get; set; }
@@ -122,6 +127,15 @@
     [Parameter] public EventCallback OnEnd { get; set; }
     [Parameter] public EventCallback OnReset { get; set; }
     [Parameter] public EventCallback OnRandom { get; set; }
+
+    private bool IsPreviousDisabled => CanGoPrevious.HasValue ? !CanGoPrevious.Value : CurrentStepIndex <= 0;
+    private bool IsNextDisabled => CanGoNext.HasValue ? !CanGoNext.Value : CurrentStepIndex >= TotalSteps - 1;
+    private bool IsStartDisabled => CanGoStart.HasValue ? !CanGoStart.Value : IsPreviousDisabled;
+    private bool IsEndDisabled => CanGoEnd.HasValue ? !CanGoEnd.Value : IsNextDisabled;
+
+    private string DisplayProgress => !string.IsNullOrEmpty(ProgressLabel)
+        ? ProgressLabel
+        : $"{Math.Min(TotalSteps, CurrentStepIndex + 1)} / {TotalSteps}";
 
     private bool IsCollapsed { get; set; } = false;
     private DotNetObjectReference<StepPlayerHud>? _dotNetRef;
@@ -197,7 +211,7 @@ if (!window.italbytzRegisterHudListener) {
     [JSInvokable]
     public async Task OnShortcutNext()
     {
-        if (CurrentStepIndex < TotalSteps - 1)
+        if (!IsNextDisabled)
         {
             await HandleNext();
             StateHasChanged();
@@ -216,7 +230,7 @@ if (!window.italbytzRegisterHudListener) {
     [JSInvokable]
     public async Task OnShortcutPrev()
     {
-        if (CurrentStepIndex > 0)
+        if (!IsPreviousDisabled)
         {
             await HandlePrevious();
             StateHasChanged();

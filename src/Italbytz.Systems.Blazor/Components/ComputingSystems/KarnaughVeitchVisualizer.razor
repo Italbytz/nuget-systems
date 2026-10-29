@@ -75,33 +75,6 @@
             var totalGroups = Solution.Groups.Length;
             var currentGroup = (CurrentGroupIndex >= 0 && CurrentGroupIndex < totalGroups) ? Solution.Groups[CurrentGroupIndex] : null;
 
-            <!-- Player Toolbar -->
-            @if (totalGroups > 0)
-            {
-                <div class="player-toolbar no-print">
-                    <div class="player-controls">
-                        <button class="player-btn" title="Alle Blöcke" @onclick="() => CurrentGroupIndex = -1">👁️ Alle Blöcke</button>
-                        <button class="player-btn" title="Zurück" disabled="@(CurrentGroupIndex <= 0)" @onclick="PreviousGroup">◀ Zurück</button>
-                        <button class="player-btn primary" title="Nächster Block" disabled="@(CurrentGroupIndex >= totalGroups - 1)" @onclick="NextGroup">▶ Nächster Block</button>
-                        <button class="player-btn title" title="Ende" @onclick="() => CurrentGroupIndex = totalGroups - 1">⏭ Ende</button>
-                    </div>
-
-                    <div class="player-progress">
-                        <span class="step-indicator">
-                            @if (CurrentGroupIndex == -1)
-                            {
-                                <strong>Alle @totalGroups Primimplikanten aktiv</strong>
-                            }
-                            else
-                            {
-                                <strong>Block @(CurrentGroupIndex + 1) / @totalGroups:</strong>
-                                <span class="mono bold blue">@FormatTermUnicode(currentGroup?.Term)</span>
-                            }
-                        </span>
-                    </div>
-                </div>
-            }
-
             <!-- Narrator Card -->
             <div class="narrator-card">
                 <div class="narrator-header">
@@ -185,6 +158,21 @@
                 </div>
 
             </div>
+
+            @if (totalGroups > 0)
+            {
+                <StepPlayerHud CurrentStepIndex="@(CurrentGroupIndex == -1 ? totalGroups - 1 : CurrentGroupIndex)"
+                               TotalSteps="@totalGroups"
+                               ProgressLabel="@(CurrentGroupIndex == -1 ? $"Alle ({totalGroups})" : $"{CurrentGroupIndex + 1} / {totalGroups}")"
+                               CanGoPrevious="@(CurrentGroupIndex > 0 || CurrentGroupIndex == -1)"
+                               CanGoNext="@(CurrentGroupIndex < totalGroups - 1 && CurrentGroupIndex != -1)"
+                               IsEmbed="@IsEmbed"
+                               OnStart="() => CurrentGroupIndex = 0"
+                               OnPrevious="PreviousGroup"
+                               OnNext="NextGroup"
+                               OnEnd="() => CurrentGroupIndex = totalGroups - 1"
+                               OnRandom="GenerateRandomFunction" />
+            }
         }
     }
 

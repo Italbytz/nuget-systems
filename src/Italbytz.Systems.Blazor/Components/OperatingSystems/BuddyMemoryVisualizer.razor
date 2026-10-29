@@ -75,27 +75,6 @@
                 ? Enumerable.Repeat("free", 32).ToArray() 
                 : buddyData.Snapshots[CurrentStepIndex - 1];
 
-            <!-- Player Toolbar -->
-            <div class="player-toolbar no-print">
-                <div class="player-controls">
-                    <button class="player-btn" title="Start" disabled="@(CurrentStepIndex == 0)" @onclick="GoToStart">⏮ Start</button>
-                    <button class="player-btn" title="Zurück" disabled="@(CurrentStepIndex == 0)" @onclick="PreviousStep">◀ Zurück</button>
-                    <button class="player-btn primary" title="Nächster Schritt" disabled="@(CurrentStepIndex >= maxSteps)" @onclick="NextStep">▶ Weiter</button>
-                    <button class="player-btn" title="Ende" disabled="@(CurrentStepIndex >= maxSteps)" @onclick="GoToEnd">⏭ Ende</button>
-                    <button class="player-btn reset" title="Zurücksetzen" @onclick="GoToStart">🔄 Reset</button>
-                    <button class="player-btn theme-toggle-btn" title="Design wechseln (Hell/Dunkel)" @onclick="ToggleTheme">
-                        @(IsDarkEffective ? "☀️ Hell" : "🌙 Dunkel")
-                    </button>
-                </div>
-
-                <div class="player-progress">
-                    <span class="step-indicator">
-                        <strong>Schritt @CurrentStepIndex / @maxSteps</strong>
-                    </span>
-                    <input type="range" min="0" max="@maxSteps" value="@CurrentStepIndex" @oninput="OnSliderChanged" class="step-slider" />
-                </div>
-            </div>
-
             <!-- Unified Buddy Matrix Card -->
             <div class="matrix-card">
                 <div class="matrix-card-header">
@@ -324,6 +303,18 @@
                     </div>
                 </div>
             </div>
+
+            <StepPlayerHud CurrentStepIndex="@CurrentStepIndex"
+                           TotalSteps="@(maxSteps + 1)"
+                           ProgressLabel="@($"{CurrentStepIndex} / {maxSteps}")"
+                           CanGoPrevious="@(CurrentStepIndex > 0)"
+                           CanGoNext="@(CurrentStepIndex < maxSteps)"
+                           IsEmbed="@IsEmbed"
+                           OnStart="GoToStart"
+                           OnPrevious="PreviousStep"
+                           OnNext="NextStep"
+                           OnEnd="GoToEnd"
+                           OnRandom="GenerateRandomSet" />
         }
         else
         {

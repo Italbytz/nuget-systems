@@ -38,15 +38,6 @@
         <!-- Controls Panel -->
         <div class="controls-panel no-print">
             <div class="toolbar-grid">
-                <div class="btn-group">
-                    <button class="action-btn primary" @onclick="ExecuteNextStep" disabled="@(CurrentStepIndex >= Instructions.Count)">
-                        ⏯️ Nächsten Befehl ausführen (@(CurrentStepIndex + 1)/@Instructions.Count)
-                    </button>
-                    <button class="action-btn" @onclick="ResetSimulation">
-                        🔄 Zurücksetzen
-                    </button>
-                </div>
-
                 <div class="preset-group">
                     <span class="preset-label">Beispiele:</span>
                     <button class="preset-btn @(SelectedPreset == "Exam1" ? "active" : "")" @onclick='() => LoadPreset("Exam1")'>Beispiel 1 (TI_01)</button>
@@ -182,6 +173,16 @@
                 </div>
             </div>
 
+            <StepPlayerHud CurrentStepIndex="@CurrentStepIndex"
+                           TotalSteps="@(Instructions.Count + 1)"
+                           ProgressLabel="@($"{CurrentStepIndex} / {Instructions.Count}")"
+                           CanGoPrevious="@(CurrentStepIndex > 0)"
+                           CanGoNext="@(CurrentStepIndex < Instructions.Count)"
+                           IsEmbed="@IsEmbed"
+                           OnStart="ResetSimulation"
+                           OnPrevious="() => JumpToStep(CurrentStepIndex - 1)"
+                           OnNext="ExecuteNextStep"
+                           OnEnd="() => JumpToStep(Instructions.Count)" />
         </div>
     }
 

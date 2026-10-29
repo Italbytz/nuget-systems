@@ -29,41 +29,6 @@
             </label>
         </div>
 
-        <!-- Step-by-Step Player Controls -->
-        <div class="player-toolbar no-print">
-            <div class="player-controls">
-                <button class="player-btn" title="Neue Zufallsaufgabe" @onclick="RandomizeInput">
-                    🎲 Zufallswert
-                </button>
-                <button class="player-btn" title="Zum Start" disabled="@(CurrentStep == 0)" @onclick="ResetPlayer">
-                    ⏮ Start
-                </button>
-                <button class="player-btn" title="Vorheriger Schritt" disabled="@(CurrentStep == 0)" @onclick="PreviousStep">
-                    ◀ Zur&uuml;ck
-                </button>
-                <button class="player-btn primary" title="N&auml;chster Schritt" disabled="@(CurrentStep >= TotalSteps)" @onclick="NextStep">
-                    ▶ N&auml;chster Schritt
-                </button>
-                <button class="player-btn" title="Gesamtl&ouml;sung anzeigen" disabled="@(CurrentStep >= TotalSteps)" @onclick="CompleteSolution">
-                    ⏭ Ende
-                </button>
-            </div>
-            <div class="player-progress">
-                @if (CurrentStep == 0)
-                {
-                    <span>Bereit: Bit 0 (2⁰) als N&auml;chstes auswerten</span>
-                }
-                else if (CurrentStep <= 8)
-                {
-                    <span>Schritt @CurrentStep von @TotalSteps (Bit @(CurrentStep - 1): 2<sup>@(CurrentStep - 1)</sup> = @(1 << (CurrentStep - 1)))</span>
-                }
-                else
-                {
-                    <span>Abgeschlossen: Gesamtergebnis @DecimalResult<sub>10</sub></span>
-                }
-            </div>
-        </div>
-
         <!-- Bit Grid Matrix -->
         <div class="matrix-container">
             <table class="bit-matrix-table">
@@ -155,6 +120,17 @@
                 <p>@CurrentStepExplanation</p>
             </div>
         </div>
+
+        <StepPlayerHud CurrentStepIndex="@CurrentStep"
+                       TotalSteps="@(TotalSteps + 1)"
+                       ProgressLabel="@($"{CurrentStep} / {TotalSteps}")"
+                       CanGoPrevious="@(CurrentStep > 0)"
+                       CanGoNext="@(CurrentStep < TotalSteps)"
+                       OnStart="ResetPlayer"
+                       OnPrevious="PreviousStep"
+                       OnNext="NextStep"
+                       OnEnd="CompleteSolution"
+                       OnRandom="RandomizeInput" />
     }
     else
     {

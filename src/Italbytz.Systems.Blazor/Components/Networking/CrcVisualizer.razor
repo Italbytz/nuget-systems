@@ -190,22 +190,6 @@
                                 <span class="eq-quotient">@(currentStep?.QuotientSoFar ?? "")<span class="cursor-blink">|</span></span>
                             </div>
                         </div>
-
-                        <div class="wb-controls">
-                            <div class="player-controls">
-                                <button class="player-btn" title="Start" disabled="@(CurrentStepIndex == 0)" @onclick="GoToStart">⏮ Start</button>
-                                <button class="player-btn" title="Zurück" disabled="@(CurrentStepIndex == 0)" @onclick="PreviousStep">◀ Zurück</button>
-                                <button class="player-btn primary" title="Nächster Schritt" disabled="@(CurrentStepIndex >= maxSteps - 1)" @onclick="NextStep">▶ Weiter</button>
-                                <button class="player-btn" title="Ende" disabled="@(CurrentStepIndex >= maxSteps - 1)" @onclick="GoToEnd">⏭ Ende</button>
-                                <button class="player-btn reset" title="Zurücksetzen" @onclick="GoToStart">🔄 Reset</button>
-                            </div>
-                            <div class="player-progress">
-                                <div class="step-counter">
-                                    <strong>Schritt @(CurrentStepIndex + 1) / @maxSteps</strong>
-                                </div>
-                                <input type="range" min="0" max="@(maxSteps - 1)" value="@CurrentStepIndex" @oninput="OnSliderChanged" class="step-slider" />
-                            </div>
-                        </div>
                     </div>
 
                     <!-- 2-Column Main Workbench Area -->
@@ -524,6 +508,18 @@
 
                     </div>
                 </div>
+
+                <StepPlayerHud CurrentStepIndex="@CurrentStepIndex"
+                               TotalSteps="@maxSteps"
+                               ProgressLabel="@($"{CurrentStepIndex + 1} / {maxSteps}")"
+                               CanGoPrevious="@(CurrentStepIndex > 0)"
+                               CanGoNext="@(CurrentStepIndex < maxSteps - 1)"
+                               IsEmbed="@IsEmbed"
+                               OnStart="GoToStart"
+                               OnPrevious="PreviousStep"
+                               OnNext="NextStep"
+                               OnEnd="GoToEnd"
+                               OnRandom="GenerateRandom" />
             }
         }
     }

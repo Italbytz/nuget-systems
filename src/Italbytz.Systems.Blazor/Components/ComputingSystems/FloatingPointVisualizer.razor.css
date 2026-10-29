@@ -32,7 +32,7 @@
     background: var(--card-bg);
     border: 1px solid var(--card-border);
     border-radius: 1.25rem;
-    padding: 1.5rem;
+    padding: 1.5rem 1.5rem 4.5rem;
     color: var(--card-text);
     box-shadow: 0 4px 20px rgba(20, 50, 47, 0.05);
 }
@@ -43,7 +43,7 @@
     box-shadow: none;
     border: none;
     border-radius: 0;
-    padding: 0.8rem 0;
+    padding: 0.8rem 0 4.5rem;
 }
 
 :global(.is-dark.is-embedded) .demo-card,

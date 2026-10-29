@@ -38,27 +38,6 @@
             </div>
         </div>
 
-        <!-- Step-by-Step Player Controls -->
-        <div class="player-toolbar no-print">
-            <div class="player-controls">
-                <button class="player-btn" title="Zum Start" disabled="@(CurrentStep == 0)" @onclick="ResetPlayer">
-                    ⏮ Start
-                </button>
-                <button class="player-btn" title="Vorheriger Schritt" disabled="@(CurrentStep == 0)" @onclick="PreviousStep">
-                    ◀ Zurück
-                </button>
-                <button class="player-btn primary" title="Nächster Schritt" disabled="@(CurrentStep >= TotalSteps)" @onclick="NextStep">
-                    ▶ Nächster Schritt
-                </button>
-                <button class="player-btn" title="Gesamtlösung anzeigen" disabled="@(CurrentStep >= TotalSteps)" @onclick="CompleteSolution">
-                    ⏭ Ende
-                </button>
-            </div>
-            <div class="player-progress">
-                <span>Schritt @CurrentStep von @TotalSteps: @StepTitle</span>
-            </div>
-        </div>
-
         <!-- Step Matrix -->
         <div class="matrix-container">
             <table class="matrix-table">
@@ -176,6 +155,17 @@
                 </div>
             </div>
         }
+
+        <StepPlayerHud CurrentStepIndex="@CurrentStep"
+                       TotalSteps="@(TotalSteps + 1)"
+                       ProgressLabel="@($"{CurrentStep} / {TotalSteps}")"
+                       CanGoPrevious="@(CurrentStep > 0)"
+                       CanGoNext="@(CurrentStep < TotalSteps)"
+                       OnStart="ResetPlayer"
+                       OnPrevious="PreviousStep"
+                       OnNext="NextStep"
+                       OnEnd="CompleteSolution"
+                       OnRandom="RandomizeInput" />
     }
     else
     {

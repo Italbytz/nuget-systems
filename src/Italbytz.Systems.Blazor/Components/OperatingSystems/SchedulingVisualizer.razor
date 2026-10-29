@@ -126,39 +126,6 @@
             var totalExecutionTime = procList.Sum(p => p.Duration);
             var maxSteps = activeSchedule.Count;
 
-            <!-- Player Toolbar -->
-            <div class="player-toolbar no-print">
-                <div class="player-controls">
-                    <button class="player-btn" title="Start" disabled="@(CurrentStepIndex == 0)" @onclick="GoToStart">⏮ Start</button>
-                    <button class="player-btn" title="Zurück" disabled="@(CurrentStepIndex == 0)" @onclick="PreviousStep">◀ Zurück</button>
-                    <button class="player-btn primary" title="Nächster Schritt" disabled="@(CurrentStepIndex >= maxSteps)" @onclick="NextStep">▶ Weiter</button>
-                    <button class="player-btn" title="Ende" disabled="@(CurrentStepIndex >= maxSteps)" @onclick="GoToEnd">⏭ Ende</button>
-                    <button class="player-btn reset" title="Zurücksetzen" @onclick="GoToStart">🔄 Reset</button>
-                </div>
-
-                <div class="player-progress">
-                    <span class="step-indicator">
-                        @if (CurrentStepIndex == 0)
-                        {
-                            <strong>Schritt 0 / @maxSteps:</strong> <span>Alle @procList.Count Prozesse bereit</span>
-                        }
-                        else
-                        {
-                            var activeItem = activeSchedule[CurrentStepIndex - 1];
-                            <strong>Schritt @CurrentStepIndex / @maxSteps:</strong> 
-                            <span>
-                                @activeItem.ProcessName ausgeführt (Dauer: @activeItem.Duration, Zeit: @activeItem.StartTime &rarr; @activeItem.EndTime)
-                                @if (activeItem.IsCompletion)
-                                {
-                                    <strong class="text-success"> &bull; Fertiggestellt!</strong>
-                                }
-                            </span>
-                        }
-                    </span>
-                    <input type="range" min="0" max="@maxSteps" value="@CurrentStepIndex" @oninput="OnSliderChanged" class="step-slider" />
-                </div>
-            </div>
-
             <!-- Narrator Card -->
             <div class="narrator-card">
                 <div class="narrator-header">
@@ -426,6 +393,18 @@
                     </div>
                 </div>
             </div>
+
+            <StepPlayerHud CurrentStepIndex="@CurrentStepIndex"
+                           TotalSteps="@(maxSteps + 1)"
+                           ProgressLabel="@($"{CurrentStepIndex} / {maxSteps}")"
+                           CanGoPrevious="@(CurrentStepIndex > 0)"
+                           CanGoNext="@(CurrentStepIndex < maxSteps)"
+                           IsEmbed="@IsEmbed"
+                           OnStart="GoToStart"
+                           OnPrevious="PreviousStep"
+                           OnNext="NextStep"
+                           OnEnd="GoToEnd"
+                           OnRandom="GenerateRandomSet" />
         }
         else
         {

@@ -76,25 +76,6 @@
 
         @if (TryCalculate(out var calc, out var errorMsg))
         {
-            <!-- Player Toolbar -->
-            <div class="player-toolbar no-print">
-                <div class="player-controls">
-                    <button class="player-btn" title="Start" disabled="@(CurrentStepIndex == 0)" @onclick="GoToStart">⏮ Start</button>
-                    <button class="player-btn" title="Zurück" disabled="@(CurrentStepIndex == 0)" @onclick="PreviousStep">◀ Zurück</button>
-                    <button class="player-btn primary" title="Nächster Schritt" disabled="@(CurrentStepIndex >= StepsCount - 1)" @onclick="NextStep">▶ Weiter</button>
-                    <button class="player-btn" title="Ende" disabled="@(CurrentStepIndex >= StepsCount - 1)" @onclick="GoToEnd">⏭ Ende</button>
-                    <button class="player-btn reset" title="Zurücksetzen" @onclick="GoToStart">🔄 Reset</button>
-                </div>
-
-                <div class="player-progress">
-                    <span class="step-indicator">
-                        <strong>Schritt @(CurrentStepIndex + 1) / @StepsCount:</strong>
-                        <span>@GetStepTitle(CurrentStepIndex)</span>
-                    </span>
-                    <input type="range" min="0" max="@(StepsCount - 1)" value="@CurrentStepIndex" @oninput="OnSliderChanged" class="step-slider" />
-                </div>
-            </div>
-
             <!-- Narrator Card -->
             <div class="narrator-card">
                 <div class="narrator-header">
@@ -257,6 +238,18 @@
                     </table>
                 </div>
             </div>
+
+            <StepPlayerHud CurrentStepIndex="@CurrentStepIndex"
+                           TotalSteps="@StepsCount"
+                           ProgressLabel="@($"{CurrentStepIndex + 1} / {StepsCount}")"
+                           CanGoPrevious="@(CurrentStepIndex > 0)"
+                           CanGoNext="@(CurrentStepIndex < StepsCount - 1)"
+                           IsEmbed="@IsEmbed"
+                           OnStart="GoToStart"
+                           OnPrevious="PreviousStep"
+                           OnNext="NextStep"
+                           OnEnd="GoToEnd"
+                           OnRandom="GenerateRandom" />
         }
         else
         {

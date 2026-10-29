@@ -79,19 +79,8 @@
                 <div class="card-title-wrap">
                     <span class="card-title">DNS-Namensraum-Hierarchie &amp; Server-Abfragen</span>
                     <span class="card-hint">
-                        Schritt @CurrentStep von @MaxSteps: @StepDescription
+                        @StepDescription
                     </span>
-                </div>
-                <div class="stepper-actions no-print">
-                    <button class="action-btn secondary" @onclick="PrevStep" disabled="@(CurrentStep <= 0)">
-                        ◀ Zurück
-                    </button>
-                    <button class="action-btn primary" @onclick="NextStep" disabled="@(CurrentStep >= MaxSteps)">
-                        Weiter ▶
-                    </button>
-                    <button class="action-btn secondary" @onclick="ResetResolution">
-                        🔄 Neu
-                    </button>
                 </div>
             </div>
 
@@ -177,6 +166,17 @@
                     }
                 </div>
             </div>
+
+            <StepPlayerHud CurrentStepIndex="@CurrentStep"
+                           TotalSteps="@(MaxSteps + 1)"
+                           ProgressLabel="@($"{CurrentStep} / {MaxSteps}")"
+                           CanGoPrevious="@(CurrentStep > 0)"
+                           CanGoNext="@(CurrentStep < MaxSteps)"
+                           IsEmbed="@IsEmbed"
+                           OnStart="ResetResolution"
+                           OnPrevious="PrevStep"
+                           OnNext="NextStep"
+                           OnEnd="() => CurrentStep = MaxSteps" />
         </div>
     }
 

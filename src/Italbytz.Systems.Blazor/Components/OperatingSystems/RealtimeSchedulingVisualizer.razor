@@ -85,25 +85,6 @@
             var maxSteps = Math.Min(32, activeSteps.Count);
             var currentStepText = CurrentSlotIndex < activeSteps.Count ? activeSteps[CurrentSlotIndex] : "";
 
-            <!-- Player Toolbar -->
-            <div class="player-toolbar no-print">
-                <div class="player-controls">
-                    <button class="player-btn" title="Start" disabled="@(CurrentSlotIndex == 0)" @onclick="GoToStart">⏮ Start</button>
-                    <button class="player-btn" title="Zurück" disabled="@(CurrentSlotIndex == 0)" @onclick="PreviousStep">◀ Zurück</button>
-                    <button class="player-btn primary" title="Nächster Schritt" disabled="@(CurrentSlotIndex >= 31)" @onclick="NextStep">▶ Weiter</button>
-                    <button class="player-btn title" title="Ende" disabled="@(CurrentSlotIndex >= 31)" @onclick="GoToEnd">⏭ Ende</button>
-                    <button class="player-btn reset" title="Zurücksetzen" @onclick="GoToStart">🔄 Reset</button>
-                </div>
-
-                <div class="player-progress">
-                    <span class="step-indicator">
-                        <strong>Zeitslot $t = @CurrentSlotIndex$ / 31:</strong>
-                        <span>@(CurrentSlotIndex < activeSteps.Count ? activeSteps[CurrentSlotIndex] : "")</span>
-                    </span>
-                    <input type="range" min="0" max="31" value="@CurrentSlotIndex" @oninput="OnSliderChanged" class="step-slider" />
-                </div>
-            </div>
-
             <!-- Narrator Card -->
             <div class="narrator-card">
                 <div class="narrator-header">
@@ -256,6 +237,18 @@
                 </div>
 
             </div>
+
+            <StepPlayerHud CurrentStepIndex="@CurrentSlotIndex"
+                           TotalSteps="32"
+                           ProgressLabel="@($"{CurrentSlotIndex} / 31")"
+                           CanGoPrevious="@(CurrentSlotIndex > 0)"
+                           CanGoNext="@(CurrentSlotIndex < 31)"
+                           IsEmbed="@IsEmbed"
+                           OnStart="GoToStart"
+                           OnPrevious="PreviousStep"
+                           OnNext="NextStep"
+                           OnEnd="GoToEnd"
+                           OnRandom="GenerateRandomTaskSet" />
         }
     }
 

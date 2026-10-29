@@ -93,25 +93,6 @@
             var maxSteps = MstResult.Steps.Count;
             var currentStep = CurrentStepIndex < maxSteps ? MstResult.Steps[CurrentStepIndex] : MstResult.Steps.LastOrDefault();
 
-            <!-- Player Toolbar -->
-            <div class="player-toolbar no-print">
-                <div class="player-controls">
-                    <button class="player-btn" title="Start" disabled="@(CurrentStepIndex == 0)" @onclick="GoToStart">⏮ Start</button>
-                    <button class="player-btn" title="Zurück" disabled="@(CurrentStepIndex == 0)" @onclick="PreviousStep">◀ Zurück</button>
-                    <button class="player-btn primary" title="Nächster Schritt" disabled="@(CurrentStepIndex >= maxSteps - 1)" @onclick="NextStep">▶ Weiter</button>
-                    <button class="player-btn title" title="Ende" disabled="@(CurrentStepIndex >= maxSteps - 1)" @onclick="GoToEnd">⏭ Ende</button>
-                    <button class="player-btn reset" title="Zurücksetzen" @onclick="GoToStart">🔄 Reset</button>
-                </div>
-
-                <div class="player-progress">
-                    <span class="step-indicator">
-                        <strong>Schritt @(CurrentStepIndex) / @(maxSteps - 1):</strong>
-                        <span>@(currentStep?.Title ?? "")</span>
-                    </span>
-                    <input type="range" min="0" max="@(maxSteps - 1)" value="@CurrentStepIndex" @oninput="OnSliderChanged" class="step-slider" />
-                </div>
-            </div>
-
             <!-- Narrator Card -->
             @if (currentStep != null)
             {
@@ -267,6 +248,18 @@
                 </div>
 
             </div>
+
+            <StepPlayerHud CurrentStepIndex="@CurrentStepIndex"
+                           TotalSteps="@maxSteps"
+                           ProgressLabel="@($"{CurrentStepIndex} / {maxSteps - 1}")"
+                           CanGoPrevious="@(CurrentStepIndex > 0)"
+                           CanGoNext="@(CurrentStepIndex < maxSteps - 1)"
+                           IsEmbed="@IsEmbed"
+                           OnStart="GoToStart"
+                           OnPrevious="PreviousStep"
+                           OnNext="NextStep"
+                           OnEnd="GoToEnd"
+                           OnRandom="GenerateRandomGraph" />
         }
     }
 

@@ -37,23 +37,6 @@
                     </button>
                 </div>
             </div>
-
-            <div class="toolbar-section">
-                <span class="tool-label">Trace:</span>
-                <div class="player-controls">
-                    <button class="btn-ctrl" @onclick="GoToStart" disabled="@(CurrentStep == 0)" title="Anfang">⏮</button>
-                    <button class="btn-ctrl" @onclick="PrevStep" disabled="@(CurrentStep == 0)" title="Schritt zurück">◀</button>
-                    <span class="step-indicator">Schritt @(CurrentStep + 1) / @TotalSteps</span>
-                    <button class="btn-ctrl" @onclick="NextStep" disabled="@(CurrentStep >= TotalSteps - 1)" title="Nächster Schritt">▶</button>
-                    <button class="btn-ctrl" @onclick="GoToEnd" disabled="@(CurrentStep >= TotalSteps - 1)" title="Ende">⏭</button>
-                </div>
-            </div>
-
-            <div class="toolbar-section">
-                <button class="btn-random" @onclick="RandomizeInputs" title="Zufällige Eingangswerte">
-                    🎲 Eingänge würfeln
-                </button>
-            </div>
         </div>
 
         <!-- NARRATOR BANNER -->
@@ -184,6 +167,18 @@
                     </div>
                 </div>
             </div>
+
+            <StepPlayerHud CurrentStepIndex="@CurrentStep"
+                           TotalSteps="@TotalSteps"
+                           ProgressLabel="@($"{CurrentStep + 1} / {TotalSteps}")"
+                           CanGoPrevious="@(CurrentStep > 0)"
+                           CanGoNext="@(CurrentStep < TotalSteps - 1)"
+                           IsEmbed="@IsEmbed"
+                           OnStart="GoToStart"
+                           OnPrevious="PrevStep"
+                           OnNext="NextStep"
+                           OnEnd="GoToEnd"
+                           OnRandom="RandomizeInputs" />
         </div>
     }
     else

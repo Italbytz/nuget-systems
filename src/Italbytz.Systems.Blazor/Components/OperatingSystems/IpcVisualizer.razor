@@ -57,24 +57,6 @@
             </div>
 
             <div class="toolbar-grid">
-                <div class="btn-group">
-                    <button class="action-btn" @onclick="GoToStart" disabled="@(CurrentStepIndex == 0)" title="An den Anfang">
-                        ⏮️ Anfang
-                    </button>
-                    <button class="action-btn" @onclick="StepBack" disabled="@(CurrentStepIndex == 0)" title="Schritt zurück">
-                        ◀️ Zurück
-                    </button>
-                    <button class="action-btn primary" @onclick="ToggleAutoPlay">
-                        @(IsPlaying ? "⏸️ Pause" : "▶️ Auto-Play")
-                    </button>
-                    <button class="action-btn primary" @onclick="StepForward" disabled="@(CurrentStepIndex >= ActiveSchedule.Count)" title="Nächster Schritt">
-                        Nächster Schritt (@(CurrentStepIndex)/@ActiveSchedule.Count) ⏭️
-                    </button>
-                    <button class="action-btn" @onclick="ResetSimulation" title="Simulation zurücksetzen">
-                        🔄 Reset
-                    </button>
-                </div>
-
                 <div class="speed-group">
                     <label class="speed-label" for="speedSelect">Tempo:</label>
                     <select id="speedSelect" class="speed-dropdown" @bind="SelectedSpeed">
@@ -500,6 +482,17 @@
                 }
             </div>
         </div>
+
+        <StepPlayerHud CurrentStepIndex="@CurrentStepIndex"
+                       TotalSteps="@(ActiveSchedule.Count + 1)"
+                       ProgressLabel="@($"{CurrentStepIndex} / {ActiveSchedule.Count}")"
+                       CanGoPrevious="@(CurrentStepIndex > 0)"
+                       CanGoNext="@(CurrentStepIndex < ActiveSchedule.Count)"
+                       IsEmbed="@IsEmbed"
+                       OnStart="GoToStart"
+                       OnPrevious="StepBack"
+                       OnNext="StepForward"
+                       OnEnd="() => CurrentStepIndex = ActiveSchedule.Count" />
     }
 
     <!-- ========================================================================= -->
