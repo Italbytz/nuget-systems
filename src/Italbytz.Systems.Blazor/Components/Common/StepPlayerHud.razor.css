@@ -106,31 +106,22 @@
 .hud-status {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0 0.4rem;
+    padding: 0 0.5rem;
     border-left: 1px solid #e2e8f0;
     border-right: 1px solid #e2e8f0;
 }
 
 .hud-step-badge {
-    font-size: 0.8rem;
+    font-size: 0.82rem;
     font-weight: 700;
-    font-family: ui-monospace, monospace;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     background: #e2e8f0;
     color: #1e293b;
-    padding: 0.2rem 0.45rem;
+    padding: 0.25rem 0.55rem;
     border-radius: 9999px;
     white-space: nowrap;
-}
-
-.hud-headline {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #475569;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 220px;
+    min-width: 4.2rem;
+    text-align: center;
 }
 
 .hud-icon-btn, .hud-close-btn {
@@ -268,10 +259,6 @@
 :global(.is-dark) .hud-step-badge {
     background: #334155;
     color: #f8fafc;
-}
-
-:global(.is-dark) .hud-headline {
-    color: #cbd5e1;
 }
 
 :global(.is-dark) .hud-chip-main {

@@ -66,10 +66,6 @@
 
             <div class="hud-status">
                 <span class="hud-step-badge">@(Math.Min(TotalSteps, CurrentStepIndex + 1)) / @TotalSteps</span>
-                @if (!string.IsNullOrWhiteSpace(StepHeadline))
-                {
-                    <span class="hud-headline" title="@StepHeadline">@StepHeadline</span>
-                }
             </div>
 
             <button type="button" 
@@ -113,7 +109,6 @@
 @code {
     [Parameter] public int CurrentStepIndex { get; set; } = 0;
     [Parameter] public int TotalSteps { get; set; } = 1;
-    [Parameter] public string? StepHeadline { get; set; }
     [Parameter] public bool IsPlaying { get; set; }
     [Parameter] public bool ShowPlay { get; set; } = false;
     [Parameter] public bool IsEmbed { get; set; }
