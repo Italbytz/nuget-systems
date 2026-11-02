@@ -15,12 +15,24 @@
     {
         <div class="card-heading no-print">
             <p class="feature-kicker">Grundlagen der Informatik &bull; Boolesche Minimierung</p>
-            <h2>Quine-McCluskey-Verfahren &amp; Primimplikantentabelle</h2>
-            <p class="feature-intro">
-                Systematisches Tabellenverfahren zur Bestimmung aller Primimplikanten (0., 1., 2. und 3. Ordnung) 
-                durch paarweise Nachbarschafts-Verschmelzung sowie Überdeckungsanalyse (Essenzielle Primimplikanten) 
-                zur disjunktiven Minimalform (DMF).
-            </p>
+            @if (ActiveView == ViewMode.Espresso)
+            {
+                <h2>Espresso-Heuristik (Iterative Hyperkubus-Minimierung)</h2>
+                <p class="feature-intro">
+                    Industriestandard-Heuristik für komplexe Schaltnetze und PLAs. Optimiert eine gültige Überdeckung iterativ
+                    über die Kernphasen <strong>EXPAND</strong> (maximale Vergrößerung), <strong>IRREDUNDANT</strong> (Ausdünnung)
+                    und <strong>REDUCE</strong> (Schrumpfen zur Vermeidung lokaler Minima).
+                </p>
+            }
+            else
+            {
+                <h2>Quine-McCluskey-Verfahren &amp; Primimplikantentabelle</h2>
+                <p class="feature-intro">
+                    Systematisches Tabellenverfahren zur Bestimmung aller Primimplikanten (0., 1., 2. und 3. Ordnung) 
+                    durch paarweise Nachbarschafts-Verschmelzung sowie Überdeckungsanalyse (Essenzielle Primimplikanten) 
+                    zur disjunktiven Minimalform (DMF).
+                </p>
+            }
         </div>
     }
 
@@ -30,12 +42,28 @@
         <div class="view-switch no-print">
             <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
                     @onclick="() => SetView(ViewMode.Simulator)">
-                🚀 Interaktiver Simulator &amp; Ordnungstabellen
+                🚀 Quine-McCluskey (Exakt)
             </button>
-            
+            <button class="view-btn @(ActiveView == ViewMode.Espresso ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Espresso)">
+                ☕ Espresso-Heuristik (Iterativ)
+            </button>
             <a class="view-btn pdf-link-btn" href="pdf/QuineMcCluskey_10.pdf" target="_blank" download="QuineMcCluskey_10.pdf" title="10 ausführliche Quine-McCluskey-Aufgaben als druckreifes LaTeX-PDF herunterladen">
-            🎯 Freiwilliges Klausurtraining (PDF)
-        </a>
+                🎯 Freiwilliges Klausurtraining (PDF)
+            </a>
+        </div>
+    }
+    else if (ActiveView != ViewMode.Worksheet)
+    {
+        <div class="embed-view-toggle no-print">
+            <button class="embed-toggle-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Simulator)">
+                QMC (Exakt)
+            </button>
+            <button class="embed-toggle-btn @(ActiveView == ViewMode.Espresso ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.Espresso)">
+                ☕ Espresso (Heuristik)
+            </button>
         </div>
     }
 
@@ -416,6 +444,130 @@
     }
 
     <!-- ========================================================================= -->
+    <!-- ESPRESSO HEURISTIC VIEW                                                   -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.Espresso)
+    {
+        <!-- Controls Panel -->
+        <div class="controls-panel no-print">
+            <div class="config-grid">
+                <label class="control-label">
+                    <span>Anzahl Variablen:</span>
+                    <select class="form-input select" @bind="VariableCount" @bind:after="OnVariableCountChanged">
+                        <option value="3">3 Variablen (<em>x</em><sub>2</sub>, <em>x</em><sub>1</sub>, <em>x</em><sub>0</sub> &rarr; 8 Minterme)</option>
+                        <option value="4">4 Variablen (<em>x</em><sub>3</sub>, <em>x</em><sub>2</sub>, <em>x</em><sub>1</sub>, <em>x</em><sub>0</sub> &rarr; 16 Minterme)</option>
+                    </select>
+                </label>
+
+                <label class="control-label wide-label">
+                    <span>Wertevektor der Ausgabespalte (<em>f</em>(<em>m</em><sub>0</sub> &hellip; <em>m</em><sub>2<sup><em>n</em></sup>&minus;1</sub>)):</span>
+                    <input type="text" class="form-input mono" @bind="TruthValuesInput" @bind:after="Recalculate" />
+                </label>
+            </div>
+
+            <!-- Presets Bar -->
+            <div class="preset-bar">
+                <span class="preset-label">Beispiele:</span>
+                <button class="preset-btn" @onclick='() => LoadPreset("Lecture")'>Vorlesung (1,3,5,7,11,13)</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("LectureX")'>DC Bsp. x (3-Bit)</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("LectureY")'>DC Bsp. y (3-Bit)</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("Exam1")'>Beispiel 3-Bit</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("Majority3")'>Mehrheitsentscheid</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("Exam2")'>Beispiel 4-Bit</button>
+                <button class="preset-btn" @onclick='() => LoadPreset("Prime4")'>Primzahlen 4-Bit</button>
+                <button class="preset-btn random" @onclick="GenerateRandomFunction">🎲 Zufallsfunktion</button>
+            </div>
+        </div>
+
+        @if (EspressoSolution != null && EspressoSolution.DetailedSteps.Count > 0)
+        {
+            var totalEspressoSteps = EspressoSolution.DetailedSteps.Count;
+            var currentEspressoStep = (EspressoCurrentStep >= 0 && EspressoCurrentStep < totalEspressoSteps)
+                ? EspressoSolution.DetailedSteps[EspressoCurrentStep]
+                : EspressoSolution.DetailedSteps[0];
+            bool isEspressoFinished = EspressoCurrentStep >= totalEspressoSteps - 1;
+
+            <!-- Comparison Metrics Card: QMC vs. Espresso -->
+            <div class="espresso-metrics-card">
+                <div class="metric-box">
+                    <span class="metric-title">🔬 Quine-McCluskey (Exakt)</span>
+                    <span class="metric-val">@(QmcSolution?.PrimeImplicants.Length ?? 0) Primimplikanten</span>
+                    <span class="metric-desc">Erzeugt alle Verschmelzungen &amp; löst Überdeckungsmatrix (NP-schwer)</span>
+                </div>
+                <div class="metric-vs">&harr;</div>
+                <div class="metric-box highlight">
+                    <span class="metric-title">☕ Espresso (Heuristik)</span>
+                    <span class="metric-val">@EspressoSolution.FinalCubeCount Würfel (@EspressoSolution.IterationCount Iterationen)</span>
+                    <span class="metric-desc">Iterative Cover-Verbesserung: @EspressoSolution.InitialCubeCount &rarr; @EspressoSolution.FinalCubeCount Würfel (@EspressoSolution.FinalLiteralCount Literale)</span>
+                </div>
+            </div>
+
+            <!-- Espresso Narrator Card -->
+            <div class="narrator-card @(isEspressoFinished ? "narrator-finished" : "")">
+                <div class="narrator-header">
+                    <div class="step-badge badge-@currentEspressoStep.Phase.ToLower()">
+                        @currentEspressoStep.Phase
+                    </div>
+                    <div class="narrator-title">
+                        @if (isEspressoFinished)
+                        {
+                            <span>Minimale DNF (Espresso): <strong class="emerald mono"><em>y</em> = @FormatTermMarkup(EspressoSolution.MinimalDnf)</strong></span>
+                        }
+                        else
+                        {
+                            <span>@currentEspressoStep.Title</span>
+                        }
+                    </div>
+                </div>
+
+                <p class="narrator-text">@currentEspressoStep.Description</p>
+
+                <div class="espresso-action-detail">
+                    <strong>Aktion:</strong> <span>@currentEspressoStep.ActionDetail</span>
+                </div>
+            </div>
+
+            <!-- Current Cover Cubes Display -->
+            <div class="espresso-stage-card">
+                <div class="stage-header">
+                    <h3>Aktuelle Überdeckung <em>C</em> (@currentEspressoStep.CurrentCover.Length Würfel)</h3>
+                    <span class="stage-sub">Zustand der Hyperkuben im Schritt @(EspressoCurrentStep + 1)</span>
+                </div>
+
+                <div class="cube-grid">
+                    @foreach (var cubeStr in currentEspressoStep.CurrentCover)
+                    {
+                        <div class="cube-card">
+                            <div class="cube-icon">🧊</div>
+                            <div class="cube-term mono">@FormatTermMarkup(cubeStr)</div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Educational Callout Box -->
+            <div class="espresso-info-box">
+                <h4>💡 Warum Espresso in der industriellen EDA-Praxis?</h4>
+                <p>
+                    Das Quine-McCluskey-Verfahren garantiert zwar mathematisch ein exaktes Minimum, erzeugt aber
+                    im ungünstigsten Fall $O(3^n / n)$ Primimplikanten. Bereits ab $n = 10 \dots 15$ Variablen stößt QMC an Speicher- und Laufzeitgrenzen.
+                    <strong>Espresso</strong> hält stattdessen zu jedem Zeitpunkt eine gültige Überdeckung und optimiert diese über die Schleife
+                    <strong>EXPAND &rarr; IRREDUNDANT &rarr; REDUCE</strong> iterativ. Dadurch skaliert Espresso mühelos auf hunderte Eingänge und komplexe PLAs.
+                </p>
+            </div>
+
+            <StepPlayerHud CurrentStepIndex="@EspressoCurrentStep"
+                           TotalSteps="@totalEspressoSteps"
+                           IsEmbed="@IsEmbed"
+                           OnStart="EspressoGoToStart"
+                           OnPrevious="EspressoPreviousStep"
+                           OnNext="EspressoNextStep"
+                           OnEnd="EspressoGoToEnd"
+                           OnRandom="GenerateRandomFunction" />
+        }
+    }
+
+    <!-- ========================================================================= -->
     <!-- WORKSHEET VIEW (1:1 EXAM REPLICA)                                         -->
     <!-- ========================================================================= -->
     @if (ActiveView == ViewMode.Worksheet)
@@ -604,7 +756,7 @@
 </article>
 
 @code {
-    public enum ViewMode { Simulator, Worksheet }
+    public enum ViewMode { Simulator, Espresso, Worksheet }
 
     [Parameter] public string? View { get; set; }
     [Parameter] public bool? SolutionParam { get; set; }
@@ -635,6 +787,8 @@
     private int[] TruthValues = new int[] { 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0 };
 
     private IQuineMcCluskeySolution? QmcSolution;
+    private IEspressoSolution? EspressoSolution;
+    private int EspressoCurrentStep = 0;
     private List<QmcStepSnapshot> Snapshots = new();
 
     // Player State
@@ -670,6 +824,10 @@
                 if (query.Contains("view=worksheet", StringComparison.OrdinalIgnoreCase))
                 {
                     ActiveView = ViewMode.Worksheet;
+                }
+                else if (query.Contains("view=espresso", StringComparison.OrdinalIgnoreCase))
+                {
+                    ActiveView = ViewMode.Espresso;
                 }
                 if (query.Contains("solution=true", StringComparison.OrdinalIgnoreCase))
                 {
@@ -974,8 +1132,46 @@
             QmcSolution = solver.Solve(new QuineMcCluskeyParameters(VariableCount, TruthValues));
             Snapshots = BuildSnapshots();
             CurrentStepIndex = Math.Max(0, (QmcSolution?.Steps.Count ?? 1) - 1);
+
+            var espressoSolver = new EspressoSolver();
+            EspressoSolution = espressoSolver.Solve(new EspressoParameters(VariableCount, TruthValues));
+            EspressoCurrentStep = Math.Max(0, (EspressoSolution?.DetailedSteps.Count ?? 1) - 1);
         }
         catch { }
+    }
+
+    // Espresso Player Actions
+    private void EspressoPreviousStep()
+    {
+        StopPlay();
+        if (EspressoCurrentStep > 0)
+        {
+            EspressoCurrentStep--;
+        }
+    }
+
+    private void EspressoNextStep()
+    {
+        StopPlay();
+        if (EspressoSolution != null && EspressoCurrentStep < EspressoSolution.DetailedSteps.Count - 1)
+        {
+            EspressoCurrentStep++;
+        }
+    }
+
+    private void EspressoGoToStart()
+    {
+        StopPlay();
+        EspressoCurrentStep = 0;
+    }
+
+    private void EspressoGoToEnd()
+    {
+        StopPlay();
+        if (EspressoSolution != null)
+        {
+            EspressoCurrentStep = EspressoSolution.DetailedSteps.Count - 1;
+        }
     }
 
     // Step Player Actions
