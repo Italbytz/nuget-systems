@@ -621,6 +621,8 @@
         CurrentTheme = IsDarkEffective ? VisualizerTheme.Light : VisualizerTheme.Dark;
     }
 
+    private string? _lastQueryString;
+
     protected override void OnInitialized()
     {
         ReadQueryParameters();
@@ -637,14 +639,20 @@
         {
             var uri = new Uri(NavigationManager.Uri);
             var query = uri.Query;
-            if (string.IsNullOrEmpty(query)) return;
+            if (string.IsNullOrEmpty(query) || query == _lastQueryString) return;
+            _lastQueryString = query;
 
             var pairs = query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries);
+            int? requestedStep = null;
+            bool jumpToEnd = false;
+            bool configChanged = false;
+
             foreach (var pair in pairs)
             {
                 var parts = pair.Split('=', 2);
                 var key = parts[0].ToLowerInvariant();
-                var val = parts.Length > 1 ? Uri.UnescapeDataString(parts[1]) : "";
+                var rawVal = parts.Length > 1 ? parts[1].Replace("+", " ") : "";
+                var val = Uri.UnescapeDataString(rawVal);
 
                 if (key == "embed" && bool.TryParse(val, out var embedBool))
                 {
@@ -670,10 +678,44 @@
                 else if (key == "requests" && !string.IsNullOrWhiteSpace(val))
                 {
                     BuddyRequestsInput = val;
+                    configChanged = true;
                 }
-                else if (key == "release" && !string.IsNullOrWhiteSpace(val))
+                else if ((key == "release" || key == "free" || key == "dealloc") && !string.IsNullOrWhiteSpace(val))
                 {
                     BuddyReleaseOrderInput = val;
+                    configChanged = true;
+                }
+                else if (key == "step")
+                {
+                    if (val.Equals("end", StringComparison.OrdinalIgnoreCase) || val.Equals("max", StringComparison.OrdinalIgnoreCase))
+                    {
+                        jumpToEnd = true;
+                    }
+                    else if (int.TryParse(val, out var s))
+                    {
+                        requestedStep = s;
+                    }
+                }
+            }
+
+            if (configChanged)
+            {
+                OnConfigurationChanged();
+            }
+
+            if (jumpToEnd)
+            {
+                GoToEnd();
+            }
+            else if (requestedStep.HasValue)
+            {
+                if (TryGetParsedBuddy(out var buddyData, out _))
+                {
+                    CurrentStepIndex = Math.Clamp(requestedStep.Value, 0, buddyData!.Snapshots.Count);
+                }
+                else
+                {
+                    CurrentStepIndex = Math.Max(0, requestedStep.Value);
                 }
             }
         }
