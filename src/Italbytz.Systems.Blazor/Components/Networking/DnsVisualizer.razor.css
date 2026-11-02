@@ -1,5 +1,6 @@
 /* ==========================================================================
    DNS VISUALIZER STYLES (Task 38: Domain Name System & UDP-Idempotenz)
+   Light Theme Default (Unified with nuget-systems interactive visualizers)
    ========================================================================== */
 
 .dns-container {
@@ -7,7 +8,7 @@
     flex-direction: column;
     gap: 1.25rem;
     font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    color: #e2e8f0;
+    color: var(--text-color, #1e293b);
     max-width: 1200px;
     margin: 0 auto;
     padding: 1rem 1rem 4.5rem;
@@ -18,16 +19,19 @@
     padding: 0.5rem;
     max-width: 100%;
     gap: 0.75rem;
+    background: transparent;
 }
 
+:global(.is-dark) .dns-container,
+.dns-container.is-dark,
 :global(.is-dark) .embed-mode,
 .embed-mode.is-dark {
-    background: #0b0f19;
+    color: #e2e8f0;
 }
 
 /* Card Heading */
 .card-heading {
-    border-bottom: 1px solid #1e293b;
+    border-bottom: 1px solid var(--border-color, #e2e8f0);
     padding-bottom: 1rem;
 }
 
@@ -36,21 +40,21 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #38bdf8;
+    color: #0284c7;
     margin: 0 0 0.25rem 0;
 }
 
 .card-heading h2 {
     font-size: 1.6rem;
     font-weight: 800;
-    color: #f8fafc;
+    color: var(--heading-color, #0f172a);
     margin: 0 0 0.5rem 0;
 }
 
 .feature-intro {
     font-size: 0.95rem;
     line-height: 1.5;
-    color: #94a3b8;
+    color: var(--muted-color, #64748b);
     margin: 0;
 }
 
@@ -58,39 +62,42 @@
 .view-switch {
     display: flex;
     gap: 0.5rem;
-    border-bottom: 1px solid #334155;
-    padding-bottom: 0.75rem;
+    background: var(--bg-surface-subtle, #f1f5f9);
+    padding: 0.35rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-color, #e2e8f0);
+    width: fit-content;
     flex-wrap: wrap;
 }
 
 .view-btn {
-    background: #1e293b;
-    color: #cbd5e1;
-    border: 1px solid #475569;
-    border-radius: 6px;
+    background: transparent;
+    border: none;
     padding: 0.5rem 1rem;
     font-size: 0.9rem;
     font-weight: 600;
+    border-radius: 0.375rem;
+    color: var(--muted-color, #64748b);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease-in-out;
 }
 
 .view-btn:hover {
-    background: #334155;
-    color: #f8fafc;
+    color: var(--text-color, #0f172a);
+    background: rgba(0, 0, 0, 0.04);
 }
 
 .view-btn.active {
-    background: #0284c7;
-    color: #ffffff;
-    border-color: #38bdf8;
-    box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+    background: #ffffff;
+    color: #0284c7;
+    border: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 /* Controls Card */
 .controls-card {
-    background: #111827;
-    border: 1px solid #1f2937;
+    background: var(--bg-surface, #ffffff);
+    border: 1px solid var(--border-color, #e2e8f0);
     border-radius: 8px;
     padding: 0.85rem 1.15rem;
     display: flex;
@@ -98,6 +105,7 @@
     align-items: center;
     gap: 1.5rem;
     flex-wrap: wrap;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .ctrl-group {
@@ -110,7 +118,7 @@
 .ctrl-label {
     font-size: 0.85rem;
     font-weight: 700;
-    color: #94a3b8;
+    color: var(--muted-color, #475569);
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
@@ -121,19 +129,20 @@
 }
 
 .domain-input {
-    background: #080d1a;
-    border: 1px solid #334155;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
     border-radius: 6px;
     padding: 0.4rem 0.75rem;
-    color: #f8fafc;
+    color: #0f172a;
     font-family: inherit;
     font-size: 0.9rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .domain-input:focus {
     outline: none;
-    border-color: #38bdf8;
-    box-shadow: 0 0 6px rgba(56, 189, 248, 0.35);
+    border-color: #0284c7;
+    box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2);
 }
 
 .preset-domains {
@@ -142,18 +151,19 @@
 }
 
 .btn-sm {
-    background: #1e293b;
-    color: #cbd5e1;
-    border: 1px solid #334155;
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #cbd5e1;
     border-radius: 4px;
     padding: 3px 8px;
     font-size: 0.78rem;
     cursor: pointer;
+    transition: all 0.15s ease;
 }
 
 .btn-sm:hover {
-    background: #334155;
-    color: #ffffff;
+    background: #e2e8f0;
+    color: #0f172a;
 }
 
 .mode-toggles {
@@ -162,20 +172,26 @@
 }
 
 .toggle-btn {
-    background: #1e293b;
-    border: 1px solid #334155;
-    color: #cbd5e1;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: #334155;
     border-radius: 6px;
     padding: 0.4rem 0.8rem;
     font-size: 0.82rem;
     font-weight: 600;
     cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.toggle-btn:hover {
+    background: #e2e8f0;
+    color: #0f172a;
 }
 
 .toggle-btn.active {
     background: #0284c7;
     color: #ffffff;
-    border-color: #38bdf8;
+    border-color: #0284c7;
 }
 
 .action-btn {
@@ -198,24 +214,26 @@
 }
 
 .action-btn.secondary {
-    background: #334155;
-    color: #cbd5e1;
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #cbd5e1;
 }
 
 .action-btn.secondary:hover:not(:disabled) {
-    background: #475569;
-    color: #ffffff;
+    background: #e2e8f0;
+    color: #0f172a;
 }
 
 .action-btn.warn {
-    background: #7f1d1d;
-    color: #fee2e2;
-    border: 1px solid #ef4444;
+    background: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
 }
 
 .action-btn.warn:hover, .action-btn.warn.btn-active {
     background: #ef4444;
     color: #ffffff;
+    border-color: #ef4444;
 }
 
 .action-btn:disabled {
@@ -225,20 +243,21 @@
 
 /* Resolution Tree Stage */
 .tree-stage-card {
-    background: #111827;
-    border: 1px solid #1f2937;
+    background: var(--bg-surface, #ffffff);
+    border: 1px solid var(--border-color, #e2e8f0);
     border-radius: 8px;
     padding: 1rem;
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid #1e293b;
+    border-bottom: 1px solid var(--border-color, #e2e8f0);
     padding-bottom: 0.6rem;
     flex-wrap: wrap;
     gap: 0.5rem;
@@ -253,12 +272,12 @@
 .card-title {
     font-weight: 700;
     font-size: 1rem;
-    color: #f8fafc;
+    color: var(--heading-color, #0f172a);
 }
 
 .card-hint {
     font-size: 0.78rem;
-    color: #38bdf8;
+    color: #0284c7;
 }
 
 .stepper-actions {
@@ -271,16 +290,16 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 1rem;
-    background: #080d1a;
-    border: 1px solid #1e293b;
+    padding: 1.25rem 1rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
     overflow-x: auto;
 }
 
 .dns-node-card {
-    background: #0f172a;
-    border: 2px solid #334155;
+    background: #ffffff;
+    border: 2px solid #cbd5e1;
     border-radius: 8px;
     padding: 0.85rem;
     min-width: 140px;
@@ -290,19 +309,20 @@
     text-align: center;
     gap: 0.3rem;
     transition: all 0.25s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .dns-node-card.node-active {
-    border-color: #38bdf8;
-    background: #0c2d48;
-    box-shadow: 0 0 14px rgba(56, 189, 248, 0.4);
+    border-color: #0284c7;
+    background: #f0f9ff;
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.18);
     transform: translateY(-2px);
 }
 
 .dns-node-card.auth-node.node-active {
-    border-color: #10b981;
-    background: #063826;
-    box-shadow: 0 0 14px rgba(16, 185, 129, 0.4);
+    border-color: #059669;
+    background: #ecfdf5;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
 }
 
 .node-icon {
@@ -312,18 +332,19 @@
 .node-title {
     font-size: 0.85rem;
     font-weight: 700;
-    color: #f1f5f9;
+    color: #0f172a;
 }
 
 .node-sub {
     font-size: 0.75rem;
-    color: #94a3b8;
+    color: #64748b;
 }
 
 .node-badge {
     margin-top: 4px;
-    background: #1e293b;
-    color: #38bdf8;
+    background: #f1f5f9;
+    color: #0369a1;
+    border: 1px solid #e2e8f0;
     font-family: ui-monospace, SFMono-Regular, monospace;
     font-size: 0.72rem;
     padding: 2px 6px;
@@ -333,15 +354,18 @@
 .node-answer {
     margin-top: 4px;
     font-size: 0.75rem;
-    color: #fbbf24;
-    background: rgba(245, 158, 11, 0.1);
+    color: #b45309;
+    background: #fef3c7;
+    border: 1px solid #fde68a;
     padding: 2px 6px;
     border-radius: 4px;
+    font-weight: 600;
 }
 
 .node-answer.final-ip {
-    color: #34d399;
-    background: rgba(16, 185, 129, 0.15);
+    color: #065f46;
+    background: #d1fae5;
+    border: 1px solid #a7f3d0;
 }
 
 .flow-arrow {
@@ -349,30 +373,30 @@
     flex-direction: column;
     align-items: center;
     font-size: 1.25rem;
-    color: #64748b;
+    color: #94a3b8;
     transition: color 0.2s;
 }
 
 .flow-arrow.arrow-active {
-    color: #38bdf8;
+    color: #0284c7;
     font-weight: 800;
 }
 
 .flow-label {
     font-size: 0.68rem;
     font-weight: 700;
-    color: #94a3b8;
+    color: #64748b;
     white-space: nowrap;
 }
 
 .arrow-active .flow-label {
-    color: #38bdf8;
+    color: #0284c7;
 }
 
 .hierarchy-tree-branch {
     display: flex;
     gap: 0.75rem;
-    border-left: 2px dashed #334155;
+    border-left: 2px dashed #cbd5e1;
     padding-left: 0.75rem;
 }
 
@@ -385,8 +409,8 @@
 
 /* Transaction Log */
 .transaction-box {
-    background: #080d1a;
-    border: 1px solid #1e293b;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
     border-radius: 6px;
     padding: 0.75rem 1rem;
     display: flex;
@@ -398,23 +422,27 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid #1e293b;
+    border-bottom: 1px solid #e2e8f0;
     padding-bottom: 0.4rem;
 }
 
 .trans-title {
     font-size: 0.85rem;
     font-weight: 700;
-    color: #f1f5f9;
+    color: #0f172a;
 }
 
 .trans-meta {
     font-size: 0.78rem;
-    color: #94a3b8;
+    color: #64748b;
 }
 
 .trans-meta code {
-    color: #38bdf8;
+    color: #0284c7;
+    background: #e2e8f0;
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-weight: 600;
 }
 
 .log-entries {
@@ -429,11 +457,11 @@
     display: flex;
     gap: 0.75rem;
     font-size: 0.82rem;
-    color: #cbd5e1;
+    color: #334155;
 }
 
 .log-entry.log-latest {
-    color: #38bdf8;
+    color: #0284c7;
     font-weight: 700;
 }
 
@@ -446,16 +474,21 @@
    VIEW 2: UDP VS TCP & IDEMPOTENCE SIMULATOR
    ========================================================================== */
 .udp-card {
+    background: var(--bg-surface, #ffffff);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 8px;
+    padding: 1.25rem;
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .panel-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    border-bottom: 1px solid #1e293b;
+    border-bottom: 1px solid var(--border-color, #e2e8f0);
     padding-bottom: 0.75rem;
     flex-wrap: wrap;
     gap: 0.75rem;
@@ -464,13 +497,13 @@
 .panel-title {
     font-size: 1.1rem;
     font-weight: 700;
-    color: #f8fafc;
+    color: var(--heading-color, #0f172a);
 }
 
 .panel-subtitle {
     margin: 0.25rem 0 0 0;
     font-size: 0.85rem;
-    color: #94a3b8;
+    color: var(--muted-color, #64748b);
 }
 
 .loss-actions {
@@ -499,13 +532,13 @@
 }
 
 .udp-box {
-    background: #06281e;
-    border: 1.5px solid #059669;
+    background: #f0fdf4;
+    border: 1.5px solid #10b981;
 }
 
 .tcp-box {
-    background: #0f172a;
-    border: 1.5px solid #334155;
+    background: #f8fafc;
+    border: 1.5px solid #cbd5e1;
 }
 
 .proto-header {
@@ -517,7 +550,7 @@
 .proto-name {
     font-size: 0.95rem;
     font-weight: 800;
-    color: #f8fafc;
+    color: #0f172a;
 }
 
 .tag-rec {
@@ -532,8 +565,8 @@
 .tag-sec {
     font-size: 0.72rem;
     font-weight: 600;
-    background: #334155;
-    color: #cbd5e1;
+    background: #e2e8f0;
+    color: #334155;
     padding: 2px 6px;
     border-radius: 4px;
 }
@@ -543,13 +576,13 @@
     padding-left: 1.25rem;
     font-size: 0.85rem;
     line-height: 1.5;
-    color: #cbd5e1;
+    color: #334155;
 }
 
 /* Idempotence Animation Stage */
 .idempotence-stage {
-    background: #080d1a;
-    border: 1px solid #1e293b;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
     padding: 1rem;
     display: flex;
@@ -560,7 +593,7 @@
 .sub-heading {
     font-size: 0.85rem;
     font-weight: 700;
-    color: #94a3b8;
+    color: #475569;
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
@@ -569,24 +602,25 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: #0f172a;
-    border: 1px solid #1e293b;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 6px;
     padding: 1rem 1.5rem;
     gap: 1rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .anim-endpoint {
     font-weight: 800;
     font-size: 0.95rem;
-    color: #f1f5f9;
+    color: #0f172a;
     white-space: nowrap;
 }
 
 .wire-container {
     flex: 1;
     height: 44px;
-    border-bottom: 2px dashed #475569;
+    border-bottom: 2px dashed #cbd5e1;
     position: relative;
     display: flex;
     align-items: center;
@@ -604,13 +638,13 @@
 .query-packet {
     background: #0284c7;
     color: #ffffff;
-    box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+    box-shadow: 0 2px 6px rgba(2, 132, 199, 0.35);
 }
 
 .packet-lost {
-    background: #7f1d1d;
-    color: #fee2e2;
-    border: 1px solid #ef4444;
+    background: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
     padding: 4px 12px;
     border-radius: 4px;
     font-size: 0.85rem;
@@ -620,13 +654,13 @@
 .retry-packet {
     background: #d97706;
     color: #ffffff;
-    box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+    box-shadow: 0 2px 6px rgba(217, 119, 6, 0.35);
 }
 
 .answer-packet {
     background: #059669;
     color: #ffffff;
-    box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+    box-shadow: 0 2px 6px rgba(5, 150, 105, 0.35);
 }
 
 @keyframes slideIn {
@@ -635,8 +669,8 @@
 }
 
 .klausur-highlight-box {
-    background: #062118;
-    border: 1.5px solid #059669;
+    background: #eff6ff;
+    border: 1.5px solid #3b82f6;
     border-radius: 6px;
     padding: 0.85rem 1rem;
     display: flex;
@@ -649,39 +683,45 @@
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #34d399;
+    color: #1d4ed8;
 }
 
 .kh-text {
     margin: 0;
     font-size: 0.88rem;
     line-height: 1.45;
-    color: #ecfdf5;
+    color: #1e3a8a;
 }
 
 /* ==========================================================================
    VIEW 3: TRAINER VIEW
    ========================================================================== */
 .trainer-card {
+    background: var(--bg-surface, #ffffff);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 8px;
+    padding: 1.25rem;
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .exam-rule-tag {
     font-size: 0.78rem;
-    color: #38bdf8;
+    color: #0284c7;
     font-weight: 600;
 }
 
 .prompt-quote {
-    background: #1e293b;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
     border-left: 4px solid #0284c7;
     border-radius: 4px;
     padding: 0.85rem 1.15rem;
     font-size: 0.95rem;
     line-height: 1.5;
-    color: #f1f5f9;
+    color: #1e293b;
     margin-bottom: 1rem;
 }
 
@@ -694,32 +734,33 @@
 .qa-label {
     font-size: 0.85rem;
     font-weight: 700;
-    color: #94a3b8;
+    color: #475569;
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
 
 .qa-textarea {
-    background: #080d1a;
-    border: 1px solid #334155;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
     border-radius: 6px;
     padding: 0.75rem;
-    color: #f8fafc;
+    color: #0f172a;
     font-family: inherit;
     font-size: 0.95rem;
     line-height: 1.45;
     resize: vertical;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .qa-textarea:focus {
     outline: none;
-    border-color: #38bdf8;
-    box-shadow: 0 0 8px rgba(56, 189, 248, 0.3);
+    border-color: #0284c7;
+    box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2);
 }
 
 .solution-reveal-box {
-    background: #062118;
-    border: 1.5px solid #059669;
+    background: #f0fdf4;
+    border: 1.5px solid #10b981;
     border-radius: 6px;
     padding: 1rem 1.15rem;
     display: flex;
@@ -732,23 +773,25 @@
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #34d399;
+    color: #047857;
 }
 
 .official-sol-text {
     margin: 0;
     padding: 0.5rem 0.85rem;
-    background: rgba(16, 185, 129, 0.1);
+    background: #ffffff;
+    border: 1px solid #d1fae5;
     border-left: 3px solid #10b981;
     font-size: 0.95rem;
     line-height: 1.5;
-    color: #ecfdf5;
+    color: #064e3b;
     font-weight: 600;
+    border-radius: 0 4px 4px 0;
 }
 
 .evaluation-checklist {
     font-size: 0.85rem;
-    color: #cbd5e1;
+    color: #334155;
 }
 
 .evaluation-checklist ul {
