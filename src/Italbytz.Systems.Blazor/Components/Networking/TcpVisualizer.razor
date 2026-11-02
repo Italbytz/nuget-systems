@@ -46,6 +46,10 @@
                         <option value="HandshakeDataTeardown">Vollständiger Lebenszyklus: Handshake + Daten + Teardown</option>
                         <option value="SlidingWindow">Flusskontrolle &amp; Sliding Window (Pufferbegrenzung)</option>
                         <option value="PacketLoss">Paketverlust &amp; Fast Retransmit (Duplicate ACKs)</option>
+                        @if (_customSegmentSpecs != null && _customSegmentSpecs.Count > 0)
+                        {
+                            <option value="Custom">Individuelle Aufgabe (@_customSegmentSpecs.Count Segmente)</option>
+                        }
                     </select>
                 </label>
 
@@ -201,7 +205,6 @@
                                 </g>
 
                                 <!-- Message Pill on Arrow -->
-                                var pillX = 340;
                                 var pillY = (yStart + yEnd) / 2;
 
                                 <g class="message-pill-group @(isCurrent ? "pill-current" : "")" @onclick="() => SelectSegment(segStepIdx)">
@@ -550,11 +553,12 @@
 
     private TcpScenario? CurrentScenario;
     private int CurrentStepIndex = 0;
+    private string? _lastQueryString;
+    private List<(string Sender, int Payload)>? _customSegmentSpecs;
 
     protected override void OnInitialized()
     {
         ReadQueryParameters();
-        LoadPreset(SelectedPresetKey);
     }
 
     protected override void OnParametersSet()
@@ -568,35 +572,176 @@
         {
             var uri = new Uri(NavigationManager.Uri);
             var query = uri.Query;
-            if (!string.IsNullOrEmpty(query))
+            if (string.IsNullOrEmpty(query) || query == _lastQueryString) return;
+            _lastQueryString = query;
+
+            var pairs = query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries);
+            int? requestedStep = null;
+            bool jumpToEnd = false;
+            int? parsedAlice = null;
+            int? parsedBob = null;
+            string? parsedPreset = null;
+            string? rawSegments = null;
+            string? rawPayloads = null;
+            string? rawSenders = null;
+
+            foreach (var pair in pairs)
             {
-                if (query.Contains("view=worksheet", StringComparison.OrdinalIgnoreCase))
-                {
-                    ActiveView = ViewMode.Worksheet;
-                }
-                if (query.Contains("solution=true", StringComparison.OrdinalIgnoreCase))
-                {
-                    ShowSolution = true;
-                }
-                if (query.Contains("embed=true", StringComparison.OrdinalIgnoreCase) || query.Contains("embedded=true", StringComparison.OrdinalIgnoreCase))
-                {
-                    IsEmbed = true;
-                }
+                var parts = pair.Split('=', 2);
+                var key = parts[0].ToLowerInvariant();
+                var rawVal = parts.Length > 1 ? parts[1].Replace("+", " ") : "";
+                var val = Uri.UnescapeDataString(rawVal);
 
-                var matchAlice = System.Text.RegularExpressions.Regex.Match(query, @"[?&]alice=(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-                if (matchAlice.Success && int.TryParse(matchAlice.Groups[1].Value, out var a))
+                if ((key == "embed" || key == "embedded") && bool.TryParse(val, out var embedBool))
                 {
-                    AliceStartSeq = a;
+                    IsEmbed = embedBool;
                 }
+                else if (key == "view")
+                {
+                    ActiveView = val.Equals("worksheet", StringComparison.OrdinalIgnoreCase) 
+                        ? ViewMode.Worksheet 
+                        : ViewMode.Simulator;
+                }
+                else if (key == "solution" && bool.TryParse(val, out var solBool))
+                {
+                    ShowSolution = solBool;
+                }
+                else if (key == "alice" || key == "isn_a" || key == "alice_isn" || key == "isnb")
+                {
+                    if (int.TryParse(val, out var a)) parsedAlice = a;
+                }
+                else if (key == "bob" || key == "isn_b" || key == "bob_isn")
+                {
+                    if (int.TryParse(val, out var b)) parsedBob = b;
+                }
+                else if (key == "preset" || key == "scenario" || key == "mode")
+                {
+                    parsedPreset = val.Trim();
+                }
+                else if (key == "segments" || key == "segs" || key == "trace")
+                {
+                    rawSegments = val.Trim();
+                }
+                else if (key == "payloads" || key == "data" || key == "bytes")
+                {
+                    rawPayloads = val.Trim();
+                }
+                else if (key == "senders" || key == "dirs" || key == "from")
+                {
+                    rawSenders = val.Trim();
+                }
+                else if (key == "step")
+                {
+                    if (val.Equals("end", StringComparison.OrdinalIgnoreCase) || val.Equals("max", StringComparison.OrdinalIgnoreCase))
+                    {
+                        jumpToEnd = true;
+                    }
+                    else if (int.TryParse(val, out var s))
+                    {
+                        requestedStep = s;
+                    }
+                }
+            }
 
-                var matchBob = System.Text.RegularExpressions.Regex.Match(query, @"[?&]bob=(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-                if (matchBob.Success && int.TryParse(matchBob.Groups[1].Value, out var b))
+            if (parsedAlice.HasValue) AliceStartSeq = parsedAlice.Value;
+            if (parsedBob.HasValue) BobStartSeq = parsedBob.Value;
+
+            // Check if custom segments were provided
+            List<(string Sender, int Payload)>? parsedSpecs = null;
+
+            if (!string.IsNullOrEmpty(rawSegments))
+            {
+                parsedSpecs = ParseSegmentSpecs(rawSegments);
+            }
+            else if (!string.IsNullOrEmpty(rawPayloads))
+            {
+                parsedSpecs = ParsePayloadsAndSenders(rawPayloads, rawSenders);
+            }
+
+            if (parsedSpecs != null && parsedSpecs.Count > 0)
+            {
+                _customSegmentSpecs = parsedSpecs;
+                SelectedPresetKey = "Custom";
+                CurrentScenario = BuildCustomScenario(AliceStartSeq, BobStartSeq, _customSegmentSpecs);
+                CurrentStepIndex = 0;
+            }
+            else if (!string.IsNullOrEmpty(parsedPreset))
+            {
+                var norm = parsedPreset.ToLowerInvariant();
+                var resolvedPreset = norm switch
                 {
-                    BobStartSeq = b;
-                }
+                    "handshakedatateardown" or "handshake" or "lifecycle" or "full" => "HandshakeDataTeardown",
+                    "slidingwindow" or "window" or "flow" or "flowcontrol" or "puffer" => "SlidingWindow",
+                    "packetloss" or "loss" or "dupack" or "retransmit" => "PacketLoss",
+                    _ => "ExamStandard"
+                };
+                LoadPreset(resolvedPreset, useCurrentISN: parsedAlice.HasValue || parsedBob.HasValue);
+            }
+            else if (parsedAlice.HasValue || parsedBob.HasValue)
+            {
+                LoadPreset("ExamStandard", useCurrentISN: true);
+            }
+            else
+            {
+                LoadPreset(SelectedPresetKey);
+            }
+
+            if (jumpToEnd)
+            {
+                GoToEnd();
+            }
+            else if (requestedStep.HasValue && CurrentScenario != null)
+            {
+                CurrentStepIndex = Math.Clamp(requestedStep.Value, 0, CurrentScenario.Steps.Count - 1);
             }
         }
         catch { }
+    }
+
+    private static List<(string Sender, int Payload)> ParseSegmentSpecs(string input)
+    {
+        var result = new List<(string Sender, int Payload)>();
+        var items = input.Split(',', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var item in items)
+        {
+            var parts = item.Split(':', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length >= 2)
+            {
+                var sRaw = parts[0].Trim();
+                var sender = sRaw.StartsWith("b", StringComparison.OrdinalIgnoreCase) ? "Bob" : "Alice";
+                if (int.TryParse(parts[1].Trim(), out var payload))
+                {
+                    result.Add((sender, Math.Max(0, payload)));
+                }
+            }
+        }
+        return result;
+    }
+
+    private static List<(string Sender, int Payload)> ParsePayloadsAndSenders(string rawPayloads, string? rawSenders)
+    {
+        var result = new List<(string Sender, int Payload)>();
+        var pItems = rawPayloads.Split(',', StringSplitOptions.RemoveEmptyEntries);
+        var sItems = rawSenders?.Split(',', StringSplitOptions.RemoveEmptyEntries) ?? Array.Empty<string>();
+
+        for (int i = 0; i < pItems.Length; i++)
+        {
+            if (int.TryParse(pItems[i].Trim(), out var payload))
+            {
+                string sender;
+                if (i < sItems.Length)
+                {
+                    var sRaw = sItems[i].Trim();
+                    sender = sRaw.StartsWith("b", StringComparison.OrdinalIgnoreCase) ? "Bob" : "Alice";
+                }
+                else
+                {
+                    sender = (i % 2 == 0) ? "Alice" : "Bob";
+                }
+                result.Add((sender, Math.Max(0, payload)));
+            }
+        }
+        return result;
     }
 
     private void SetView(ViewMode mode)
@@ -616,32 +761,35 @@
 
     private void OnPresetChanged()
     {
+        if (SelectedPresetKey == "Custom" && _customSegmentSpecs != null)
+        {
+            CurrentScenario = BuildCustomScenario(AliceStartSeq, BobStartSeq, _customSegmentSpecs);
+            CurrentStepIndex = 0;
+            return;
+        }
         LoadPreset(SelectedPresetKey);
     }
 
-    private void LoadPreset(string key)
+    private void LoadPreset(string key, bool useCurrentISN = false)
     {
         SelectedPresetKey = key;
+        _customSegmentSpecs = null;
         switch (key)
         {
             case "ExamStandard":
-                AliceStartSeq = 101;
-                BobStartSeq = 501;
+                if (!useCurrentISN) { AliceStartSeq = 101; BobStartSeq = 501; }
                 CurrentScenario = BuildExamStandardScenario(AliceStartSeq, BobStartSeq);
                 break;
             case "HandshakeDataTeardown":
-                AliceStartSeq = 1000;
-                BobStartSeq = 8000;
+                if (!useCurrentISN) { AliceStartSeq = 1000; BobStartSeq = 8000; }
                 CurrentScenario = BuildFullLifecycleScenario(AliceStartSeq, BobStartSeq);
                 break;
             case "SlidingWindow":
-                AliceStartSeq = 2000;
-                BobStartSeq = 6000;
+                if (!useCurrentISN) { AliceStartSeq = 2000; BobStartSeq = 6000; }
                 CurrentScenario = BuildSlidingWindowScenario(AliceStartSeq, BobStartSeq);
                 break;
             case "PacketLoss":
-                AliceStartSeq = 100;
-                BobStartSeq = 500;
+                if (!useCurrentISN) { AliceStartSeq = 100; BobStartSeq = 500; }
                 CurrentScenario = BuildPacketLossScenario(AliceStartSeq, BobStartSeq);
                 break;
         }
@@ -650,7 +798,113 @@
 
     private void Recalculate()
     {
-        LoadPreset(SelectedPresetKey);
+        if (SelectedPresetKey == "Custom" && _customSegmentSpecs != null)
+        {
+            CurrentScenario = BuildCustomScenario(AliceStartSeq, BobStartSeq, _customSegmentSpecs);
+            CurrentStepIndex = 0;
+            return;
+        }
+        LoadPreset(SelectedPresetKey, useCurrentISN: true);
+    }
+
+    private TcpScenario BuildCustomScenario(int aliceISN, int bobISN, List<(string Sender, int Payload)> specs)
+    {
+        var scenario = new TcpScenario { Title = $"Individuelle Übertragung ({specs.Count} Segmente)" };
+        var aliceSeq = aliceISN;
+        var bobSeq = bobISN;
+        var aliceExpectedAck = bobISN;
+        var bobExpectedAck = aliceISN;
+
+        // Step 0: Initial State
+        scenario.Steps.Add(new TcpStep
+        {
+            Title = "Initialisierung der Verbindung",
+            Explanation = $"Verbindung ist aufgebaut (ESTABLISHED). Alice beginnt bei Seq={aliceSeq}, Bob bei Seq={bobSeq}.",
+            AliceNextSeq = aliceSeq,
+            AliceExpectedAck = aliceExpectedAck,
+            BobNextSeq = bobSeq,
+            BobExpectedAck = bobExpectedAck
+        });
+
+        for (int i = 0; i < specs.Count; i++)
+        {
+            var (sender, payload) = specs[i];
+            bool isAlice = sender == "Alice";
+            var receiver = isAlice ? "Bob" : "Alice";
+            int idx = i + 1;
+
+            int seqNum = isAlice ? aliceSeq : bobSeq;
+            int ackNum = isAlice ? aliceExpectedAck : bobExpectedAck;
+            var flags = payload > 0 ? (TcpFlags.ACK | TcpFlags.PSH) : TcpFlags.ACK;
+
+            var seg = new TcpSegment
+            {
+                Index = idx,
+                Sender = sender,
+                Receiver = receiver,
+                PayloadBytes = payload,
+                SeqNumber = seqNum,
+                AckNumber = ackNum,
+                Flags = flags
+            };
+            scenario.Segments.Add(seg);
+
+            if (isAlice)
+            {
+                if (payload > 0)
+                {
+                    aliceSeq += payload;
+                    bobExpectedAck = aliceSeq;
+                }
+            }
+            else
+            {
+                if (payload > 0)
+                {
+                    bobSeq += payload;
+                    aliceExpectedAck = bobSeq;
+                }
+            }
+
+            string title;
+            string explanation;
+            string seqFormula;
+            string ackFormula;
+            string nextExpected;
+
+            if (payload > 0)
+            {
+                title = $"Segment {idx}: {sender} sendet {payload} Byte";
+                explanation = $"{sender} sendet {payload} Byte Daten ab Byte-Position {seg.SeqNumber} bis {seg.SeqNumber + payload - 1} an {receiver} (Seq={seg.SeqNumber}, Ack={seg.AckNumber}).";
+                seqFormula = $"Seq = {seg.SeqNumber} ({sender} Byte-Offset)";
+                ackFormula = $"Ack = {seg.AckNumber} (quittiert {receiver} bis Byte {seg.AckNumber - 1})";
+                nextExpected = $"{receiver} erwartet ab Byte {(isAlice ? aliceSeq : bobSeq)}";
+            }
+            else
+            {
+                title = $"Segment {idx}: {sender} bestätigt Daten (ACK-only)";
+                explanation = $"{sender} quittiert lückenlosen Empfang mit Ack={seg.AckNumber}. Reine Bestätigungen (0 Byte Nutzdaten) verbrauchen keine Sequenznummern.";
+                seqFormula = $"Seq = {seg.SeqNumber} (unverändert, da 0 Byte Nutzdaten)";
+                ackFormula = $"Ack = {seg.AckNumber} (quittiert bis Byte {seg.AckNumber - 1})";
+                nextExpected = $"{receiver} weiß: {sender} hat alles bis Byte {seg.AckNumber - 1} erhalten";
+            }
+
+            scenario.Steps.Add(new TcpStep
+            {
+                Segment = seg,
+                Title = title,
+                Explanation = explanation,
+                SeqFormula = seqFormula,
+                AckFormula = ackFormula,
+                NextExpected = nextExpected,
+                AliceNextSeq = aliceSeq,
+                AliceExpectedAck = aliceExpectedAck,
+                BobNextSeq = bobSeq,
+                BobExpectedAck = bobExpectedAck
+            });
+        }
+
+        return scenario;
     }
 
     private void GenerateRandomScenario()
@@ -828,7 +1082,6 @@
             BobExpectedAck = aliceSeq
         });
 
-        int segCount = 6;
         for (int i = 0; i < 3; i++)
         {
             var dataBytes = rand.Next(1, 5) * 500;
