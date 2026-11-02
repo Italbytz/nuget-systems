@@ -122,6 +122,9 @@
 
                 <!-- Circuit Schematic Card -->
                 <div class="schematic-container">
+                    <div class="schematic-title">Logikschaltplan (DIN/IEC):</div>
+                    <CircuitCostDiagram ModelId="@ActiveModelId" Variant="A" InputValues="@InputValues" IsWorksheet="false" />
+
                     <div class="schematic-title">Gatterstufen &amp; Signalpfade:</div>
                     <div class="stages-flow">
                         @for (int st = 1; st <= ActiveModel.VariantA.CircuitDepth; st++)
@@ -192,6 +195,9 @@
 
                 <!-- Circuit Schematic Card -->
                 <div class="schematic-container">
+                    <div class="schematic-title">Logikschaltplan (DIN/IEC):</div>
+                    <CircuitCostDiagram ModelId="@ActiveModelId" Variant="B" InputValues="@InputValues" IsWorksheet="false" />
+
                     <div class="schematic-title">Gatterstufen &amp; Signalpfade:</div>
                     <div class="stages-flow">
                         @for (int st = 1; st <= ActiveModel.VariantB.CircuitDepth; st++)
@@ -301,10 +307,16 @@
                     <div class="ws-circuit-item">
                         <strong>Schaltung A (Serielle Kette / Kaskade):</strong>
                         <p class="mono"><em>y</em> = ((<em>x</em><sub>0</sub> &oplus; <em>x</em><sub>1</sub>) &oplus; <em>x</em><sub>2</sub>) &oplus; <em>x</em><sub>3</sub></p>
+                        <div class="ws-circuit-svg-box">
+                            <CircuitCostDiagram ModelId="@ActiveModelId" Variant="A" InputValues="@InputValues" IsWorksheet="true" />
+                        </div>
                     </div>
                     <div class="ws-circuit-item">
                         <strong>Schaltung B (Paritätsbaum / Baumstruktur):</strong>
                         <p class="mono"><em>y</em> = (<em>x</em><sub>0</sub> &oplus; <em>x</em><sub>1</sub>) &oplus; (<em>x</em><sub>2</sub> &oplus; <em>x</em><sub>3</sub>)</p>
+                        <div class="ws-circuit-svg-box">
+                            <CircuitCostDiagram ModelId="@ActiveModelId" Variant="B" InputValues="@InputValues" IsWorksheet="true" />
+                        </div>
                     </div>
                 </div>
             </div>

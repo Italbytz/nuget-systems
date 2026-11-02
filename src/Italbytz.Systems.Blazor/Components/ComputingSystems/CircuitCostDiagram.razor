@@ -1,0 +1,371 @@
+@namespace Italbytz.Systems.Blazor.Components.ComputingSystems
+
+<div class="circuit-svg-container">
+    @if (ModelId == 0)
+    {
+        @if (Variant == "A")
+        {
+            bool in0 = InputValues != null && InputValues.Length > 0 && InputValues[0];
+            bool in1 = InputValues != null && InputValues.Length > 1 && InputValues[1];
+            bool in2 = InputValues != null && InputValues.Length > 2 && InputValues[2];
+            bool in3 = InputValues != null && InputValues.Length > 3 && InputValues[3];
+            bool w1 = in0 ^ in1;
+            bool w2 = w1 ^ in2;
+            bool w3 = w2 ^ in3;
+
+            <svg viewBox="0 0 450 190" class="circuit-svg" xmlns="http://www.w3.org/2000/svg">
+                <!-- Stufen-Markierungen -->
+                <text x="122" y="14" class="stage-label-text">Stufe 1</text>
+                <line x1="180" y1="10" x2="180" y2="180" class="stage-divider" />
+                <text x="242" y="14" class="stage-label-text">Stufe 2</text>
+                <line x1="300" y1="10" x2="300" y2="180" class="stage-divider" />
+                <text x="362" y="14" class="stage-label-text">Stufe 3</text>
+
+                <!-- Eingänge & Leitungen -->
+                <!-- x0 -->
+                <text x="15" y="39" class="pin-label">x₀</text>
+                <text x="15" y="50" class="pin-val">@(IsWorksheet ? "" : (in0 ? "1" : "0"))</text>
+                <line x1="30" y1="35" x2="100" y2="35" class="wire @GetWireClass(in0)" />
+
+                <!-- x1 -->
+                <text x="15" y="69" class="pin-label">x₁</text>
+                <text x="15" y="80" class="pin-val">@(IsWorksheet ? "" : (in1 ? "1" : "0"))</text>
+                <line x1="30" y1="65" x2="100" y2="65" class="wire @GetWireClass(in1)" />
+
+                <!-- x2 -->
+                <text x="15" y="119" class="pin-label">x₂</text>
+                <text x="15" y="130" class="pin-val">@(IsWorksheet ? "" : (in2 ? "1" : "0"))</text>
+                <line x1="30" y1="115" x2="220" y2="115" class="wire @GetWireClass(in2)" />
+
+                <!-- x3 -->
+                <text x="15" y="159" class="pin-label">x₃</text>
+                <text x="15" y="170" class="pin-val">@(IsWorksheet ? "" : (in3 ? "1" : "0"))</text>
+                <line x1="30" y1="155" x2="340" y2="155" class="wire @GetWireClass(in3)" />
+
+                <!-- Gatter 1 (Stufe 1, XOR) -->
+                <rect x="100" y="25" width="44" height="48" rx="4" class="gate-box" />
+                <text x="122" y="49" class="gate-box-text">=1</text>
+                <text x="122" y="64" class="gate-sub-text">XOR 1</text>
+                <!-- Leitung w1 -->
+                <path d="M 144 49 L 180 49 L 180 85 L 220 85" class="wire @GetWireClass(w1)" />
+
+                <!-- Gatter 2 (Stufe 2, XOR) -->
+                <rect x="220" y="75" width="44" height="48" rx="4" class="gate-box" />
+                <text x="242" y="99" class="gate-box-text">=1</text>
+                <text x="242" y="114" class="gate-sub-text">XOR 2</text>
+                <!-- Leitung w2 -->
+                <path d="M 264 99 L 300 99 L 300 135 L 340 135" class="wire @GetWireClass(w2)" />
+
+                <!-- Gatter 3 (Stufe 3, XOR) -->
+                <rect x="340" y="125" width="44" height="48" rx="4" class="gate-box" />
+                <text x="362" y="149" class="gate-box-text">=1</text>
+                <text x="362" y="164" class="gate-sub-text">XOR 3</text>
+                <!-- Ausgang y -->
+                <line x1="384" y1="149" x2="420" y2="149" class="wire @GetWireClass(w3)" />
+                <text x="430" y="153" class="pin-label">y</text>
+                <text x="430" y="165" class="pin-val">@(IsWorksheet ? "" : (w3 ? "=1" : "=0"))</text>
+            </svg>
+        }
+        else
+        {
+            bool in0 = InputValues != null && InputValues.Length > 0 && InputValues[0];
+            bool in1 = InputValues != null && InputValues.Length > 1 && InputValues[1];
+            bool in2 = InputValues != null && InputValues.Length > 2 && InputValues[2];
+            bool in3 = InputValues != null && InputValues.Length > 3 && InputValues[3];
+            bool wa = in0 ^ in1;
+            bool wb = in2 ^ in3;
+            bool wc = wa ^ wb;
+
+            <svg viewBox="0 0 360 190" class="circuit-svg" xmlns="http://www.w3.org/2000/svg">
+                <!-- Stufen-Markierungen -->
+                <text x="112" y="14" class="stage-label-text">Stufe 1</text>
+                <line x1="180" y1="10" x2="180" y2="180" class="stage-divider" />
+                <text x="242" y="14" class="stage-label-text">Stufe 2</text>
+
+                <!-- Eingänge & Leitungen -->
+                <!-- x0 -->
+                <text x="15" y="39" class="pin-label">x₀</text>
+                <text x="15" y="50" class="pin-val">@(IsWorksheet ? "" : (in0 ? "1" : "0"))</text>
+                <line x1="30" y1="35" x2="90" y2="35" class="wire @GetWireClass(in0)" />
+
+                <!-- x1 -->
+                <text x="15" y="69" class="pin-label">x₁</text>
+                <text x="15" y="80" class="pin-val">@(IsWorksheet ? "" : (in1 ? "1" : "0"))</text>
+                <line x1="30" y1="65" x2="90" y2="65" class="wire @GetWireClass(in1)" />
+
+                <!-- x2 -->
+                <text x="15" y="129" class="pin-label">x₂</text>
+                <text x="15" y="140" class="pin-val">@(IsWorksheet ? "" : (in2 ? "1" : "0"))</text>
+                <line x1="30" y1="125" x2="90" y2="125" class="wire @GetWireClass(in2)" />
+
+                <!-- x3 -->
+                <text x="15" y="159" class="pin-label">x₃</text>
+                <text x="15" y="170" class="pin-val">@(IsWorksheet ? "" : (in3 ? "1" : "0"))</text>
+                <line x1="30" y1="155" x2="90" y2="155" class="wire @GetWireClass(in3)" />
+
+                <!-- Gatter Ga (Stufe 1, XOR) -->
+                <rect x="90" y="25" width="44" height="48" rx="4" class="gate-box" />
+                <text x="112" y="49" class="gate-box-text">=1</text>
+                <text x="112" y="64" class="gate-sub-text">XOR A</text>
+                <!-- Leitung wa -->
+                <path d="M 134 49 L 180 49 L 180 82 L 220 82" class="wire @GetWireClass(wa)" />
+
+                <!-- Gatter Gb (Stufe 1, XOR) -->
+                <rect x="90" y="115" width="44" height="48" rx="4" class="gate-box" />
+                <text x="112" y="139" class="gate-box-text">=1</text>
+                <text x="112" y="154" class="gate-sub-text">XOR B</text>
+                <!-- Leitung wb -->
+                <path d="M 134 139 L 180 139 L 180 106 L 220 106" class="wire @GetWireClass(wb)" />
+
+                <!-- Gatter Gc (Stufe 2, XOR) -->
+                <rect x="220" y="70" width="44" height="48" rx="4" class="gate-box" />
+                <text x="242" y="94" class="gate-box-text">=1</text>
+                <text x="242" y="109" class="gate-sub-text">XOR C</text>
+                <!-- Ausgang y -->
+                <line x1="264" y1="94" x2="320" y2="94" class="wire @GetWireClass(wc)" />
+                <text x="330" y="98" class="pin-label">y</text>
+                <text x="330" y="110" class="pin-val">@(IsWorksheet ? "" : (wc ? "=1" : "=0"))</text>
+            </svg>
+        }
+    }
+    else if (ModelId == 1)
+    {
+        @if (Variant == "A")
+        {
+            bool mx2 = InputValues != null && InputValues.Length > 2 && InputValues[2];
+            bool mx1 = InputValues != null && InputValues.Length > 1 && InputValues[1];
+            bool mx0 = InputValues != null && InputValues.Length > 0 && InputValues[0];
+            bool mw1 = mx2 && mx1;
+            bool mw2 = mx2 && mx0;
+            bool mw3 = mx1 && mx0;
+            bool mwy = mw1 || mw2 || mw3;
+
+            <svg viewBox="0 0 370 205" class="circuit-svg" xmlns="http://www.w3.org/2000/svg">
+                <!-- Stufen-Markierungen -->
+                <text x="122" y="14" class="stage-label-text">Stufe 1</text>
+                <line x1="185" y1="10" x2="185" y2="195" class="stage-divider" />
+                <text x="252" y="14" class="stage-label-text">Stufe 2</text>
+
+                <!-- Eingänge & Leitungen -->
+                <!-- G1: x2, x1 -->
+                <text x="15" y="38" class="pin-label">x₂</text>
+                <line x1="30" y1="34" x2="100" y2="34" class="wire @GetWireClass(mx2)" />
+                <text x="15" y="58" class="pin-label">x₁</text>
+                <line x1="30" y1="54" x2="100" y2="54" class="wire @GetWireClass(mx1)" />
+
+                <!-- G2: x2, x0 -->
+                <text x="15" y="98" class="pin-label">x₂</text>
+                <line x1="30" y1="94" x2="100" y2="94" class="wire @GetWireClass(mx2)" />
+                <text x="15" y="118" class="pin-label">x₀</text>
+                <line x1="30" y1="114" x2="100" y2="114" class="wire @GetWireClass(mx0)" />
+
+                <!-- G3: x1, x0 -->
+                <text x="15" y="158" class="pin-label">x₁</text>
+                <line x1="30" y1="154" x2="100" y2="154" class="wire @GetWireClass(mx1)" />
+                <text x="15" y="178" class="pin-label">x₀</text>
+                <line x1="30" y1="174" x2="100" y2="174" class="wire @GetWireClass(mx0)" />
+
+                <!-- G1 (AND 1) -->
+                <rect x="100" y="24" width="44" height="40" rx="4" class="gate-box" />
+                <text x="122" y="44" class="gate-box-text">&amp;</text>
+                <path d="M 144 44 L 185 44 L 185 89 L 230 89" class="wire @GetWireClass(mw1)" />
+
+                <!-- G2 (AND 2) -->
+                <rect x="100" y="84" width="44" height="40" rx="4" class="gate-box" />
+                <text x="122" y="104" class="gate-box-text">&amp;</text>
+                <line x1="144" y1="104" x2="230" y2="104" class="wire @GetWireClass(mw2)" />
+
+                <!-- G3 (AND 3) -->
+                <rect x="100" y="144" width="44" height="40" rx="4" class="gate-box" />
+                <text x="122" y="164" class="gate-box-text">&amp;</text>
+                <path d="M 144 164 L 185 164 L 185 119 L 230 119" class="wire @GetWireClass(mw3)" />
+
+                <!-- G4 (OR Fan-In 3) -->
+                <rect x="230" y="79" width="44" height="50" rx="4" class="gate-box" />
+                <text x="252" y="104" class="gate-box-text">&ge;1</text>
+                <!-- Ausgang y -->
+                <line x1="274" y1="104" x2="330" y2="104" class="wire @GetWireClass(mwy)" />
+                <text x="340" y="108" class="pin-label">y</text>
+                <text x="340" y="120" class="pin-val">@(IsWorksheet ? "" : (mwy ? "=1" : "=0"))</text>
+            </svg>
+        }
+        else
+        {
+            bool mx2 = InputValues != null && InputValues.Length > 2 && InputValues[2];
+            bool mx1 = InputValues != null && InputValues.Length > 1 && InputValues[1];
+            bool mx0 = InputValues != null && InputValues.Length > 0 && InputValues[0];
+            bool mwa = mx1 || mx0;
+            bool mwb = mx1 && mx0;
+            bool mwc = mx2 && mwa;
+            bool mwyd = mwc || mwb;
+
+            <svg viewBox="0 0 450 190" class="circuit-svg" xmlns="http://www.w3.org/2000/svg">
+                <!-- Stufen-Markierungen -->
+                <text x="112" y="14" class="stage-label-text">Stufe 1</text>
+                <line x1="180" y1="10" x2="180" y2="180" class="stage-divider" />
+                <text x="242" y="14" class="stage-label-text">Stufe 2</text>
+                <line x1="300" y1="10" x2="300" y2="180" class="stage-divider" />
+                <text x="362" y="14" class="stage-label-text">Stufe 3</text>
+
+                <!-- Eingänge & Leitungen -->
+                <!-- x2 -->
+                <text x="15" y="44" class="pin-label">x₂</text>
+                <line x1="30" y1="40" x2="220" y2="40" class="wire @GetWireClass(mx2)" />
+
+                <!-- x1 -->
+                <text x="15" y="84" class="pin-label">x₁</text>
+                <line x1="30" y1="80" x2="90" y2="80" class="wire @GetWireClass(mx1)" />
+                <circle cx="55" cy="80" r="3" class="wire-dot @GetDotClass(mx1)" />
+                <path d="M 55 80 L 55 135 L 90 135" class="wire @GetWireClass(mx1)" />
+
+                <!-- x0 -->
+                <text x="15" y="104" class="pin-label">x₀</text>
+                <line x1="30" y1="100" x2="90" y2="100" class="wire @GetWireClass(mx0)" />
+                <circle cx="68" cy="100" r="3" class="wire-dot @GetDotClass(mx0)" />
+                <path d="M 68 100 L 68 155 L 90 155" class="wire @GetWireClass(mx0)" />
+
+                <!-- Ga (OR 1) -->
+                <rect x="90" y="70" width="44" height="40" rx="4" class="gate-box" />
+                <text x="112" y="90" class="gate-box-text">&ge;1</text>
+                <path d="M 134 90 L 180 90 L 180 60 L 220 60" class="wire @GetWireClass(mwa)" />
+
+                <!-- Gb (AND 1) -->
+                <rect x="90" y="125" width="44" height="40" rx="4" class="gate-box" />
+                <text x="112" y="145" class="gate-box-text">&amp;</text>
+                <path d="M 134 145 L 300 145 L 300 115 L 340 115" class="wire @GetWireClass(mwb)" />
+
+                <!-- Gc (AND 2) -->
+                <rect x="220" y="30" width="44" height="40" rx="4" class="gate-box" />
+                <text x="242" y="50" class="gate-box-text">&amp;</text>
+                <path d="M 264 50 L 300 50 L 300 95 L 340 95" class="wire @GetWireClass(mwc)" />
+
+                <!-- Gd (OR 2) -->
+                <rect x="340" y="85" width="44" height="40" rx="4" class="gate-box" />
+                <text x="362" y="105" class="gate-box-text">&ge;1</text>
+                <!-- Ausgang y -->
+                <line x1="384" y1="105" x2="420" y2="105" class="wire @GetWireClass(mwyd)" />
+                <text x="430" y="109" class="pin-label">y</text>
+                <text x="430" y="121" class="pin-val">@(IsWorksheet ? "" : (mwyd ? "=1" : "=0"))</text>
+            </svg>
+        }
+    }
+    else
+    {
+        @if (Variant == "A")
+        {
+            bool ca1 = InputValues != null && InputValues.Length > 1 && InputValues[1];
+            bool ca0 = InputValues != null && InputValues.Length > 0 && InputValues[0];
+            bool cb1 = InputValues != null && InputValues.Length > 3 && InputValues[3];
+            bool cb0 = InputValues != null && InputValues.Length > 2 && InputValues[2];
+            bool cw1 = ca1 == cb1;
+            bool cw2 = ca0 == cb0;
+            bool cwy = cw1 && cw2;
+
+            <svg viewBox="0 0 360 190" class="circuit-svg" xmlns="http://www.w3.org/2000/svg">
+                <!-- Stufen-Markierungen -->
+                <text x="112" y="14" class="stage-label-text">Stufe 1</text>
+                <line x1="185" y1="10" x2="185" y2="180" class="stage-divider" />
+                <text x="252" y="14" class="stage-label-text">Stufe 2</text>
+
+                <!-- Eingänge & Leitungen -->
+                <!-- a1, b1 -->
+                <text x="15" y="39" class="pin-label">a₁</text>
+                <line x1="30" y1="35" x2="90" y2="35" class="wire @GetWireClass(ca1)" />
+                <text x="15" y="69" class="pin-label">b₁</text>
+                <line x1="30" y1="65" x2="90" y2="65" class="wire @GetWireClass(cb1)" />
+
+                <!-- a0, b0 -->
+                <text x="15" y="129" class="pin-label">a₀</text>
+                <line x1="30" y1="125" x2="90" y2="125" class="wire @GetWireClass(ca0)" />
+                <text x="15" y="159" class="pin-label">b₀</text>
+                <line x1="30" y1="155" x2="90" y2="155" class="wire @GetWireClass(cb0)" />
+
+                <!-- G1 (XNOR 1) -->
+                <rect x="90" y="25" width="44" height="48" rx="4" class="gate-box" />
+                <text x="112" y="49" class="gate-box-text">=1</text>
+                <circle cx="137.5" cy="49" r="3.5" class="inversion-bubble" />
+                <path d="M 141 49 L 185 49 L 185 82 L 230 82" class="wire @GetWireClass(cw1)" />
+
+                <!-- G2 (XNOR 0) -->
+                <rect x="90" y="115" width="44" height="48" rx="4" class="gate-box" />
+                <text x="112" y="139" class="gate-box-text">=1</text>
+                <circle cx="137.5" cy="139" r="3.5" class="inversion-bubble" />
+                <path d="M 141 139 L 185 139 L 185 106 L 230 106" class="wire @GetWireClass(cw2)" />
+
+                <!-- G3 (AND) -->
+                <rect x="230" y="70" width="44" height="48" rx="4" class="gate-box" />
+                <text x="252" y="94" class="gate-box-text">&amp;</text>
+                <!-- Ausgang y -->
+                <line x1="274" y1="94" x2="320" y2="94" class="wire @GetWireClass(cwy)" />
+                <text x="330" y="98" class="pin-label">y</text>
+                <text x="330" y="110" class="pin-val">@(IsWorksheet ? "" : (cwy ? "=1" : "=0"))</text>
+            </svg>
+        }
+        else
+        {
+            bool ca1 = InputValues != null && InputValues.Length > 1 && InputValues[1];
+            bool ca0 = InputValues != null && InputValues.Length > 0 && InputValues[0];
+            bool cb1 = InputValues != null && InputValues.Length > 3 && InputValues[3];
+            bool cb0 = InputValues != null && InputValues.Length > 2 && InputValues[2];
+            bool cm0 = !ca1 && !ca0 && !cb1 && !cb0;
+            bool cm5 = !ca1 && ca0 && !cb1 && cb0;
+            bool cm10 = ca1 && !ca0 && cb1 && !cb0;
+            bool cm15 = ca1 && ca0 && cb1 && cb0;
+            bool cwyd = cm0 || cm5 || cm10 || cm15;
+
+            <svg viewBox="0 0 380 230" class="circuit-svg" xmlns="http://www.w3.org/2000/svg">
+                <!-- Stufen-Markierungen -->
+                <text x="122" y="14" class="stage-label-text">Stufe 1</text>
+                <line x1="195" y1="10" x2="195" y2="220" class="stage-divider" />
+                <text x="262" y="14" class="stage-label-text">Stufe 2</text>
+
+                <!-- M0: (!a1, !a0, !b1, !b0) -->
+                <text x="10" y="38" class="pin-label">m₀</text>
+                <rect x="100" y="20" width="44" height="36" rx="4" class="gate-box" />
+                <text x="122" y="38" class="gate-box-text">&amp;</text>
+                <text x="50" y="38" class="pin-val mono">!a₁!a₀!b₁!b₀</text>
+                <circle cx="96.5" cy="38" r="3.5" class="inversion-bubble" />
+                <path d="M 144 38 L 195 38 L 195 95 L 240 95" class="wire @GetWireClass(cm0)" />
+
+                <!-- M5: (!a1, a0, !b1, b0) -->
+                <text x="10" y="88" class="pin-label">m₅</text>
+                <rect x="100" y="70" width="44" height="36" rx="4" class="gate-box" />
+                <text x="122" y="88" class="gate-box-text">&amp;</text>
+                <text x="50" y="88" class="pin-val mono">!a₁ a₀!b₁ b₀</text>
+                <path d="M 144 88 L 240 88" class="wire @GetWireClass(cm5)" />
+
+                <!-- M10: (a1, !a0, b1, !b0) -->
+                <text x="10" y="138" class="pin-label">m₁₀</text>
+                <rect x="100" y="120" width="44" height="36" rx="4" class="gate-box" />
+                <text x="122" y="138" class="gate-box-text">&amp;</text>
+                <text x="50" y="138" class="pin-val mono">a₁!a₀ b₁!b₀</text>
+                <path d="M 144 138 L 240 138" class="wire @GetWireClass(cm10)" />
+
+                <!-- M15: (a1, a0, b1, b0) -->
+                <text x="10" y="188" class="pin-label">m₁₅</text>
+                <rect x="100" y="170" width="44" height="36" rx="4" class="gate-box" />
+                <text x="122" y="188" class="gate-box-text">&amp;</text>
+                <text x="50" y="188" class="pin-val mono">a₁ a₀ b₁ b₀</text>
+                <path d="M 144 188 L 195 188 L 195 131 L 240 131" class="wire @GetWireClass(cm15)" />
+
+                <!-- OR-4 Gatter -->
+                <rect x="240" y="80" width="44" height="66" rx="4" class="gate-box" />
+                <text x="262" y="113" class="gate-box-text">&ge;1</text>
+                <!-- Ausgang y -->
+                <line x1="284" y1="113" x2="340" y2="113" class="wire @GetWireClass(cwyd)" />
+                <text x="350" y="117" class="pin-label">y</text>
+                <text x="350" y="129" class="pin-val">@(IsWorksheet ? "" : (cwyd ? "=1" : "=0"))</text>
+            </svg>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public int ModelId { get; set; } = 0;
+    [Parameter] public string Variant { get; set; } = "A";
+    [Parameter] public bool[]? InputValues { get; set; }
+    [Parameter] public bool IsWorksheet { get; set; } = false;
+
+    private string GetWireClass(bool val) => IsWorksheet ? "wire-neutral" : (val ? "wire-high" : "wire-low");
+    private string GetDotClass(bool val) => IsWorksheet ? "" : (val ? "dot-high" : "dot-low");
+}
