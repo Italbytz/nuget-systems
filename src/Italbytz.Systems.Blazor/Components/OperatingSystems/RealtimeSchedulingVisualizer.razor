@@ -513,11 +513,12 @@
     private int CurrentSlotIndex = 0;
 
     private double TotalUtilization => ((double)TaskA_C / TaskA_T) + ((double)TaskB_C / TaskB_T) + ((double)TaskC_C / TaskC_T);
+    private string? _lastQueryString;
 
     protected override void OnInitialized()
     {
-        ReadQueryParameters();
         LoadPreset(SelectedPresetKey);
+        ReadQueryParameters();
     }
 
     protected override void OnParametersSet()
@@ -531,23 +532,135 @@
         {
             var uri = new Uri(NavigationManager.Uri);
             var query = uri.Query;
-            if (!string.IsNullOrEmpty(query))
+            if (string.IsNullOrEmpty(query) || query == _lastQueryString) return;
+            _lastQueryString = query;
+
+            var pairs = query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries);
+            bool customTasksSpecified = false;
+
+            foreach (var pair in pairs)
             {
-                if (query.Contains("view=worksheet", StringComparison.OrdinalIgnoreCase))
+                var parts = pair.Split('=', 2);
+                var key = parts[0].ToLowerInvariant();
+                var val = parts.Length > 1 ? Uri.UnescapeDataString(parts[1]) : "";
+
+                if ((key == "embed" || key == "embedded") && bool.TryParse(val, out var embedBool))
                 {
-                    ActiveView = ViewMode.Worksheet;
+                    IsEmbed = embedBool;
                 }
-                if (query.Contains("solution=true", StringComparison.OrdinalIgnoreCase))
+                else if (key == "view")
                 {
-                    ShowSolution = true;
+                    ActiveView = val.Equals("worksheet", StringComparison.OrdinalIgnoreCase)
+                        ? ViewMode.Worksheet
+                        : ViewMode.Simulator;
                 }
-                if (query.Contains("embed=true", StringComparison.OrdinalIgnoreCase) || query.Contains("embedded=true", StringComparison.OrdinalIgnoreCase))
+                else if (key == "solution" && bool.TryParse(val, out var solBool))
                 {
-                    IsEmbed = true;
+                    ShowSolution = solBool;
                 }
+                else if (key == "policy")
+                {
+                    if (val.Equals("rms", StringComparison.OrdinalIgnoreCase))
+                    {
+                        ActivePolicy = "RMS";
+                    }
+                    else if (val.Equals("edf", StringComparison.OrdinalIgnoreCase))
+                    {
+                        ActivePolicy = "EDF";
+                    }
+                    else if (val.Equals("both", StringComparison.OrdinalIgnoreCase))
+                    {
+                        ActivePolicy = "Both";
+                    }
+                }
+                else if (key == "preset" || key == "p")
+                {
+                    var normalized = val.Trim().ToLowerInvariant();
+                    if (normalized == "1" || normalized == "exam1" || normalized == "beispiel1" || normalized == "beispiel_1" || normalized == "ex1")
+                    {
+                        LoadPreset("Exam1");
+                    }
+                    else if (normalized == "2" || normalized == "exam2" || normalized == "beispiel2" || normalized == "beispiel_2" || normalized == "ex2")
+                    {
+                        LoadPreset("Exam2");
+                    }
+                    else if (normalized == "3" || normalized == "lecture" || normalized == "vorlesung" || normalized == "beispiel3" || normalized == "beispiel_3" || normalized == "ex3")
+                    {
+                        LoadPreset("Lecture");
+                    }
+                }
+                else if (key == "a" && TryParseTask(val, out var ca, out var ta))
+                {
+                    TaskA_C = ca;
+                    TaskA_T = ta;
+                    customTasksSpecified = true;
+                }
+                else if (key == "b" && TryParseTask(val, out var cb, out var tb))
+                {
+                    TaskB_C = cb;
+                    TaskB_T = tb;
+                    customTasksSpecified = true;
+                }
+                else if (key == "c" && TryParseTask(val, out var cc, out var tc))
+                {
+                    TaskC_C = cc;
+                    TaskC_T = tc;
+                    customTasksSpecified = true;
+                }
+                else if (key == "ca" && int.TryParse(val, out var parsedCa) && parsedCa > 0)
+                {
+                    TaskA_C = parsedCa;
+                    customTasksSpecified = true;
+                }
+                else if (key == "ta" && int.TryParse(val, out var parsedTa) && parsedTa > 0)
+                {
+                    TaskA_T = parsedTa;
+                    customTasksSpecified = true;
+                }
+                else if (key == "cb" && int.TryParse(val, out var parsedCb) && parsedCb > 0)
+                {
+                    TaskB_C = parsedCb;
+                    customTasksSpecified = true;
+                }
+                else if (key == "tb" && int.TryParse(val, out var parsedTb) && parsedTb > 0)
+                {
+                    TaskB_T = parsedTb;
+                    customTasksSpecified = true;
+                }
+                else if (key == "cc" && int.TryParse(val, out var parsedCc) && parsedCc > 0)
+                {
+                    TaskC_C = parsedCc;
+                    customTasksSpecified = true;
+                }
+                else if (key == "tc" && int.TryParse(val, out var parsedTc) && parsedTc > 0)
+                {
+                    TaskC_T = parsedTc;
+                    customTasksSpecified = true;
+                }
+                else if ((key == "slot" || key == "step" || key == "t") && int.TryParse(val, out var slot))
+                {
+                    CurrentSlotIndex = Math.Clamp(slot, 0, 31);
+                }
+            }
+
+            if (customTasksSpecified)
+            {
+                Recalculate();
             }
         }
         catch { }
+    }
+
+    private static bool TryParseTask(string val, out int c, out int t)
+    {
+        c = 0;
+        t = 0;
+        var parts = val.Split(new[] { ',', ';', ':', '/' }, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2 && int.TryParse(parts[0].Trim(), out c) && int.TryParse(parts[1].Trim(), out t) && c > 0 && t > 0)
+        {
+            return true;
+        }
+        return false;
     }
 
     private void SetView(ViewMode mode)
