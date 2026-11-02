@@ -643,7 +643,14 @@
     private const string Preset3Values = "2, 4, 6, 8, 10";
     private const string Preset3Priorities = "mittel, hoch, sehr hoch, niedrig, sehr niedrig";
 
+    private string? _lastQueryString;
+
     protected override void OnInitialized()
+    {
+        ReadQueryParameters();
+    }
+
+    protected override void OnParametersSet()
     {
         ReadQueryParameters();
     }
@@ -654,14 +661,18 @@
         {
             var uri = new Uri(NavigationManager.Uri);
             var query = uri.Query;
-            if (string.IsNullOrEmpty(query)) return;
+            if (string.IsNullOrEmpty(query) || query == _lastQueryString) return;
+            _lastQueryString = query;
 
             var pairs = query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries);
+            bool configChanged = false;
+
             foreach (var pair in pairs)
             {
                 var parts = pair.Split('=', 2);
                 var key = parts[0].ToLowerInvariant();
-                var val = parts.Length > 1 ? Uri.UnescapeDataString(parts[1]) : "";
+                var rawVal = parts.Length > 1 ? parts[1].Replace("+", " ") : "";
+                var val = Uri.UnescapeDataString(rawVal);
 
                 if (key == "embed" && bool.TryParse(val, out var embedBool))
                 {
@@ -679,21 +690,34 @@
                 }
                 else if (key == "policy" && !string.IsNullOrWhiteSpace(val))
                 {
-                    SelectedSchedulingPolicy = val;
+                    var pNorm = val.Trim().ToLowerInvariant();
+                    SelectedSchedulingPolicy = pNorm switch
+                    {
+                        "sjf" or "shortestjobfirst" => "SJF",
+                        "priority" or "prio" => "Priority",
+                        "fcfs" or "firstcomefirstserved" => "FCFS",
+                        "roundrobin" or "rr" => "RoundRobin",
+                        "compareall" or "compare" or "all" => "CompareAll",
+                        _ => val
+                    };
+                    configChanged = true;
                 }
                 else if (key == "values" && !string.IsNullOrWhiteSpace(val))
                 {
                     SchedulingValuesInput = val;
+                    configChanged = true;
                 }
                 else if (key == "priorities" && !string.IsNullOrWhiteSpace(val))
                 {
                     SchedulingPrioritiesInput = val;
+                    configChanged = true;
                 }
                 else if (key == "q" || key == "quantum")
                 {
                     if (int.TryParse(val, out var qParsed) && qParsed > 0)
                     {
                         Quantum = qParsed;
+                        configChanged = true;
                     }
                 }
                 else if (key == "rrmode" || key == "rr_mode" || key == "mode")
@@ -706,6 +730,7 @@
                     {
                         RoundRobinMode = RoundRobinSubMode.TimeSlices;
                     }
+                    configChanged = true;
                 }
             }
 
@@ -713,6 +738,7 @@
             if (effQuantum.HasValue && effQuantum.Value > 0)
             {
                 Quantum = effQuantum.Value;
+                configChanged = true;
             }
             if (!string.IsNullOrEmpty(QueryRrMode))
             {
@@ -724,6 +750,12 @@
                 {
                     RoundRobinMode = RoundRobinSubMode.TimeSlices;
                 }
+                configChanged = true;
+            }
+
+            if (configChanged)
+            {
+                OnConfigurationChanged();
             }
         }
         catch { }
@@ -997,7 +1029,7 @@
 
     private List<ScheduleBlock> GetScheduleForPolicy(string policy, List<ProcessItem> processes)
     {
-        if (policy == "RoundRobin")
+        if (string.Equals(policy, "RoundRobin", StringComparison.OrdinalIgnoreCase))
         {
             if (RoundRobinMode == RoundRobinSubMode.ProcessorSharing)
             {
@@ -1009,10 +1041,10 @@
         var result = new List<ScheduleBlock>();
         var currentTime = 0;
 
-        List<ProcessItem> ordered = policy switch
+        List<ProcessItem> ordered = policy?.ToUpperInvariant() switch
         {
             "SJF" => processes.OrderBy(p => p.Duration).ToList(),
-            "Priority" => OrderByPriority(processes),
+            "PRIORITY" => OrderByPriority(processes),
             _ => processes.ToList() // FCFS
         };
 
