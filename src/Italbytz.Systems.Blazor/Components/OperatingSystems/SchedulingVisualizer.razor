@@ -387,9 +387,9 @@
                     </div>
 
                     <div class="metric-card @(SelectedSchedulingPolicy == "RoundRobin" ? "highlight-strategy" : "")">
-                        <span class="metric-label">Round Robin @(SelectedSchedulingPolicy == "RoundRobin" && RoundRobinMode == RoundRobinSubMode.TimeSlices ? $"(q={Quantum})" : "(q → 0)")</span>
-                        <strong class="metric-val text-amber">@(SelectedSchedulingPolicy == "RoundRobin" && RoundRobinMode == RoundRobinSubMode.TimeSlices ? rrSliceTurnaround.ToString("F2") : rrScore.ToString("F2"))</strong>
-                        <span class="metric-sub">@(SelectedSchedulingPolicy == "RoundRobin" && RoundRobinMode == RoundRobinSubMode.TimeSlices ? $"Zeitscheibe q={Quantum} (q→0: {rrScore:F2})" : "Prozessor-Sharing")</span>
+                        <span class="metric-label">Round Robin @(RoundRobinMode == RoundRobinSubMode.ProcessorSharing ? "(Prozessor-Sharing q → 0)" : $"(Zeitscheibe q={Quantum})")</span>
+                        <strong class="metric-val text-amber">@(RoundRobinMode == RoundRobinSubMode.ProcessorSharing ? rrScore.ToString("F2") : rrSliceTurnaround.ToString("F2"))</strong>
+                        <span class="metric-sub">@(RoundRobinMode == RoundRobinSubMode.ProcessorSharing ? $"Klausur-Standard (bei diskretem q={Quantum}: {rrSliceTurnaround:F2})" : $"Diskrete Zeitscheiben (Klausur/Sharing: {rrScore:F2})")</span>
                     </div>
                 </div>
             </div>
@@ -623,7 +623,7 @@
     [Parameter]
     public int Quantum { get; set; } = 1;
 
-    public RoundRobinSubMode RoundRobinMode { get; set; } = RoundRobinSubMode.TimeSlices;
+    public RoundRobinSubMode RoundRobinMode { get; set; } = RoundRobinSubMode.ProcessorSharing;
 
     [SupplyParameterFromQuery(Name = "q")] public int? QueryQuantum { get; set; }
     [SupplyParameterFromQuery(Name = "quantum")] public int? QueryQuantumLong { get; set; }
@@ -717,18 +717,19 @@
                     if (int.TryParse(val, out var qParsed) && qParsed > 0)
                     {
                         Quantum = qParsed;
+                        RoundRobinMode = RoundRobinSubMode.TimeSlices;
                         configChanged = true;
                     }
                 }
                 else if (key == "rrmode" || key == "rr_mode" || key == "mode")
                 {
-                    if (val.Equals("phases", StringComparison.OrdinalIgnoreCase) || val.Equals("sharing", StringComparison.OrdinalIgnoreCase))
+                    if (val.Equals("slices", StringComparison.OrdinalIgnoreCase) || val.Equals("timeslices", StringComparison.OrdinalIgnoreCase) || val.Equals("gantt", StringComparison.OrdinalIgnoreCase) || val.Equals("discrete", StringComparison.OrdinalIgnoreCase))
                     {
-                        RoundRobinMode = RoundRobinSubMode.ProcessorSharing;
+                        RoundRobinMode = RoundRobinSubMode.TimeSlices;
                     }
                     else
                     {
-                        RoundRobinMode = RoundRobinSubMode.TimeSlices;
+                        RoundRobinMode = RoundRobinSubMode.ProcessorSharing;
                     }
                     configChanged = true;
                 }
@@ -738,17 +739,18 @@
             if (effQuantum.HasValue && effQuantum.Value > 0)
             {
                 Quantum = effQuantum.Value;
+                RoundRobinMode = RoundRobinSubMode.TimeSlices;
                 configChanged = true;
             }
             if (!string.IsNullOrEmpty(QueryRrMode))
             {
-                if (QueryRrMode.Equals("phases", StringComparison.OrdinalIgnoreCase) || QueryRrMode.Equals("sharing", StringComparison.OrdinalIgnoreCase))
+                if (QueryRrMode.Equals("slices", StringComparison.OrdinalIgnoreCase) || QueryRrMode.Equals("timeslices", StringComparison.OrdinalIgnoreCase) || QueryRrMode.Equals("gantt", StringComparison.OrdinalIgnoreCase) || QueryRrMode.Equals("discrete", StringComparison.OrdinalIgnoreCase))
                 {
-                    RoundRobinMode = RoundRobinSubMode.ProcessorSharing;
+                    RoundRobinMode = RoundRobinSubMode.TimeSlices;
                 }
                 else
                 {
-                    RoundRobinMode = RoundRobinSubMode.TimeSlices;
+                    RoundRobinMode = RoundRobinSubMode.ProcessorSharing;
                 }
                 configChanged = true;
             }
@@ -780,6 +782,7 @@
     private void SetQuantum(int q)
     {
         Quantum = q;
+        RoundRobinMode = RoundRobinSubMode.TimeSlices;
         CurrentStepIndex = 0;
     }
 
