@@ -91,4 +91,44 @@ public class EspressoTests
         var qmcSolution = qmcSolver.Solve(new QuineMcCluskeyParameters(3, truthValues));
         Assert.AreEqual(qmcSolution.MinimalDnf, solution.MinimalDnf);
     }
+
+    [TestMethod]
+    public void TestPlaFormatGenerationAndParsing()
+    {
+        var truthValues = new int[8];
+        int[] minterms = [3, 5, 6, 7]; // Majority 3
+        foreach (var m in minterms) truthValues[m] = 1;
+
+        var pla = PlaFormat.GeneratePla(3, truthValues);
+        Assert.IsTrue(pla.Contains(".i 3"));
+        Assert.IsTrue(pla.Contains(".o 1"));
+        Assert.IsTrue(pla.Contains(".p 4"));
+        Assert.IsTrue(pla.Contains("011 1")); // m3
+        Assert.IsTrue(pla.Contains("101 1")); // m5
+        Assert.IsTrue(pla.Contains("110 1")); // m6
+        Assert.IsTrue(pla.Contains("111 1")); // m7
+        Assert.IsTrue(pla.Contains(".e"));
+
+        var parsed = PlaFormat.TryParsePla(pla, out var vars, out var parsedValues, out var error);
+        Assert.IsTrue(parsed, error);
+        Assert.AreEqual(3, vars);
+        CollectionAssert.AreEqual(truthValues, parsedValues);
+    }
+
+    [TestMethod]
+    public void TestPlaFromMinimizedCubes()
+    {
+        var cubes = new[] { "(!x3 & x2 & !x0)", "(x1 & x0)" };
+        var pattern1 = PlaFormat.FormatCubeToPlaPattern(4, cubes[0]);
+        var pattern2 = PlaFormat.FormatCubeToPlaPattern(4, cubes[1]);
+
+        Assert.AreEqual("01-0", pattern1);
+        Assert.AreEqual("--11", pattern2);
+
+        var pla = PlaFormat.GeneratePlaFromCubes(4, cubes);
+        Assert.IsTrue(pla.Contains(".i 4"));
+        Assert.IsTrue(pla.Contains(".p 2"));
+        Assert.IsTrue(pla.Contains("01-0 1"));
+        Assert.IsTrue(pla.Contains("--11 1"));
+    }
 }

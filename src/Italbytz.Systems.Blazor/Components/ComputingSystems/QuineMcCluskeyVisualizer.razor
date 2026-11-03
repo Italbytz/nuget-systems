@@ -74,20 +74,56 @@
     {
         <!-- Controls Panel -->
         <div class="controls-panel no-print">
-            <div class="config-grid">
-                <label class="control-label">
-                    <span>Anzahl Variablen:</span>
-                    <select class="form-input select" @bind="VariableCount" @bind:after="OnVariableCountChanged">
-                        <option value="3">3 Variablen (<em>x</em><sub>2</sub>, <em>x</em><sub>1</sub>, <em>x</em><sub>0</sub> &rarr; 8 Minterme)</option>
-                        <option value="4">4 Variablen (<em>x</em><sub>3</sub>, <em>x</em><sub>2</sub>, <em>x</em><sub>1</sub>, <em>x</em><sub>0</sub> &rarr; 16 Minterme)</option>
-                    </select>
-                </label>
-
-                <label class="control-label wide-label">
-                    <span>Wertevektor der Ausgabespalte (<em>f</em>(<em>m</em><sub>0</sub> &hellip; <em>m</em><sub>2<sup><em>n</em></sup>&minus;1</sub>)):</span>
-                    <input type="text" class="form-input mono" @bind="TruthValuesInput" @bind:after="Recalculate" />
-                </label>
+            <div class="pla-mode-bar">
+                <span class="mode-label">Eingabemodus:</span>
+                <button type="button" class="mode-btn @(!ShowPlaInput ? "active" : "")" @onclick="() => ShowPlaInput = false">
+                    Wertevektor (Wahrheitstabelle)
+                </button>
+                <button type="button" class="mode-btn @(ShowPlaInput ? "active" : "")" @onclick="() => { ShowPlaInput = true; PlaInputText = PlaFormat.GeneratePla(VariableCount, TruthValues); }">
+                    PLA-Editor (.pla)
+                </button>
             </div>
+
+            @if (!ShowPlaInput)
+            {
+                <div class="config-grid">
+                    <label class="control-label">
+                        <span>Anzahl Variablen:</span>
+                        <select class="form-input select" @bind="VariableCount" @bind:after="OnVariableCountChanged">
+                            <option value="3">3 Variablen (<em>x</em><sub>2</sub>, <em>x</em><sub>1</sub>, <em>x</em><sub>0</sub> &rarr; 8 Minterme)</option>
+                            <option value="4">4 Variablen (<em>x</em><sub>3</sub>, <em>x</em><sub>2</sub>, <em>x</em><sub>1</sub>, <em>x</em><sub>0</sub> &rarr; 16 Minterme)</option>
+                        </select>
+                    </label>
+
+                    <label class="control-label wide-label">
+                        <span>Wertevektor der Ausgabespalte (<em>f</em>(<em>m</em><sub>0</sub> &hellip; <em>m</em><sub>2<sup><em>n</em></sup>&minus;1</sub>)):</span>
+                        <input type="text" class="form-input mono" @bind="TruthValuesInput" @bind:after="Recalculate" />
+                    </label>
+                </div>
+            }
+            else
+            {
+                <div class="pla-input-container">
+                    <label class="control-label">
+                        <span>PLA-Code eingeben oder einfügen (.pla):</span>
+                        <textarea class="form-input mono pla-textarea" rows="6" @bind="PlaInputText" placeholder=".i 4&#10;.o 1&#10;.p 3&#10;1-01 1&#10;.e"></textarea>
+                    </label>
+                    <div class="pla-input-actions">
+                        <button type="button" class="apply-pla-btn" @onclick="ApplyPlaInput">
+                            📥 PLA anwenden &amp; minimieren
+                        </button>
+                        <button type="button" class="preset-btn" @onclick='() => { PlaInputText = PlaFormat.GeneratePla(VariableCount, TruthValues); PlaErrorMessage = null; }'>
+                            Zurücksetzen auf aktuellen Zustand
+                        </button>
+                    </div>
+                    @if (!string.IsNullOrEmpty(PlaErrorMessage))
+                    {
+                        <div class="pla-error-alert">
+                            ⚠️ @PlaErrorMessage
+                        </div>
+                    }
+                </div>
+            }
 
             <!-- Presets Bar -->
             <div class="preset-bar">
@@ -450,20 +486,56 @@
     {
         <!-- Controls Panel -->
         <div class="controls-panel no-print">
-            <div class="config-grid">
-                <label class="control-label">
-                    <span>Anzahl Variablen:</span>
-                    <select class="form-input select" @bind="VariableCount" @bind:after="OnVariableCountChanged">
-                        <option value="3">3 Variablen (<em>x</em><sub>2</sub>, <em>x</em><sub>1</sub>, <em>x</em><sub>0</sub> &rarr; 8 Minterme)</option>
-                        <option value="4">4 Variablen (<em>x</em><sub>3</sub>, <em>x</em><sub>2</sub>, <em>x</em><sub>1</sub>, <em>x</em><sub>0</sub> &rarr; 16 Minterme)</option>
-                    </select>
-                </label>
-
-                <label class="control-label wide-label">
-                    <span>Wertevektor der Ausgabespalte (<em>f</em>(<em>m</em><sub>0</sub> &hellip; <em>m</em><sub>2<sup><em>n</em></sup>&minus;1</sub>)):</span>
-                    <input type="text" class="form-input mono" @bind="TruthValuesInput" @bind:after="Recalculate" />
-                </label>
+            <div class="pla-mode-bar">
+                <span class="mode-label">Eingabemodus:</span>
+                <button type="button" class="mode-btn @(!ShowPlaInput ? "active" : "")" @onclick="() => ShowPlaInput = false">
+                    Wertevektor (Wahrheitstabelle)
+                </button>
+                <button type="button" class="mode-btn @(ShowPlaInput ? "active" : "")" @onclick="() => { ShowPlaInput = true; PlaInputText = PlaFormat.GeneratePla(VariableCount, TruthValues); }">
+                    PLA-Editor (.pla)
+                </button>
             </div>
+
+            @if (!ShowPlaInput)
+            {
+                <div class="config-grid">
+                    <label class="control-label">
+                        <span>Anzahl Variablen:</span>
+                        <select class="form-input select" @bind="VariableCount" @bind:after="OnVariableCountChanged">
+                            <option value="3">3 Variablen (<em>x</em><sub>2</sub>, <em>x</em><sub>1</sub>, <em>x</em><sub>0</sub> &rarr; 8 Minterme)</option>
+                            <option value="4">4 Variablen (<em>x</em><sub>3</sub>, <em>x</em><sub>2</sub>, <em>x</em><sub>1</sub>, <em>x</em><sub>0</sub> &rarr; 16 Minterme)</option>
+                        </select>
+                    </label>
+
+                    <label class="control-label wide-label">
+                        <span>Wertevektor der Ausgabespalte (<em>f</em>(<em>m</em><sub>0</sub> &hellip; <em>m</em><sub>2<sup><em>n</em></sup>&minus;1</sub>)):</span>
+                        <input type="text" class="form-input mono" @bind="TruthValuesInput" @bind:after="Recalculate" />
+                    </label>
+                </div>
+            }
+            else
+            {
+                <div class="pla-input-container">
+                    <label class="control-label">
+                        <span>PLA-Code eingeben oder einfügen (.pla):</span>
+                        <textarea class="form-input mono pla-textarea" rows="6" @bind="PlaInputText" placeholder=".i 4&#10;.o 1&#10;.p 3&#10;1-01 1&#10;.e"></textarea>
+                    </label>
+                    <div class="pla-input-actions">
+                        <button type="button" class="apply-pla-btn" @onclick="ApplyPlaInput">
+                            📥 PLA anwenden &amp; minimieren
+                        </button>
+                        <button type="button" class="preset-btn" @onclick='() => { PlaInputText = PlaFormat.GeneratePla(VariableCount, TruthValues); PlaErrorMessage = null; }'>
+                            Zurücksetzen auf aktuellen Zustand
+                        </button>
+                    </div>
+                    @if (!string.IsNullOrEmpty(PlaErrorMessage))
+                    {
+                        <div class="pla-error-alert">
+                            ⚠️ @PlaErrorMessage
+                        </div>
+                    }
+                </div>
+            }
 
             <!-- Presets Bar -->
             <div class="preset-bar">
@@ -542,6 +614,63 @@
                             <div class="cube-term mono">@FormatTermMarkup(cubeStr)</div>
                         </div>
                     }
+                </div>
+            </div>
+
+            <!-- Berkeley PLA Display Card -->
+            <div class="espresso-pla-card">
+                <div class="pla-card-header">
+                    <div class="pla-header-left">
+                        <span class="pla-icon">📄</span>
+                        <div>
+                            <h3>Berkeley-PLA-Format (.pla)</h3>
+                            <span class="pla-sub">Industriestandard-Austauschformat für zweistufige Schaltkreise</span>
+                        </div>
+                    </div>
+                    <div class="pla-header-right no-print">
+                        <div class="pla-mode-toggle">
+                            <button type="button" class="pla-toggle-btn @(PlaViewMinimized ? "active" : "")" @onclick="() => PlaViewMinimized = true">
+                                Minimiert (Espresso)
+                            </button>
+                            <button type="button" class="pla-toggle-btn @(!PlaViewMinimized ? "active" : "")" @onclick="() => PlaViewMinimized = false">
+                                Original (Wahrheitstabelle)
+                            </button>
+                        </div>
+                        <button type="button" class="copy-btn @(PlaCopied ? "copied" : "")" @onclick="() => CopyPlaToClipboard(PlaViewMinimized ? PlaFormat.GeneratePlaFromCubes(VariableCount, currentEspressoStep.CurrentCover) : PlaFormat.GeneratePla(VariableCount, TruthValues))">
+                            @(PlaCopied ? "✓ Kopiert!" : "📋 Kopieren")
+                        </button>
+                    </div>
+                </div>
+
+                @{
+                    var currentPla = PlaViewMinimized
+                        ? PlaFormat.GeneratePlaFromCubes(VariableCount, currentEspressoStep.CurrentCover)
+                        : PlaFormat.GeneratePla(VariableCount, TruthValues);
+                    var originalCubeCount = TruthValues.Count(v => v == 1 || v == 2);
+                    var currentCubeCount = currentEspressoStep.CurrentCover.Length;
+                    var reduction = originalCubeCount > 0 ? (int)Math.Round((1.0 - (double)currentCubeCount / originalCubeCount) * 100) : 0;
+                }
+
+                <div class="pla-comparison-badge">
+                    <span><strong>Vorher:</strong> @originalCubeCount Zeilen</span>
+                    <span class="pla-arrow">&rarr;</span>
+                    <span><strong>Nachher:</strong> @currentCubeCount Würfel</span>
+                    @if (reduction > 0)
+                    {
+                        <span class="pla-savings-tag">@reduction% Einsparung</span>
+                    }
+                </div>
+
+                <div class="pla-code-container">
+                    <pre class="pla-code mono">@currentPla</pre>
+                </div>
+
+                <div class="pla-syntax-legend">
+                    <div class="legend-item"><span class="legend-key">.i / .o</span> Eingänge / Ausgänge</div>
+                    <div class="legend-item"><span class="legend-key">.p</span> Zeilenanzahl (Produktterme)</div>
+                    <div class="legend-item"><span class="legend-key">1 / 0</span> Positives / Negiertes Literal</div>
+                    <div class="legend-item"><span class="legend-key">-</span> Don't Care (gekürztes Literal)</div>
+                    <div class="legend-item"><span class="legend-key">... 1</span> Ausgangsfunktion aktiv</div>
                 </div>
             </div>
 
@@ -790,6 +919,13 @@
     private IEspressoSolution? EspressoSolution;
     private int EspressoCurrentStep = 0;
     private List<QmcStepSnapshot> Snapshots = new();
+
+    // PLA State
+    private bool ShowPlaInput = false;
+    private string PlaInputText = string.Empty;
+    private string? PlaErrorMessage = null;
+    private bool PlaViewMinimized = true;
+    private bool PlaCopied = false;
 
     // Player State
     private int CurrentStepIndex = 0;
@@ -1136,8 +1272,45 @@
             var espressoSolver = new EspressoSolver();
             EspressoSolution = espressoSolver.Solve(new EspressoParameters(VariableCount, TruthValues));
             EspressoCurrentStep = Math.Max(0, (EspressoSolution?.DetailedSteps.Count ?? 1) - 1);
+            if (!ShowPlaInput)
+            {
+                PlaInputText = PlaFormat.GeneratePla(VariableCount, TruthValues);
+            }
         }
         catch { }
+    }
+
+    private async Task CopyPlaToClipboard(string text)
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", text);
+            PlaCopied = true;
+            StateHasChanged();
+            _ = Task.Delay(2000).ContinueWith(_ =>
+            {
+                PlaCopied = false;
+                InvokeAsync(StateHasChanged);
+            });
+        }
+        catch { }
+    }
+
+    private void ApplyPlaInput()
+    {
+        StopPlay();
+        if (PlaFormat.TryParsePla(PlaInputText, out var vars, out var values, out var error))
+        {
+            PlaErrorMessage = null;
+            VariableCount = vars;
+            TruthValues = values;
+            TruthValuesInput = FormatTruthValues(TruthValues);
+            Recalculate();
+        }
+        else
+        {
+            PlaErrorMessage = error;
+        }
     }
 
     // Espresso Player Actions
