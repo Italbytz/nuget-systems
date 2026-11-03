@@ -134,8 +134,9 @@ internal static class BooleanMinimizationEngine
                     if (!next.Any(existing => existing.FixedBits == merged.FixedBits && existing.Mask == merged.Mask && existing.CoveredIndices.SequenceEqual(merged.CoveredIndices)))
                     {
                         next.Add(merged);
-                        steps.Add($"Combine {FormatImplicant(variableCount, first.FixedBits, first.Mask)} with {FormatImplicant(variableCount, second.FixedBits, second.Mask)} -> {FormatImplicant(variableCount, merged.FixedBits, merged.Mask)}.");
                     }
+
+                    steps.Add($"Combine {FormatImplicant(variableCount, first.FixedBits, first.Mask)} with {FormatImplicant(variableCount, second.FixedBits, second.Mask)} -> {FormatImplicant(variableCount, merged.FixedBits, merged.Mask)}.");
                 }
             }
 

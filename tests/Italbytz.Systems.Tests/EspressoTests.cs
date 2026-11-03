@@ -131,4 +131,25 @@ public class EspressoTests
         Assert.IsTrue(pla.Contains("01-0 1"));
         Assert.IsTrue(pla.Contains("--11 1"));
     }
+
+    [TestMethod]
+    public void TestQmcAllCombinationsRecordedForLecturePreset()
+    {
+        // 4 variables: m in {1, 3, 5, 7, 11, 13} -> Vector: 0,1,0,1,0,1,0,1,0,0,0,1,0,1,0,0
+        var truthValues = new int[16];
+        int[] minterms = [1, 3, 5, 7, 11, 13];
+        foreach (var m in minterms) truthValues[m] = 1;
+
+        var qmcSolver = new QuineMcCluskeySolver();
+        var qmcSolution = qmcSolver.Solve(new QuineMcCluskeyParameters(4, truthValues));
+
+        // Both alternative paths to 0--1 (!x3 & x0) must be recorded:
+        // 1) (!x3 & !x2 & x0) [00-1] + (!x3 & x2 & x0) [01-1] -> (!x3 & x0) [0--1]
+        // 2) (!x3 & !x1 & x0) [0-01] + (!x3 & x1 & x0) [0-11] -> (!x3 & x0) [0--1]
+        var path1 = qmcSolution.Steps.Any(s => s.Contains("(!x3 & !x2 & x0)") && s.Contains("(!x3 & x2 & x0)"));
+        var path2 = qmcSolution.Steps.Any(s => s.Contains("(!x3 & !x1 & x0)") && s.Contains("(!x3 & x1 & x0)"));
+
+        Assert.IsTrue(path1, "Path 1 (00-1 + 01-1 -> 0--1) must be in QMC steps.");
+        Assert.IsTrue(path2, "Path 2 (0-01 + 0-11 -> 0--1) must be in QMC steps.");
+    }
 }
