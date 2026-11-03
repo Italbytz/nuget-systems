@@ -139,13 +139,13 @@
             </div>
         </div>
 
-        @if (QmcSolution != null)
+        @if (QmcSolution != null && Snapshots.Count > 0)
         {
-            var totalSteps = QmcSolution.Steps.Count;
-            var activeStep = (CurrentStepIndex >= 0 && CurrentStepIndex < totalSteps) ? QmcSolution.Steps[CurrentStepIndex] : "";
-            var stepAnalysis = AnalyzeStep(activeStep);
+            var totalSteps = Snapshots.Count;
+            var currentSnapshot = (CurrentStepIndex >= 0 && CurrentStepIndex < totalSteps) ? Snapshots[CurrentStepIndex] : Snapshots[0];
+            var activeStep = currentSnapshot.StepText;
+            var stepAnalysis = AnalyzeStep(activeStep, currentSnapshot.RoundHeader);
             bool isEndState = CurrentStepIndex >= totalSteps - 1;
-            var currentSnapshot = (CurrentStepIndex >= 0 && CurrentStepIndex < Snapshots.Count) ? Snapshots[CurrentStepIndex] : null;
 
             <!-- Narrator Card -->
             <div class="narrator-card @(isEndState ? "narrator-finished" : "")">
@@ -158,6 +158,10 @@
                         }
                         else
                         {
+                            @if (!string.IsNullOrEmpty(currentSnapshot.RoundHeader))
+                            {
+                                <span class="round-prefix mono">[@currentSnapshot.RoundHeader.TrimEnd('.')] </span>
+                            }
                             <span>@FormatTermMarkup(activeStep)</span>
                         }
                     </div>
@@ -440,15 +444,22 @@
                             <h4>QMC-Ablaufprotokoll (Trace Steps)</h4>
                         </div>
                         <div class="trace-list">
-                            @for (int i = 0; i < QmcSolution.Steps.Count; i++)
+                            @for (int i = 0; i < Snapshots.Count; i++)
                             {
                                 int stepIdx = i;
                                 bool isCurrent = (stepIdx == CurrentStepIndex);
                                 bool isPast = (stepIdx < CurrentStepIndex);
+                                var snap = Snapshots[stepIdx];
                                 <div class="trace-item @(isCurrent ? "active-trace" : "") @(isPast ? "past-trace" : "")"
                                      @onclick="() => SetStep(stepIdx)">
                                     <span class="trace-num">@(stepIdx + 1).</span>
-                                    <span class="trace-text">@FormatTermMarkup(QmcSolution.Steps[stepIdx])</span>
+                                    <span class="trace-text">
+                                        @if (!string.IsNullOrEmpty(snap.RoundHeader))
+                                        {
+                                            <strong class="trace-round">[@snap.RoundHeader.TrimEnd('.')] </strong>
+                                        }
+                                        @FormatTermMarkup(snap.StepText)
+                                    </span>
                                     @if (isCurrent)
                                     {
                                         <span class="trace-pointer">👉</span>
@@ -1267,7 +1278,7 @@
             var solver = new QuineMcCluskeySolver();
             QmcSolution = solver.Solve(new QuineMcCluskeyParameters(VariableCount, TruthValues));
             Snapshots = BuildSnapshots();
-            CurrentStepIndex = Math.Max(0, (QmcSolution?.Steps.Count ?? 1) - 1);
+            CurrentStepIndex = Math.Max(0, Snapshots.Count - 1);
 
             var espressoSolver = new EspressoSolver();
             EspressoSolution = espressoSolver.Solve(new EspressoParameters(VariableCount, TruthValues));
@@ -1360,7 +1371,7 @@
     private void NextStep()
     {
         StopPlay();
-        if (QmcSolution != null && CurrentStepIndex < QmcSolution.Steps.Count - 1)
+        if (CurrentStepIndex < Snapshots.Count - 1)
         {
             CurrentStepIndex++;
         }
@@ -1375,16 +1386,16 @@
     private void GoToEnd()
     {
         StopPlay();
-        if (QmcSolution != null)
+        if (Snapshots.Count > 0)
         {
-            CurrentStepIndex = QmcSolution.Steps.Count - 1;
+            CurrentStepIndex = Snapshots.Count - 1;
         }
     }
 
     private void SetStep(int step)
     {
         StopPlay();
-        if (QmcSolution != null && step >= 0 && step < QmcSolution.Steps.Count)
+        if (step >= 0 && step < Snapshots.Count)
         {
             CurrentStepIndex = step;
         }
@@ -1395,7 +1406,7 @@
         StopPlay();
         if (int.TryParse(e.Value?.ToString(), out int val))
         {
-            CurrentStepIndex = val;
+            CurrentStepIndex = Math.Clamp(val, 0, Math.Max(0, Snapshots.Count - 1));
         }
     }
 
@@ -1413,8 +1424,8 @@
 
     private async Task StartPlay()
     {
-        if (QmcSolution == null || QmcSolution.Steps.Count == 0) return;
-        if (CurrentStepIndex >= QmcSolution.Steps.Count - 1)
+        if (Snapshots.Count == 0) return;
+        if (CurrentStepIndex >= Snapshots.Count - 1)
         {
             CurrentStepIndex = 0;
         }
@@ -1424,7 +1435,7 @@
 
         try
         {
-            while (!token.IsCancellationRequested && CurrentStepIndex < QmcSolution.Steps.Count - 1)
+            while (!token.IsCancellationRequested && CurrentStepIndex < Snapshots.Count - 1)
             {
                 await Task.Delay(1000, token);
                 CurrentStepIndex++;
@@ -1453,7 +1464,7 @@
     }
 
     // Didactic Step Analysis
-    private (string BadgeClass, string BadgeText, string Explanation) AnalyzeStep(string stepText)
+    private (string BadgeClass, string BadgeText, string Explanation) AnalyzeStep(string stepText, string? roundHeader = null)
     {
         if (string.IsNullOrWhiteSpace(stepText))
         {
@@ -1465,7 +1476,7 @@
             stepText.StartsWith("Function is", StringComparison.OrdinalIgnoreCase))
         {
             return ("badge-phase1", "Phase 1: Einsmenge", 
-                "Alle Minterme (0. Ordnung), für die die Funktion f = 1 annimmt, werden ermittelt und in die Ausgangstabelle eingetragen.");
+                "Alle Minterme (0. Ordnung), für die die Funktion f = 1 oder Don't Care annimmt, werden ermittelt und in die Ausgangstabelle eingetragen.");
         }
         if (stepText.StartsWith("Round", StringComparison.OrdinalIgnoreCase))
         {
@@ -1474,13 +1485,15 @@
         }
         if (stepText.StartsWith("Combine", StringComparison.OrdinalIgnoreCase))
         {
+            var roundInfo = !string.IsNullOrEmpty(roundHeader) ? $"{roundHeader.TrimEnd('.')}: " : "";
             return ("badge-phase2", "Phase 2: Nachbarschafts-Verschmelzung", 
-                "Zwei Nachbar-Terme unterscheiden sich in genau einer Variablen (Hamming-Distanz = 1) und werden zusammengefasst. Das redundante Literal entfällt.");
+                $"{roundInfo}Zwei Nachbar-Terme unterscheiden sich in genau einer Variablen (Hamming-Distanz = 1) und werden zusammengefasst. Das redundante Literal entfällt.");
         }
         if (stepText.StartsWith("Prime implicant found:", StringComparison.OrdinalIgnoreCase))
         {
+            var roundInfo = !string.IsNullOrEmpty(roundHeader) ? $"{roundHeader.TrimEnd('.')}: " : "";
             return ("badge-phase3", "Phase 3: Primimplikant", 
-                "Dieser Implikant kann mit keinem weiteren Partner mehr zusammengefasst werden. Er bildet einen maximal großen Block (Primimplikant).");
+                $"{roundInfo}Dieser Implikant kann mit keinem weiteren Partner mehr zusammengefasst werden. Er bildet einen maximal großen Block (Primimplikant).");
         }
         if (stepText.StartsWith("Essential prime implicant:", StringComparison.OrdinalIgnoreCase))
         {
@@ -1570,6 +1583,8 @@
     public class QmcStepSnapshot
     {
         public int StepIndex { get; set; }
+        public string StepText { get; set; } = string.Empty;
+        public string? RoundHeader { get; set; }
         public Dictionary<int, List<QmcOrderEntry>> Orders { get; set; } = new();
         public List<QmcPrimeEntry> FoundPrimeImplicants { get; set; } = new();
         public HashSet<string> EssentialPrimeImplicants { get; set; } = new();
@@ -1607,16 +1622,39 @@
         }
         state.Orders[0] = order0;
 
+        // Initial snapshot: Step 0 before combinations begin
+        var initialSnapshot = CloneSnapshot(state, 0);
+        initialSnapshot.StepText = "Start QMC: Einsmenge der 0. Ordnung aufgestellt.";
+        snapshots.Add(initialSnapshot);
+
+        string? pendingRoundHeader = null;
+
         for (int s = 0; s < QmcSolution.Steps.Count; s++)
         {
             var stepText = QmcSolution.Steps[s];
-            state = CloneSnapshot(state, s);
 
             if (stepText.StartsWith("Round ", StringComparison.OrdinalIgnoreCase))
             {
-                // New round begins
+                // Consolidate round description into next action step
+                pendingRoundHeader = stepText;
+                continue;
             }
-            else if (stepText.StartsWith("Combine ", StringComparison.OrdinalIgnoreCase))
+
+            if (stepText.StartsWith("Petrick selection required", StringComparison.OrdinalIgnoreCase))
+            {
+                // Pure informational step with no visual change; merges into actual Petrick selection
+                continue;
+            }
+
+            state = CloneSnapshot(state, snapshots.Count);
+            if (!string.IsNullOrEmpty(pendingRoundHeader))
+            {
+                state.RoundHeader = pendingRoundHeader;
+                pendingRoundHeader = null;
+            }
+            state.StepText = stepText;
+
+            if (stepText.StartsWith("Combine ", StringComparison.OrdinalIgnoreCase))
             {
                 var match = Regex.Match(stepText, @"Combine\s+(.+?)\s+with\s+(.+?)\s+->\s+(.+?)\.");
                 if (match.Success)
@@ -1731,10 +1769,6 @@
                     }
                 }
             }
-            else if (stepText.StartsWith("Petrick selection required", StringComparison.OrdinalIgnoreCase))
-            {
-                state.IsCoveragePhaseActive = true;
-            }
             else if (stepText.StartsWith("Petrick selected ", StringComparison.OrdinalIgnoreCase))
             {
                 state.IsCoveragePhaseActive = true;
@@ -1778,6 +1812,8 @@
         var next = new QmcStepSnapshot
         {
             StepIndex = stepIndex,
+            StepText = prev.StepText,
+            RoundHeader = prev.RoundHeader,
             IsCoveragePhaseActive = prev.IsCoveragePhaseActive,
             ActiveUniqueMinterm = null,
             ActivePrimeImplicantTerm = null,

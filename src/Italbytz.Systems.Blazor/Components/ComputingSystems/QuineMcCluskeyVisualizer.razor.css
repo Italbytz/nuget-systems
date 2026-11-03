@@ -197,6 +197,12 @@
     color: #1e3a8a;
 }
 
+.round-prefix {
+    color: #2563eb;
+    font-weight: 700;
+    margin-right: 0.35rem;
+}
+
 .narrator-text {
     font-size: 0.95rem;
     line-height: 1.5;
@@ -589,6 +595,13 @@
 
 .trace-text {
     color: #334155;
+}
+
+.trace-round {
+    color: #2563eb;
+    font-weight: 700;
+    font-size: 0.85em;
+    margin-right: 0.25rem;
 }
 
 .formula-card {
