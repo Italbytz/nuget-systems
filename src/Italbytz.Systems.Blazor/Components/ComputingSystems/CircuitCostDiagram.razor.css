@@ -1,0 +1,159 @@
+/* ========================================================================= */
+/* Circuit SVG Diagram Styles (CircuitCostDiagram Component)                 */
+/* ========================================================================= */
+
+.circuit-svg-container {
+    background: var(--bg-surface-subtle, #f8fafc);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow-x: auto;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.circuit-svg {
+    width: 100%;
+    max-width: 460px;
+    height: auto;
+    display: block;
+}
+
+.wire {
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    fill: none;
+    transition: stroke 0.15s ease;
+}
+
+.wire-high {
+    stroke: #2563eb;
+}
+
+.wire-low {
+    stroke: #94a3b8;
+}
+
+.wire-neutral {
+    stroke: #334155;
+}
+
+.wire-dot {
+    transition: fill 0.15s ease;
+}
+
+.wire-dot.dot-high {
+    fill: #2563eb;
+}
+
+.wire-dot.dot-low {
+    fill: #94a3b8;
+}
+
+.gate-box {
+    fill: #ffffff;
+    stroke: #1e293b;
+    stroke-width: 1.8;
+}
+
+.gate-box-text {
+    fill: #0f172a;
+    font-size: 15px;
+    font-weight: 700;
+    text-anchor: middle;
+    dominant-baseline: central;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.gate-sub-text {
+    fill: #64748b;
+    font-size: 10px;
+    font-weight: 600;
+    text-anchor: middle;
+    dominant-baseline: central;
+}
+
+.pin-label {
+    fill: #1e293b;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: system-ui, -apple-system, sans-serif;
+    font-style: italic;
+}
+
+.pin-val {
+    fill: #64748b;
+    font-size: 10px;
+    font-weight: 600;
+    font-family: ui-monospace, monospace;
+}
+
+.stage-divider {
+    stroke: #cbd5e1;
+    stroke-width: 1.2;
+    stroke-dasharray: 4, 4;
+    fill: none;
+}
+
+.stage-label-text {
+    fill: #64748b;
+    font-size: 10px;
+    font-weight: 700;
+    text-anchor: middle;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.inversion-bubble {
+    fill: #ffffff;
+    stroke: #1e293b;
+    stroke-width: 1.5;
+}
+
+/* Dark Mode Support */
+:global(.is-dark) .circuit-svg-container {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+:global(.is-dark) .gate-box {
+    fill: #1e293b;
+    stroke: #94a3b8;
+}
+
+:global(.is-dark) .gate-box-text {
+    fill: #f8fafc;
+}
+
+:global(.is-dark) .pin-label {
+    fill: #f8fafc;
+}
+
+:global(.is-dark) .pin-val {
+    fill: #94a3b8;
+}
+
+:global(.is-dark) .stage-divider {
+    stroke: #475569;
+}
+
+:global(.is-dark) .stage-label-text {
+    fill: #94a3b8;
+}
+
+:global(.is-dark) .wire-low {
+    stroke: #64748b;
+}
+
+:global(.is-dark) .wire-high {
+    stroke: #60a5fa;
+}
+
+:global(.is-dark) .inversion-bubble {
+    fill: #1e293b;
+    stroke: #94a3b8;
+}
