@@ -101,6 +101,16 @@ internal static class BooleanMinimizationEngine
         var round = 1;
         while (current.Count > 0)
         {
+            if (current.Count == 1)
+            {
+                if (current[0].CoveredMinterms.Length > 0)
+                {
+                    primes.Add(current[0]);
+                    steps.Add($"Prime implicant found: {FormatImplicant(variableCount, current[0].FixedBits, current[0].Mask)} covering {string.Join(", ", current[0].CoveredMinterms)}.");
+                }
+                break;
+            }
+
             steps.Add($"Round {round}: {current.Count} implicants enter combination.");
             var next = new List<ImplicantData>();
             var combinedIndices = new HashSet<int>();
@@ -122,8 +132,8 @@ internal static class BooleanMinimizationEngine
                         continue;
                     }
 
-                    combinedIndices.Add(indexA);
-                    combinedIndices.Add(indexB);
+                    var isNewA = combinedIndices.Add(indexA);
+                    var isNewB = combinedIndices.Add(indexB);
 
                     var merged = new ImplicantData(
                         first.FixedBits & second.FixedBits,
@@ -131,12 +141,17 @@ internal static class BooleanMinimizationEngine
                         first.CoveredIndices.Union(second.CoveredIndices).OrderBy(value => value).ToArray(),
                         first.CoveredMinterms.Union(second.CoveredMinterms).OrderBy(value => value).ToArray());
 
+                    var isNewMerged = false;
                     if (!next.Any(existing => existing.FixedBits == merged.FixedBits && existing.Mask == merged.Mask && existing.CoveredIndices.SequenceEqual(merged.CoveredIndices)))
                     {
                         next.Add(merged);
+                        isNewMerged = true;
                     }
 
-                    steps.Add($"Combine {FormatImplicant(variableCount, first.FixedBits, first.Mask)} with {FormatImplicant(variableCount, second.FixedBits, second.Mask)} -> {FormatImplicant(variableCount, merged.FixedBits, merged.Mask)}.");
+                    if (isNewA || isNewB || isNewMerged)
+                    {
+                        steps.Add($"Combine {FormatImplicant(variableCount, first.FixedBits, first.Mask)} with {FormatImplicant(variableCount, second.FixedBits, second.Mask)} -> {FormatImplicant(variableCount, merged.FixedBits, merged.Mask)}.");
+                    }
                 }
             }
 

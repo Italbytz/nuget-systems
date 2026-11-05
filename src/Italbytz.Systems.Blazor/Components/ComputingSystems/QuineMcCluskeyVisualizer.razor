@@ -1666,17 +1666,20 @@
                     var (fixedA, maskA) = ParseImplicantTerm(termA, VariableCount);
                     int orderA = BitCount(maskA);
 
+                    bool hadVisualChange = false;
                     if (state.Orders.TryGetValue(orderA, out var orderAList))
                     {
                         var entryA = orderAList.FirstOrDefault(e => e.Term == termA);
                         if (entryA != null)
                         {
+                            if (!entryA.IsCombined) hadVisualChange = true;
                             entryA.IsCombined = true;
                             entryA.IsActiveSource = true;
                         }
                         var entryB = orderAList.FirstOrDefault(e => e.Term == termB);
                         if (entryB != null)
                         {
+                            if (!entryB.IsCombined) hadVisualChange = true;
                             entryB.IsCombined = true;
                             entryB.IsActiveSource = true;
                         }
@@ -1704,10 +1707,18 @@
                             IsActiveTarget = true
                         };
                         orderCList.Add(entryC);
+                        hadVisualChange = true;
                     }
                     else
                     {
                         entryC.IsActiveTarget = true;
+                    }
+
+                    if (!hadVisualChange)
+                    {
+                        // Roll back state to previous snapshot and skip this no-op step
+                        state = snapshots[^1];
+                        continue;
                     }
                 }
             }
