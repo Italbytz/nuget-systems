@@ -1,0 +1,436 @@
+@namespace Italbytz.Systems.Blazor.Components.OperatingSystems
+@using System.Runtime.InteropServices
+@using System.Text
+@using Microsoft.AspNetCore.Components
+@using Microsoft.JSInterop
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+<article class="devices-container @(IsEmbed ? "embed-mode" : "")">
+
+    @if (!IsEmbed)
+    {
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Betriebssysteme &bull; Ein-/Ausgabe &amp; Dateisysteme</p>
+            <h2>UNIX-Gerätedateien in C# („Alles ist eine Datei“)</h2>
+            <p class="feature-intro">
+                Unter UNIX/Linux werden physische Hardwaregeräte (Tastatur, Bildschirm, Festplatten) und Pseudogeräte 
+                über das Virtual File System (VFS) als Dateien unter <code>/dev/</code> abgebildet. 
+                In C# können Sie mit gewöhnlichen Streams (<code>StreamWriter</code>, <code>StreamReader</code>, <code>FileStream</code>) 
+                auf <code>/dev/stdout</code>, <code>/dev/null</code> oder <code>/dev/urandom</code> zugreifen.
+            </p>
+        </div>
+    }
+
+    <!-- Device Selection Toolbar -->
+    <div class="controls-panel no-print">
+        <div class="toolbar-grid">
+            <div class="control-group">
+                <span class="control-label">Gerätedatei (Device Node):</span>
+                <div class="btn-group">
+                    <button class="toggle-btn @(SelectedDevice == "/dev/stdout" ? "active" : "")"
+                            @onclick='() => SelectDevice("/dev/stdout")'>
+                        📄 /dev/stdout
+                    </button>
+                    <button class="toggle-btn @(SelectedDevice == "/dev/null" ? "active" : "")"
+                            @onclick='() => SelectDevice("/dev/null")'>
+                        🕳️ /dev/null
+                    </button>
+                    <button class="toggle-btn @(SelectedDevice == "/dev/urandom" ? "active" : "")"
+                            @onclick='() => SelectDevice("/dev/urandom")'>
+                        🎲 /dev/urandom
+                    </button>
+                    <button class="toggle-btn @(SelectedDevice == "/dev/zero" ? "active" : "")"
+                            @onclick='() => SelectDevice("/dev/zero")'>
+                        0️⃣ /dev/zero
+                    </button>
+                    <button class="toggle-btn @(SelectedDevice == "/dev/stdin" ? "active" : "")"
+                            @onclick='() => SelectDevice("/dev/stdin")'>
+                        ⌨️ /dev/stdin
+                    </button>
+                </div>
+            </div>
+
+            <div class="action-btn-group">
+                @if (SelectedDevice == "/dev/urandom" || SelectedDevice == "/dev/zero")
+                {
+                    <button class="ctrl-btn ctrl-play" @onclick="ReadFromDevice">
+                        📖 Aus @SelectedDevice lesen
+                    </button>
+                }
+                else if (SelectedDevice == "/dev/stdin")
+                {
+                    <button class="ctrl-btn ctrl-play" @onclick="ReadFromStdin">
+                        ⌨️ Eingabe lesen (ReadLine)
+                    </button>
+                }
+                else
+                {
+                    <button class="ctrl-btn ctrl-play" @onclick="WriteToDevice">
+                        ✍️ In @SelectedDevice schreiben
+                    </button>
+                }
+                <button class="ctrl-btn" @onclick="ResetConsole">
+                    🔄 Reset
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Device Hero Card -->
+    <div class="device-hero-card">
+        <div class="device-header">
+            <div class="device-title-wrap">
+                <span class="device-icon">@CurrentDeviceInfo.Icon</span>
+                <div>
+                    <strong class="device-path">@CurrentDeviceInfo.Path</strong>
+                    <span class="device-type-badge">@CurrentDeviceInfo.Type (@CurrentDeviceInfo.MajorMinor)</span>
+                </div>
+            </div>
+            <span class="posix-badge">POSIX: @CurrentDeviceInfo.PosixRole</span>
+        </div>
+        <p class="device-desc">@CurrentDeviceInfo.Description</p>
+    </div>
+
+    <!-- Interactive I/O Simulation Stage -->
+    <div class="io-stage-grid">
+        <!-- Left: Input/Payload Configurator -->
+        <div class="io-control-card">
+            <h3>E/A-Operation konfigurieren</h3>
+
+            @if (SelectedDevice == "/dev/stdin")
+            {
+                <div class="form-row">
+                    <label class="input-label">Benutzereingabe für <code>/dev/stdin</code>:</label>
+                    <input type="text" class="text-control" @bind="StdinInputText" placeholder="Name oder Eingabetext..." />
+                </div>
+                <div class="hint-box">
+                    💡 <strong>Interaktive Eingabe:</strong> In <code>Devices/Program.cs</code> wird <code>StreamReader("/dev/stdout")</code> (bzw. stdin) verwendet, um Tastatureingaben zeilenweise einzulesen.
+                </div>
+            }
+            else if (SelectedDevice == "/dev/urandom" || SelectedDevice == "/dev/zero")
+            {
+                <div class="form-row">
+                    <label class="input-label">Anzahl zu lesender Bytes:</label>
+                    <div class="btn-group">
+                        <button class="btn-sm @(ReadByteCount == 16 ? "btn-active" : "")" @onclick="() => ReadByteCount = 16">16 Bytes</button>
+                        <button class="btn-sm @(ReadByteCount == 32 ? "btn-active" : "")" @onclick="() => ReadByteCount = 32">32 Bytes</button>
+                        <button class="btn-sm @(ReadByteCount == 64 ? "btn-active" : "")" @onclick="() => ReadByteCount = 64">64 Bytes</button>
+                    </div>
+                </div>
+                <div class="hint-box">
+                    💡 <strong>Kernel-Generatoren:</strong> <code>/dev/urandom</code> liest aus dem Entropie-Pool des Kernels. <code>/dev/zero</code> liefert unendlich viele Null-Bytes (z. B. zum Initialisieren von Swap-Dateien).
+                </div>
+            }
+            else
+            {
+                <div class="form-row">
+                    <label class="input-label">Zu schreibender Text (Payload):</label>
+                    <input type="text" class="text-control" @bind="PayloadText" />
+                </div>
+                <div class="preset-pills">
+                    <button class="btn-xs" @onclick='() => PayloadText = "Hallo Betriebssysteme!"'>Standard</button>
+                    <button class="btn-xs" @onclick='() => PayloadText = "Wie heißen Sie? "'>Programm-Prompt</button>
+                    <button class="btn-xs" @onclick='() => PayloadText = "Geheime Kernel-Nachricht"'>Geheim</button>
+                </div>
+                @if (SelectedDevice == "/dev/null")
+                {
+                    <div class="hint-box hint-warn">
+                        🕳️ <strong>Bit-Bucket:</strong> Alle Schreibzugriffe auf <code>/dev/null</code> melden sofortigen Erfolg zurück, aber der Kernel verwirft die Daten vollständig!
+                    </div>
+                }
+                else
+                {
+                    <div class="hint-box">
+                        📄 <strong>VFS write():</strong> Der <code>StreamWriter</code> öffnet <code>/dev/stdout</code> wie eine Textdatei. Der Kernel leitet die Bytes an das Pseudoterminal weiter.
+                    </div>
+                }
+            }
+
+            <!-- VFS Layers Stack -->
+            <div class="vfs-layers-stack">
+                <div class="vfs-layer layer-app">
+                    <span class="layer-num">1</span>
+                    <span>Anwendung / C# (<code>new StreamWriter("@SelectedDevice")</code>)</span>
+                </div>
+                <div class="vfs-arrow">⬇️ VFS Systemaufruf (<code>sys_write</code> / <code>sys_read</code>)</div>
+                <div class="vfs-layer layer-kernel">
+                    <span class="layer-num">2</span>
+                    <span>Betriebssystem VFS (Inode @CurrentDeviceInfo.MajorMinor &bull; Gerätedatei)</span>
+                </div>
+                <div class="vfs-arrow">⬇️ Gerätetreiber-Treiberfunktion</div>
+                <div class="vfs-layer layer-driver">
+                    <span class="layer-num">3</span>
+                    <span>Ziel: @CurrentDeviceInfo.TargetDescription</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Terminal Output Window -->
+        <div class="terminal-card">
+            <div class="terminal-bar">
+                <div class="terminal-dots">
+                    <span class="dot red"></span>
+                    <span class="dot yellow"></span>
+                    <span class="dot green"></span>
+                </div>
+                <span class="terminal-title">Standard E/A Stream &amp; Gerätedateien (Konsole)</span>
+                <span class="terminal-status">PID 7420</span>
+            </div>
+            <div class="terminal-screen">
+                <div class="term-line term-prompt">$ dotnet run --project Devices</div>
+                @foreach (var line in TerminalLines)
+                {
+                    <div class="term-line @(line.StartsWith("  ->") ? "term-highlight" : (line.StartsWith("[!]") ? "term-err" : "term-out"))">@line</div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- C# Source Code & POSIX Concept Section -->
+    <div class="code-and-theory-grid">
+        <div class="code-card">
+            <div class="code-header">
+                <span>C# Quellcode (<code>Devices/Program.cs</code>)</span>
+                <a href="https://github.com/RobinNunkesser/work/tree/main/artifacts/packages/dotnet/nuget-systems/samples/console/OperatingSystems/Devices/" 
+                   target="_blank" rel="noopener noreferrer" class="code-link">
+                    📁 Im Quellcode ansehen ↗
+                </a>
+            </div>
+            <pre class="code-pre"><code><span class="kw">using</span> System.IO;
+
+<span class="kw">namespace</span> Devices;
+
+<span class="kw">internal class</span> <span class="typ">Program</span>
+{
+    <span class="kw">private static void</span> <span class="mth">Main</span>(<span class="kw">string</span>[] args)
+    {
+        <span class="cmt">// 1. /dev/stdout als gewöhnliche Datei öffnen</span>
+        <span class="kw">using var</span> deviceWriter = <span class="kw">new</span> <span class="typ">StreamWriter</span>(<span class="str">"/dev/stdout"</span>) { AutoFlush = <span class="kw">true</span> };
+
+        <span class="cmt">// 2. Direkte Ausgabe über Dateisystem-Stream</span>
+        deviceWriter.<span class="mth">WriteLine</span>(<span class="str">"Wie heißen Sie? "</span>);
+
+        <span class="cmt">// 3. Eingabe über Stream lesen</span>
+        <span class="kw">using var</span> deviceReader = <span class="kw">new</span> <span class="typ">StreamReader</span>(Console.<span class="mth">OpenStandardInput</span>());
+        <span class="kw">var</span> input = deviceReader.<span class="mth">ReadLine</span>();
+
+        deviceWriter.<span class="mth">WriteLine</span>(<span class="str">$"Hallo {input}"</span>);
+    }
+}</code></pre>
+        </div>
+
+        <div class="theory-card">
+            <h3>UNIX Gerätedateien (VFS Geräte-Knoten)</h3>
+            <table class="concept-table">
+                <thead>
+                    <tr>
+                        <th>Pfad</th>
+                        <th>Typ</th>
+                        <th>Major, Minor</th>
+                        <th>Funktion &amp; Verhalten</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>/dev/stdout</code></td>
+                        <td>Zeichen (c)</td>
+                        <td>Symlink &rarr; /proc/self/fd/1</td>
+                        <td>Standardausgabe des Prozesses</td>
+                    </tr>
+                    <tr>
+                        <td><code>/dev/stdin</code></td>
+                        <td>Zeichen (c)</td>
+                        <td>Symlink &rarr; /proc/self/fd/0</td>
+                        <td>Standardeingabe des Prozesses</td>
+                    </tr>
+                    <tr>
+                        <td><code>/dev/null</code></td>
+                        <td>Zeichen (c)</td>
+                        <td>1, 3</td>
+                        <td>Schluckt alle Daten; liefert EOF beim Lesen</td>
+                    </tr>
+                    <tr>
+                        <td><code>/dev/zero</code></td>
+                        <td>Zeichen (c)</td>
+                        <td>1, 5</td>
+                        <td>Liefert unendlich viele Null-Bytes (0x00)</td>
+                    </tr>
+                    <tr>
+                        <td><code>/dev/urandom</code></td>
+                        <td>Zeichen (c)</td>
+                        <td>1, 9</td>
+                        <td>Kryptographischer Zufallszahlengenerator</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</article>
+
+@code {
+    [SupplyParameterFromQuery(Name = "embed")]
+    public bool? QueryEmbed { get; set; }
+
+    [Parameter]
+    public bool IsEmbed { get; set; } = false;
+
+    public string SelectedDevice { get; set; } = "/dev/stdout";
+    public string PayloadText { get; set; } = "Hallo Betriebssysteme!";
+    public string StdinInputText { get; set; } = "Robin";
+    public int ReadByteCount { get; set; } = 16;
+    public List<string> TerminalLines { get; set; } = new();
+
+    public record DeviceInfo(
+        string Path,
+        string Icon,
+        string Type,
+        string MajorMinor,
+        string PosixRole,
+        string Description,
+        string TargetDescription
+    );
+
+    public Dictionary<string, DeviceInfo> DevicesDict = new()
+    {
+        {
+            "/dev/stdout",
+            new(
+                "/dev/stdout",
+                "📄",
+                "Zeichenorientiert (c)",
+                "FD 1",
+                "STDOUT_FILENO (Dateideskriptor 1)",
+                "Standard-Ausgabekanal des Prozesses. Daten, die hier hineingeschrieben werden, landen direkt im Terminalfenster.",
+                "Pseudoterminal / PTY (Bildschirmausgabe)"
+            )
+        },
+        {
+            "/dev/null",
+            new(
+                "/dev/null",
+                "🕳️",
+                "Zeichenorientiert (c)",
+                "Major 1, Minor 3",
+                "Bit-Bucket / Black Hole",
+                "Nimmt beliebige Datenmengen an und verwirft sie sofort ohne Fehler. Beim Lesen liefert /dev/null sofort EOF (0 Bytes).",
+                "Kernel-Null-Senke (sofortiges Verwerfen)"
+            )
+        },
+        {
+            "/dev/urandom",
+            new(
+                "/dev/urandom",
+                "🎲",
+                "Zeichenorientiert (c)",
+                "Major 1, Minor 9",
+                "Kernel CSPRNG (Entropy Pool)",
+                "Liefert nicht-blockierende kryptographische Pseudozufallszahlen aus dem Entropie-Pool des Betriebssystemkerns.",
+                "Kernel-Zufallsgenerator (Hardware-Rauschen)"
+            )
+        },
+        {
+            "/dev/zero",
+            new(
+                "/dev/zero",
+                "0️⃣",
+                "Zeichenorientiert (c)",
+                "Major 1, Minor 5",
+                "Null-Byte-Generator",
+                "Liefert bei jedem Lesezugriff kontinuierlich Null-Bytes (0x00). Beliebt zum sicheren Überschreiben oder Speicher-Mapping.",
+                "Zero-Page-Generator im Kernel"
+            )
+        },
+        {
+            "/dev/stdin",
+            new(
+                "/dev/stdin",
+                "⌨️",
+                "Zeichenorientiert (c)",
+                "FD 0",
+                "STDIN_FILENO (Dateideskriptor 0)",
+                "Standard-Eingabekanal des Prozesses. Liest Daten von der Tastatur oder einer vorgeschalteten Pipe.",
+                "Tastaturpuffer / Eingabestrom"
+            )
+        }
+    };
+
+    public DeviceInfo CurrentDeviceInfo => DevicesDict.TryGetValue(SelectedDevice, out var info) 
+        ? info 
+        : DevicesDict["/dev/stdout"];
+
+    protected override void OnInitialized()
+    {
+        if (QueryEmbed.HasValue)
+        {
+            IsEmbed = QueryEmbed.Value;
+        }
+
+        TerminalLines.Add("Server/Environment initialisiert.");
+        TerminalLines.Add("Bereit für E/A-Operationen auf /dev/...");
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (QueryEmbed.HasValue)
+        {
+            IsEmbed = QueryEmbed.Value;
+        }
+    }
+
+    public void SelectDevice(string path)
+    {
+        SelectedDevice = path;
+    }
+
+    public void WriteToDevice()
+    {
+        TerminalLines.Add($"\n[Operation] StreamWriter(\"{SelectedDevice}\").WriteLine(\"{PayloadText}\")");
+
+        if (SelectedDevice == "/dev/null")
+        {
+            TerminalLines.Add($"  -> {PayloadText.Length} Bytes nach /dev/null geschrieben.");
+            TerminalLines.Add("  -> [Kernel]: Daten wurden sofort im Bit-Bucket verworfen.");
+        }
+        else
+        {
+            TerminalLines.Add($"  -> [Ausgabe auf Konsole]: {PayloadText}");
+        }
+    }
+
+    public void ReadFromDevice()
+    {
+        TerminalLines.Add($"\n[Operation] File.OpenRead(\"{SelectedDevice}\").Read({ReadByteCount} Bytes)");
+
+        if (SelectedDevice == "/dev/zero")
+        {
+            var zeros = new byte[ReadByteCount];
+            TerminalLines.Add($"  -> Gelesene Null-Bytes ({ReadByteCount} Bytes): {Convert.ToHexString(zeros)}");
+        }
+        else if (SelectedDevice == "/dev/urandom")
+        {
+            var rnd = new byte[ReadByteCount];
+            Random.Shared.NextBytes(rnd);
+            TerminalLines.Add($"  -> Gelesene Kernel-Entropie ({ReadByteCount} Bytes Hex): {Convert.ToHexString(rnd)}");
+        }
+    }
+
+    public void ReadFromStdin()
+    {
+        TerminalLines.Add($"\n[Operation] StreamReader(\"/dev/stdin\").ReadLine()");
+        TerminalLines.Add($"Wie heißen Sie? {StdinInputText}");
+        TerminalLines.Add($"  -> Hallo {StdinInputText}! Willkommen in der Welt der UNIX-Gerätedateien.");
+    }
+
+    public void ResetConsole()
+    {
+        TerminalLines.Clear();
+        TerminalLines.Add("Konsole zurückgesetzt. Bereit für E/A-Operationen.");
+    }
+
+    public void Dispose()
+    {
+    }
+}
