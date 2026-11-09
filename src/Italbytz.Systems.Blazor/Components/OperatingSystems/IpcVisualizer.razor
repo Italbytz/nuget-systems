@@ -720,10 +720,16 @@
 
     private int QuizScore => QuizOptions.Count(o => o.IsSelected && o.IsCorrect);
 
+    [SupplyParameterFromQuery(Name = "mech")]
+    public string? QueryMech { get; set; }
+
+    [SupplyParameterFromQuery(Name = "embed")]
+    public bool? QueryEmbed { get; set; }
+
     protected override void OnInitialized()
     {
         ReadQueryParameters();
-        SelectMechanism("shm");
+        SelectMechanism(SelectedMechanismId);
     }
 
     protected override void OnParametersSet()
@@ -735,6 +741,21 @@
     {
         try
         {
+            if (QueryEmbed.HasValue)
+            {
+                IsEmbed = QueryEmbed.Value;
+                if (IsEmbed) ShowTaxonomy = false;
+            }
+
+            if (!string.IsNullOrEmpty(QueryMech))
+            {
+                var match = AvailableMechanisms.FirstOrDefault(m => m.Id.Equals(QueryMech, StringComparison.OrdinalIgnoreCase));
+                if (match != null)
+                {
+                    SelectedMechanismId = match.Id;
+                }
+            }
+
             var uri = new Uri(NavigationManager.Uri);
             var query = uri.Query;
             if (!string.IsNullOrEmpty(query))
@@ -751,6 +772,30 @@
                 {
                     IsEmbed = true;
                     ShowTaxonomy = false;
+                }
+                if (query.Contains("mech=mq", StringComparison.OrdinalIgnoreCase) || query.Contains("mech=messagequeue", StringComparison.OrdinalIgnoreCase))
+                {
+                    SelectedMechanismId = "mq";
+                }
+                else if (query.Contains("mech=shm", StringComparison.OrdinalIgnoreCase))
+                {
+                    SelectedMechanismId = "shm";
+                }
+                else if (query.Contains("mech=sem", StringComparison.OrdinalIgnoreCase))
+                {
+                    SelectedMechanismId = "sem";
+                }
+                else if (query.Contains("mech=socket", StringComparison.OrdinalIgnoreCase))
+                {
+                    SelectedMechanismId = "socket";
+                }
+                else if (query.Contains("mech=file", StringComparison.OrdinalIgnoreCase))
+                {
+                    SelectedMechanismId = "file";
+                }
+                else if (query.Contains("mech=signals", StringComparison.OrdinalIgnoreCase))
+                {
+                    SelectedMechanismId = "signals";
                 }
             }
         }

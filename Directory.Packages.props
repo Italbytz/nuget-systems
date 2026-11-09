@@ -12,5 +12,6 @@
     <PackageVersion Include="Italbytz.Graph" Version="1.0.0-preview.6" />
     <PackageVersion Include="Italbytz.Graph.Abstractions" Version="1.0.0-preview.6" />
     <PackageVersion Include="Italbytz.Common.Random" Version="1.0.1" />
+    <PackageVersion Include="NetMQ" Version="4.0.1.13" />
   </ItemGroup>
 </Project>
