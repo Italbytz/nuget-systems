@@ -1,0 +1,1143 @@
+@namespace Italbytz.Systems.Blazor.Components.OperatingSystems
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+<article class="pc-container @(IsEmbed ? "embed-mode" : "")">
+
+    @if (!IsEmbed)
+    {
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Betriebssysteme &bull; Interprozesskommunikation</p>
+            <h2>Erzeuger-Verbraucher-Problem (Producer-Consumer)</h2>
+            <p class="feature-intro">
+                Zwei nebenläufige Prozesse teilen sich einen begrenzten FIFO-Puffer. Erforschen Sie den Unterschied zwischen 
+                <strong>ungeschütztem Zugriff</strong> (Race Conditions, Lost Updates), Synchronisation über <strong>C#-<code>lock</code> / Monitor</strong> 
+                sowie Betriebssystem-<strong>Mutex</strong> mit Signalisierung über <code>AutoResetEvent</code> (Sleep/Wakeup).
+            </p>
+        </div>
+    }
+
+    <!-- Toolbar / Mode Switcher -->
+    <div class="controls-panel no-print">
+        <div class="toolbar-grid">
+            <div class="sync-mode-group">
+                <span class="preset-label">Synchronisation:</span>
+                <button class="sync-btn @(CurrentMode == SyncMode.Bare ? "active-bare" : "")" 
+                        @onclick="() => SetMode(SyncMode.Bare)">
+                    🔴 Ungeschützt (Bare)
+                </button>
+                <button class="sync-btn @(CurrentMode == SyncMode.Lock ? "active-lock" : "")" 
+                        @onclick="() => SetMode(SyncMode.Lock)">
+                    🟢 C# lock (Monitor)
+                </button>
+                <button class="sync-btn @(CurrentMode == SyncMode.Mutex ? "active-mutex" : "")" 
+                        @onclick="() => SetMode(SyncMode.Mutex)">
+                    🔵 OS-Mutex
+                </button>
+            </div>
+
+            <div class="speed-control">
+                <span class="preset-label">Tempo:</span>
+                <select class="speed-select" @bind="PlaySpeedMs">
+                    <option value="1800">Normal (1.8s)</option>
+                    <option value="1000">Schnell (1.0s)</option>
+                    <option value="2800">Gemächlich (2.8s)</option>
+                </select>
+            </div>
+
+            <div class="action-btn-group">
+                <button class="ctrl-btn" @onclick="ResetSimulation" title="Simulation zurücksetzen">
+                    🔄 Reset
+                </button>
+                @if (IsPlaying)
+                {
+                    <button class="ctrl-btn ctrl-pause" @onclick="PausePlay" title="Simulation pausieren">
+                        ⏸️ Pause
+                    </button>
+                }
+                else
+                {
+                    <button class="ctrl-btn ctrl-play" @onclick="StartPlay" title="Simulation abspielen">
+                        ▶️ Play
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Banners -->
+    @if (IsRaceConditionDetected)
+    {
+        <div class="alert-banner alert-race">
+            <span class="alert-icon">⚠️</span>
+            <div class="alert-content">
+                <strong class="alert-title">RACE CONDITION AUFGETRETEN!</strong>
+                <span class="alert-desc">
+                    Beide Threads greifen zeitgleich ungeschützt auf die Zählvariable <code>_count</code> zu. 
+                    Aktualisierungen gehen verloren (Lost Update) oder Grenzwerte werden verletzt!
+                </span>
+            </div>
+        </div>
+    }
+    else if (IsBufferFull && ProducerState == ThreadState.WaitingForSpace)
+    {
+        <div class="alert-banner alert-full">
+            <span class="alert-icon">⏳</span>
+            <div class="alert-content">
+                <strong class="alert-title">PUFFER VOLL (Kapazität @Capacity erreicht)!</strong>
+                <span class="alert-desc">
+                    @if (CurrentMode == SyncMode.Bare)
+                    {
+                        <span>Produzent befindet sich im <strong>aktiven Warten (Busy Waiting)</strong> und verbraucht CPU-Zyklen.</span>
+                    }
+                    else
+                    {
+                        <span>Produzent schläft passiv (<code>Consumption.WaitOne()</code>), bis der Verbraucher Platz schafft.</span>
+                    }
+                </span>
+            </div>
+        </div>
+    }
+    else if (IsBufferEmpty && ConsumerState == ThreadState.WaitingForItems)
+    {
+        <div class="alert-banner alert-empty">
+            <span class="alert-icon">⏳</span>
+            <div class="alert-content">
+                <strong class="alert-title">PUFFER LEER (0 Items)!</strong>
+                <span class="alert-desc">
+                    @if (CurrentMode == SyncMode.Bare)
+                    {
+                        <span>Verbraucher befindet sich im <strong>aktiven Warten (Busy Waiting)</strong>.</span>
+                    }
+                    else
+                    {
+                        <span>Verbraucher schläft passiv (<code>Production.WaitOne()</code>), bis neue Daten eintreffen.</span>
+                    }
+                </span>
+            </div>
+        </div>
+    }
+
+    <!-- Main Dual Layout: Visualizer Left, Code Right -->
+    <div class="pc-layout-grid">
+
+        <!-- Left: Interactive Simulation Panel -->
+        <div class="sim-panel">
+            
+            <!-- Threads Grid -->
+            <div class="threads-grid">
+                
+                <!-- Producer Card -->
+                <div class="thread-card producer-card @(ProducerState == ThreadState.InCriticalSection ? "card-critical" : "") @(ProducerState == ThreadState.WaitingForSpace ? "card-blocked" : "")">
+                    <div class="thread-header">
+                        <span class="thread-icon">🏭</span>
+                        <div class="thread-info">
+                            <strong class="thread-name">Produzent (Thread 1)</strong>
+                            <span class="thread-status-badge status-@ProducerState.ToString().ToLowerInvariant()">
+                                @GetThreadStateLabel(ProducerState)
+                            </span>
+                        </div>
+                    </div>
+                    <div class="thread-action-box">
+                        <span class="action-label">Aktuelle Aktion:</span>
+                        <p class="action-text mono">@ProducerActionText</p>
+                    </div>
+                    <div class="thread-manual-bar no-print">
+                        <button class="manual-btn producer-btn" @onclick="StepProducer" disabled="@IsPlaying">
+                            👉 Produzent: 1 Schritt
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Sync Object Status -->
+                <div class="sync-card">
+                    <div class="sync-card-header">
+                        <span class="sync-icon">🔒</span>
+                        <strong class="sync-title">Synchronisation</strong>
+                    </div>
+                    <div class="sync-details">
+                        @if (CurrentMode == SyncMode.Bare)
+                        {
+                            <div class="sync-status status-danger">
+                                <strong>Keine Sperre</strong>
+                                <span>Ungeschützter paralleler Speicherzugriff</span>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="sync-item">
+                                <span class="sync-label">@(CurrentMode == SyncMode.Lock ? "Locker (lock)" : "Mutex (OS)"):</span>
+                                <span class="sync-val @(IsLockHeld ? "val-locked" : "val-free")">
+                                    @(IsLockHeld ? $"Gesperrt von {LockOwner}" : "Frei")
+                                </span>
+                            </div>
+                            <div class="sync-item">
+                                <span class="sync-label">Event Production:</span>
+                                <span class="sync-val @(IsProductionEventSignaled ? "val-signaled" : "val-reset")">
+                                    @(IsProductionEventSignaled ? "Signaled (Aufgeweckt)" : "Reset")
+                                </span>
+                            </div>
+                            <div class="sync-item">
+                                <span class="sync-label">Event Consumption:</span>
+                                <span class="sync-val @(IsConsumptionEventSignaled ? "val-signaled" : "val-reset")">
+                                    @(IsConsumptionEventSignaled ? "Signaled (Aufgeweckt)" : "Reset")
+                                </span>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Consumer Card -->
+                <div class="thread-card consumer-card @(ConsumerState == ThreadState.InCriticalSection ? "card-critical" : "") @(ConsumerState == ThreadState.WaitingForItems ? "card-blocked" : "")">
+                    <div class="thread-header">
+                        <span class="thread-icon">🛒</span>
+                        <div class="thread-info">
+                            <strong class="thread-name">Verbraucher (Thread 2)</strong>
+                            <span class="thread-status-badge status-@ConsumerState.ToString().ToLowerInvariant()">
+                                @GetThreadStateLabel(ConsumerState)
+                            </span>
+                        </div>
+                    </div>
+                    <div class="thread-action-box">
+                        <span class="action-label">Aktuelle Aktion:</span>
+                        <p class="action-text mono">@ConsumerActionText</p>
+                    </div>
+                    <div class="thread-manual-bar no-print">
+                        <button class="manual-btn consumer-btn" @onclick="StepConsumer" disabled="@IsPlaying">
+                            👉 Verbraucher: 1 Schritt
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Buffer Visualization -->
+            <div class="buffer-section">
+                <div class="buffer-header">
+                    <div class="buffer-title-wrap">
+                        <span class="buffer-icon">📦</span>
+                        <strong>Gemeinsamer Puffer (FIFO)</strong>
+                    </div>
+                    <div class="buffer-counter mono">
+                        Füllstand: <strong class="counter-val @(Count > Capacity ? "counter-overflow" : "")">@Count</strong> / @Capacity
+                    </div>
+                </div>
+
+                <div class="buffer-slots-grid">
+                    @for (int i = 0; i < Capacity; i++)
+                    {
+                        int slotIdx = i;
+                        bool isFilled = slotIdx < BufferSlots.Count;
+                        var item = isFilled ? BufferSlots[slotIdx] : null;
+                        <div class="buffer-slot @(isFilled ? "slot-filled" : "slot-empty")">
+                            <span class="slot-index mono">#@slotIdx</span>
+                            @if (item != null)
+                            {
+                                <span class="slot-content mono" title="Item @item.Id erzeugt in Schritt @item.Step">
+                                    @item.Id
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="slot-free mono">&minus;</span>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Console Log Stream -->
+            <div class="console-box">
+                <div class="console-header">
+                    <span class="console-title">💻 Konsolenausgabe (Console.WriteLine)</span>
+                    <span class="step-badge mono">Schritt: @StepCounter</span>
+                </div>
+                <div class="console-body mono" @ref="ConsoleLogRef">
+                    @if (LogEntries.Count == 0)
+                    {
+                        <div class="log-empty">Simulation gestartet. Klicken Sie auf „1 Schritt“ oder „Play“.</div>
+                    }
+                    else
+                    {
+                        @foreach (var log in LogEntries)
+                        {
+                            <div class="log-line @(log.Contains("Producing") ? "log-prod" : (log.Contains("Consuming") ? "log-cons" : "log-warn"))">
+                                @log
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right: C# Source Code Panel -->
+        <div class="code-panel">
+            <div class="code-header">
+                <div class="code-title-wrap">
+                    <span class="code-icon">📄</span>
+                    <strong>C# Quellcode</strong>
+                    <span class="code-variant-pill">
+                        @(CurrentMode switch {
+                            SyncMode.Bare => "ProducerConsumerBare.cs",
+                            SyncMode.Lock => "ProducerConsumerLock.cs",
+                            SyncMode.Mutex => "ProducerConsumerMutex.cs",
+                            _ => ""
+                        })
+                    </span>
+                </div>
+                <div class="code-actions no-print">
+                    <button class="copy-btn" @onclick="CopyCodeToClipboard" title="Code in Zwischenablage kopieren">
+                        @(IsCopied ? "✓ Kopiert!" : "📋 Kopieren")
+                    </button>
+                    <a href="https://github.com/RobinNunkesser/work/tree/main/artifacts/packages/dotnet/nuget-systems/samples/console/OperatingSystems/ProducerConsumer/" 
+                       target="_blank" rel="noopener noreferrer" class="repo-link" title="Im Repository ansehen">
+                        🔗 GitHub
+                    </a>
+                </div>
+            </div>
+
+            <div class="code-container">
+                @if (CurrentMode == SyncMode.Bare)
+                {
+                    <pre class="code-listing mono"><code><span class="kw">namespace</span> <span class="tp">ProducerConsumerBare</span>;
+
+<span class="kw">internal static class</span> <span class="tp">Program</span>
+{
+    <span class="kw">private const int</span> Steps = <span class="num">1000</span>;
+    <span class="kw">private const int</span> Capacity = <span class="num">100</span>;
+    <span class="kw">private static int</span> _count = <span class="num">50</span>;
+    <span class="kw">private static int</span> _step;
+
+    <span class="com">// Produzent ohne wechselseitigen Ausschluss</span>
+    <span class="kw">private static void</span> <span class="fn">Producer</span>()
+    {
+        <span class="kw">while</span> (_step &lt; Steps)
+        {
+            <span class="com">// Busy Waiting (100% CPU-Last)</span>
+            <span class="kw">if</span> (_count &gt;= Capacity) <span class="kw">continue</span>;
+
+            <span class="highlight-danger"><span class="com">// KRITISCHER ABSCHNITT: Ungeschütztes Inkrementieren</span>
+            Console.WriteLine(<span class="str">$"Step {++_step}: Producing one item, {++_count} items in buffer."</span>);
+            Console.Out.Flush();</span>
+        }
+    }
+
+    <span class="com">// Verbraucher ohne wechselseitigen Ausschluss</span>
+    <span class="kw">private static void</span> <span class="fn">Consumer</span>()
+    {
+        <span class="kw">while</span> (_step &lt; Steps)
+        {
+            <span class="com">// Busy Waiting (100% CPU-Last)</span>
+            <span class="kw">if</span> (_count &lt;= <span class="num">0</span>) <span class="kw">continue</span>;
+
+            <span class="highlight-danger"><span class="com">// KRITISCHER ABSCHNITT: Ungeschütztes Dekrementieren</span>
+            Console.WriteLine(<span class="str">$"Step {++_step}: Consuming one item, {--_count} items in buffer."</span>);
+            Console.Out.Flush();</span>
+        }
+    }
+
+    <span class="kw">public static void</span> <span class="fn">Main</span>()
+    {
+        <span class="kw">var</span> producer = <span class="kw">new</span> Thread(Producer);
+        <span class="kw">var</span> consumer = <span class="kw">new</span> Thread(Consumer);
+        producer.Start();
+        consumer.Start();
+    }
+}</code></pre>
+                }
+                else if (CurrentMode == SyncMode.Lock)
+                {
+                    <pre class="code-listing mono"><code><span class="kw">namespace</span> <span class="tp">ProducerConsumerLock</span>;
+
+<span class="kw">internal static class</span> <span class="tp">Program</span>
+{
+    <span class="kw">private const int</span> Steps = <span class="num">1000</span>;
+    <span class="kw">private const int</span> Capacity = <span class="num">100</span>;
+    <span class="kw">private static int</span> _count = <span class="num">50</span>;
+    <span class="kw">private static int</span> _step;
+
+    <span class="com">// Synchronisationsobjekte</span>
+    <span class="kw">private static readonly object</span> Locker = <span class="kw">new object</span>();
+    <span class="kw">private static readonly</span> AutoResetEvent Production = <span class="kw">new</span> AutoResetEvent(<span class="kw">false</span>);
+    <span class="kw">private static readonly</span> AutoResetEvent Consumption = <span class="kw">new</span> AutoResetEvent(<span class="kw">false</span>);
+
+    <span class="kw">private static void</span> <span class="fn">Producer</span>()
+    {
+        <span class="kw">while</span> (_step &lt; Steps - <span class="num">1</span>)
+        {
+            <span class="highlight-success"><span class="kw">lock</span> (Locker)
+            {
+                <span class="kw">if</span> (_count &lt; Capacity)
+                {
+                    Console.WriteLine(<span class="str">$"Step {++_step}: Producing one item, {++_count} items in buffer."</span>);
+                    Console.Out.Flush();
+                    Production.Set(); <span class="com">// Weckt wartenden Verbraucher auf</span>
+                }
+            }</span>
+
+            <span class="com">// Passives Schlafen bei vollem Puffer (kein Busy Waiting!)</span>
+            <span class="kw">if</span> (_count == Capacity) Consumption.WaitOne();
+        }
+    }
+
+    <span class="kw">private static void</span> <span class="fn">Consumer</span>()
+    {
+        <span class="kw">while</span> (_step &lt; Steps - <span class="num">1</span>)
+        {
+            <span class="highlight-success"><span class="kw">lock</span> (Locker)
+            {
+                <span class="kw">if</span> (_count &gt; <span class="num">0</span>)
+                {
+                    Console.WriteLine(<span class="str">$"Step {++_step}: Consuming one item, {--_count} items in buffer."</span>);
+                    Console.Out.Flush();
+                    Consumption.Set(); <span class="com">// Weckt wartenden Produzenten auf</span>
+                }
+            }</span>
+
+            <span class="com">// Passives Schlafen bei leerem Puffer</span>
+            <span class="kw">if</span> (_count == <span class="num">0</span>) Production.WaitOne();
+        }
+    }
+
+    <span class="kw">public static void</span> <span class="fn">Main</span>()
+    {
+        <span class="kw">var</span> producer = <span class="kw">new</span> Thread(Producer);
+        <span class="kw">var</span> consumer = <span class="kw">new</span> Thread(Consumer);
+        producer.Start();
+        consumer.Start();
+    }
+}</code></pre>
+                }
+                else
+                {
+                    <pre class="code-listing mono"><code><span class="kw">namespace</span> <span class="tp">ProducerConsumerMutex</span>;
+
+<span class="kw">internal static class</span> <span class="tp">Program</span>
+{
+    <span class="kw">private const int</span> Steps = <span class="num">1000</span>;
+    <span class="kw">private const int</span> Capacity = <span class="num">100</span>;
+    <span class="kw">private static int</span> _count = <span class="num">50</span>;
+    <span class="kw">private static int</span> _step;
+
+    <span class="com">// Betriebssystem-Mutex (Interprozess-fähig)</span>
+    <span class="kw">private static readonly</span> Mutex Mut = <span class="kw">new</span> Mutex();
+    <span class="kw">private static readonly</span> AutoResetEvent Production = <span class="kw">new</span> AutoResetEvent(<span class="kw">false</span>);
+    <span class="kw">private static readonly</span> AutoResetEvent Consumption = <span class="kw">new</span> AutoResetEvent(<span class="kw">false</span>);
+
+    <span class="kw">private static void</span> <span class="fn">Producer</span>()
+    {
+        <span class="kw">while</span> (_step &lt; Steps - <span class="num">1</span>)
+        {
+            <span class="kw">if</span> (!Mut.WaitOne()) <span class="kw">continue</span>;
+
+            <span class="highlight-info"><span class="kw">if</span> (_count &lt; Capacity)
+            {
+                Console.WriteLine(<span class="str">$"Step {++_step}: Producing one item, {++_count} items in buffer."</span>);
+                Console.Out.Flush();
+                Production.Set();
+                Mut.ReleaseMutex(); <span class="com">// Mutex freigeben</span>
+            }
+            <span class="kw">else</span>
+            {
+                Mut.ReleaseMutex(); <span class="com">// Vor dem Warten freigeben!</span>
+                Consumption.WaitOne();
+            }</span>
+        }
+    }
+
+    <span class="kw">private static void</span> <span class="fn">Consumer</span>()
+    {
+        <span class="kw">while</span> (_step &lt; Steps - <span class="num">1</span>)
+        {
+            <span class="kw">if</span> (!Mut.WaitOne()) <span class="kw">continue</span>;
+
+            <span class="highlight-info"><span class="kw">if</span> (_count &gt; <span class="num">0</span>)
+            {
+                Console.WriteLine(<span class="str">$"Step {++_step}: Consuming one item, {--_count} items in buffer."</span>);
+                Console.Out.Flush();
+                Consumption.Set();
+                Mut.ReleaseMutex(); <span class="com">// Mutex freigeben</span>
+            }
+            <span class="kw">else</span>
+            {
+                Mut.ReleaseMutex(); <span class="com">// Vor dem Warten freigeben!</span>
+                Production.WaitOne();
+            }</span>
+        }
+    }
+
+    <span class="kw">public static void</span> <span class="fn">Main</span>()
+    {
+        <span class="kw">var</span> producer = <span class="kw">new</span> Thread(Producer);
+        <span class="kw">var</span> consumer = <span class="kw">new</span> Thread(Consumer);
+        producer.Start();
+        consumer.Start();
+    }
+}</code></pre>
+                }
+            </div>
+
+            <!-- Terminal Run Hint -->
+            <div class="run-hint-box no-print">
+                <span class="hint-title">🚀 Lokal ausführen:</span>
+                <code class="hint-cmd mono">dotnet run --project samples/console/OperatingSystems/ProducerConsumer/@(CurrentMode switch {
+                    SyncMode.Bare => "ProducerConsumerBare",
+                    SyncMode.Lock => "ProducerConsumerLock",
+                    SyncMode.Mutex => "ProducerConsumerMutex",
+                    _ => ""
+                })</code>
+            </div>
+        </div>
+
+    </div>
+
+</article>
+
+@code {
+    [Parameter] public bool IsEmbed { get; set; }
+
+    public enum SyncMode { Bare, Lock, Mutex }
+    public enum ThreadState { Ready, InCriticalSection, WaitingForSpace, WaitingForItems }
+
+    public record BufferItem(string Id, int Step);
+
+    private SyncMode CurrentMode { get; set; } = SyncMode.Bare;
+    private int Capacity { get; set; } = 8;
+    private int Count { get; set; } = 4;
+    private int StepCounter { get; set; } = 0;
+
+    private List<BufferItem> BufferSlots { get; set; } = new();
+    private List<string> LogEntries { get; set; } = new();
+
+    private ThreadState ProducerState { get; set; } = ThreadState.Ready;
+    private ThreadState ConsumerState { get; set; } = ThreadState.Ready;
+
+    private string ProducerActionText { get; set; } = "Bereit zum Produzieren";
+    private string ConsumerActionText { get; set; } = "Bereit zum Konsumieren";
+
+    private bool IsLockHeld { get; set; } = false;
+    private string LockOwner { get; set; } = "";
+
+    private bool IsProductionEventSignaled { get; set; } = false;
+    private bool IsConsumptionEventSignaled { get; set; } = false;
+
+    private bool IsRaceConditionDetected { get; set; } = false;
+    private bool IsBufferFull => Count >= Capacity;
+    private bool IsBufferEmpty => Count <= 0;
+
+    private bool IsPlaying { get; set; } = false;
+    private int PlaySpeedMs { get; set; } = 1800;
+    private CancellationTokenSource? _playCts;
+
+    private ElementReference ConsoleLogRef;
+    private bool IsCopied { get; set; } = false;
+
+    protected override void OnInitialized()
+    {
+        ParseUrlParameters();
+        ResetSimulation();
+    }
+
+    private void ParseUrlParameters()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = uri.Query;
+            if (!string.IsNullOrEmpty(query))
+            {
+                if (query.Contains("embed=true", StringComparison.OrdinalIgnoreCase) || query.Contains("embedded=true", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsEmbed = true;
+                }
+
+                if (query.Contains("mode=lock", StringComparison.OrdinalIgnoreCase))
+                {
+                    CurrentMode = SyncMode.Lock;
+                }
+                else if (query.Contains("mode=mutex", StringComparison.OrdinalIgnoreCase))
+                {
+                    CurrentMode = SyncMode.Mutex;
+                }
+                else if (query.Contains("mode=bare", StringComparison.OrdinalIgnoreCase))
+                {
+                    CurrentMode = SyncMode.Bare;
+                }
+            }
+        }
+        catch { }
+    }
+
+    private void SetMode(SyncMode mode)
+    {
+        StopPlay();
+        CurrentMode = mode;
+        ResetSimulation();
+    }
+
+    private void ResetSimulation()
+    {
+        StopPlay();
+        StepCounter = 0;
+        Count = 4;
+        BufferSlots.Clear();
+        for (int i = 1; i <= Count; i++)
+        {
+            BufferSlots.Add(new BufferItem($"D{i}", 0));
+        }
+
+        LogEntries.Clear();
+        LogEntries.Add($"Initialzustand: Pufferkapazität={Capacity}, Startfüllstand={Count}");
+
+        ProducerState = ThreadState.Ready;
+        ConsumerState = ThreadState.Ready;
+        ProducerActionText = "Bereit (wartet auf Takt)";
+        ConsumerActionText = "Bereit (wartet auf Takt)";
+
+        IsLockHeld = false;
+        LockOwner = "";
+        IsProductionEventSignaled = false;
+        IsConsumptionEventSignaled = false;
+        IsRaceConditionDetected = false;
+        IsCopied = false;
+    }
+
+    private void StepProducer()
+    {
+        if (CurrentMode == SyncMode.Bare)
+        {
+            ExecuteProducerBare();
+        }
+        else if (CurrentMode == SyncMode.Lock)
+        {
+            ExecuteProducerLock();
+        }
+        else
+        {
+            ExecuteProducerMutex();
+        }
+    }
+
+    private void StepConsumer()
+    {
+        if (CurrentMode == SyncMode.Bare)
+        {
+            ExecuteConsumerBare();
+        }
+        else if (CurrentMode == SyncMode.Lock)
+        {
+            ExecuteConsumerLock();
+        }
+        else
+        {
+            ExecuteConsumerMutex();
+        }
+    }
+
+    private void ExecuteProducerBare()
+    {
+        // Check for Race Condition if consumer is simultaneously active
+        if (ConsumerState == ThreadState.InCriticalSection)
+        {
+            IsRaceConditionDetected = true;
+        }
+
+        ProducerState = ThreadState.InCriticalSection;
+
+        if (Count >= Capacity)
+        {
+            ProducerState = ThreadState.WaitingForSpace;
+            ProducerActionText = "Busy Waiting: Puffer voll (count >= Capacity). continue;";
+            LogEntries.Add($"[Produzent] Puffer voll ({Count}/{Capacity}) -> Busy Waiting!");
+            return;
+        }
+
+        StepCounter++;
+        Count++;
+        var newItem = new BufferItem($"P{StepCounter}", StepCounter);
+        BufferSlots.Add(newItem);
+
+        ProducerActionText = $"Item {newItem.Id} produziert! _count={Count}";
+        LogEntries.Add($"Step {StepCounter}: Producing one item, {Count} items in buffer.");
+
+        ProducerState = ThreadState.Ready;
+    }
+
+    private void ExecuteConsumerBare()
+    {
+        if (ProducerState == ThreadState.InCriticalSection)
+        {
+            IsRaceConditionDetected = true;
+        }
+
+        ConsumerState = ThreadState.InCriticalSection;
+
+        if (Count <= 0)
+        {
+            ConsumerState = ThreadState.WaitingForItems;
+            ConsumerActionText = "Busy Waiting: Puffer leer (count <= 0). continue;";
+            LogEntries.Add($"[Verbraucher] Puffer leer ({Count}/{Capacity}) -> Busy Waiting!");
+            return;
+        }
+
+        StepCounter++;
+        Count--;
+        var item = BufferSlots.Count > 0 ? BufferSlots[0] : new BufferItem("??", StepCounter);
+        if (BufferSlots.Count > 0) BufferSlots.RemoveAt(0);
+
+        ConsumerActionText = $"Item {item.Id} verbraucht! _count={Count}";
+        LogEntries.Add($"Step {StepCounter}: Consuming one item, {Count} items in buffer.");
+
+        ConsumerState = ThreadState.Ready;
+    }
+
+    private void ExecuteProducerLock()
+    {
+        if (ProducerState == ThreadState.WaitingForSpace)
+        {
+            if (Count < Capacity)
+            {
+                ProducerState = ThreadState.Ready;
+                ProducerActionText = "Aufgeweckt (Consumption.Set() empfangen)!";
+            }
+            else
+            {
+                ProducerActionText = "Schläft: Consumption.WaitOne(); wartet auf Platz";
+                return;
+            }
+        }
+
+        // Acquire lock
+        IsLockHeld = true;
+        LockOwner = "Produzent";
+        ProducerState = ThreadState.InCriticalSection;
+
+        if (Count < Capacity)
+        {
+            StepCounter++;
+            Count++;
+            var newItem = new BufferItem($"P{StepCounter}", StepCounter);
+            BufferSlots.Add(newItem);
+
+            ProducerActionText = $"lock(Locker) erworben -> {newItem.Id} erzeugt. Production.Set()!";
+            LogEntries.Add($"Step {StepCounter}: Producing one item, {Count} items in buffer.");
+
+            IsProductionEventSignaled = true;
+            if (ConsumerState == ThreadState.WaitingForItems)
+            {
+                ConsumerState = ThreadState.Ready;
+                ConsumerActionText = "Signal empfangen -> Bereit";
+            }
+        }
+
+        // Release lock
+        IsLockHeld = false;
+        LockOwner = "";
+        ProducerState = ThreadState.Ready;
+
+        if (Count == Capacity)
+        {
+            ProducerState = ThreadState.WaitingForSpace;
+            ProducerActionText = "Puffer voll: Consumption.WaitOne() -> Thread schläft";
+        }
+    }
+
+    private void ExecuteConsumerLock()
+    {
+        if (ConsumerState == ThreadState.WaitingForItems)
+        {
+            if (Count > 0)
+            {
+                ConsumerState = ThreadState.Ready;
+                ConsumerActionText = "Aufgeweckt (Production.Set() empfangen)!";
+            }
+            else
+            {
+                ConsumerActionText = "Schläft: Production.WaitOne(); wartet auf Daten";
+                return;
+            }
+        }
+
+        // Acquire lock
+        IsLockHeld = true;
+        LockOwner = "Verbraucher";
+        ConsumerState = ThreadState.InCriticalSection;
+
+        if (Count > 0)
+        {
+            StepCounter++;
+            Count--;
+            var item = BufferSlots.Count > 0 ? BufferSlots[0] : new BufferItem("??", StepCounter);
+            if (BufferSlots.Count > 0) BufferSlots.RemoveAt(0);
+
+            ConsumerActionText = $"lock(Locker) erworben -> {item.Id} entnommen. Consumption.Set()!";
+            LogEntries.Add($"Step {StepCounter}: Consuming one item, {Count} items in buffer.");
+
+            IsConsumptionEventSignaled = true;
+            if (ProducerState == ThreadState.WaitingForSpace)
+            {
+                ProducerState = ThreadState.Ready;
+                ProducerActionText = "Signal empfangen -> Bereit";
+            }
+        }
+
+        // Release lock
+        IsLockHeld = false;
+        LockOwner = "";
+        ConsumerState = ThreadState.Ready;
+
+        if (Count == 0)
+        {
+            ConsumerState = ThreadState.WaitingForItems;
+            ConsumerActionText = "Puffer leer: Production.WaitOne() -> Thread schläft";
+        }
+    }
+
+    private void ExecuteProducerMutex()
+    {
+        if (ProducerState == ThreadState.WaitingForSpace)
+        {
+            if (Count < Capacity)
+            {
+                ProducerState = ThreadState.Ready;
+                ProducerActionText = "Aufgeweckt! Mutex wird angefordert...";
+            }
+            else
+            {
+                ProducerActionText = "Schläft: Consumption.WaitOne() wartet auf Platz";
+                return;
+            }
+        }
+
+        // Mut.WaitOne()
+        IsLockHeld = true;
+        LockOwner = "Produzent (Mut)";
+        ProducerState = ThreadState.InCriticalSection;
+
+        if (Count < Capacity)
+        {
+            StepCounter++;
+            Count++;
+            var newItem = new BufferItem($"P{StepCounter}", StepCounter);
+            BufferSlots.Add(newItem);
+
+            ProducerActionText = $"Mut.WaitOne() -> {newItem.Id} erzeugt. Production.Set() & ReleaseMutex()";
+            LogEntries.Add($"Step {StepCounter}: Producing one item, {Count} items in buffer.");
+
+            IsProductionEventSignaled = true;
+            if (ConsumerState == ThreadState.WaitingForItems)
+            {
+                ConsumerState = ThreadState.Ready;
+            }
+
+            IsLockHeld = false;
+            LockOwner = "";
+            ProducerState = ThreadState.Ready;
+        }
+        else
+        {
+            ProducerActionText = "Puffer voll: ReleaseMutex() & Consumption.WaitOne()";
+            IsLockHeld = false;
+            LockOwner = "";
+            ProducerState = ThreadState.WaitingForSpace;
+        }
+    }
+
+    private void ExecuteConsumerMutex()
+    {
+        if (ConsumerState == ThreadState.WaitingForItems)
+        {
+            if (Count > 0)
+            {
+                ConsumerState = ThreadState.Ready;
+                ConsumerActionText = "Aufgeweckt! Mutex wird angefordert...";
+            }
+            else
+            {
+                ConsumerActionText = "Schläft: Production.WaitOne() wartet auf Daten";
+                return;
+            }
+        }
+
+        // Mut.WaitOne()
+        IsLockHeld = true;
+        LockOwner = "Verbraucher (Mut)";
+        ConsumerState = ThreadState.InCriticalSection;
+
+        if (Count > 0)
+        {
+            StepCounter++;
+            Count--;
+            var item = BufferSlots.Count > 0 ? BufferSlots[0] : new BufferItem("??", StepCounter);
+            if (BufferSlots.Count > 0) BufferSlots.RemoveAt(0);
+
+            ConsumerActionText = $"Mut.WaitOne() -> {item.Id} entnommen. Consumption.Set() & ReleaseMutex()";
+            LogEntries.Add($"Step {StepCounter}: Consuming one item, {Count} items in buffer.");
+
+            IsConsumptionEventSignaled = true;
+            if (ProducerState == ThreadState.WaitingForSpace)
+            {
+                ProducerState = ThreadState.Ready;
+            }
+
+            IsLockHeld = false;
+            LockOwner = "";
+            ConsumerState = ThreadState.Ready;
+        }
+        else
+        {
+            ConsumerActionText = "Puffer leer: ReleaseMutex() & Production.WaitOne()";
+            IsLockHeld = false;
+            LockOwner = "";
+            ConsumerState = ThreadState.WaitingForItems;
+        }
+    }
+
+    private async void StartPlay()
+    {
+        if (IsPlaying) return;
+        IsPlaying = true;
+        _playCts = new CancellationTokenSource();
+        var token = _playCts.Token;
+
+        var random = new Random();
+        try
+        {
+            while (!token.IsCancellationRequested && StepCounter < 30)
+            {
+                await Task.Delay(PlaySpeedMs, token);
+                if (token.IsCancellationRequested) break;
+
+                // Alternate or randomly pick thread action
+                bool runProducer = random.Next(2) == 0;
+                if (runProducer)
+                {
+                    StepProducer();
+                }
+                else
+                {
+                    StepConsumer();
+                }
+
+                StateHasChanged();
+            }
+        }
+        catch (TaskCanceledException) { }
+        finally
+        {
+            IsPlaying = false;
+            StateHasChanged();
+        }
+    }
+
+    private void PausePlay()
+    {
+        StopPlay();
+    }
+
+    private void StopPlay()
+    {
+        if (_playCts != null)
+        {
+            _playCts.Cancel();
+            _playCts.Dispose();
+            _playCts = null;
+        }
+        IsPlaying = false;
+    }
+
+    private async Task CopyCodeToClipboard()
+    {
+        string code = CurrentMode switch
+        {
+            SyncMode.Bare => @"// C# ProducerConsumerBare.cs
+namespace ProducerConsumerBare;
+
+internal static class Program
+{
+    private const int Steps = 1000;
+    private const int Capacity = 100;
+    private static int _count = 50;
+    private static int _step;
+
+    private static void Producer()
+    {
+        while (_step < Steps)
+        {
+            if (_count >= Capacity) continue;
+            Console.WriteLine($""Step {++_step}: Producing one item, {++_count} items in buffer."");
+            Console.Out.Flush();
+        }
+    }
+
+    private static void Consumer()
+    {
+        while (_step < Steps)
+        {
+            if (_count <= 0) continue;
+            Console.WriteLine($""Step {++_step}: Consuming one item, {--_count} items in buffer."");
+            Console.Out.Flush();
+        }
+    }
+
+    public static void Main()
+    {
+        var producer = new Thread(Producer);
+        var consumer = new Thread(Consumer);
+        producer.Start();
+        consumer.Start();
+    }
+}",
+            SyncMode.Lock => @"// C# ProducerConsumerLock.cs
+namespace ProducerConsumerLock;
+
+internal static class Program
+{
+    private const int Steps = 1000;
+    private const int Capacity = 100;
+    private static int _count = 50;
+    private static int _step;
+
+    private static readonly object Locker = new object();
+    private static readonly AutoResetEvent Production = new AutoResetEvent(false);
+    private static readonly AutoResetEvent Consumption = new AutoResetEvent(false);
+
+    private static void Producer()
+    {
+        while (_step < Steps - 1)
+        {
+            lock (Locker)
+            {
+                if (_count < Capacity)
+                {
+                    Console.WriteLine($""Step {++_step}: Producing one item, {++_count} items in buffer."");
+                    Console.Out.Flush();
+                    Production.Set();
+                }
+            }
+
+            if (_count == Capacity) Consumption.WaitOne();
+        }
+    }
+
+    private static void Consumer()
+    {
+        while (_step < Steps - 1)
+        {
+            lock (Locker)
+            {
+                if (_count > 0)
+                {
+                    Console.WriteLine($""Step {++_step}: Consuming one item, {--_count} items in buffer."");
+                    Console.Out.Flush();
+                    Consumption.Set();
+                }
+            }
+
+            if (_count == 0) Production.WaitOne();
+        }
+    }
+
+    public static void Main()
+    {
+        var producer = new Thread(Producer);
+        var consumer = new Thread(Consumer);
+        producer.Start();
+        consumer.Start();
+    }
+}",
+            SyncMode.Mutex => @"// C# ProducerConsumerMutex.cs
+namespace ProducerConsumerMutex;
+
+internal static class Program
+{
+    private const int Steps = 1000;
+    private const int Capacity = 100;
+    private static int _count = 50;
+    private static int _step;
+
+    private static readonly Mutex Mut = new Mutex();
+    private static readonly AutoResetEvent Production = new AutoResetEvent(false);
+    private static readonly AutoResetEvent Consumption = new AutoResetEvent(false);
+
+    private static void Producer()
+    {
+        while (_step < Steps - 1)
+        {
+            if (!Mut.WaitOne()) continue;
+
+            if (_count < Capacity)
+            {
+                Console.WriteLine($""Step {++_step}: Producing one item, {++_count} items in buffer."");
+                Console.Out.Flush();
+                Production.Set();
+                Mut.ReleaseMutex();
+            }
+            else
+            {
+                Mut.ReleaseMutex();
+                Consumption.WaitOne();
+            }
+        }
+    }
+
+    private static void Consumer()
+    {
+        while (_step < Steps - 1)
+        {
+            if (!Mut.WaitOne()) continue;
+
+            if (_count > 0)
+            {
+                Console.WriteLine($""Step {++_step}: Consuming one item, {--_count} items in buffer."");
+                Console.Out.Flush();
+                Consumption.Set();
+                Mut.ReleaseMutex();
+            }
+            else
+            {
+                Mut.ReleaseMutex();
+                Production.WaitOne();
+            }
+        }
+    }
+
+    public static void Main()
+    {
+        var producer = new Thread(Producer);
+        var consumer = new Thread(Consumer);
+        producer.Start();
+        consumer.Start();
+    }
+}",
+            _ => ""
+        };
+
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", code);
+            IsCopied = true;
+            StateHasChanged();
+            await Task.Delay(2000);
+            IsCopied = false;
+            StateHasChanged();
+        }
+        catch { }
+    }
+
+    private static string GetThreadStateLabel(ThreadState state) => state switch
+    {
+        ThreadState.Ready => "Bereit",
+        ThreadState.InCriticalSection => "Im kritischen Abschnitt",
+        ThreadState.WaitingForSpace => "Wartet auf Platz (Schläft)",
+        ThreadState.WaitingForItems => "Wartet auf Daten (Schläft)",
+        _ => state.ToString()
+    };
+
+    public void Dispose()
+    {
+        StopPlay();
+    }
+}
