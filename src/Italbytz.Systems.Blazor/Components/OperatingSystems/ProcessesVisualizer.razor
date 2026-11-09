@@ -1,0 +1,777 @@
+@namespace Italbytz.Systems.Blazor.Components.OperatingSystems
+@using Microsoft.AspNetCore.Components
+@using Microsoft.JSInterop
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+<article class="processes-container @(IsEmbed ? "embed-mode" : "")">
+
+    @if (!IsEmbed)
+    {
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Betriebssysteme &bull; Prozesse &amp; CPU-Scheduling</p>
+            <h2>Prozesse in C# &amp; POSIX (Inspection &amp; Execution)</h2>
+            <p class="feature-intro">
+                Erkunden Sie die Verwaltung und den Lebenszyklus von Prozessen: 
+                Abfrage von Prozessattributen, Threads und Speicherverbrauch (<code>Process.GetCurrentProcess()</code>, <code>Process.GetProcesses()</code>) 
+                sowie das Starten von Programmen mit E/A-Umleitung (<code>ProcessStartInfo</code>, <code>Process.Start()</code>) 
+                im direkten Vergleich zu den POSIX-Systemaufrufen (<code>getpid</code>, <code>fork</code>, <code>execve</code>, <code>waitpid</code>).
+            </p>
+        </div>
+    }
+
+    <!-- View Switcher -->
+    <div class="view-switch no-print">
+        <button class="view-btn @(ActiveMode == ProcessMode.Info ? "active" : "")"
+                @onclick="() => SetMode(ProcessMode.Info)">
+            📊 1. Prozessinformationen &amp; Systemzustand (MyProcess)
+        </button>
+        <button class="view-btn @(ActiveMode == ProcessMode.Start ? "active" : "")"
+                @onclick="() => SetMode(ProcessMode.Start)">
+            🚀 2. Prozess starten &amp; E/A-Umleitung (ProcessStart)
+        </button>
+    </div>
+
+    @if (ActiveMode == ProcessMode.Info)
+    {
+        <!-- ========================================================================= -->
+        <!-- MODE 1: PROZESSINFORMATIONEN (MyProcessSample)                            -->
+        <!-- ========================================================================= -->
+
+        <!-- Toolbar / Controls -->
+        <div class="controls-panel no-print">
+            <div class="toolbar-grid">
+                <div class="control-group">
+                    <span class="control-label">Filter nach Name:</span>
+                    <div class="btn-group">
+                        <button class="toggle-btn @(SelectedFilter == "all" ? "active" : "")"
+                                @onclick='() => SetFilter("all")'>
+                            Alle (@AllProcesses.Count)
+                        </button>
+                        <button class="toggle-btn @(SelectedFilter == "dotnet" ? "active" : "")"
+                                @onclick='() => SetFilter("dotnet")'>
+                            .NET / Apps
+                        </button>
+                        <button class="toggle-btn @(SelectedFilter == "system" ? "active" : "")"
+                                @onclick='() => SetFilter("system")'>
+                            Systemdienste
+                        </button>
+                    </div>
+                </div>
+
+                <div class="control-group search-group">
+                    <input type="text" class="search-input" placeholder="Name oder PID suchen..." 
+                           @bind="SearchQuery" @bind:event="oninput" />
+                </div>
+
+                <div class="action-btn-group">
+                    <button class="ctrl-btn" @onclick="RefreshProcessStats" title="Werte aktualisieren">
+                        🔄 Aktualisieren
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Current Process & PID 1 Hero Cards -->
+        <div class="hero-cards-grid">
+            <!-- Current Process Card -->
+            <div class="proc-hero-card current-proc-card">
+                <div class="hero-header">
+                    <div class="badge-title">
+                        <span class="pulse-indicator"></span>
+                        <strong>Aktueller Prozess (<code>Process.GetCurrentProcess()</code>)</strong>
+                    </div>
+                    <span class="posix-tag">POSIX: getpid() = @CurrentProcessInfo.Id</span>
+                </div>
+                <div class="hero-body">
+                    <div class="metric-row">
+                        <div class="metric-item">
+                            <span class="metric-label">Prozessname</span>
+                            <span class="metric-val">@CurrentProcessInfo.ProcessName</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Process ID (PID)</span>
+                            <span class="metric-val pid-badge">@CurrentProcessInfo.Id</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Threads</span>
+                            <span class="metric-val">@CurrentProcessInfo.ThreadCount Threads</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Priorität</span>
+                            <span class="metric-val">@CurrentProcessInfo.PriorityClass</span>
+                        </div>
+                    </div>
+
+                    <div class="memory-bar-section">
+                        <div class="mem-label-row">
+                            <span>Arbeitsspeicher (Working Set)</span>
+                            <strong>@CurrentProcessInfo.WorkingSetMb.ToString("F1") MB</strong>
+                        </div>
+                        <div class="mem-progress-track">
+                            <div class="mem-progress-bar" style="width: @Math.Min(100, CurrentProcessInfo.WorkingSetMb * 2)%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PID 1 Special Card -->
+            <div class="proc-hero-card init-proc-card">
+                <div class="hero-header">
+                    <div class="badge-title">
+                        <span class="init-icon">⚙️</span>
+                        <strong>System-Init (<code>Process.GetProcessById(1)</code>)</strong>
+                    </div>
+                    <span class="posix-tag">POSIX: init / systemd / launchd</span>
+                </div>
+                <div class="hero-body">
+                    <div class="metric-row">
+                        <div class="metric-item">
+                            <span class="metric-label">Prozessname</span>
+                            <span class="metric-val">@InitProcessInfo.ProcessName</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">PID</span>
+                            <span class="metric-val pid-badge-init">1</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Parent PID (PPID)</span>
+                            <span class="metric-val">0 (Kernel)</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Rolle</span>
+                            <span class="metric-val role-badge">Root-Elternprozess</span>
+                        </div>
+                    </div>
+                    <p class="init-note">
+                        💡 <strong>Betriebssystem-Konzept:</strong> PID 1 ist der erste Prozess des Userspace. 
+                        Verwaiste Kindprozesse (<em>Orphans</em>) werden automatisch an PID 1 umgehängt (Adoption), 
+                        damit deren Rückgabewerte abgefangen werden und keine Zombie-Prozesse verbleiben.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Process List Table -->
+        <div class="table-card">
+            <div class="table-header">
+                <h3>Systemprozesse (<code>Process.GetProcesses()</code>)</h3>
+                <span class="table-count">@FilteredProcesses.Count Prozesse sichtbar</span>
+            </div>
+            <div class="table-responsive">
+                <table class="proc-table">
+                    <thead>
+                        <tr>
+                            <th>PID</th>
+                            <th>Prozessname</th>
+                            <th>Typ</th>
+                            <th>Threads</th>
+                            <th>Working Set (RAM)</th>
+                            <th>Priorität</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var p in FilteredProcesses)
+                        {
+                            <tr class="@(p.Id == CurrentProcessInfo.Id ? "row-current" : (p.Id == 1 ? "row-init" : ""))">
+                                <td>
+                                    <span class="table-pid">@p.Id</span>
+                                </td>
+                                <td>
+                                    <strong>@p.ProcessName</strong>
+                                    @if (p.Id == CurrentProcessInfo.Id)
+                                    {
+                                        <span class="self-tag">(Aktueller Prozess)</span>
+                                    }
+                                    @if (p.Id == 1)
+                                    {
+                                        <span class="init-tag">(Init / PID 1)</span>
+                                    }
+                                </td>
+                                <td><span class="category-pill cat-@p.Category.ToLower()">@p.Category</span></td>
+                                <td>@p.ThreadCount</td>
+                                <td>
+                                    <div class="table-mem-cell">
+                                        <span>@p.WorkingSetMb.ToString("F1") MB</span>
+                                        <div class="mini-bar-track">
+                                            <div class="mini-bar-fill" style="width: @Math.Min(100, p.WorkingSetMb * 1.5)%"></div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>@p.PriorityClass</td>
+                                <td><span class="status-indicator status-@p.Status.ToLower()">@p.Status</span></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- C# Source & POSIX Concept Section -->
+        <div class="code-and-theory-grid">
+            <div class="code-card">
+                <div class="code-header">
+                    <span>C# Implementierung (<code>MyProcess.cs</code>)</span>
+                    <a href="https://github.com/RobinNunkesser/work/tree/main/artifacts/packages/dotnet/nuget-systems/samples/console/OperatingSystems/Processes/MyProcessSample/" 
+                       target="_blank" rel="noopener noreferrer" class="code-link">
+                        📁 Im Quellcode ansehen ↗
+                    </a>
+                </div>
+                <pre class="code-pre"><code><span class="kw">using</span> System.Diagnostics;
+
+<span class="kw">public class</span> <span class="typ">MyProcess</span>
+{
+    <span class="kw">public void</span> <span class="mth">PrintCurrentProcess</span>()
+    {
+        <span class="cmt">// 1. Aktuellen Prozess abfragen (POSIX getpid)</span>
+        <span class="typ">Process</span> current = <span class="typ">Process</span>.<span class="mth">GetCurrentProcess</span>();
+        <span class="typ">Console</span>.<span class="mth">WriteLine</span>(<span class="str">$"PID: {current.Id}, Name: {current.ProcessName}"</span>);
+        <span class="typ">Console</span>.<span class="mth">WriteLine</span>(<span class="str">$"RAM: {current.WorkingSet64 / (1024 * 1024)} MB"</span>);
+        <span class="typ">Console</span>.<span class="mth">WriteLine</span>(<span class="str">$"Threads: {current.Threads.Count}"</span>);
+    }
+
+    <span class="kw">public void</span> <span class="mth">InspectProcesses</span>()
+    {
+        <span class="cmt">// 2. Alle laufenden Prozesse auflisten (POSIX ps / /proc)</span>
+        <span class="typ">Process</span>[] all = <span class="typ">Process</span>.<span class="mth">GetProcesses</span>();
+
+        <span class="cmt">// 3. Spezifischen Prozess per PID inspizieren (PID 1 = Init)</span>
+        <span class="typ">Process</span> init = <span class="typ">Process</span>.<span class="mth">GetProcessById</span>(1);
+
+        <span class="cmt">// 4. Nach Name filtern</span>
+        <span class="typ">Process</span>[] dotnetProcs = <span class="typ">Process</span>.<span class="mth">GetProcessesByName</span>(<span class="str">"dotnet"</span>);
+    }
+}</code></pre>
+            </div>
+
+            <div class="theory-card">
+                <h3>POSIX-Syscall Äquivalente</h3>
+                <table class="concept-table">
+                    <thead>
+                        <tr>
+                            <th>.NET C# API</th>
+                            <th>POSIX Systemaufruf</th>
+                            <th>Funktion</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>Process.GetCurrentProcess().Id</code></td>
+                            <td><code>getpid()</code></td>
+                            <td>Eigene Prozess-ID abfragen</td>
+                        </tr>
+                        <tr>
+                            <td><code>Process.GetProcessById(1)</code></td>
+                            <td><code>/proc/1/</code></td>
+                            <td>System-Init (systemd/launchd)</td>
+                        </tr>
+                        <tr>
+                            <td><code>Process.GetProcesses()</code></td>
+                            <td><code>/proc</code> / <code>sysctl</code></td>
+                            <td>Prozesstabelle des Kernels auslesen</td>
+                        </tr>
+                        <tr>
+                            <td><code>Process.Threads</code></td>
+                            <td><code>/proc/[pid]/task</code></td>
+                            <td>Threads/Leichtgewicht-Prozesse zählen</td>
+                        </tr>
+                        <tr>
+                            <td><code>Process.WorkingSet64</code></td>
+                            <td><code>getrusage()</code></td>
+                            <td>Physikalische RAM-Seiten im RAM</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- ========================================================================= -->
+        <!-- MODE 2: PROZESS STARTEN (ProcessStartExample)                              -->
+        <!-- ========================================================================= -->
+
+        <!-- Presets Toolbar -->
+        <div class="controls-panel no-print">
+            <div class="toolbar-grid">
+                <div class="control-group">
+                    <span class="control-label">Befehls-Presets:</span>
+                    <div class="btn-group">
+                        <button class="toggle-btn @(SelectedCommandPreset == "dotnet" ? "active" : "")"
+                                @onclick='() => ApplyCommandPreset("dotnet")'>
+                            .NET Version
+                        </button>
+                        <button class="toggle-btn @(SelectedCommandPreset == "uname" ? "active" : "")"
+                                @onclick='() => ApplyCommandPreset("uname")'>
+                            System (uname/ver)
+                        </button>
+                        <button class="toggle-btn @(SelectedCommandPreset == "ls" ? "active" : "")"
+                                @onclick='() => ApplyCommandPreset("ls")'>
+                            Verzeichnis (ls / dir)
+                        </button>
+                        <button class="toggle-btn @(SelectedCommandPreset == "whoami" ? "active" : "")"
+                                @onclick='() => ApplyCommandPreset("whoami")'>
+                            Benutzer (whoami)
+                        </button>
+                        <button class="toggle-btn @(SelectedCommandPreset == "error" ? "active" : "")"
+                                @onclick='() => ApplyCommandPreset("error")'>
+                            Fehler (ExitCode 1)
+                        </button>
+                    </div>
+                </div>
+
+                <div class="action-btn-group">
+                    <button class="ctrl-btn ctrl-play" @onclick="ExecuteCommandAsync" disabled="@IsRunningCommand">
+                        ▶️ Prozess starten (Process.Start)
+                    </button>
+                    <button class="ctrl-btn" @onclick="ResetCommandExecution">
+                        🔄 Reset
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Execution Setup & Flow -->
+        <div class="execution-grid">
+            <!-- Left: ProcessStartInfo Configurator -->
+            <div class="config-card">
+                <h3>1. Konfiguration: <code>ProcessStartInfo</code></h3>
+                <div class="form-row">
+                    <label class="input-label">Befehl (FileName / Executable):</label>
+                    <input type="text" class="text-control" @bind="CustomCommand" />
+                </div>
+                <div class="form-row">
+                    <label class="input-label">Argumente (Arguments):</label>
+                    <input type="text" class="text-control" @bind="CustomArguments" />
+                </div>
+
+                <div class="flags-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" @bind="OptRedirectStdout" />
+                        <span><code>RedirectStandardOutput = @OptRedirectStdout.ToString().ToLower()</code></span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" @bind="OptRedirectStderr" />
+                        <span><code>RedirectStandardError = @OptRedirectStderr.ToString().ToLower()</code></span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" @bind="OptUseShellExecute" />
+                        <span><code>UseShellExecute = @OptUseShellExecute.ToString().ToLower()</code></span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" @bind="OptCreateNoWindow" />
+                        <span><code>CreateNoWindow = @OptCreateNoWindow.ToString().ToLower()</code></span>
+                    </label>
+                </div>
+
+                <div class="hint-box">
+                    💡 <strong>Wichtig:</strong> Für <code>RedirectStandardOutput = true</code> muss <code>UseShellExecute = false</code> sein.
+                    Das Betriebssystem richtet eine anonyme Pipe zwischen Eltern- und Kindprozess ein.
+                </div>
+            </div>
+
+            <!-- Right: POSIX Execution Lifecycle -->
+            <div class="lifecycle-card">
+                <h3>2. Lebenszyklus &amp; POSIX-Mapping</h3>
+                <div class="lifecycle-steps">
+                    <div class="step-box @(CommandPhase >= 1 ? "step-active" : "")">
+                        <span class="step-num">1</span>
+                        <div class="step-desc">
+                            <strong>Konstruktion</strong>
+                            <code>new ProcessStartInfo(...)</code>
+                        </div>
+                    </div>
+                    <div class="step-arrow">⬇️</div>
+                    <div class="step-box @(CommandPhase >= 2 ? "step-active" : "")">
+                        <span class="step-num">2</span>
+                        <div class="step-desc">
+                            <strong>Erzeugung &amp; Ausführung</strong>
+                            <code>Process.Start()</code> &bull; <span class="posix-inline">fork() + execve()</span>
+                        </div>
+                    </div>
+                    <div class="step-arrow">⬇️</div>
+                    <div class="step-box @(CommandPhase >= 3 ? "step-active" : "")">
+                        <span class="step-num">3</span>
+                        <div class="step-desc">
+                            <strong>Stream-Lesen (Pipes)</strong>
+                            <code>process.StandardOutput.ReadToEndAsync()</code>
+                        </div>
+                    </div>
+                    <div class="step-arrow">⬇️</div>
+                    <div class="step-box @(CommandPhase >= 4 ? "step-active" : "")">
+                        <span class="step-num">4</span>
+                        <div class="step-desc">
+                            <strong>Warten &amp; Synchronisation</strong>
+                            <code>await process.WaitForExitAsync()</code> &bull; <span class="posix-inline">waitpid()</span>
+                        </div>
+                    </div>
+                </div>
+
+                @if (CommandPhase >= 4)
+                {
+                    <div class="exit-status-card @(LastExitCode == 0 ? "exit-ok" : "exit-fail")">
+                        <span class="exit-icon">@(LastExitCode == 0 ? "✅" : "⚠️")</span>
+                        <div class="exit-info">
+                            <strong>ExitCode: @LastExitCode</strong>
+                            <span>@(LastExitCode == 0 ? "Prozess erfolgreich beendet" : "Prozess mit Fehlerstatus beendet")</span>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Terminal Window Output -->
+        <div class="terminal-card">
+            <div class="terminal-bar">
+                <div class="terminal-dots">
+                    <span class="dot red"></span>
+                    <span class="dot yellow"></span>
+                    <span class="dot green"></span>
+                </div>
+                <span class="terminal-title">Standard Output &amp; Error Stream (Konsole)</span>
+                <span class="terminal-status">@(IsRunningCommand ? "🟡 Läuft..." : (CommandPhase >= 4 ? "🟢 Beendet" : "⚪ Bereit"))</span>
+            </div>
+            <div class="terminal-screen">
+                <div class="term-line term-prompt">$ @CustomCommand @CustomArguments</div>
+
+                @if (IsRunningCommand)
+                {
+                    <div class="term-line term-spinner">⏳ Kindprozess arbeitet...</div>
+                }
+
+                @if (!string.IsNullOrEmpty(TerminalStdout))
+                {
+                    @foreach (var line in TerminalStdout.Split('\n'))
+                    {
+                        @if (!string.IsNullOrWhiteSpace(line))
+                        {
+                            <div class="term-line term-stdout">@line</div>
+                        }
+                    }
+                }
+
+                @if (!string.IsNullOrEmpty(TerminalStderr))
+                {
+                    @foreach (var line in TerminalStderr.Split('\n'))
+                    {
+                        @if (!string.IsNullOrWhiteSpace(line))
+                        {
+                            <div class="term-line term-stderr">stderr: @line</div>
+                        }
+                    }
+                }
+
+                @if (CommandPhase >= 4)
+                {
+                    <div class="term-line term-exit">[Process exited with code @LastExitCode]</div>
+                }
+            </div>
+        </div>
+
+        <!-- Code Snippet for ProcessStartExample -->
+        <div class="code-card">
+            <div class="code-header">
+                <span>C# Implementierung (<code>ProcessManager.cs</code>)</span>
+                <a href="https://github.com/RobinNunkesser/work/tree/main/artifacts/packages/dotnet/nuget-systems/samples/console/OperatingSystems/Processes/ProcessStartExample/" 
+                   target="_blank" rel="noopener noreferrer" class="code-link">
+                    📁 Im Quellcode ansehen ↗
+                </a>
+            </div>
+            <pre class="code-pre"><code><span class="kw">using</span> System.Diagnostics;
+
+<span class="kw">public class</span> <span class="typ">ProcessManager</span>
+{
+    <span class="kw">public async</span> <span class="typ">Task</span>&lt;(<span class="kw">int</span> ExitCode, <span class="kw">string</span> Output, <span class="kw">string</span> Error)&gt; <span class="mth">RunWithOutputAsync</span>(<span class="kw">string</span> command, <span class="kw">string</span> args)
+    {
+        <span class="cmt">// 1. Parameter vorbereiten</span>
+        <span class="kw">var</span> psi = <span class="kw">new</span> <span class="typ">ProcessStartInfo</span>(command, args)
+        {
+            RedirectStandardOutput = <span class="kw">true</span>,
+            RedirectStandardError = <span class="kw">true</span>,
+            UseShellExecute = <span class="kw">false</span>,
+            CreateNoWindow = <span class="kw">true</span>
+        };
+
+        <span class="cmt">// 2. Kindprozess starten (POSIX: fork + execve)</span>
+        <span class="kw">using var</span> process = <span class="kw">new</span> <span class="typ">Process</span> { StartInfo = psi };
+        process.<span class="mth">Start</span>();
+
+        <span class="cmt">// 3. Ausgaben asynchron aus Pipes auslesen</span>
+        <span class="kw">var</span> outputTask = process.StandardOutput.<span class="mth">ReadToEndAsync</span>();
+        <span class="kw">var</span> errorTask = process.StandardError.<span class="mth">ReadToEndAsync</span>();
+
+        <span class="cmt">// 4. Warten auf Prozessende (POSIX: waitpid)</span>
+        <span class="kw">await</span> process.<span class="mth">WaitForExitAsync</span>();
+
+        <span class="kw">return</span> (process.ExitCode, <span class="kw">await</span> outputTask, <span class="kw">await</span> errorTask);
+    }
+}</code></pre>
+        </div>
+    }
+
+</article>
+
+@code {
+    public enum ProcessMode
+    {
+        Info,
+        Start
+    }
+
+    [SupplyParameterFromQuery(Name = "mode")]
+    public string? QueryMode { get; set; }
+
+    [SupplyParameterFromQuery(Name = "embed")]
+    public bool? QueryEmbed { get; set; }
+
+    public bool IsEmbed { get; set; } = false;
+    public ProcessMode ActiveMode { get; set; } = ProcessMode.Info;
+
+    // --- Mode 1: Process Info State ---
+    public string SelectedFilter { get; set; } = "all";
+    public string SearchQuery { get; set; } = "";
+
+    public record ProcessItem(
+        int Id,
+        string ProcessName,
+        string Category,
+        int ThreadCount,
+        double WorkingSetMb,
+        string PriorityClass,
+        string Status
+    );
+
+    public ProcessItem CurrentProcessInfo { get; set; } = new(
+        4210,
+        "Italbytz.Systems.Demos",
+        "dotnet",
+        16,
+        48.5,
+        "Normal",
+        "Running"
+    );
+
+    public ProcessItem InitProcessInfo { get; set; } = new(
+        1,
+        "launchd / systemd",
+        "system",
+        4,
+        14.2,
+        "High",
+        "Running"
+    );
+
+    public List<ProcessItem> AllProcesses { get; set; } = new();
+
+    public List<ProcessItem> FilteredProcesses
+    {
+        get
+        {
+            var list = AllProcesses.AsEnumerable();
+            if (SelectedFilter == "dotnet")
+            {
+                list = list.Where(p => p.Category == "dotnet");
+            }
+            else if (SelectedFilter == "system")
+            {
+                list = list.Where(p => p.Category == "system");
+            }
+
+            if (!string.IsNullOrWhiteSpace(SearchQuery))
+            {
+                list = list.Where(p => p.ProcessName.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase)
+                                    || p.Id.ToString().Contains(SearchQuery));
+            }
+
+            return list.OrderBy(p => p.Id).ToList();
+        }
+    }
+
+    // --- Mode 2: Process Start State ---
+    public string SelectedCommandPreset { get; set; } = "dotnet";
+    public string CustomCommand { get; set; } = "dotnet";
+    public string CustomArguments { get; set; } = "--version";
+    public bool OptRedirectStdout { get; set; } = true;
+    public bool OptRedirectStderr { get; set; } = true;
+    public bool OptUseShellExecute { get; set; } = false;
+    public bool OptCreateNoWindow { get; set; } = true;
+
+    public bool IsRunningCommand { get; set; } = false;
+    public int CommandPhase { get; set; } = 0;
+    public int LastExitCode { get; set; } = 0;
+    public string TerminalStdout { get; set; } = "";
+    public string TerminalStderr { get; set; } = "";
+
+    protected override void OnInitialized()
+    {
+        ReadQueryParameters();
+        InitializeProcessList();
+        ApplyCommandPreset(SelectedCommandPreset);
+    }
+
+    protected override void OnParametersSet()
+    {
+        ReadQueryParameters();
+    }
+
+    private void ReadQueryParameters()
+    {
+        if (QueryEmbed.HasValue)
+        {
+            IsEmbed = QueryEmbed.Value;
+        }
+
+        if (!string.IsNullOrEmpty(QueryMode))
+        {
+            if (QueryMode.Equals("start", StringComparison.OrdinalIgnoreCase))
+            {
+                ActiveMode = ProcessMode.Start;
+            }
+            else if (QueryMode.Equals("info", StringComparison.OrdinalIgnoreCase))
+            {
+                ActiveMode = ProcessMode.Info;
+            }
+        }
+    }
+
+    public void SetMode(ProcessMode mode)
+    {
+        ActiveMode = mode;
+    }
+
+    public void SetFilter(string filter)
+    {
+        SelectedFilter = filter;
+    }
+
+    private void InitializeProcessList()
+    {
+        AllProcesses = new List<ProcessItem>
+        {
+            InitProcessInfo,
+            new(78, "syslogd", "system", 2, 8.4, "Normal", "Sleeping"),
+            new(102, "dbus-daemon", "system", 1, 5.1, "Normal", "Sleeping"),
+            new(340, "networkd", "system", 3, 12.0, "Normal", "Running"),
+            new(1240, "ssh-agent", "system", 1, 3.2, "Idle", "Sleeping"),
+            new(2050, "code-server", "dotnet", 24, 185.0, "Normal", "Running"),
+            new(3100, "chrome", "app", 42, 450.0, "Normal", "Running"),
+            CurrentProcessInfo,
+            new(5120, "dotnet-build", "dotnet", 8, 92.4, "BelowNormal", "Sleeping"),
+            new(6200, "zsh", "app", 1, 7.8, "Normal", "Sleeping")
+        };
+    }
+
+    public void RefreshProcessStats()
+    {
+        var rnd = new Random();
+        CurrentProcessInfo = CurrentProcessInfo with
+        {
+            WorkingSetMb = Math.Round(45.0 + rnd.NextDouble() * 12.0, 1),
+            ThreadCount = 14 + rnd.Next(0, 5)
+        };
+    }
+
+    public void ApplyCommandPreset(string preset)
+    {
+        SelectedCommandPreset = preset;
+        CommandPhase = 0;
+        TerminalStdout = "";
+        TerminalStderr = "";
+
+        switch (preset)
+        {
+            case "dotnet":
+                CustomCommand = "dotnet";
+                CustomArguments = "--version";
+                break;
+            case "uname":
+                CustomCommand = "uname";
+                CustomArguments = "-a";
+                break;
+            case "ls":
+                CustomCommand = "ls";
+                CustomArguments = "-la /usr";
+                break;
+            case "whoami":
+                CustomCommand = "whoami";
+                CustomArguments = "";
+                break;
+            case "error":
+                CustomCommand = "cat";
+                CustomArguments = "/etc/shadow";
+                break;
+        }
+    }
+
+    public async Task ExecuteCommandAsync()
+    {
+        if (IsRunningCommand) return;
+
+        IsRunningCommand = true;
+        TerminalStdout = "";
+        TerminalStderr = "";
+        CommandPhase = 1;
+        StateHasChanged();
+
+        await Task.Delay(400);
+        CommandPhase = 2; // Process.Start()
+        StateHasChanged();
+
+        await Task.Delay(400);
+        CommandPhase = 3; // Streams reading
+        StateHasChanged();
+
+        await Task.Delay(400);
+
+        // Simulated Command Execution Output
+        if (SelectedCommandPreset == "error" || CustomCommand == "cat" && CustomArguments.Contains("shadow"))
+        {
+            LastExitCode = 1;
+            TerminalStderr = "cat: /etc/shadow: Permission denied";
+        }
+        else if (CustomCommand == "dotnet")
+        {
+            LastExitCode = 0;
+            TerminalStdout = "10.0.101";
+        }
+        else if (CustomCommand == "uname")
+        {
+            LastExitCode = 0;
+            TerminalStdout = "Darwin Kernel Version 25.6.0: Fri Jul 31 19:16:36 PDT 2026; root:xnu/RELEASE_ARM64 arm64";
+        }
+        else if (CustomCommand == "ls")
+        {
+            LastExitCode = 0;
+            TerminalStdout = "drwxr-xr-x   5 root  wheel   160 Jan  1  2026 .\ndrwxr-xr-x  12 root  wheel   384 Jan  1  2026 ..\ndrwxr-xr-x 892 root  wheel 28544 Nov  8 12:00 bin\ndrwxr-xr-x  39 root  wheel  1248 Nov  8 12:00 lib\ndrwxr-xr-x 195 root  wheel  6240 Nov  8 12:00 share";
+        }
+        else if (CustomCommand == "whoami")
+        {
+            LastExitCode = 0;
+            TerminalStdout = "student (uid=1000)";
+        }
+        else
+        {
+            LastExitCode = 0;
+            TerminalStdout = $"[Ausgeführt: {CustomCommand} {CustomArguments} um {DateTime.Now:HH:mm:ss}]";
+        }
+
+        CommandPhase = 4; // WaitForExit()
+        IsRunningCommand = false;
+        StateHasChanged();
+    }
+
+    public void ResetCommandExecution()
+    {
+        CommandPhase = 0;
+        TerminalStdout = "";
+        TerminalStderr = "";
+        IsRunningCommand = false;
+        LastExitCode = 0;
+    }
+
+    public void Dispose()
+    {
+    }
+}
