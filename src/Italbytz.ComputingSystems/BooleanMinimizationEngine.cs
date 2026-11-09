@@ -115,6 +115,7 @@ internal static class BooleanMinimizationEngine
             var next = new List<ImplicantData>();
             var combinedIndices = new HashSet<int>();
 
+            var checkedPrimes = new HashSet<int>();
             for (var indexA = 0; indexA < current.Count; indexA++)
             {
                 for (var indexB = indexA + 1; indexB < current.Count; indexB++)
@@ -153,14 +154,11 @@ internal static class BooleanMinimizationEngine
                         steps.Add($"Combine {FormatImplicant(variableCount, first.FixedBits, first.Mask)} with {FormatImplicant(variableCount, second.FixedBits, second.Mask)} -> {FormatImplicant(variableCount, merged.FixedBits, merged.Mask)}.");
                     }
                 }
-            }
 
-            for (var index = 0; index < current.Count; index++)
-            {
-                if (!combinedIndices.Contains(index) && current[index].CoveredMinterms.Length > 0)
+                if (!combinedIndices.Contains(indexA) && checkedPrimes.Add(indexA) && current[indexA].CoveredMinterms.Length > 0)
                 {
-                    primes.Add(current[index]);
-                    steps.Add($"Prime implicant found: {FormatImplicant(variableCount, current[index].FixedBits, current[index].Mask)} covering {string.Join(", ", current[index].CoveredMinterms)}.");
+                    primes.Add(current[indexA]);
+                    steps.Add($"Prime implicant found: {FormatImplicant(variableCount, current[indexA].FixedBits, current[indexA].Mask)} covering {string.Join(", ", current[indexA].CoveredMinterms)}.");
                 }
             }
 

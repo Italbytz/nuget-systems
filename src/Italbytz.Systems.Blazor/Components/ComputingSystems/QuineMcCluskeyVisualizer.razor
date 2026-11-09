@@ -1242,18 +1242,74 @@
         Recalculate();
     }
 
-    private void GenerateRandomFunction()
+    public void GenerateRandomFunction()
     {
         StopPlay();
-        var rand = new Random();
-        int len = 1 << VariableCount;
-        TruthValues = new int[len];
-        for (int i = 0; i < len; i++)
-        {
-            TruthValues[i] = rand.Next(2);
-        }
+        TruthValues = GenerateExamGradeFunction(VariableCount);
         TruthValuesInput = FormatTruthValues(TruthValues);
         Recalculate();
+    }
+
+    public static int[] GenerateExamGradeFunction(int variableCount)
+    {
+        var rand = new Random();
+        int len = 1 << variableCount;
+
+        // Desired bounds for fair exam/exercise generation:
+        // 3 variables (len=8):  ones: 3..5, PIs: 2..4, steps: 5..16
+        // 4 variables (len=16): ones: 5..8, PIs: 3..5, essential PIs: 1..3, steps: 8..24
+        int minOnes = variableCount == 3 ? 3 : 5;
+        int maxOnes = variableCount == 3 ? 5 : 8;
+        int minPis = variableCount == 3 ? 2 : 3;
+        int maxPis = variableCount == 3 ? 4 : 5;
+        int minSteps = variableCount == 3 ? 5 : 8;
+        int maxSteps = variableCount == 3 ? 16 : 24;
+
+        int[] bestCandidate = new int[len];
+        int bestScore = int.MaxValue;
+
+        var solver = new QuineMcCluskeySolver();
+
+        for (int attempt = 0; attempt < 300; attempt++)
+        {
+            var candidate = new int[len];
+            int onesCount = rand.Next(minOnes, maxOnes + 1);
+            var indices = Enumerable.Range(0, len).OrderBy(_ => rand.Next()).Take(onesCount).ToList();
+            foreach (var idx in indices)
+            {
+                candidate[idx] = 1;
+            }
+
+            try
+            {
+                var solution = solver.Solve(new QuineMcCluskeyParameters(variableCount, candidate));
+                if (solution.MinimalDnf == "0" || solution.MinimalDnf == "1") continue;
+
+                int piCount = solution.PrimeImplicants.Length;
+                int essCount = solution.EssentialPrimeImplicants.Length;
+                int stepCount = solution.Steps.Count;
+
+                bool isMatch = piCount >= minPis && piCount <= maxPis &&
+                               stepCount >= minSteps && stepCount <= maxSteps &&
+                               (variableCount < 4 || (essCount >= 1 && essCount <= 3));
+
+                if (isMatch)
+                {
+                    return candidate;
+                }
+
+                int penalty = Math.Abs(piCount - (minPis + maxPis) / 2) * 5 +
+                              Math.Abs(stepCount - (minSteps + maxSteps) / 2);
+                if (penalty < bestScore)
+                {
+                    bestScore = penalty;
+                    bestCandidate = candidate;
+                }
+            }
+            catch { }
+        }
+
+        return bestCandidate;
     }
 
     private void Recalculate()

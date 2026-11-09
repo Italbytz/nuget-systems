@@ -255,6 +255,33 @@ public class EspressoTests
         Assert.AreEqual("(!x3 & !x2 & !x0) | (x1)", qmcSolution.MinimalDnf);
     }
 
+    [TestMethod]
+    public void TestGenerateExamGradeFunction()
+    {
+        var solver = new QuineMcCluskeySolver();
+
+        for (int i = 0; i < 20; i++)
+        {
+            var tv4 = Italbytz.Systems.Blazor.Components.ComputingSystems.QuineMcCluskeyVisualizer.GenerateExamGradeFunction(4);
+            int ones4 = tv4.Count(v => v == 1);
+            Assert.IsTrue(ones4 >= 5 && ones4 <= 8, $"4-var function must have 5..8 ones, but got {ones4}");
+
+            var sol4 = solver.Solve(new QuineMcCluskeyParameters(4, tv4));
+            Assert.AreNotEqual("0", sol4.MinimalDnf);
+            Assert.AreNotEqual("1", sol4.MinimalDnf);
+            Assert.IsTrue(sol4.PrimeImplicants.Length >= 3 && sol4.PrimeImplicants.Length <= 5, $"PI count must be 3..5, got {sol4.PrimeImplicants.Length}");
+
+            var tv3 = Italbytz.Systems.Blazor.Components.ComputingSystems.QuineMcCluskeyVisualizer.GenerateExamGradeFunction(3);
+            int ones3 = tv3.Count(v => v == 1);
+            Assert.IsTrue(ones3 >= 3 && ones3 <= 5, $"3-var function must have 3..5 ones, but got {ones3}");
+
+            var sol3 = solver.Solve(new QuineMcCluskeyParameters(3, tv3));
+            Assert.AreNotEqual("0", sol3.MinimalDnf);
+            Assert.AreNotEqual("1", sol3.MinimalDnf);
+            Assert.IsTrue(sol3.PrimeImplicants.Length >= 2 && sol3.PrimeImplicants.Length <= 4, $"PI count must be 2..4, got {sol3.PrimeImplicants.Length}");
+        }
+    }
+
     private static string FormatTerm(int variableCount, int fixedBits, int mask)
     {
         var literals = new List<string>();
