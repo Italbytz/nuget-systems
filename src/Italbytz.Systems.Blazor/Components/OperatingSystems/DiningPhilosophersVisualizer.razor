@@ -1,0 +1,730 @@
+@namespace Italbytz.Systems.Blazor.Components.OperatingSystems
+@using Microsoft.AspNetCore.Components
+@using Microsoft.JSInterop
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+<article class="dp-container @(IsEmbed ? "embed-mode" : "")">
+
+    @if (!IsEmbed)
+    {
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Betriebssysteme &bull; Synchronisation &amp; Deadlocks</p>
+            <h2>Philosophenproblem (Dining Philosophers)</h2>
+            <p class="feature-intro">
+                Fünf Philosophen teilen sich einen Tisch und fünf Gabeln. Um zu essen, benötigt jeder Philosoph zwei benachbarte Gabeln.
+                Erforschen Sie den Unterschied zwischen <strong>symmetrischem Zugriff</strong> (Deadlock durch zyklisches Warten),
+                der <strong>asymmetrischen Lösung</strong> (Dijkstras Linkshänder) und einem <strong>Arbitrator / Kellner</strong> (Semaphore max. 4).
+            </p>
+        </div>
+    }
+
+    <!-- Toolbar / Strategy Switcher -->
+    <div class="controls-panel no-print">
+        <div class="toolbar-grid">
+            <div class="control-group">
+                <span class="control-label">Strategie:</span>
+                <div class="btn-group">
+                    <button class="strategy-btn @(CurrentStrategy == StrategyMode.Bare ? "active-bare" : "")"
+                            @onclick="() => SetStrategy(StrategyMode.Bare)">
+                        🔴 Naiv (Symmetrisch / Deadlock)
+                    </button>
+                    <button class="strategy-btn @(CurrentStrategy == StrategyMode.Asymmetric ? "active-asym" : "")"
+                            @onclick="() => SetStrategy(StrategyMode.Asymmetric)">
+                        🟢 Asymmetrisch (Linkshänder)
+                    </button>
+                    <button class="strategy-btn @(CurrentStrategy == StrategyMode.Arbitrator ? "active-arb" : "")"
+                            @onclick="() => SetStrategy(StrategyMode.Arbitrator)">
+                        🔵 Kellner (Semaphore max. 4)
+                    </button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <span class="control-label">Tempo:</span>
+                <select class="speed-select" @bind="PlaySpeedMs">
+                    <option value="1600">Normal (1.6s)</option>
+                    <option value="900">Schnell (0.9s)</option>
+                    <option value="2500">Gemächlich (2.5s)</option>
+                </select>
+            </div>
+
+            <div class="action-btn-group">
+                @if (CurrentStrategy == StrategyMode.Bare && !IsDeadlocked)
+                {
+                    <button class="action-btn danger" @onclick="ForceDeadlock" title="Lässt alle 5 Philosophen gleichzeitig ihre erste Gabel aufnehmen">
+                        ⚡ Deadlock forcieren
+                    </button>
+                }
+                <button class="action-btn @(IsPlaying ? "primary" : "")" @onclick="TogglePlay">
+                    @(IsPlaying ? "⏸️ Pause" : "▶️ Auto-Play")
+                </button>
+                <button class="action-btn" @onclick="StepSimulation" disabled="@(IsPlaying || IsDeadlocked)">
+                    ⏭️ Einzelschritt
+                </button>
+                <button class="action-btn" @onclick="ResetSimulation">
+                    🔄 Reset
+                </button>
+            </div>
+        </div>
+    </div>
+
+    @if (IsDeadlocked)
+    {
+        <div class="deadlock-alert">
+            <span class="deadlock-icon">⛔</span>
+            <div>
+                <p class="deadlock-title">DEADLOCK (Zyklische Verklemmung) EINGETRETEN!</p>
+                <p class="deadlock-desc">
+                    Alle 5 Philosophen halten ihre erste Gabel und warten zirkulär auf die nächste benachbarte Gabel.
+                    Kein Philosoph kann essen, keiner legt freiwillig ab. Die Coffman-Bedingung 4 (Zyklisches Warten)
+                    ist vollständig erfüllt. Wählen Sie oben eine Lösungsstrategie (z. B. Asymmetrisch), um die Blockade zu verhindern!
+                </p>
+            </div>
+        </div>
+    }
+
+    <!-- Main Visualizer Grid -->
+    <div class="dp-stage-grid">
+        <!-- Circular Dining Table -->
+        <div class="table-panel">
+            <div class="table-wrapper">
+                <!-- Center Round Table with Spaghetti -->
+                <div class="round-table">
+                    <span class="center-plate">🍝</span>
+                    <span class="center-table-label">Esstisch</span>
+                    @if (CurrentStrategy == StrategyMode.Arbitrator)
+                    {
+                        <span class="arbitrator-badge">Kellner: @ActiveEatersCount / 4 am Tisch</span>
+                    }
+                </div>
+
+                <!-- 5 Forks between Philosophers -->
+                @for (int i = 0; i < 5; i++)
+                {
+                    var fork = Forks[i];
+                    var leftPercent = GetForkLeft(i);
+                    var topPercent = GetForkTop(i);
+                    var stateClass = fork.HolderId == null ? "free" : (fork.HolderId == i ? "held-by-left" : "held-by-right");
+
+                    <div class="fork-node @stateClass"
+                         style="left: @leftPercent%; top: @topPercent%;"
+                         title="Gabel @(i + 1): @(fork.HolderId == null ? "Frei auf Tisch" : $"Gehalten von P{fork.HolderId + 1}")">
+                        <span>🍴</span>
+                        <span class="fork-label">G@(i + 1)</span>
+                    </div>
+                }
+
+                <!-- 5 Philosopher Seats -->
+                @for (int i = 0; i < 5; i++)
+                {
+                    var p = Philosophers[i];
+                    var leftPercent = GetPhilosopherLeft(i);
+                    var topPercent = GetPhilosopherTop(i);
+                    var stateClass = GetStateCssClass(p.State);
+                    var isLeftHanded = CurrentStrategy == StrategyMode.Asymmetric && i == 4;
+
+                    <div class="philosopher-seat @stateClass @(isLeftHanded ? "is-left-handed" : "")"
+                         style="left: @leftPercent%; top: @topPercent%;"
+                         title="Philosoph @(i + 1): @GetStateDescription(p.State) @(isLeftHanded ? "(Linkshänder)" : "")">
+                        <span class="ph-avatar">@GetPhilosopherAvatar(p.State)</span>
+                        <span class="ph-name">P@(i + 1) @(isLeftHanded ? "👈" : "")</span>
+                        <span class="ph-state-label @GetStateLabelCssClass(p.State)">
+                            @GetStateShortLabel(p.State)
+                        </span>
+                    </div>
+                }
+            </div>
+
+            <!-- Table Legend -->
+            <div class="table-legend">
+                <div class="legend-item">
+                    <span class="legend-dot dot-think"></span>
+                    <span>Denkt (frei)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-dot dot-wait"></span>
+                    <span>Wartet auf Gabel</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-dot dot-eat"></span>
+                    <span>Isst (beide Gabeln)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-dot dot-deadlock"></span>
+                    <span>Deadlock (blockiert)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Details Panel: Code Listing & Console -->
+        <div class="details-panel">
+            <!-- Synchronized Code Card -->
+            <div class="code-card">
+                <div class="code-card-header">
+                    <span class="code-title">C# Implementierung &bull; @GetStrategyTitle()</span>
+                    <button class="copy-btn" @onclick="CopyCode">
+                        @(IsCopied ? "✓ Kopiert!" : "📋 Code kopieren")
+                    </button>
+                </div>
+
+                @if (CurrentStrategy == StrategyMode.Bare)
+                {
+                    <pre class="code-listing"><code><span class="code-line @(CurrentCodeHighlight == 1 ? "active-line" : "")">// 1. Denken (Zufällige Dauer)</span>
+<span class="code-line @(CurrentCodeHighlight == 1 ? "active-line" : "")">Think();</span>
+<span class="code-line @(CurrentCodeHighlight == 2 ? "active-line" : "")">// 2. Erste Gabel nehmen (Immer links: Forks[id])</span>
+<span class="code-line @(CurrentCodeHighlight == 2 ? "active-line" : "")">while (Forks[id] != 0) Wait();</span>
+<span class="code-line @(CurrentCodeHighlight == 2 ? "active-line" : "")">Forks[id] = id;</span>
+<span class="code-line @(CurrentCodeHighlight == 3 ? "active-line" : "")">// 3. Zweite Gabel nehmen (Immer rechts: Forks[(id+1)%5])</span>
+<span class="code-line @(CurrentCodeHighlight == 3 ? "active-line" : "")">while (Forks[(id + 1) % 5] != 0) Wait();</span>
+<span class="code-line @(CurrentCodeHighlight == 3 ? "active-line" : "")">Forks[(id + 1) % 5] = -id;</span>
+<span class="code-line @(CurrentCodeHighlight == 4 ? "active-line" : "")">// 4. Essen mit beiden Gabeln</span>
+<span class="code-line @(CurrentCodeHighlight == 4 ? "active-line" : "")">Eat();</span>
+<span class="code-line @(CurrentCodeHighlight == 5 ? "active-line" : "")">// 5. Beide Gabeln zurücklegen</span>
+<span class="code-line @(CurrentCodeHighlight == 5 ? "active-line" : "")">Forks[id] = 0;</span>
+<span class="code-line @(CurrentCodeHighlight == 5 ? "active-line" : "")">Forks[(id + 1) % 5] = 0;</span></code></pre>
+                }
+                else if (CurrentStrategy == StrategyMode.Asymmetric)
+                {
+                    <pre class="code-listing"><code><span class="code-line @(CurrentCodeHighlight == 1 ? "active-line" : "")">// Asymmetrische Strategie (Linkshänder Dijkstra)</span>
+<span class="code-line @(CurrentCodeHighlight == 1 ? "active-line" : "")">int firstFork = id; int secondFork = (id + 1) % 5;</span>
+<span class="code-line @(CurrentCodeHighlight == 1 ? "active-line" : "")">if (id == 4) // Philosoph 5 greift umgekehrt!</span>
+<span class="code-line @(CurrentCodeHighlight == 1 ? "active-line" : "")">    (firstFork, secondFork) = (secondFork, firstFork);</span>
+<span class="code-line @(CurrentCodeHighlight == 2 ? "active-line" : "")">while (Forks[firstFork] != 0) Wait();</span>
+<span class="code-line @(CurrentCodeHighlight == 2 ? "active-line" : "")">Forks[firstFork] = id;</span>
+<span class="code-line @(CurrentCodeHighlight == 3 ? "active-line" : "")">while (Forks[secondFork] != 0) Wait();</span>
+<span class="code-line @(CurrentCodeHighlight == 3 ? "active-line" : "")">Forks[secondFork] = id;</span>
+<span class="code-line @(CurrentCodeHighlight == 4 ? "active-line" : "")">Eat();</span>
+<span class="code-line @(CurrentCodeHighlight == 5 ? "active-line" : "")">Forks[firstFork] = 0; Forks[secondFork] = 0;</span></code></pre>
+                }
+                else
+                {
+                    <pre class="code-listing"><code><span class="code-line @(CurrentCodeHighlight == 1 ? "active-line" : "")">// Arbitrator (Kellner / Semaphore max. 4 Philosophen)</span>
+<span class="code-line @(CurrentCodeHighlight == 1 ? "active-line" : "")">static SemaphoreSlim waiter = new SemaphoreSlim(4, 4);</span>
+<span class="code-line @(CurrentCodeHighlight == 2 ? "active-line" : "")">waiter.Wait(); // Nur max 4 dürfen gleichzeitig an den Tisch</span>
+<span class="code-line @(CurrentCodeHighlight == 2 ? "active-line" : "")">while (Forks[id] != 0) Wait(); Forks[id] = id;</span>
+<span class="code-line @(CurrentCodeHighlight == 3 ? "active-line" : "")">while (Forks[(id+1)%5] != 0) Wait(); Forks[(id+1)%5] = id;</span>
+<span class="code-line @(CurrentCodeHighlight == 4 ? "active-line" : "")">Eat();</span>
+<span class="code-line @(CurrentCodeHighlight == 5 ? "active-line" : "")">Forks[id] = 0; Forks[(id+1)%5] = 0;</span>
+<span class="code-line @(CurrentCodeHighlight == 5 ? "active-line" : "")">waiter.Release(); // Platz für wartende Philosophen freigeben</span></code></pre>
+                }
+            </div>
+
+            <!-- Terminal Console Card -->
+            <div class="console-card">
+                <div class="console-header">
+                    <span class="console-title">Ereignis-Protokoll</span>
+                    <span>@LogEntries.Count Einträge</span>
+                </div>
+                <div class="console-body" @ref="ConsoleLogRef">
+                    @if (LogEntries.Count == 0)
+                    {
+                        <div class="console-empty">Noch keine Aktionen protokolliert. Drücken Sie "Einzelschritt" oder "Auto-Play".</div>
+                    }
+                    else
+                    {
+                        @foreach (var log in LogEntries)
+                        {
+                            <div class="log-entry">
+                                <span class="log-ts">[@log.Timestamp]</span>
+                                <span class="log-actor" style="color: @log.ActorColor">[@log.Actor]</span>
+                                <span class="log-msg @(log.IsDeadlock ? "deadlock" : (log.IsSuccess ? "success" : ""))">
+                                    @log.Message
+                                </span>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+
+            <!-- Coffman Conditions Box -->
+            <div class="coffman-box">
+                <p class="coffman-title">Die 4 Coffman-Bedingungen für Verklemmungen (Deadlocks)</p>
+                <div class="coffman-grid">
+                    <div class="coffman-item">
+                        <div class="coffman-item-name">1. Mutual Exclusion</div>
+                        <div class="coffman-item-desc">Jede Gabel kann nur von 1 Philosoph exklusiv gehalten werden.</div>
+                    </div>
+                    <div class="coffman-item @(CurrentStrategy == StrategyMode.Arbitrator ? "broken" : "")">
+                        <div class="coffman-item-name">2. Hold and Wait</div>
+                        <div class="coffman-item-desc">Philosophen behalten ihre 1. Gabel, während sie auf die 2. warten.</div>
+                        @if (CurrentStrategy == StrategyMode.Arbitrator)
+                        {
+                            <span class="broken-tag">Vom Kellner reguliert</span>
+                        }
+                    </div>
+                    <div class="coffman-item">
+                        <div class="coffman-item-name">3. No Preemption</div>
+                        <div class="coffman-item-desc">Gabeln können nicht gewaltsam entzogen werden.</div>
+                    </div>
+                    <div class="coffman-item @(CurrentStrategy == StrategyMode.Asymmetric ? "broken" : "")">
+                        <div class="coffman-item-name">4. Circular Wait</div>
+                        <div class="coffman-item-desc">P1 wartet auf P2, P2 auf P3 ... P5 wartet zirkulär auf P1.</div>
+                        @if (CurrentStrategy == StrategyMode.Asymmetric)
+                        {
+                            <span class="broken-tag">✓ Durch Linkshänder gebrochen!</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</article>
+
+@code {
+    public enum StrategyMode
+    {
+        Bare,
+        Asymmetric,
+        Arbitrator
+    }
+
+    public enum PhilosopherState
+    {
+        Think,
+        WaitFirstFork,
+        WaitSecondFork,
+        Eat,
+        Deadlocked
+    }
+
+    public class PhilosopherModel
+    {
+        public int Id { get; set; }
+        public PhilosopherState State { get; set; } = PhilosopherState.Think;
+        public int LeftForkIndex => Id;
+        public int RightForkIndex => (Id + 1) % 5;
+        public bool HoldsFirstFork { get; set; }
+        public bool HoldsSecondFork { get; set; }
+        public int EatRemaining { get; set; }
+    }
+
+    public class ForkModel
+    {
+        public int Id { get; set; }
+        public int? HolderId { get; set; }
+    }
+
+    public record LogItem(string Timestamp, string Actor, string ActorColor, string Message, bool IsDeadlock = false, bool IsSuccess = false);
+
+    [SupplyParameterFromQuery(Name = "embed")]
+    public bool? QueryEmbed { get; set; }
+
+    [SupplyParameterFromQuery(Name = "strategy")]
+    public string? QueryStrategy { get; set; }
+
+    private bool IsEmbed { get; set; } = false;
+    private StrategyMode CurrentStrategy { get; set; } = StrategyMode.Bare;
+    private bool IsPlaying { get; set; } = false;
+    private int PlaySpeedMs { get; set; } = 1600;
+    private bool IsDeadlocked { get; set; } = false;
+    private int CurrentCodeHighlight { get; set; } = 1;
+    private bool IsCopied { get; set; } = false;
+
+    private List<PhilosopherModel> Philosophers { get; set; } = new();
+    private List<ForkModel> Forks { get; set; } = new();
+    private List<LogItem> LogEntries { get; set; } = new();
+    private ElementReference ConsoleLogRef;
+    private System.Threading.Timer? _playTimer;
+    private readonly Random _random = new(42);
+
+    private int ActiveEatersCount => Philosophers.Count(p => p.HoldsFirstFork || p.State == PhilosopherState.Eat);
+
+    protected override void OnInitialized()
+    {
+        if (QueryEmbed.HasValue)
+        {
+            IsEmbed = QueryEmbed.Value;
+        }
+        else
+        {
+            var uri = NavigationManager.Uri;
+            if (uri.Contains("embed=true", StringComparison.OrdinalIgnoreCase) || uri.Contains("embedded=true", StringComparison.OrdinalIgnoreCase))
+            {
+                IsEmbed = true;
+            }
+        }
+
+        if (!string.IsNullOrEmpty(QueryStrategy))
+        {
+            if (QueryStrategy.Equals("asymmetric", StringComparison.OrdinalIgnoreCase) || QueryStrategy.Equals("asym", StringComparison.OrdinalIgnoreCase))
+            {
+                CurrentStrategy = StrategyMode.Asymmetric;
+            }
+            else if (QueryStrategy.Equals("arbitrator", StringComparison.OrdinalIgnoreCase) || QueryStrategy.Equals("waiter", StringComparison.OrdinalIgnoreCase))
+            {
+                CurrentStrategy = StrategyMode.Arbitrator;
+            }
+        }
+
+        ResetSimulation();
+    }
+
+    private void SetStrategy(StrategyMode mode)
+    {
+        StopPlay();
+        CurrentStrategy = mode;
+        ResetSimulation();
+    }
+
+    private void ResetSimulation()
+    {
+        StopPlay();
+        IsDeadlocked = false;
+        CurrentCodeHighlight = 1;
+        LogEntries.Clear();
+
+        Forks = Enumerable.Range(0, 5).Select(i => new ForkModel { Id = i, HolderId = null }).ToList();
+        Philosophers = Enumerable.Range(0, 5).Select(i => new PhilosopherModel
+        {
+            Id = i,
+            State = PhilosopherState.Think,
+            HoldsFirstFork = false,
+            HoldsSecondFork = false,
+            EatRemaining = 0
+        }).ToList();
+
+        AddLog("System", "#0284c7", $"Simulation initialisiert. Strategie: {GetStrategyTitle()}");
+    }
+
+    private void TogglePlay()
+    {
+        if (IsPlaying)
+        {
+            StopPlay();
+        }
+        else
+        {
+            if (IsDeadlocked) return;
+            IsPlaying = true;
+            _playTimer?.Dispose();
+            _playTimer = new System.Threading.Timer(_ =>
+            {
+                InvokeAsync(() =>
+                {
+                    if (IsDeadlocked)
+                    {
+                        StopPlay();
+                    }
+                    else
+                    {
+                        StepSimulation();
+                    }
+                    StateHasChanged();
+                });
+            }, null, 0, PlaySpeedMs);
+        }
+    }
+
+    private void StopPlay()
+    {
+        IsPlaying = false;
+        _playTimer?.Dispose();
+        _playTimer = null;
+    }
+
+    private void ForceDeadlock()
+    {
+        StopPlay();
+        ResetSimulation();
+
+        // All 5 take their first fork immediately
+        for (int i = 0; i < 5; i++)
+        {
+            var p = Philosophers[i];
+            var firstFork = p.LeftForkIndex;
+            Forks[firstFork].HolderId = i;
+            p.HoldsFirstFork = true;
+            p.State = PhilosopherState.WaitSecondFork;
+            AddLog($"P{i + 1}", GetPhilosopherColor(i), $"Philosoph {i + 1} nimmt linke Gabel G{firstFork + 1}.");
+        }
+
+        CheckDeadlock();
+        CurrentCodeHighlight = 3;
+    }
+
+    private void StepSimulation()
+    {
+        if (IsDeadlocked) return;
+
+        // Choose a philosopher to advance
+        // Prefer advancing eating philosophers first to finish eating
+        var eatingPhilosopher = Philosophers.FirstOrDefault(p => p.State == PhilosopherState.Eat);
+        if (eatingPhilosopher != null)
+        {
+            eatingPhilosopher.EatRemaining--;
+            if (eatingPhilosopher.EatRemaining <= 0)
+            {
+                FinishEating(eatingPhilosopher);
+                return;
+            }
+        }
+
+        // Try candidate philosophers
+        var candidates = Philosophers.Where(p => p.State != PhilosopherState.Eat).OrderBy(_ => _random.Next()).ToList();
+        foreach (var p in candidates)
+        {
+            if (p.State == PhilosopherState.Think)
+            {
+                // Can only enter table if Arbitrator allows it
+                if (CurrentStrategy == StrategyMode.Arbitrator && ActiveEatersCount >= 4)
+                {
+                    AddLog($"Kellner", "#3b82f6", $"Hält Philosoph {p.Id + 1} zurück: Tisch ist voll (max. 4 Esser/Wartende).");
+                    continue;
+                }
+
+                p.State = PhilosopherState.WaitFirstFork;
+                CurrentCodeHighlight = 2;
+                AddLog($"P{p.Id + 1}", GetPhilosopherColor(p.Id), $"Philosoph {p.Id + 1} hat Hunger und greift nach der 1. Gabel.");
+                TryAcquireFork(p);
+                return;
+            }
+            else if (p.State == PhilosopherState.WaitFirstFork)
+            {
+                CurrentCodeHighlight = 2;
+                if (TryAcquireFork(p)) return;
+            }
+            else if (p.State == PhilosopherState.WaitSecondFork)
+            {
+                CurrentCodeHighlight = 3;
+                if (TryAcquireFork(p)) return;
+            }
+        }
+
+        CheckDeadlock();
+    }
+
+    private bool TryAcquireFork(PhilosopherModel p)
+    {
+        int firstForkIndex = p.LeftForkIndex;
+        int secondForkIndex = p.RightForkIndex;
+
+        // In asymmetric mode, P5 (id 4) is left-handed
+        if (CurrentStrategy == StrategyMode.Asymmetric && p.Id == 4)
+        {
+            (firstForkIndex, secondForkIndex) = (secondForkIndex, firstForkIndex);
+        }
+
+        if (!p.HoldsFirstFork)
+        {
+            if (Forks[firstForkIndex].HolderId == null)
+            {
+                Forks[firstForkIndex].HolderId = p.Id;
+                p.HoldsFirstFork = true;
+                p.State = PhilosopherState.WaitSecondFork;
+                CurrentCodeHighlight = 2;
+                AddLog($"P{p.Id + 1}", GetPhilosopherColor(p.Id), $"Philosoph {p.Id + 1} nimmt Gabel G{firstForkIndex + 1}.");
+                CheckDeadlock();
+                return true;
+            }
+            return false;
+        }
+
+        if (!p.HoldsSecondFork)
+        {
+            if (Forks[secondForkIndex].HolderId == null)
+            {
+                Forks[secondForkIndex].HolderId = p.Id;
+                p.HoldsSecondFork = true;
+                p.State = PhilosopherState.Eat;
+                p.EatRemaining = 2;
+                CurrentCodeHighlight = 4;
+                AddLog($"P{p.Id + 1}", "#10b981", $"Philosoph {p.Id + 1} nimmt Gabel G{secondForkIndex + 1} und beginnt zu ESSEN! 🍝", false, true);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void FinishEating(PhilosopherModel p)
+    {
+        int firstForkIndex = p.LeftForkIndex;
+        int secondForkIndex = p.RightForkIndex;
+
+        Forks[firstForkIndex].HolderId = null;
+        Forks[secondForkIndex].HolderId = null;
+        p.HoldsFirstFork = false;
+        p.HoldsSecondFork = false;
+        p.State = PhilosopherState.Think;
+        CurrentCodeHighlight = 5;
+
+        AddLog($"P{p.Id + 1}", GetPhilosopherColor(p.Id), $"Philosoph {p.Id + 1} ist satt, legt beide Gabeln zurück und denkt nach.");
+    }
+
+    private void CheckDeadlock()
+    {
+        if (CurrentStrategy == StrategyMode.Bare)
+        {
+            bool allHoldOne = Philosophers.All(p => p.HoldsFirstFork && !p.HoldsSecondFork);
+            bool allForksHeld = Forks.All(f => f.HolderId != null);
+
+            if (allHoldOne && allForksHeld)
+            {
+                IsDeadlocked = true;
+                StopPlay();
+                foreach (var p in Philosophers)
+                {
+                    p.State = PhilosopherState.Deadlocked;
+                }
+                AddLog("DEADLOCK", "#ef4444", "⛔ Zyklische Blockade eingetreten! Alle 5 Philosophen warten auf die Nachbargabel.", true);
+            }
+        }
+    }
+
+    private void AddLog(string actor, string color, string message, bool isDeadlock = false, bool isSuccess = false)
+    {
+        var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
+        LogEntries.Insert(0, new LogItem(timestamp, actor, color, message, isDeadlock, isSuccess));
+        if (LogEntries.Count > 100)
+        {
+            LogEntries.RemoveAt(LogEntries.Count - 1);
+        }
+    }
+
+    private double GetPhilosopherLeft(int index)
+    {
+        // 5 positions arranged in circle (R = 40%, Center = 50%)
+        double angle = (2 * Math.PI * index / 5) - (Math.PI / 2);
+        return 50 + 38 * Math.Cos(angle);
+    }
+
+    private double GetPhilosopherTop(int index)
+    {
+        double angle = (2 * Math.PI * index / 5) - (Math.PI / 2);
+        return 50 + 38 * Math.Sin(angle);
+    }
+
+    private double GetForkLeft(int index)
+    {
+        // Forks are offset by half an interval (pi/5)
+        double angle = (2 * Math.PI * index / 5) - (Math.PI / 2) + (Math.PI / 5);
+        return 50 + 26 * Math.Cos(angle);
+    }
+
+    private double GetForkTop(int index)
+    {
+        double angle = (2 * Math.PI * index / 5) - (Math.PI / 2) + (Math.PI / 5);
+        return 50 + 26 * Math.Sin(angle);
+    }
+
+    private string GetStateCssClass(PhilosopherState state) => state switch
+    {
+        PhilosopherState.Think => "state-think",
+        PhilosopherState.WaitFirstFork or PhilosopherState.WaitSecondFork => "state-wait",
+        PhilosopherState.Eat => "state-eat",
+        PhilosopherState.Deadlocked => "state-deadlocked",
+        _ => ""
+    };
+
+    private string GetStateLabelCssClass(PhilosopherState state) => state switch
+    {
+        PhilosopherState.Think => "state-label-think",
+        PhilosopherState.WaitFirstFork or PhilosopherState.WaitSecondFork => "state-label-wait",
+        PhilosopherState.Eat => "state-label-eat",
+        PhilosopherState.Deadlocked => "state-label-deadlocked",
+        _ => ""
+    };
+
+    private string GetPhilosopherAvatar(PhilosopherState state) => state switch
+    {
+        PhilosopherState.Think => "💭",
+        PhilosopherState.WaitFirstFork or PhilosopherState.WaitSecondFork => "⏳",
+        PhilosopherState.Eat => "🍝",
+        PhilosopherState.Deadlocked => "⛔",
+        _ => "👤"
+    };
+
+    private string GetStateShortLabel(PhilosopherState state) => state switch
+    {
+        PhilosopherState.Think => "Denkt",
+        PhilosopherState.WaitFirstFork => "Wartet (1)",
+        PhilosopherState.WaitSecondFork => "Wartet (2)",
+        PhilosopherState.Eat => "Isst",
+        PhilosopherState.Deadlocked => "Blockiert",
+        _ => ""
+    };
+
+    private string GetStateDescription(PhilosopherState state) => state switch
+    {
+        PhilosopherState.Think => "Denkt nach (beide Gabeln frei)",
+        PhilosopherState.WaitFirstFork => "Wartet auf die erste Gabel",
+        PhilosopherState.WaitSecondFork => "Hält 1. Gabel, wartet auf die 2.",
+        PhilosopherState.Eat => "Isst mit beiden Gabeln",
+        PhilosopherState.Deadlocked => "Im Deadlock verklemmt",
+        _ => ""
+    };
+
+    private string GetPhilosopherColor(int id) => id switch
+    {
+        0 => "#0284c7",
+        1 => "#8b5cf6",
+        2 => "#d97706",
+        3 => "#059669",
+        4 => "#dc2626",
+        _ => "#64748b"
+    };
+
+    private string GetStrategyTitle() => CurrentStrategy switch
+    {
+        StrategyMode.Bare => "Symmetrisch (Bare / Naiv)",
+        StrategyMode.Asymmetric => "Asymmetrisch (Linkshänder P5)",
+        StrategyMode.Arbitrator => "Arbitrator (Kellner / Semaphore max. 4)",
+        _ => ""
+    };
+
+    private async Task CopyCode()
+    {
+        var code = CurrentStrategy switch
+        {
+            StrategyMode.Bare => @"// 1. Denken
+Think();
+// 2. Erste Gabel nehmen (Immer links: Forks[id])
+while (Forks[id] != 0) Wait();
+Forks[id] = id;
+// 3. Zweite Gabel nehmen (Immer rechts: Forks[(id + 1) % 5])
+while (Forks[(id + 1) % 5] != 0) Wait();
+Forks[(id + 1) % 5] = -id;
+// 4. Essen mit beiden Gabeln
+Eat();
+// 5. Beide Gabeln zurücklegen
+Forks[id] = 0;
+Forks[(id + 1) % 5] = 0;",
+            StrategyMode.Asymmetric => @"// Asymmetrische Strategie (Linkshänder Dijkstra)
+int firstFork = id; int secondFork = (id + 1) % 5;
+if (id == 4) // Philosoph 5 greift umgekehrt!
+    (firstFork, secondFork) = (secondFork, firstFork);
+while (Forks[firstFork] != 0) Wait();
+Forks[firstFork] = id;
+while (Forks[secondFork] != 0) Wait();
+Forks[secondFork] = id;
+Eat();
+Forks[firstFork] = 0; Forks[secondFork] = 0;",
+            _ => @"// Arbitrator (Kellner / Semaphore max. 4 Philosophen)
+static SemaphoreSlim waiter = new SemaphoreSlim(4, 4);
+waiter.Wait(); // Nur max 4 dürfen gleichzeitig an den Tisch
+while (Forks[id] != 0) Wait(); Forks[id] = id;
+while (Forks[(id+1)%5] != 0) Wait(); Forks[(id+1)%5] = id;
+Eat();
+Forks[id] = 0; Forks[(id+1)%5] = 0;
+waiter.Release(); // Platz für wartende Philosophen freigeben"
+        };
+
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", code);
+            IsCopied = true;
+            StateHasChanged();
+            await Task.Delay(2000);
+            IsCopied = false;
+            StateHasChanged();
+        }
+        catch { }
+    }
+
+    public void Dispose()
+    {
+        StopPlay();
+    }
+}

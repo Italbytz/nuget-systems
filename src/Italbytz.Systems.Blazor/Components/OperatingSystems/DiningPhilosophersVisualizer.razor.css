@@ -1,0 +1,641 @@
+/* ==========================================================================
+   DINING PHILOSOPHERS VISUALIZER STYLES
+   Light Theme Default · Italbytz Systems
+   ========================================================================== */
+
+.dp-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: #1e293b;
+    margin: 0 auto;
+    width: 100%;
+    box-sizing: border-box;
+    background: transparent;
+}
+
+.embed-mode {
+    padding: 0.5rem;
+    gap: 0.75rem;
+}
+
+/* Card Heading */
+.card-heading {
+    margin-bottom: 0.25rem;
+}
+
+.feature-kicker {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #f59e0b;
+    margin: 0 0 0.25rem 0;
+}
+
+.card-heading h2 {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 0.5rem 0;
+}
+
+.feature-intro {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: #64748b;
+    margin: 0;
+}
+
+/* Controls Panel */
+.controls-panel {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.toolbar-grid {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.control-group, .action-btn-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.control-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #475569;
+}
+
+.btn-group {
+    display: flex;
+    gap: 0.35rem;
+}
+
+.strategy-btn {
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    color: #334155;
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.strategy-btn:hover:not(:disabled) {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.strategy-btn.active-bare {
+    background: #fee2e2;
+    border-color: #ef4444;
+    color: #991b1b;
+}
+
+.strategy-btn.active-asym {
+    background: #dcfce7;
+    border-color: #10b981;
+    color: #166534;
+}
+
+.strategy-btn.active-arb {
+    background: #e0f2fe;
+    border-color: #0284c7;
+    color: #0369a1;
+}
+
+.speed-select {
+    padding: 0.35rem 0.6rem;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #334155;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.45rem 0.85rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    color: #334155;
+    transition: all 0.15s ease;
+}
+
+.action-btn:hover:not(:disabled) {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.action-btn.primary {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #0284c7;
+}
+
+.action-btn.primary:hover:not(:disabled) {
+    background: #0369a1;
+}
+
+.action-btn.danger {
+    background: #fee2e2;
+    border-color: #fca5a5;
+    color: #b91c1c;
+}
+
+.action-btn.danger:hover:not(:disabled) {
+    background: #fecaca;
+    color: #991b1b;
+}
+
+.action-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Deadlock Alert Banner */
+.deadlock-alert {
+    background: #fef2f2;
+    border: 2px solid #ef4444;
+    border-radius: 8px;
+    padding: 0.85rem 1.15rem;
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    color: #991b1b;
+    animation: alertPulse 1.5s infinite;
+}
+
+@keyframes alertPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.3); }
+    50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.15); }
+}
+
+.deadlock-icon {
+    font-size: 2rem;
+    flex-shrink: 0;
+}
+
+.deadlock-title {
+    font-size: 1rem;
+    font-weight: 800;
+    margin: 0 0 0.2rem 0;
+}
+
+.deadlock-desc {
+    font-size: 0.85rem;
+    margin: 0;
+    line-height: 1.4;
+}
+
+/* Main Visualizer Stage */
+.dp-stage-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    gap: 1.25rem;
+    align-items: start;
+}
+
+@media (max-width: 950px) {
+    .dp-stage-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Round Table Canvas / Container */
+.table-panel {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.table-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 460px;
+    aspect-ratio: 1 / 1;
+    margin: 0.5rem auto;
+}
+
+/* Center Table Circle */
+.round-table {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 62%;
+    height: 62%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: radial-gradient(circle, #f8fafc 0%, #e2e8f0 100%);
+    border: 3px solid #cbd5e1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+.center-plate {
+    font-size: 2.8rem;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+}
+
+.center-table-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 0.25rem;
+}
+
+.arbitrator-badge {
+    margin-top: 0.35rem;
+    font-size: 0.7rem;
+    padding: 0.15rem 0.45rem;
+    background: #e0f2fe;
+    border: 1px solid #bae6fd;
+    color: #0369a1;
+    border-radius: 9999px;
+    font-weight: 700;
+}
+
+/* Philosopher Nodes */
+.philosopher-seat {
+    position: absolute;
+    width: 74px;
+    height: 74px;
+    margin-top: -37px;
+    margin-left: -37px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 2.5px solid #cbd5e1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    transition: all 0.2s ease;
+    cursor: default;
+    user-select: none;
+    z-index: 5;
+}
+
+.philosopher-seat.state-think {
+    border-color: #38bdf8;
+    background: #f0f9ff;
+}
+
+.philosopher-seat.state-wait {
+    border-color: #f59e0b;
+    background: #fffbeb;
+}
+
+.philosopher-seat.state-eat {
+    border-color: #10b981;
+    background: #f0fdf4;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.35);
+}
+
+.philosopher-seat.state-deadlocked {
+    border-color: #ef4444;
+    background: #fef2f2;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+}
+
+.philosopher-seat.is-left-handed {
+    outline: 2px dashed #0284c7;
+    outline-offset: 2px;
+}
+
+.ph-avatar {
+    font-size: 1.35rem;
+    line-height: 1;
+}
+
+.ph-name {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-top: 0.1rem;
+}
+
+.ph-state-label {
+    font-size: 0.58rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.state-label-think { color: #0284c7; }
+.state-label-wait { color: #d97706; }
+.state-label-eat { color: #166534; }
+.state-label-deadlocked { color: #b91c1c; }
+
+/* Fork Nodes on Table */
+.fork-node {
+    position: absolute;
+    width: 38px;
+    height: 38px;
+    margin-top: -19px;
+    margin-left: -19px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 1.5px solid #cbd5e1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    transition: all 0.25s ease;
+    z-index: 4;
+}
+
+.fork-node.free {
+    background: #ffffff;
+    border-color: #94a3b8;
+    color: #64748b;
+}
+
+.fork-node.held-by-left {
+    background: #e0f2fe;
+    border-color: #0284c7;
+    color: #0369a1;
+    transform: scale(1.1);
+    box-shadow: 0 0 8px rgba(2, 132, 199, 0.3);
+}
+
+.fork-node.held-by-right {
+    background: #dcfce7;
+    border-color: #10b981;
+    color: #166534;
+    transform: scale(1.1);
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.3);
+}
+
+.fork-label {
+    font-size: 0.55rem;
+    font-weight: 800;
+    line-height: 1;
+    color: #475569;
+}
+
+/* Legend Strip */
+.table-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 0.5rem;
+    font-size: 0.75rem;
+    color: #475569;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 1px solid #cbd5e1;
+}
+
+.dot-think { background: #38bdf8; }
+.dot-wait { background: #f59e0b; }
+.dot-eat { background: #10b981; }
+.dot-deadlock { background: #ef4444; }
+
+/* Right Panel: Code & Console */
+.details-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* Code Card */
+.code-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.code-card-header {
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 0.5rem 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.code-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.copy-btn {
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #334155;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.copy-btn:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.code-listing {
+    margin: 0;
+    padding: 0.75rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    font-size: 0.76rem;
+    line-height: 1.45;
+    background: #f8fafc;
+    color: #1e293b;
+    overflow-x: auto;
+}
+
+.code-line {
+    display: block;
+    padding: 1px 6px;
+    border-radius: 3px;
+    transition: background 0.15s ease;
+}
+
+.code-line.active-line {
+    background: #fef08a;
+    font-weight: 700;
+    color: #854d0e;
+    border-left: 3px solid #eab308;
+}
+
+/* Terminal Console Card */
+.console-card {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    overflow: hidden;
+    color: #f8fafc;
+}
+
+.console-header {
+    background: #1e293b;
+    padding: 0.45rem 0.85rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.console-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #cbd5e1;
+}
+
+.console-body {
+    max-height: 160px;
+    overflow-y: auto;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-size: 0.74rem;
+    padding: 0.5rem 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.console-empty {
+    color: #64748b;
+    font-style: italic;
+}
+
+.log-entry {
+    display: flex;
+    gap: 0.4rem;
+}
+
+.log-ts {
+    color: #64748b;
+}
+
+.log-actor {
+    font-weight: 700;
+}
+
+.log-msg {
+    color: #f1f5f9;
+}
+
+.log-msg.deadlock {
+    color: #f87171;
+    font-weight: 700;
+}
+
+.log-msg.success {
+    color: #4ade80;
+    font-weight: 700;
+}
+
+/* Coffman Reference Box */
+.coffman-box {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.coffman-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0 0 0.5rem 0;
+}
+
+.coffman-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.5rem;
+    font-size: 0.78rem;
+}
+
+.coffman-item {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 0.45rem 0.6rem;
+}
+
+.coffman-item.broken {
+    background: #ecfdf5;
+    border-color: #86efac;
+}
+
+.coffman-item-name {
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 0.15rem;
+}
+
+.coffman-item-desc {
+    color: #64748b;
+    line-height: 1.35;
+}
+
+.broken-tag {
+    display: inline-block;
+    margin-top: 0.25rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #166534;
+    background: #dcfce7;
+    padding: 1px 5px;
+    border-radius: 3px;
+}
