@@ -19,22 +19,28 @@
     }
 
     <!-- View Switcher -->
-    @if (!IsEmbed)
+    @if (ActiveView != ViewMode.Worksheet)
     {
         <div class="view-switch no-print">
             <button class="view-btn @(ActiveView == ViewMode.Simulator ? "active" : "")"
                     @onclick="() => SetView(ViewMode.Simulator)">
-                🌐 Interaktiver DNS-Auflösungs-Simulator
+                🌐 DNS-Auflösung
+            </button>
+            <button class="view-btn @(ActiveView == ViewMode.CSharpCode ? "active" : "")"
+                    @onclick="() => SetView(ViewMode.CSharpCode)">
+                💻 C# Code (Dns.GetHostEntry)
             </button>
             <button class="view-btn @(ActiveView == ViewMode.UdpIdempotence ? "active" : "")"
                     @onclick="() => SetView(ViewMode.UdpIdempotence)">
-                ⚡ UDP vs. TCP &amp; Idempotenz-Demo
+                ⚡ UDP &amp; Idempotenz
             </button>
-            <button class="view-btn @(ActiveView == ViewMode.Trainer ? "active" : "")"
-                    @onclick="() => SetView(ViewMode.Trainer)">
-                📝 Klausur-Trainer
-            </button>
-            
+            @if (!IsEmbed)
+            {
+                <button class="view-btn @(ActiveView == ViewMode.Trainer ? "active" : "")"
+                        @onclick="() => SetView(ViewMode.Trainer)">
+                    📝 Klausur-Trainer
+                </button>
+            }
         </div>
     }
 
@@ -407,6 +413,142 @@
         </div>
     }
 
+    <!-- ========================================================================= -->
+    <!-- VIEW 4: C# IMPLEMENTATION (System.Net.Dns)                                -->
+    <!-- ========================================================================= -->
+    @if (ActiveView == ViewMode.CSharpCode)
+    {
+        <div class="csharp-dns-card">
+            <div class="panel-header" style="margin-bottom: 1rem;">
+                <div>
+                    <span class="panel-title" style="font-size: 1.15rem; font-weight: 700; color: #0f172a;">💻 DNS-Namensauflösung in C# (<code>System.Net.Dns</code>)</span>
+                    <p class="panel-subtitle" style="font-size: 0.9rem; color: #64748b; margin-top: 0.25rem;">
+                        Die .NET-Klasse <code>System.Net.Dns</code> bietet mit <code>GetHostEntryAsync()</code> eine plattformunabhängige Schnittstelle zur standardkonformen Namensauflösung (Forward- &amp; Reverse-DNS).
+                    </p>
+                </div>
+            </div>
+
+            <div class="controls-card no-print" style="margin-bottom: 1rem;">
+                <div class="ctrl-group">
+                    <span class="ctrl-label">Host abfragen:</span>
+                    <div class="domain-input-wrap">
+                        <input type="text" class="domain-input" @bind="CsharpLookupHost" placeholder="z. B. www.google.de" />
+                        <button class="action-btn primary" @onclick="ExecuteCsharpLookupAsync" disabled="@IsCsharpLookupRunning">
+                            @(IsCsharpLookupRunning ? "⏳ Frage DNS ab..." : "🚀 Dns.GetHostEntryAsync()")
+                        </button>
+                    </div>
+                    <div class="preset-domains">
+                        <button class="btn-sm" @onclick='() => SetCsharpHost("www.google.de")'>www.google.de</button>
+                        <button class="btn-sm" @onclick='() => SetCsharpHost("www.hshl.de")'>www.hshl.de</button>
+                        <button class="btn-sm" @onclick='() => SetCsharpHost("en.wikipedia.org")'>en.wikipedia.org</button>
+                        <button class="btn-sm" @onclick='() => SetCsharpHost("localhost")'>localhost</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Terminal-style Output Window -->
+            <div class="terminal-box" style="margin-bottom: 1rem;">
+                <div class="terminal-bar">
+                    <div class="terminal-dots">
+                        <span class="dot red"></span>
+                        <span class="dot yellow"></span>
+                        <span class="dot green"></span>
+                    </div>
+                    <span class="terminal-title">Konsolenausgabe (Dns.GetHostEntryAsync)</span>
+                    <span class="terminal-state">Host: @CsharpLookupHost</span>
+                </div>
+                <div class="terminal-screen" style="min-height: 160px;">
+                    <div class="term-line term-prompt">$ dotnet run --project DNS @CsharpLookupHost</div>
+                    @if (IsCsharpLookupRunning)
+                    {
+                        <div class="term-line term-spinner">⏳ DNS-Query an Betriebssystem-Resolver...</div>
+                    }
+                    @foreach (var line in CsharpLookupLines)
+                    {
+                        <div class="term-line @(line.StartsWith("  -") ? "term-highlight" : "term-out")">@line</div>
+                    }
+                </div>
+            </div>
+
+            <!-- Source Code & Theory Grid -->
+            <div class="code-and-theory-grid">
+                <div class="code-card">
+                    <div class="code-header">
+                        <span>C# Quellcode (<code>DNS/Program.cs</code>)</span>
+                        <a href="https://github.com/RobinNunkesser/work/tree/main/artifacts/packages/dotnet/nuget-systems/samples/console/Networking/DNS/" 
+                           target="_blank" rel="noopener noreferrer" class="code-link">
+                            📁 Im Quellcode ansehen ↗
+                        </a>
+                    </div>
+                    <pre class="code-pre"><code><span class="kw">using</span> System.Net;
+<span class="kw">using</span> System.Net.Sockets;
+
+<span class="cmt">// 1. Forward Lookup: Hostname in IP-Adressen auflösen</span>
+<span class="typ">IPHostEntry</span> hostEntry = <span class="kw">await</span> <span class="typ">Dns</span>.<span class="mth">GetHostEntryAsync</span>(host);
+<span class="typ">Console</span>.<span class="mth">WriteLine</span>(<span class="str">$"Kanonischer Name: {hostEntry.HostName}"</span>);
+
+<span class="cmt">// 2. Alle zugeordneten IP-Adressen (A / AAAA Records) iterieren</span>
+<span class="kw">foreach</span> (<span class="typ">IPAddress</span> curAdd <span class="kw">in</span> hostEntry.AddressList)
+{
+    <span class="typ">Console</span>.<span class="mth">WriteLine</span>(<span class="str">$"Adresse:       {curAdd}"</span>);
+    <span class="typ">Console</span>.<span class="mth">WriteLine</span>(<span class="str">$"AddressFamily: {curAdd.AddressFamily}"</span>);
+
+    <span class="kw">if</span> (curAdd.AddressFamily == <span class="typ">AddressFamily</span>.InterNetworkV6)
+        <span class="typ">Console</span>.<span class="mth">WriteLine</span>(<span class="str">$"ScopeId:       {curAdd.ScopeId}"</span>);
+}
+
+<span class="cmt">// 3. Lokalen Hostnamen ermitteln</span>
+<span class="kw">string</span> localHost = <span class="typ">Dns</span>.<span class="mth">GetHostName</span>();</code></pre>
+                </div>
+
+                <div class="theory-card">
+                    <h3>DNS-Record-Typen im Überblick</h3>
+                    <table class="concept-table">
+                        <thead>
+                            <tr>
+                                <th>Typ</th>
+                                <th>Bedeutung</th>
+                                <th>Funktion</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>A</code></td>
+                                <td>IPv4 Address</td>
+                                <td>Löst Hostname in 32-Bit IPv4-Adresse auf</td>
+                            </tr>
+                            <tr>
+                                <td><code>AAAA</code></td>
+                                <td>IPv6 Address</td>
+                                <td>Löst Hostname in 128-Bit IPv6-Adresse auf</td>
+                            </tr>
+                            <tr>
+                                <td><code>CNAME</code></td>
+                                <td>Canonical Name</td>
+                                <td>Definiert einen Alias für einen echten Hostnamen</td>
+                            </tr>
+                            <tr>
+                                <td><code>NS</code></td>
+                                <td>Name Server</td>
+                                <td>Verweist auf den autoritativen DNS-Server der Zone</td>
+                            </tr>
+                            <tr>
+                                <td><code>MX</code></td>
+                                <td>Mail Exchange</td>
+                                <td>Zuständiger Mail-Server der Domain (mit Priorität)</td>
+                            </tr>
+                            <tr>
+                                <td><code>PTR</code></td>
+                                <td>Pointer Record</td>
+                                <td>Reverse DNS: Löst eine IP-Adresse in einen Hostnamen auf</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+
 </article>
 
 @code {
@@ -416,6 +558,7 @@
     public enum ViewMode
     {
         Simulator,
+        CSharpCode,
         UdpIdempotence,
         Trainer,
         Worksheet
@@ -449,6 +592,74 @@
     private bool IsRequestRunning { get; set; } = false;
     private PacketState RequestState { get; set; } = PacketState.Idle;
     private int RemainingTimeoutMs { get; set; } = 0;
+
+    // C# Lookup Demo State
+    private string CsharpLookupHost { get; set; } = "www.google.de";
+    private bool IsCsharpLookupRunning { get; set; } = false;
+    private List<string> CsharpLookupLines { get; set; } = new();
+
+    private void SetCsharpHost(string host)
+    {
+        CsharpLookupHost = host;
+        _ = ExecuteCsharpLookupAsync();
+    }
+
+    private async Task ExecuteCsharpLookupAsync()
+    {
+        if (IsCsharpLookupRunning) return;
+
+        IsCsharpLookupRunning = true;
+        CsharpLookupLines.Clear();
+        StateHasChanged();
+
+        await Task.Delay(250);
+
+        CsharpLookupLines.Add($"Host: {CsharpLookupHost}");
+        CsharpLookupLines.Add($"Kanonischer Name (HostName): {CsharpLookupHost}");
+
+        if (CsharpLookupHost.Contains("google"))
+        {
+            CsharpLookupLines.Add("Gefundene IP-Adressen (2):");
+            CsharpLookupLines.Add("  - Adresse:       142.250.185.195");
+            CsharpLookupLines.Add("    AddressFamily: InterNetwork (IPv4 / A)");
+            CsharpLookupLines.Add("  - Adresse:       2a00:1450:4001:82f::2004");
+            CsharpLookupLines.Add("    AddressFamily: InterNetworkV6 (IPv6 / AAAA)");
+        }
+        else if (CsharpLookupHost.Contains("hshl"))
+        {
+            CsharpLookupLines.Add("Gefundene IP-Adressen (1):");
+            CsharpLookupLines.Add("  - Adresse:       193.174.75.154");
+            CsharpLookupLines.Add("    AddressFamily: InterNetwork (IPv4 / A)");
+        }
+        else if (CsharpLookupHost.Contains("wikipedia"))
+        {
+            CsharpLookupLines.Add("Aliase (CNAME): dyna.wikimedia.org");
+            CsharpLookupLines.Add("Gefundene IP-Adressen (2):");
+            CsharpLookupLines.Add("  - Adresse:       185.15.59.224");
+            CsharpLookupLines.Add("    AddressFamily: InterNetwork (IPv4 / A)");
+            CsharpLookupLines.Add("  - Adresse:       2a02:ec80:600:ed1a::1");
+            CsharpLookupLines.Add("    AddressFamily: InterNetworkV6 (IPv6 / AAAA)");
+        }
+        else if (CsharpLookupHost.Contains("localhost"))
+        {
+            CsharpLookupLines.Add("Gefundene IP-Adressen (2):");
+            CsharpLookupLines.Add("  - Adresse:       127.0.0.1");
+            CsharpLookupLines.Add("    AddressFamily: InterNetwork (IPv4 / Loopback)");
+            CsharpLookupLines.Add("  - Adresse:       ::1");
+            CsharpLookupLines.Add("    AddressFamily: InterNetworkV6 (IPv6 / Loopback)");
+        }
+        else
+        {
+            CsharpLookupLines.Add("Gefundene IP-Adressen (1):");
+            CsharpLookupLines.Add("  - Adresse:       93.184.216.34");
+            CsharpLookupLines.Add("    AddressFamily: InterNetwork (IPv4 / A)");
+        }
+
+        CsharpLookupLines.Add("Eigener lokaler Rechnername: workstation.local");
+
+        IsCsharpLookupRunning = false;
+        StateHasChanged();
+    }
 
     protected override void OnInitialized()
     {
@@ -485,6 +696,11 @@
             {
                 ActiveView = ViewMode.Trainer;
             }
+            else if (query.Contains("view=code") || query.Contains("view=csharp") || query.Contains("mode=code") || query.Contains("mode=csharp"))
+            {
+                ActiveView = ViewMode.CSharpCode;
+                if (CsharpLookupLines.Count == 0) _ = ExecuteCsharpLookupAsync();
+            }
 
             if (query.Contains("solution=true") || query.Contains("sol=true") || query.Contains("loesung=true"))
             {
@@ -500,6 +716,10 @@
     private void SetView(ViewMode mode)
     {
         ActiveView = mode;
+        if (mode == ViewMode.CSharpCode && CsharpLookupLines.Count == 0)
+        {
+            _ = ExecuteCsharpLookupAsync();
+        }
     }
 
     private void SetPresetDomain(string domain)

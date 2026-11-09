@@ -998,6 +998,182 @@
 }
 
 /* ==========================================================================
+   C# CODE & TERMINAL STYLES (Dns.GetHostEntry)
+   ========================================================================== */
+
+.csharp-dns-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.terminal-box {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+}
+
+.terminal-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    background: #f1f5f9;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.terminal-dots {
+    display: flex;
+    gap: 0.35rem;
+}
+
+.dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.dot.red { background: #ef4444; }
+.dot.yellow { background: #f59e0b; }
+.dot.green { background: #10b981; }
+
+.terminal-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #475569;
+}
+
+.terminal-state {
+    font-size: 0.75rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: #64748b;
+}
+
+.terminal-screen {
+    padding: 0.85rem;
+    background: #0f172a;
+    color: #f8fafc;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.82rem;
+    min-height: 140px;
+    line-height: 1.5;
+}
+
+.term-prompt {
+    color: #38bdf8;
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+}
+
+.term-spinner {
+    color: #fbbf24;
+    font-style: italic;
+}
+
+.term-out {
+    color: #e2e8f0;
+}
+
+.term-highlight {
+    color: #38bdf8;
+    font-weight: 600;
+}
+
+/* Code & Theory Grid */
+.code-and-theory-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.code-card, .theory-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.code-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #334155;
+    margin-bottom: 0.5rem;
+}
+
+.code-link {
+    color: #0284c7;
+    text-decoration: none;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.code-link:hover {
+    text-decoration: underline;
+}
+
+.code-pre {
+    margin: 0;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 0.75rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    overflow-x: auto;
+    color: #1e293b;
+}
+
+.kw { color: #0284c7; font-weight: 600; }
+.typ { color: #0891b2; font-weight: 600; }
+.mth { color: #d97706; font-weight: 500; }
+.str { color: #16a34a; }
+.cmt { color: #94a3b8; font-style: italic; }
+
+.theory-card h3 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin: 0 0 0.75rem 0;
+    color: #0f172a;
+}
+
+.concept-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+}
+
+.concept-table th {
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 600;
+    padding: 0.45rem 0.6rem;
+    border-bottom: 1px solid #e2e8f0;
+    text-align: left;
+}
+
+.concept-table td {
+    padding: 0.45rem 0.6rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.concept-table code {
+    font-size: 0.8rem;
+    background: #f1f5f9;
+    padding: 0.15rem 0.35rem;
+    border-radius: 4px;
+}
+
+/* ==========================================================================
    PRINT MEDIA - SINGLE PAGE A4 GUARANTEE
    ========================================================================== */
 @media print {
