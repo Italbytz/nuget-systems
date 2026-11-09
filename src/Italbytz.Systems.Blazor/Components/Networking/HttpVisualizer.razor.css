@@ -7,7 +7,7 @@
     flex-direction: column;
     gap: 1.25rem;
     font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    color: #e2e8f0;
+    color: #1e293b;
     max-width: 1200px;
     margin: 0 auto;
     padding: 1rem;
@@ -18,6 +18,7 @@
     padding: 0.5rem;
     max-width: 100%;
     gap: 0.75rem;
+    background: transparent;
 }
 
 :global(.is-dark) .embed-mode,
@@ -27,7 +28,7 @@
 
 /* Card Heading */
 .card-heading {
-    border-bottom: 1px solid #1e293b;
+    border-bottom: 1px solid #e2e8f0;
     padding-bottom: 1rem;
 }
 
@@ -36,21 +37,21 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #38bdf8;
+    color: #0284c7;
     margin: 0 0 0.25rem 0;
 }
 
 .card-heading h2 {
     font-size: 1.6rem;
     font-weight: 800;
-    color: #f8fafc;
+    color: #0f172a;
     margin: 0 0 0.5rem 0;
 }
 
 .feature-intro {
     font-size: 0.95rem;
     line-height: 1.5;
-    color: #94a3b8;
+    color: #64748b;
     margin: 0;
 }
 
@@ -58,15 +59,15 @@
 .view-switch {
     display: flex;
     gap: 0.5rem;
-    border-bottom: 1px solid #334155;
+    border-bottom: 1px solid #e2e8f0;
     padding-bottom: 0.75rem;
     flex-wrap: wrap;
 }
 
 .view-btn {
-    background: #1e293b;
-    color: #cbd5e1;
-    border: 1px solid #475569;
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #cbd5e1;
     border-radius: 6px;
     padding: 0.5rem 1rem;
     font-size: 0.9rem;
@@ -76,21 +77,21 @@
 }
 
 .view-btn:hover {
-    background: #334155;
-    color: #f8fafc;
+    background: #e2e8f0;
+    color: #0f172a;
 }
 
 .view-btn.active {
     background: #0284c7;
     color: #ffffff;
-    border-color: #38bdf8;
-    box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+    border-color: #0284c7;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 /* Controls Card */
 .controls-card {
-    background: #111827;
-    border: 1px solid #1f2937;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
     padding: 0.85rem 1.15rem;
     display: flex;
@@ -98,6 +99,7 @@
     align-items: center;
     gap: 1.5rem;
     flex-wrap: wrap;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .ctrl-group {
@@ -110,7 +112,7 @@
 .ctrl-label {
     font-size: 0.85rem;
     font-weight: 700;
-    color: #94a3b8;
+    color: #475569;
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
@@ -122,9 +124,9 @@
 }
 
 .res-btn {
-    background: #1e293b;
-    border: 1px solid #334155;
-    color: #cbd5e1;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: #334155;
     border-radius: 6px;
     padding: 0.4rem 0.65rem;
     display: inline-flex;
@@ -136,24 +138,23 @@
 }
 
 .res-btn:hover {
-    background: #334155;
-    color: #ffffff;
+    background: #e2e8f0;
+    color: #0f172a;
 }
 
 .res-btn.active {
-    background: #0369a1;
+    background: #0284c7;
     color: #ffffff;
-    border-color: #38bdf8;
-    box-shadow: 0 0 8px rgba(56, 189, 248, 0.35);
+    border-color: #0284c7;
 }
 
 .res-mime {
     font-family: ui-monospace, SFMono-Regular, monospace;
     font-size: 0.72rem;
-    background: #0f172a;
+    background: #e2e8f0;
     padding: 1px 4px;
     border-radius: 3px;
-    color: #7dd3fc;
+    color: #0369a1;
 }
 
 .status-selector {
@@ -162,9 +163,9 @@
 }
 
 .btn-sm {
-    background: #1e293b;
-    color: #cbd5e1;
-    border: 1px solid #334155;
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #cbd5e1;
     border-radius: 4px;
     padding: 3px 8px;
     font-size: 0.78rem;
@@ -172,14 +173,14 @@
 }
 
 .btn-sm:hover {
-    background: #334155;
-    color: #ffffff;
+    background: #e2e8f0;
+    color: #0f172a;
 }
 
-.btn-code-200 { background: #064e3b; color: #d1fae5; border-color: #059669; }
-.btn-code-300 { background: #78350f; color: #fef3c7; border-color: #d97706; }
-.btn-code-400 { background: #7f1d1d; color: #fee2e2; border-color: #dc2626; }
-.btn-code-500 { background: #581c87; color: #f3e8ff; border-color: #9333ea; }
+.btn-code-200 { background: #dcfce7; color: #166534; border-color: #86efac; }
+.btn-code-300 { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+.btn-code-400 { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+.btn-code-500 { background: #f3e8ff; color: #6b21a8; border-color: #d8b4fe; }
 
 /* HTTP Stage Grid */
 .http-stage-grid {
@@ -195,27 +196,28 @@
 }
 
 .http-card {
-    background: #111827;
-    border: 1px solid #1f2937;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
     padding: 1rem;
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid #1e293b;
+    border-bottom: 1px solid #e2e8f0;
     padding-bottom: 0.5rem;
 }
 
 .card-title {
     font-weight: 700;
     font-size: 0.95rem;
-    color: #f8fafc;
+    color: #0f172a;
 }
 
 .badge-method {
@@ -235,14 +237,14 @@
     border-radius: 4px;
 }
 
-.badge-200 { background: #065f46; color: #a7f3d0; border: 1px solid #059669; }
-.badge-300 { background: #92400e; color: #fde68a; border: 1px solid #d97706; }
-.badge-400 { background: #991b1b; color: #fecaca; border: 1px solid #ef4444; }
-.badge-500 { background: #6b21a8; color: #e9d5ff; border: 1px solid #a855f7; }
+.badge-200 { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+.badge-300 { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+.badge-400 { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+.badge-500 { background: #f3e8ff; color: #6b21a8; border: 1px solid #d8b4fe; }
 
 /* Code Terminal */
 .code-terminal {
-    background: #080d1a;
+    background: #0f172a;
     border: 1px solid #1e293b;
     border-radius: 6px;
     padding: 0.85rem 1rem;
@@ -288,18 +290,19 @@
 /* Payload Preview */
 .payload-preview-box {
     margin-top: 0.5rem;
-    border: 1px solid #1e293b;
+    border: 1px solid #e2e8f0;
     border-radius: 6px;
-    background: #0a1120;
+    background: #f8fafc;
     overflow: hidden;
 }
 
 .payload-header {
-    background: #1e293b;
+    background: #f1f5f9;
+    border-bottom: 1px solid #e2e8f0;
     padding: 0.35rem 0.75rem;
     font-size: 0.78rem;
     font-weight: 700;
-    color: #cbd5e1;
+    color: #334155;
 }
 
 .payload-body {
@@ -311,12 +314,13 @@
     font-size: 0.8rem;
     line-height: 1.4;
     white-space: pre-wrap;
+    color: #0f172a;
 }
 
-.text-cyan { color: #38bdf8; }
-.text-amber { color: #f59e0b; }
-.text-purple { color: #c084fc; }
-.text-red { color: #f87171; }
+.text-cyan { color: #0284c7; }
+.text-amber { color: #d97706; }
+.text-purple { color: #9333ea; }
+.text-red { color: #dc2626; }
 
 .img-preview-wrap {
     display: flex;
@@ -327,7 +331,7 @@
 
 .img-meta {
     font-size: 0.75rem;
-    color: #94a3b8;
+    color: #64748b;
 }
 
 .pdf-preview-wrap {
@@ -348,7 +352,7 @@
 }
 
 .doc-details span {
-    color: #94a3b8;
+    color: #64748b;
     font-size: 0.75rem;
 }
 
@@ -361,8 +365,8 @@
 
 /* Klausur Highlight Box */
 .klausur-highlight-box {
-    background: #062118;
-    border: 1.5px solid #059669;
+    background: #f0fdf4;
+    border: 1.5px solid #10b981;
     border-radius: 6px;
     padding: 0.85rem 1.15rem;
     display: flex;
@@ -375,14 +379,14 @@
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #34d399;
+    color: #059669;
 }
 
 .kh-text {
     margin: 0;
     font-size: 0.9rem;
     line-height: 1.45;
-    color: #ecfdf5;
+    color: #064e3b;
 }
 
 /* ==========================================================================
@@ -392,13 +396,18 @@
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .panel-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    border-bottom: 1px solid #1e293b;
+    border-bottom: 1px solid #e2e8f0;
     padding-bottom: 0.75rem;
     flex-wrap: wrap;
     gap: 0.75rem;
@@ -407,13 +416,13 @@
 .panel-title {
     font-size: 1.1rem;
     font-weight: 700;
-    color: #f8fafc;
+    color: #0f172a;
 }
 
 .panel-subtitle {
     margin: 0.25rem 0 0 0;
     font-size: 0.85rem;
-    color: #94a3b8;
+    color: #64748b;
 }
 
 .mime-categories-grid {
@@ -429,8 +438,8 @@
 }
 
 .mime-cat-box {
-    background: #080d1a;
-    border: 1px solid #1e293b;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
     overflow: hidden;
 }
@@ -442,21 +451,21 @@
     align-items: center;
 }
 
-.cat-text { background: rgba(56, 189, 248, 0.15); border-bottom: 1px solid #0284c7; }
-.cat-app { background: rgba(168, 85, 247, 0.15); border-bottom: 1px solid #9333ea; }
-.cat-img { background: rgba(245, 158, 11, 0.15); border-bottom: 1px solid #d97706; }
-.cat-media { background: rgba(16, 185, 129, 0.15); border-bottom: 1px solid #059669; }
+.cat-text { background: #e0f2fe; border-bottom: 1px solid #bae6fd; }
+.cat-app { background: #f3e8ff; border-bottom: 1px solid #e9d5ff; }
+.cat-img { background: #fef3c7; border-bottom: 1px solid #fde68a; }
+.cat-media { background: #dcfce7; border-bottom: 1px solid #bbf7d0; }
 
 .cat-title {
     font-weight: 800;
     font-size: 0.95rem;
-    color: #ffffff;
+    color: #0f172a;
     font-family: ui-monospace, monospace;
 }
 
 .cat-desc {
     font-size: 0.75rem;
-    color: #cbd5e1;
+    color: #64748b;
 }
 
 .cat-list {
@@ -467,29 +476,30 @@
     flex-direction: column;
     gap: 0.4rem;
     font-size: 0.85rem;
-    color: #cbd5e1;
+    color: #334155;
 }
 
 .cat-list code {
-    color: #38bdf8;
-    background: #0f172a;
+    color: #0284c7;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
     padding: 1px 5px;
     border-radius: 3px;
     font-weight: 600;
 }
 
 .syntax-info-box {
-    background: #0f172a;
-    border: 1px solid #1e293b;
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
     border-left: 4px solid #0284c7;
     border-radius: 6px;
     padding: 0.75rem 1rem;
     font-size: 0.88rem;
-    color: #f1f5f9;
+    color: #0f172a;
 }
 
 .syntax-info-box code {
-    color: #34d399;
+    color: #0284c7;
 }
 
 /* ==========================================================================
@@ -499,22 +509,28 @@
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .exam-rule-tag {
     font-size: 0.78rem;
-    color: #38bdf8;
+    color: #0284c7;
     font-weight: 600;
 }
 
 .prompt-quote {
-    background: #1e293b;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
     border-left: 4px solid #0284c7;
     border-radius: 4px;
     padding: 0.85rem 1.15rem;
     font-size: 0.95rem;
     line-height: 1.5;
-    color: #f1f5f9;
+    color: #1e293b;
     margin-bottom: 1rem;
 }
 
@@ -527,17 +543,17 @@
 .qa-label {
     font-size: 0.85rem;
     font-weight: 700;
-    color: #94a3b8;
+    color: #475569;
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
 
 .qa-textarea {
-    background: #080d1a;
-    border: 1px solid #334155;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
     border-radius: 6px;
     padding: 0.75rem;
-    color: #f8fafc;
+    color: #0f172a;
     font-family: inherit;
     font-size: 0.95rem;
     line-height: 1.45;
@@ -546,13 +562,13 @@
 
 .qa-textarea:focus {
     outline: none;
-    border-color: #38bdf8;
-    box-shadow: 0 0 8px rgba(56, 189, 248, 0.3);
+    border-color: #0284c7;
+    box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2);
 }
 
 .solution-reveal-box {
-    background: #062118;
-    border: 1.5px solid #059669;
+    background: #f0fdf4;
+    border: 1.5px solid #10b981;
     border-radius: 6px;
     padding: 1rem 1.15rem;
     display: flex;
@@ -565,23 +581,23 @@
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #34d399;
+    color: #059669;
 }
 
 .official-sol-text {
     margin: 0;
     padding: 0.5rem 0.85rem;
-    background: rgba(16, 185, 129, 0.1);
+    background: #dcfce7;
     border-left: 3px solid #10b981;
     font-size: 0.95rem;
     line-height: 1.5;
-    color: #ecfdf5;
+    color: #064e3b;
     font-weight: 600;
 }
 
 .evaluation-checklist {
     font-size: 0.85rem;
-    color: #cbd5e1;
+    color: #334155;
 }
 
 .evaluation-checklist ul {

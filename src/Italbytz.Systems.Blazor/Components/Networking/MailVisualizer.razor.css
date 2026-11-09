@@ -4,8 +4,8 @@
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
-    color: #f8fafc;
-    background: #0b0f19;
+    color: #1e293b;
+    background: transparent;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     min-height: 100%;
     padding-bottom: 4.5rem;
@@ -14,25 +14,25 @@
 .mail-container.is-embed {
     padding: 0.5rem;
     gap: 1rem;
-    background: #0b0f19;
+    background: transparent;
 }
 
 /* Header */
 .mail-header {
-    background: #131b2e;
-    border: 1px solid #1e293b;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 12px;
     padding: 1.25rem 1.5rem;
     display: flex;
     flex-direction: column;
     gap: 1rem;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .badge-cat {
     display: inline-block;
-    background: rgba(56, 189, 248, 0.15);
-    color: #38bdf8;
+    background: rgba(2, 132, 199, 0.1);
+    color: #0284c7;
     padding: 0.25rem 0.6rem;
     border-radius: 9999px;
     font-size: 0.75rem;
@@ -46,11 +46,11 @@
     font-size: 1.6rem;
     font-weight: 700;
     margin: 0 0 0.4rem 0;
-    color: #f8fafc;
+    color: #0f172a;
 }
 
 .header-desc {
-    color: #94a3b8;
+    color: #64748b;
     font-size: 0.95rem;
     line-height: 1.5;
     margin: 0;
@@ -61,14 +61,14 @@
     display: flex;
     gap: 0.5rem;
     flex-wrap: wrap;
-    border-top: 1px solid #1e293b;
+    border-top: 1px solid #e2e8f0;
     padding-top: 0.8rem;
 }
 
 .tab-btn {
-    background: #1e293b;
-    color: #94a3b8;
-    border: 1px solid #334155;
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #cbd5e1;
     padding: 0.5rem 0.9rem;
     border-radius: 8px;
     font-size: 0.85rem;
@@ -81,14 +81,14 @@
 }
 
 .tab-btn:hover {
-    background: #334155;
-    color: #f8fafc;
+    background: #e2e8f0;
+    color: #0f172a;
 }
 
 .tab-btn.active {
-    background: #38bdf8;
-    color: #0b0f19;
-    border-color: #38bdf8;
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #0284c7;
 }
 
 /* S1: Simulator Section */
@@ -104,10 +104,11 @@
     align-items: center;
     flex-wrap: wrap;
     gap: 0.75rem;
-    background: #131b2e;
-    border: 1px solid #1e293b;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 10px;
     padding: 0.75rem 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .dialogue-stepper {
@@ -117,9 +118,9 @@
 }
 
 .btn-ctrl {
-    background: #1e293b;
-    color: #f8fafc;
-    border: 1px solid #334155;
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #cbd5e1;
     padding: 0.45rem 0.85rem;
     border-radius: 6px;
     font-size: 0.85rem;
@@ -129,7 +130,8 @@
 }
 
 .btn-ctrl:hover:not(:disabled) {
-    background: #334155;
+    background: #e2e8f0;
+    color: #0f172a;
 }
 
 .btn-ctrl:disabled {
@@ -139,8 +141,8 @@
 
 .btn-ctrl.btn-primary {
     background: #0284c7;
-    border-color: #38bdf8;
-    color: #fff;
+    border-color: #0284c7;
+    color: #ffffff;
 }
 
 .btn-ctrl.btn-primary:hover:not(:disabled) {
@@ -149,7 +151,7 @@
 
 .step-counter {
     font-size: 0.85rem;
-    color: #94a3b8;
+    color: #475569;
     font-weight: 600;
     margin-left: 0.5rem;
 }
@@ -162,15 +164,15 @@
 
 .ctrl-label {
     font-size: 0.8rem;
-    color: #94a3b8;
+    color: #475569;
     font-weight: 600;
     margin-right: 0.25rem;
 }
 
 .btn-sm {
-    background: #1e293b;
-    color: #94a3b8;
-    border: 1px solid #334155;
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #cbd5e1;
     padding: 0.35rem 0.65rem;
     border-radius: 6px;
     font-size: 0.75rem;
@@ -179,10 +181,15 @@
     transition: all 0.15s ease;
 }
 
+.btn-sm:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+
 .btn-sm.active {
-    background: rgba(56, 189, 248, 0.2);
-    color: #38bdf8;
-    border-color: #38bdf8;
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #0284c7;
 }
 
 /* Visual Protocol Stage */
@@ -190,24 +197,25 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: #131b2e;
-    border: 1px solid #1e293b;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 12px;
     padding: 1.25rem 2rem;
     gap: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .node-box {
     display: flex;
     flex-direction: column;
     align-items: center;
-    background: #0b0f19;
-    border: 2px solid #334155;
+    background: #f8fafc;
+    border: 2px solid #cbd5e1;
     border-radius: 10px;
     padding: 1rem 1.25rem;
     min-width: 170px;
     text-align: center;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .client-node {
@@ -226,7 +234,7 @@
 .node-title {
     font-size: 0.95rem;
     font-weight: 700;
-    color: #f8fafc;
+    color: #0f172a;
 }
 
 .node-sub {
@@ -237,8 +245,8 @@
 }
 
 .node-badge {
-    background: #1e293b;
-    color: #94a3b8;
+    background: #f1f5f9;
+    color: #0284c7;
     font-size: 0.7rem;
     padding: 0.2rem 0.5rem;
     border-radius: 4px;
@@ -257,7 +265,7 @@
 .pipe-track {
     width: 100%;
     height: 4px;
-    background: #334155;
+    background: #e2e8f0;
     border-radius: 2px;
     margin-bottom: 0.75rem;
 }
@@ -270,7 +278,7 @@
     border-radius: 8px;
     font-size: 0.8rem;
     font-weight: 700;
-    box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
     animation: pulsePacket 1.5s infinite;
 }
 
@@ -292,24 +300,21 @@
 }
 
 .live-packet.type-sender {
-    background: #f59e0b;
-    color: #0b0f19;
-    border-color: #fbbf24;
-    box-shadow: 0 0 14px rgba(245, 158, 11, 0.6);
+    background: #d97706;
+    color: #ffffff;
+    border-color: #f59e0b;
 }
 
 .live-packet.type-recipient {
-    background: #8b5cf6;
-    color: #fff;
-    border-color: #a78bfa;
-    box-shadow: 0 0 14px rgba(139, 92, 246, 0.6);
+    background: #7c3aed;
+    color: #ffffff;
+    border-color: #8b5cf6;
 }
 
 .live-packet.type-maildata {
-    background: #ec4899;
-    color: #fff;
-    border-color: #f472b6;
-    box-shadow: 0 0 14px rgba(236, 72, 153, 0.6);
+    background: #db2777;
+    color: #ffffff;
+    border-color: #ec4899;
 }
 
 .pipe-label {
@@ -335,18 +340,18 @@
 
 /* Terminal Card */
 .terminal-card, .inspector-card {
-    background: #131b2e;
-    border: 1px solid #1e293b;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 12px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .card-header {
-    background: #0f172a;
-    border-bottom: 1px solid #1e293b;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
     padding: 0.75rem 1rem;
     display: flex;
     align-items: center;
@@ -371,21 +376,22 @@
 .terminal-title, .card-title {
     font-size: 0.85rem;
     font-weight: 700;
-    color: #f8fafc;
+    color: #0f172a;
 }
 
 .badge-port {
-    background: #1e293b;
-    color: #38bdf8;
+    background: #f1f5f9;
+    color: #0284c7;
     font-size: 0.75rem;
     font-family: monospace;
     padding: 0.2rem 0.5rem;
     border-radius: 4px;
     font-weight: 600;
+    border: 1px solid #e2e8f0;
 }
 
 .terminal-body {
-    background: #070b14;
+    background: #0f172a;
     padding: 1rem;
     font-family: "JetBrains Mono", Consolas, "Courier New", monospace;
     font-size: 0.85rem;
@@ -409,7 +415,7 @@
 }
 
 .log-line.active-line {
-    background: rgba(56, 189, 248, 0.12);
+    background: rgba(56, 189, 248, 0.15);
     border-left: 3px solid #38bdf8;
 }
 
@@ -465,6 +471,7 @@
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    background: #ffffff;
 }
 
 .badge-type {
@@ -477,43 +484,44 @@
 .packet-highlight-box {
     border-radius: 8px;
     padding: 0.85rem 1rem;
-    border: 1px solid #1e293b;
-    background: #0f172a;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
 }
 
 .highlight-sender {
     border-color: #f59e0b;
-    background: rgba(245, 158, 11, 0.08);
+    background: #fffbeb;
 }
 
 .highlight-recipient {
     border-color: #8b5cf6;
-    background: rgba(139, 92, 246, 0.08);
+    background: #f5f3ff;
 }
 
 .highlight-maildata {
     border-color: #ec4899;
-    background: rgba(236, 72, 153, 0.08);
+    background: #fdf2f8;
 }
 
 .highlight-ctrl {
-    border-color: #38bdf8;
-    background: rgba(56, 189, 248, 0.05);
+    border-color: #0284c7;
+    background: #f0f9ff;
 }
 
 .highlight-title {
     font-size: 0.85rem;
     font-weight: 700;
-    color: #f8fafc;
+    color: #0f172a;
     margin-bottom: 0.5rem;
 }
 
 .highlight-code code {
     display: block;
-    background: #070b14;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
     padding: 0.5rem 0.75rem;
     border-radius: 6px;
-    color: #38bdf8;
+    color: #0284c7;
     font-family: monospace;
     font-size: 0.85rem;
     margin-bottom: 0.5rem;
@@ -523,13 +531,13 @@
 
 .highlight-desc {
     font-size: 0.85rem;
-    color: #94a3b8;
+    color: #475569;
     line-height: 1.4;
     margin: 0;
 }
 
 .exam-connection-callout {
-    background: rgba(16, 185, 129, 0.08);
+    background: #f0fdf4;
     border-left: 3px solid #10b981;
     padding: 0.75rem;
     border-radius: 0 6px 6px 0;
@@ -538,7 +546,7 @@
 .callout-badge {
     font-size: 0.75rem;
     font-weight: 700;
-    color: #34d399;
+    color: #059669;
     text-transform: uppercase;
     display: block;
     margin-bottom: 0.25rem;
@@ -546,14 +554,14 @@
 
 .callout-text {
     font-size: 0.85rem;
-    color: #cbd5e1;
+    color: #1e293b;
     margin: 0;
     line-height: 1.4;
 }
 
 .tcp-envelope-preview {
-    background: #070b14;
-    border: 1px solid #1e293b;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
     border-radius: 6px;
     font-family: monospace;
     font-size: 0.75rem;
@@ -561,9 +569,10 @@
 }
 
 .envelope-header {
-    background: #1e293b;
+    background: #f1f5f9;
+    border-bottom: 1px solid #e2e8f0;
     padding: 0.35rem 0.6rem;
-    color: #94a3b8;
+    color: #475569;
     display: flex;
     justify-content: space-between;
     font-weight: 600;
@@ -571,15 +580,15 @@
 
 .envelope-body {
     padding: 0.5rem 0.6rem;
-    color: #38bdf8;
+    color: #0284c7;
     display: flex;
     align-items: center;
     gap: 0.5rem;
 }
 
 .ascii-tag {
-    background: #334155;
-    color: #f8fafc;
+    background: #e2e8f0;
+    color: #334155;
     padding: 0.1rem 0.35rem;
     border-radius: 3px;
     font-size: 0.65rem;
@@ -587,13 +596,14 @@
 
 /* Triad Summary Box */
 .triad-summary-box {
-    background: #131b2e;
-    border: 1px solid #1e293b;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 12px;
     padding: 1.25rem 1.5rem;
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .triad-header {
@@ -606,7 +616,7 @@
     margin: 0;
     font-size: 1.05rem;
     font-weight: 700;
-    color: #f8fafc;
+    color: #0f172a;
 }
 
 .triad-grid {
@@ -622,8 +632,8 @@
 }
 
 .triad-card {
-    background: #0f172a;
-    border: 1px solid #1e293b;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
     padding: 1rem;
     display: flex;
@@ -633,9 +643,9 @@
 }
 
 .triad-card.triad-active {
-    border-color: #38bdf8;
-    box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
-    background: rgba(15, 23, 42, 0.9);
+    border-color: #0284c7;
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.15);
+    background: #f0f9ff;
 }
 
 .triad-badge {
@@ -651,39 +661,41 @@
     font-family: monospace;
     font-size: 0.85rem;
     font-weight: 700;
-    color: #f8fafc;
-    background: #070b14;
+    color: #0284c7;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
     padding: 0.3rem 0.5rem;
     border-radius: 4px;
 }
 
 .triad-desc {
     font-size: 0.8rem;
-    color: #94a3b8;
+    color: #475569;
     line-height: 1.4;
     margin: 0;
 }
 
 /* S1.2: Protocols Section */
 .protocols-section, .char-section, .trainer-section {
-    background: #131b2e;
-    border: 1px solid #1e293b;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 12px;
     padding: 1.5rem;
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .section-title {
     font-size: 1.35rem;
     font-weight: 700;
     margin: 0;
-    color: #f8fafc;
+    color: #0f172a;
 }
 
 .section-lead {
-    color: #94a3b8;
+    color: #64748b;
     font-size: 0.95rem;
     line-height: 1.5;
     margin: 0;
@@ -702,8 +714,8 @@
 }
 
 .proto-card {
-    background: #0f172a;
-    border: 1px solid #1e293b;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
     border-radius: 10px;
     padding: 1.25rem;
     display: flex;
@@ -711,7 +723,7 @@
     gap: 1rem;
 }
 
-.smtp-card { border-top: 4px solid #38bdf8; }
+.smtp-card { border-top: 4px solid #0284c7; }
 .pop3-card { border-top: 4px solid #f59e0b; }
 .imap-card { border-top: 4px solid #10b981; }
 
@@ -729,7 +741,7 @@
     margin: 0;
     font-size: 1.15rem;
     font-weight: 700;
-    color: #f8fafc;
+    color: #0f172a;
 }
 
 .proto-fullname {
@@ -742,7 +754,8 @@
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
-    background: #070b14;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     padding: 0.75rem;
     border-radius: 6px;
     font-size: 0.8rem;
@@ -759,7 +772,7 @@
 }
 
 .meta-val {
-    color: #cbd5e1;
+    color: #0f172a;
     font-weight: 600;
     text-align: right;
 }
@@ -768,7 +781,7 @@
     margin: 0;
     padding-left: 1.2rem;
     font-size: 0.85rem;
-    color: #94a3b8;
+    color: #475569;
     line-height: 1.5;
     display: flex;
     flex-direction: column;
@@ -789,8 +802,8 @@
 }
 
 .paradigm-card {
-    background: #0f172a;
-    border: 1px solid #1e293b;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
     border-radius: 10px;
     padding: 1.25rem;
     display: flex;
@@ -798,7 +811,7 @@
     gap: 1rem;
 }
 
-.char-card { border-top: 4px solid #38bdf8; }
+.char-card { border-top: 4px solid #0284c7; }
 .bin-card { border-top: 4px solid #10b981; }
 
 .paradigm-header {
@@ -811,7 +824,7 @@
     margin: 0;
     font-size: 1.15rem;
     font-weight: 700;
-    color: #f8fafc;
+    color: #0f172a;
 }
 
 .paradigm-body {
@@ -822,7 +835,7 @@
 
 .summary-text {
     font-size: 0.9rem;
-    color: #cbd5e1;
+    color: #334155;
     line-height: 1.4;
     margin: 0;
 }
@@ -841,8 +854,8 @@
     line-height: 1.4;
 }
 
-.prop-item.positive { color: #34d399; }
-.prop-item.negative { color: #f87171; }
+.prop-item.positive { color: #059669; }
+.prop-item.negative { color: #dc2626; }
 
 .prop-icon {
     font-weight: 800;
@@ -850,11 +863,12 @@
 }
 
 .examples-box {
-    background: #070b14;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     padding: 0.6rem 0.8rem;
     border-radius: 6px;
     font-size: 0.8rem;
-    color: #94a3b8;
+    color: #475569;
 }
 
 /* S1.4: Trainer */
@@ -873,16 +887,17 @@
 .trainer-badge {
     font-size: 0.75rem;
     font-weight: 700;
-    color: #38bdf8;
+    color: #0284c7;
     text-transform: uppercase;
 }
 
 .prompt-quote {
-    background: #0f172a;
-    border-left: 4px solid #38bdf8;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #0284c7;
     padding: 1rem 1.25rem;
     font-size: 1.05rem;
-    color: #f8fafc;
+    color: #1e293b;
     line-height: 1.5;
     border-radius: 0 8px 8px 0;
     font-style: italic;
@@ -897,14 +912,14 @@
 .form-label {
     font-size: 0.85rem;
     font-weight: 600;
-    color: #94a3b8;
+    color: #475569;
 }
 
 .form-textarea {
-    background: #070b14;
-    border: 1px solid #334155;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
     border-radius: 8px;
-    color: #f8fafc;
+    color: #0f172a;
     padding: 0.75rem;
     font-size: 0.9rem;
     min-height: 90px;
@@ -914,7 +929,7 @@
 
 .form-textarea:focus {
     outline: none;
-    border-color: #38bdf8;
+    border-color: #0284c7;
 }
 
 .btn-check {
@@ -935,8 +950,8 @@
 }
 
 .trainer-solution-box {
-    background: rgba(16, 185, 129, 0.08);
-    border: 1px solid #10b981;
+    background: #f0fdf4;
+    border: 1px solid #86efac;
     border-radius: 8px;
     padding: 1rem 1.25rem;
     display: flex;
@@ -946,23 +961,23 @@
 
 .sol-title {
     font-weight: 700;
-    color: #34d399;
+    color: #166534;
     font-size: 0.9rem;
 }
 
 .official-sol-list {
     margin: 0;
     padding-left: 1.2rem;
-    color: #f8fafc;
+    color: #1e293b;
     font-size: 0.9rem;
     line-height: 1.6;
 }
 
 .sol-explanation {
     font-size: 0.85rem;
-    color: #cbd5e1;
+    color: #334155;
     line-height: 1.4;
-    border-top: 1px solid rgba(16, 185, 129, 0.2);
+    border-top: 1px solid #bbf7d0;
     padding-top: 0.6rem;
 }
 
