@@ -1594,21 +1594,24 @@
         public bool IsCoveragePhaseActive { get; set; }
     }
 
-    private List<QmcStepSnapshot> BuildSnapshots()
+    private List<QmcStepSnapshot> BuildSnapshots() =>
+        BuildSnapshots(VariableCount, TruthValues, QmcSolution);
+
+    public static List<QmcStepSnapshot> BuildSnapshots(int variableCount, int[] truthValues, IQuineMcCluskeySolution? qmcSolution)
     {
         var snapshots = new List<QmcStepSnapshot>();
-        if (QmcSolution == null || QmcSolution.Steps.Count == 0) return snapshots;
+        if (qmcSolution == null || qmcSolution.Steps.Count == 0) return snapshots;
 
         var state = new QmcStepSnapshot();
         var order0 = new List<QmcOrderEntry>();
 
-        for (int i = 0; i < TruthValues.Length; i++)
+        for (int i = 0; i < truthValues.Length; i++)
         {
-            if (TruthValues[i] == 1 || TruthValues[i] == 2)
+            if (truthValues[i] == 1 || truthValues[i] == 2)
             {
                 int m = i;
-                var term = FormatImplicant(VariableCount, m, 0);
-                var bin = Convert.ToString(m, 2).PadLeft(VariableCount, '0');
+                var term = FormatImplicant(variableCount, m, 0);
+                var bin = Convert.ToString(m, 2).PadLeft(variableCount, '0');
                 order0.Add(new QmcOrderEntry
                 {
                     Order = 0,
@@ -1629,9 +1632,9 @@
 
         string? pendingRoundHeader = null;
 
-        for (int s = 0; s < QmcSolution.Steps.Count; s++)
+        for (int s = 0; s < qmcSolution.Steps.Count; s++)
         {
-            var stepText = QmcSolution.Steps[s];
+            var stepText = qmcSolution.Steps[s];
 
             if (stepText.StartsWith("Round ", StringComparison.OrdinalIgnoreCase))
             {
@@ -1640,9 +1643,12 @@
                 continue;
             }
 
-            if (stepText.StartsWith("Petrick selection required", StringComparison.OrdinalIgnoreCase))
+            if (stepText.StartsWith("Petrick selection required", StringComparison.OrdinalIgnoreCase) ||
+                stepText.StartsWith("Start QMC with", StringComparison.OrdinalIgnoreCase) ||
+                stepText.StartsWith("Minterms:", StringComparison.OrdinalIgnoreCase) ||
+                stepText.StartsWith("Don't cares:", StringComparison.OrdinalIgnoreCase))
             {
-                // Pure informational step with no visual change; merges into actual Petrick selection
+                // Pure informational steps with no visual change
                 continue;
             }
 
@@ -1663,7 +1669,7 @@
                     var termB = match.Groups[2].Value.Trim();
                     var termC = match.Groups[3].Value.Trim();
 
-                    var (fixedA, maskA) = ParseImplicantTerm(termA, VariableCount);
+                    var (fixedA, maskA) = ParseImplicantTerm(termA, variableCount);
                     int orderA = BitCount(maskA);
 
                     bool hadVisualChange = false;
@@ -1685,7 +1691,7 @@
                         }
                     }
 
-                    var (fixedC, maskC) = ParseImplicantTerm(termC, VariableCount);
+                    var (fixedC, maskC) = ParseImplicantTerm(termC, variableCount);
                     int orderC = BitCount(maskC);
                     if (!state.Orders.TryGetValue(orderC, out var orderCList))
                     {
@@ -1700,8 +1706,8 @@
                         {
                             Order = orderC,
                             Term = termC,
-                            BinaryPattern = FormatBinaryPattern(fixedC, maskC, VariableCount),
-                            Minterms = ComputeCoveredMinterms(fixedC, maskC, VariableCount, TruthValues),
+                            BinaryPattern = FormatBinaryPattern(fixedC, maskC, variableCount),
+                            Minterms = ComputeCoveredMinterms(fixedC, maskC, variableCount, truthValues),
                             IsCombined = false,
                             IsPrime = false,
                             IsActiveTarget = true
@@ -1728,17 +1734,27 @@
                 if (match.Success)
                 {
                     var termP = match.Groups[1].Value.Trim();
-                    var (fixedP, maskP) = ParseImplicantTerm(termP, VariableCount);
+                    var (fixedP, maskP) = ParseImplicantTerm(termP, variableCount);
                     int orderP = BitCount(maskP);
 
+                    QmcOrderEntry? entryP = null;
                     if (state.Orders.TryGetValue(orderP, out var orderPList))
                     {
-                        var entryP = orderPList.FirstOrDefault(e => e.Term == termP);
-                        if (entryP != null)
+                        entryP = orderPList.FirstOrDefault(e => e.Term == termP);
+                    }
+                    if (entryP == null)
+                    {
+                        foreach (var list in state.Orders.Values)
                         {
-                            entryP.IsPrime = true;
-                            entryP.IsActiveTarget = true;
+                            entryP = list.FirstOrDefault(e => e.Term == termP);
+                            if (entryP != null) break;
                         }
+                    }
+
+                    if (entryP != null)
+                    {
+                        entryP.IsPrime = true;
+                        entryP.IsActiveTarget = true;
                     }
 
                     var primeEntry = state.FoundPrimeImplicants.FirstOrDefault(p => p.Term == termP);
@@ -1749,7 +1765,7 @@
                             Index = state.FoundPrimeImplicants.Count + 1,
                             Term = termP,
                             Order = orderP,
-                            Minterms = ComputeCoveredMinterms(fixedP, maskP, VariableCount, TruthValues),
+                            Minterms = ComputeCoveredMinterms(fixedP, maskP, variableCount, truthValues),
                             IsActive = true
                         };
                         state.FoundPrimeImplicants.Add(primeEntry);
@@ -1810,6 +1826,23 @@
                         p.IsSelected = true;
                     }
                 }
+
+                // In the completed reduction table, every term must be either combined (✓) or a prime implicant (PI).
+                foreach (var list in state.Orders.Values)
+                {
+                    foreach (var entry in list)
+                    {
+                        if (!entry.IsCombined)
+                        {
+                            entry.IsPrime = true;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // Pure informational or unrecognized step with no visual impact: skip
+                continue;
             }
 
             snapshots.Add(state);

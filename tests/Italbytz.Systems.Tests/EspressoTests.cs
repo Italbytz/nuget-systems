@@ -209,94 +209,49 @@ public class EspressoTests
         var qmcSolver = new QuineMcCluskeySolver();
         var qmcSolution = qmcSolver.Solve(new QuineMcCluskeyParameters(4, truthValues));
 
-        var order0 = new List<MockEntry>();
-        for (int i = 0; i < truthValues.Length; i++)
+        var snapshots = Italbytz.Systems.Blazor.Components.ComputingSystems.QuineMcCluskeyVisualizer.BuildSnapshots(4, truthValues, qmcSolution);
+        Assert.IsTrue(snapshots.Count > 0, "Snapshots should not be empty");
+
+        // Verify that consecutive snapshots always have visual differences
+        for (int i = 1; i < snapshots.Count; i++)
         {
-            if (truthValues[i] == 1 || truthValues[i] == 2)
+            var prev = snapshots[i - 1];
+            var curr = snapshots[i];
+
+            bool hasChange = curr.StepText != prev.StepText &&
+                (curr.ActivePrimeImplicantTerm != prev.ActivePrimeImplicantTerm ||
+                 curr.ActiveUniqueMinterm != prev.ActiveUniqueMinterm ||
+                 curr.FoundPrimeImplicants.Count != prev.FoundPrimeImplicants.Count ||
+                 curr.EssentialPrimeImplicants.Count != prev.EssentialPrimeImplicants.Count ||
+                 curr.SelectedPrimeImplicants.Count != prev.SelectedPrimeImplicants.Count ||
+                 curr.Orders.Count != prev.Orders.Count ||
+                 curr.Orders.Sum(o => o.Value.Count) != prev.Orders.Sum(o => o.Value.Count) ||
+                 curr.Orders.Any(kv => kv.Value.Any(e => {
+                     var pe = prev.Orders.TryGetValue(kv.Key, out var pl) ? pl.FirstOrDefault(x => x.Term == e.Term) : null;
+                     return pe == null || pe.IsCombined != e.IsCombined || pe.IsPrime != e.IsPrime || pe.IsActiveSource != e.IsActiveSource || pe.IsActiveTarget != e.IsActiveTarget;
+                 })));
+
+            Assert.IsTrue(hasChange, $"Snapshot #{i} ('{curr.StepText}') must produce a visible difference compared to snapshot #{i-1} ('{prev.StepText}')!");
+        }
+
+        // Verify final snapshot:
+        var finalSnap = snapshots[^1];
+        var order1 = finalSnap.Orders[1];
+        var entry00_0 = order1.FirstOrDefault(e => e.BinaryPattern == "00-0" || e.Term == "(!x3 & !x2 & !x0)");
+        Assert.IsNotNull(entry00_0, "00-0 must be present in order 1");
+        Assert.IsTrue(entry00_0.IsPrime, "00-0 must be marked as prime implicant (PI)");
+
+        // All rows across all orders in the final snapshot must be either combined (✓) or prime (PI)
+        foreach (var kvp in finalSnap.Orders)
+        {
+            int orderNum = kvp.Key;
+            var entries = kvp.Value;
+            foreach (var e in entries)
             {
-                order0.Add(new MockEntry { Term = FormatTerm(4, i, 0), Order = 0 });
+                Assert.IsTrue(e.IsCombined || e.IsPrime, $"Order {orderNum} entry '{e.Term}' ({e.BinaryPattern}) is neither combined nor marked as prime!");
             }
         }
 
-        var orders = new Dictionary<int, List<MockEntry>> { [0] = order0 };
-        var foundPrimes = new List<string>();
-
-        int noOpCount = 0;
-        int stepIdx = 0;
-
-        for (int s = 0; s < qmcSolution.Steps.Count; s++)
-        {
-            var stepText = qmcSolution.Steps[s];
-            if (stepText.StartsWith("Round ") || stepText.StartsWith("Petrick selection required")) continue;
-
-            bool hadVisualChange = false;
-
-            if (stepText.StartsWith("Combine "))
-            {
-                var match = System.Text.RegularExpressions.Regex.Match(stepText, @"Combine\s+(.+?)\s+with\s+(.+?)\s+->\s+(.+?)\.");
-                if (match.Success)
-                {
-                    var termA = match.Groups[1].Value.Trim();
-                    var termB = match.Groups[2].Value.Trim();
-                    var termC = match.Groups[3].Value.Trim();
-
-                    var (_, maskA) = ParseImplicantTerm(termA, 4);
-                    int orderA = BitCount(maskA);
-
-                    if (orders.TryGetValue(orderA, out var listA))
-                    {
-                        var eA = listA.FirstOrDefault(e => e.Term == termA);
-                        if (eA != null && !eA.IsCombined) { eA.IsCombined = true; hadVisualChange = true; }
-                        var eB = listA.FirstOrDefault(e => e.Term == termB);
-                        if (eB != null && !eB.IsCombined) { eB.IsCombined = true; hadVisualChange = true; }
-                    }
-
-                    var (_, maskC) = ParseImplicantTerm(termC, 4);
-                    int orderC = BitCount(maskC);
-                    if (!orders.TryGetValue(orderC, out var listC))
-                    {
-                        listC = new List<MockEntry>();
-                        orders[orderC] = listC;
-                    }
-                    var eC = listC.FirstOrDefault(e => e.Term == termC);
-                    if (eC == null)
-                    {
-                        listC.Add(new MockEntry { Term = termC, Order = orderC });
-                        hadVisualChange = true;
-                    }
-                }
-            }
-            else if (stepText.StartsWith("Prime implicant found: "))
-            {
-                var match = System.Text.RegularExpressions.Regex.Match(stepText, @"Prime implicant found:\s+(.+?)\s+covering\s+(.+?)\.");
-                if (match.Success)
-                {
-                    var termP = match.Groups[1].Value.Trim();
-                    var (_, maskP) = ParseImplicantTerm(termP, 4);
-                    int orderP = BitCount(maskP);
-                    if (orders.TryGetValue(orderP, out var listP))
-                    {
-                        var eP = listP.FirstOrDefault(e => e.Term == termP);
-                        if (eP != null && !eP.IsPrime) { eP.IsPrime = true; hadVisualChange = true; }
-                    }
-                    if (!foundPrimes.Contains(termP))
-                    {
-                        foundPrimes.Add(termP);
-                        hadVisualChange = true;
-                    }
-                }
-            }
-            else
-            {
-                hadVisualChange = true;
-            }
-
-            if (!hadVisualChange) noOpCount++;
-            System.Console.WriteLine($"Snapshot #{stepIdx++}: VisualChange={hadVisualChange,-5} | {stepText}");
-        }
-
-        System.Console.WriteLine($"\nTOTAL NO-OP STEPS: {noOpCount}");
-        Assert.AreEqual(0, noOpCount, "There should be zero steps without visual change in QMC!");
         Assert.AreEqual("(!x3 & !x2 & !x0) | (x1)", qmcSolution.MinimalDnf);
     }
 
