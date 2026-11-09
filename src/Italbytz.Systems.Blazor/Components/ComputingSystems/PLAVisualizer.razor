@@ -545,17 +545,18 @@
         int[] inputs = new int[] { InputX1, InputX2, InputX3, InputX4 };
 
         // Color definitions based on mode
-        string baseWireColor = isInteractive ? "#64748b" : "#000000";
-        string activeWireColor = isInteractive ? "#10b981" : "#000000";
-        string dropLineColor = isInteractive ? "#94a3b8" : "#000000";
-        string gateStroke = isInteractive ? "#38bdf8" : "#000000";
-        string gateFill = isInteractive ? "#1e293b" : "#ffffff";
-        string activeGateFill = isInteractive ? "#064e3b" : "#ffffff";
-        string activeGateStroke = isInteractive ? "#10b981" : "#000000";
-        string textColor = isInteractive ? "#ffffff" : "#000000";
-        string subTextColor = isInteractive ? "#94a3b8" : "#000000";
-        string boxFill = isInteractive ? "#1e293b" : "#ffffff";
-        string boxStroke = isInteractive ? "#38bdf8" : "#000000";
+        string baseWireColor = isInteractive ? "#94a3b8" : "#000000";
+        string activeWireColor = isInteractive ? "#059669" : "#000000";
+        string dropLineColor = isInteractive ? "#cbd5e1" : "#000000";
+        string gateStroke = isInteractive ? "#334155" : "#000000";
+        string gateFill = isInteractive ? "#ffffff" : "#ffffff";
+        string activeGateFill = isInteractive ? "#ecfdf5" : "#ffffff";
+        string activeGateStroke = isInteractive ? "#059669" : "#000000";
+        string textColor = isInteractive ? "#0f172a" : "#000000";
+        string subTextColor = isInteractive ? "#64748b" : "#000000";
+        string boxFill = isInteractive ? "#f8fafc" : "#ffffff";
+        string boxStroke = isInteractive ? "#cbd5e1" : "#000000";
+        string termLabelColor = isInteractive ? "#0284c7" : "#000000";
 
         builder.OpenElement(0, "svg");
         builder.AddAttribute(1, "viewBox", $"0 0 {svgWidth} {svgHeight}");
@@ -574,8 +575,12 @@
             bool isNotActive = isInteractive && (inVal == 0);
 
             // Input selector box (0 / 1)
-            builder.AddContent(3, (MarkupString)$"<rect x=\"24\" y=\"{varCenterY - 20}\" width=\"40\" height=\"40\" rx=\"6\" fill=\"{boxFill}\" stroke=\"{boxStroke}\" stroke-width=\"2\" />");
-            builder.AddContent(4, (MarkupString)$"<text x=\"44\" y=\"{varCenterY + 6}\" text-anchor=\"middle\" fill=\"{textColor}\" font-family=\"monospace\" font-size=\"18\" font-weight=\"bold\">{(isInteractive ? inVal.ToString() : $"x{varNum}")}</text>");
+            string curInBoxFill = (isInteractive && inVal == 1) ? "#d1fae5" : boxFill;
+            string curInBoxStroke = (isInteractive && inVal == 1) ? "#059669" : boxStroke;
+            string curInBoxText = (isInteractive && inVal == 1) ? "#065f46" : textColor;
+
+            builder.AddContent(3, (MarkupString)$"<rect x=\"24\" y=\"{varCenterY - 20}\" width=\"40\" height=\"40\" rx=\"6\" fill=\"{curInBoxFill}\" stroke=\"{curInBoxStroke}\" stroke-width=\"2\" />");
+            builder.AddContent(4, (MarkupString)$"<text x=\"44\" y=\"{varCenterY + 6}\" text-anchor=\"middle\" fill=\"{curInBoxText}\" font-family=\"monospace\" font-size=\"18\" font-weight=\"bold\">{(isInteractive ? inVal.ToString() : $"x{varNum}")}</text>");
 
             // Switch wire to pole
             builder.AddContent(5, (MarkupString)$"<path d=\"M 64 {varCenterY} L 105 {varCenterY}\" fill=\"none\" stroke=\"{baseWireColor}\" stroke-width=\"2\" />");
@@ -584,39 +589,42 @@
             builder.AddContent(6, (MarkupString)$"<text x=\"122\" y=\"{varCenterY - 12}\" text-anchor=\"middle\" fill=\"{subTextColor}\" font-family=\"sans-serif\" font-size=\"13\" font-weight=\"bold\">x{varNum}</text>");
 
             // Knife switch pole & blade
-            builder.AddContent(7, (MarkupString)$"<circle cx=\"105\" cy=\"{varCenterY}\" r=\"3.5\" fill=\"{boxStroke}\" stroke=\"none\" />");
+            string poleColor = isInteractive ? "#64748b" : "#000000";
+            builder.AddContent(7, (MarkupString)$"<circle cx=\"105\" cy=\"{varCenterY}\" r=\"3.5\" fill=\"{poleColor}\" stroke=\"none\" />");
             string knifeColor = (isInteractive && inVal == 1) ? activeWireColor : baseWireColor;
             builder.AddContent(8, (MarkupString)$"<line x1=\"105\" y1=\"{varCenterY}\" x2=\"140\" y2=\"{varCenterY}\" stroke=\"{knifeColor}\" stroke-width=\"3\" stroke-linecap=\"round\" />");
-            builder.AddContent(9, (MarkupString)$"<circle cx=\"140\" cy=\"{varCenterY}\" r=\"3.5\" fill=\"{boxStroke}\" stroke=\"none\" />");
+            builder.AddContent(9, (MarkupString)$"<circle cx=\"140\" cy=\"{varCenterY}\" r=\"3.5\" fill=\"{poleColor}\" stroke=\"none\" />");
 
             // Splitter to NOT gate & Direct line
             builder.AddContent(10, (MarkupString)$"<path d=\"M 140 {varCenterY} L 165 {varCenterY}\" fill=\"none\" stroke=\"{knifeColor}\" stroke-width=\"2\" />");
-            builder.AddContent(11, (MarkupString)$"<circle cx=\"165\" cy=\"{varCenterY}\" r=\"3\" fill=\"{boxStroke}\" stroke=\"none\" />");
+            builder.AddContent(11, (MarkupString)$"<circle cx=\"165\" cy=\"{varCenterY}\" r=\"3.5\" fill=\"{poleColor}\" stroke=\"none\" />");
 
             // Upper branch: into NOT gate (inverter) -> railNotY
-            builder.AddContent(12, (MarkupString)$"<path d=\"M 165 {varCenterY} L 165 {railNotY} L 195 {railNotY}\" fill=\"none\" stroke=\"{knifeColor}\" stroke-width=\"2\" />");
+            builder.AddContent(12, (MarkupString)$"<path d=\"M 165 {varCenterY} L 165 {railNotY} L 180 {railNotY}\" fill=\"none\" stroke=\"{knifeColor}\" stroke-width=\"2\" />");
 
-            // Inverter Triangle
-            builder.AddContent(13, (MarkupString)$"<polygon points=\"195,{railNotY - 12} 195,{railNotY + 12} 220,{railNotY}\" fill=\"{gateFill}\" stroke=\"{gateStroke}\" stroke-width=\"2\" />");
-            // Bubble at tip
-            builder.AddContent(14, (MarkupString)$"<circle cx=\"224\" cy=\"{railNotY}\" r=\"4\" fill=\"{gateFill}\" stroke=\"{gateStroke}\" stroke-width=\"2\" />");
+            // --- DEUTSCHE DIN / IEC 60617 NOT-GATTER (INVERTIERER) ---
+            string notGateStroke = isNotActive ? activeGateStroke : gateStroke;
+            string notGateFill = isNotActive ? activeGateFill : gateFill;
+            builder.AddContent(13, (MarkupString)$"<rect x=\"180\" y=\"{railNotY - 14}\" width=\"28\" height=\"28\" rx=\"2\" fill=\"{notGateFill}\" stroke=\"{notGateStroke}\" stroke-width=\"2\" />");
+            builder.AddContent(14, (MarkupString)$"<text x=\"194\" y=\"{railNotY + 5}\" text-anchor=\"middle\" fill=\"{textColor}\" font-family=\"sans-serif\" font-size=\"14\" font-weight=\"bold\">1</text>");
+            builder.AddContent(15, (MarkupString)$"<circle cx=\"212\" cy=\"{railNotY}\" r=\"4\" fill=\"#ffffff\" stroke=\"{notGateStroke}\" stroke-width=\"2\" />");
 
             // Wire from Inverter out to horizontal rail
             string notWireColor = isNotActive ? activeWireColor : baseWireColor;
-            builder.AddContent(15, (MarkupString)$"<line x1=\"228\" y1=\"{railNotY}\" x2=\"{railStartX}\" y2=\"{railNotY}\" stroke=\"{notWireColor}\" stroke-width=\"2\" />");
+            builder.AddContent(16, (MarkupString)$"<line x1=\"216\" y1=\"{railNotY}\" x2=\"{railStartX}\" y2=\"{railNotY}\" stroke=\"{notWireColor}\" stroke-width=\"2\" />");
 
             // Lower branch: Direct wire -> railDirectY
             string dirWireColor = isDirectActive ? activeWireColor : baseWireColor;
-            builder.AddContent(16, (MarkupString)$"<path d=\"M 165 {varCenterY} L 165 {railDirectY} L {railStartX} {railDirectY}\" fill=\"none\" stroke=\"{dirWireColor}\" stroke-width=\"2\" />");
+            builder.AddContent(17, (MarkupString)$"<path d=\"M 165 {varCenterY} L 165 {railDirectY} L {railStartX} {railDirectY}\" fill=\"none\" stroke=\"{dirWireColor}\" stroke-width=\"2\" />");
 
             // Rail lines across matrix
             double notRailWidth = isNotActive ? 3.5 : 2;
             double dirRailWidth = isDirectActive ? 3.5 : 2;
-            builder.AddContent(17, (MarkupString)$"<line x1=\"{railStartX}\" y1=\"{railNotY}\" x2=\"{railEndX}\" y2=\"{railNotY}\" stroke=\"{notWireColor}\" stroke-width=\"{notRailWidth}\" />");
-            builder.AddContent(18, (MarkupString)$"<line x1=\"{railStartX}\" y1=\"{railDirectY}\" x2=\"{railEndX}\" y2=\"{railDirectY}\" stroke=\"{dirWireColor}\" stroke-width=\"{dirRailWidth}\" />");
+            builder.AddContent(18, (MarkupString)$"<line x1=\"{railStartX}\" y1=\"{railNotY}\" x2=\"{railEndX}\" y2=\"{railNotY}\" stroke=\"{notWireColor}\" stroke-width=\"{notRailWidth}\" />");
+            builder.AddContent(19, (MarkupString)$"<line x1=\"{railStartX}\" y1=\"{railDirectY}\" x2=\"{railEndX}\" y2=\"{railDirectY}\" stroke=\"{dirWireColor}\" stroke-width=\"{dirRailWidth}\" />");
 
-            builder.AddContent(19, (MarkupString)$"<text x=\"{railEndX + 10}\" y=\"{railNotY + 4}\" fill=\"{textColor}\" font-family=\"monospace\" font-size=\"12\" font-weight=\"bold\">¬x{varNum}</text>");
-            builder.AddContent(20, (MarkupString)$"<text x=\"{railEndX + 10}\" y=\"{railDirectY + 4}\" fill=\"{textColor}\" font-family=\"monospace\" font-size=\"12\" font-weight=\"bold\">x{varNum}</text>");
+            builder.AddContent(20, (MarkupString)$"<text x=\"{railEndX + 10}\" y=\"{railNotY + 4}\" fill=\"{textColor}\" font-family=\"monospace\" font-size=\"12\" font-weight=\"bold\">¬x{varNum}</text>");
+            builder.AddContent(21, (MarkupString)$"<text x=\"{railEndX + 10}\" y=\"{railDirectY + 4}\" fill=\"{textColor}\" font-family=\"monospace\" font-size=\"12\" font-weight=\"bold\">x{varNum}</text>");
         }
 
         // 2. PRODUCT TERMS / AND GATES (BOTTOM OF MATRIX)
@@ -644,7 +652,7 @@
                 double lineX = dropLinesX[v];
                 char cond = term.Pattern[v]; // '0', '1', or '-'
 
-                builder.AddContent(21, (MarkupString)$"<line x1=\"{lineX}\" y1=\"{firstRailY - 10}\" x2=\"{lineX}\" y2=\"{andGateY}\" stroke=\"{dropLineColor}\" stroke-width=\"1.5\" stroke-dasharray=\"3,3\" />");
+                builder.AddContent(22, (MarkupString)$"<line x1=\"{lineX}\" y1=\"{firstRailY - 10}\" x2=\"{lineX}\" y2=\"{andGateY}\" stroke=\"{dropLineColor}\" stroke-width=\"1.5\" stroke-dasharray=\"3,3\" />");
 
                 if (showSolutions)
                 {
@@ -652,20 +660,20 @@
                     {
                         double dotY = firstRailY + (v * 2 * railSpacing);
                         bool dotActive = isInteractive && (inputs[v] == 0);
-                        string dotColor = isInteractive ? (dotActive ? "#10b981" : "#ef4444") : "#000000";
-                        builder.AddContent(22, (MarkupString)$"<circle cx=\"{lineX}\" cy=\"{dotY}\" r=\"5.5\" fill=\"{dotColor}\" stroke=\"{(isInteractive ? "#ffffff" : "#000000")}\" stroke-width=\"1.5\" />");
+                        string dotColor = isInteractive ? (dotActive ? "#059669" : "#dc2626") : "#000000";
+                        builder.AddContent(23, (MarkupString)$"<circle cx=\"{lineX}\" cy=\"{dotY}\" r=\"5.5\" fill=\"{dotColor}\" stroke=\"{(isInteractive ? "#ffffff" : "#000000")}\" stroke-width=\"1.5\" />");
                     }
                     else if (cond == '1')
                     {
                         double dotY = firstRailY + (v * 2 * railSpacing) + railSpacing;
                         bool dotActive = isInteractive && (inputs[v] == 1);
-                        string dotColor = isInteractive ? (dotActive ? "#10b981" : "#ef4444") : "#000000";
-                        builder.AddContent(23, (MarkupString)$"<circle cx=\"{lineX}\" cy=\"{dotY}\" r=\"5.5\" fill=\"{dotColor}\" stroke=\"{(isInteractive ? "#ffffff" : "#000000")}\" stroke-width=\"1.5\" />");
+                        string dotColor = isInteractive ? (dotActive ? "#059669" : "#dc2626") : "#000000";
+                        builder.AddContent(24, (MarkupString)$"<circle cx=\"{lineX}\" cy=\"{dotY}\" r=\"5.5\" fill=\"{dotColor}\" stroke=\"{(isInteractive ? "#ffffff" : "#000000")}\" stroke-width=\"1.5\" />");
                     }
                 }
             }
 
-            // AND gate symbol
+            // --- DEUTSCHE DIN / IEC 60617 AND-GATTER ---
             double gw = 50;
             double gh = 42;
             double gx = andCenterX - (gw / 2.0);
@@ -674,17 +682,16 @@
             string curGateFill = isTermOn ? activeGateFill : gateFill;
             string curGateStroke = isTermOn ? activeGateStroke : gateStroke;
 
-            string andPath = $"M {gx} {gy} L {gx + gw} {gy} L {gx + gw} {gy + (gh / 2)} A {gw / 2} {gw / 2} 0 0 1 {gx} {gy + (gh / 2)} Z";
-            builder.AddContent(24, (MarkupString)$"<path d=\"{andPath}\" fill=\"{curGateFill}\" stroke=\"{curGateStroke}\" stroke-width=\"2.5\" />");
-            builder.AddContent(25, (MarkupString)$"<text x=\"{andCenterX}\" y=\"{gy + 24}\" text-anchor=\"middle\" fill=\"{textColor}\" font-family=\"sans-serif\" font-size=\"16\" font-weight=\"bold\">&amp;</text>");
+            builder.AddContent(25, (MarkupString)$"<rect x=\"{gx}\" y=\"{gy}\" width=\"{gw}\" height=\"{gh}\" rx=\"3\" fill=\"{curGateFill}\" stroke=\"{curGateStroke}\" stroke-width=\"2\" />");
+            builder.AddContent(26, (MarkupString)$"<text x=\"{andCenterX}\" y=\"{gy + 26}\" text-anchor=\"middle\" fill=\"{textColor}\" font-family=\"sans-serif\" font-size=\"18\" font-weight=\"bold\">&amp;</text>");
 
             // Output line from AND gate downwards
             double andOutY = gy + gh + 14;
             string outLineColor = isTermOn ? activeWireColor : baseWireColor;
-            builder.AddContent(26, (MarkupString)$"<line x1=\"{andCenterX}\" y1=\"{gy + gh}\" x2=\"{andCenterX}\" y2=\"{andOutY}\" stroke=\"{outLineColor}\" stroke-width=\"2.5\" />");
+            builder.AddContent(27, (MarkupString)$"<line x1=\"{andCenterX}\" y1=\"{gy + gh}\" x2=\"{andCenterX}\" y2=\"{andOutY}\" stroke=\"{outLineColor}\" stroke-width=\"2.5\" />");
 
             // Term label
-            builder.AddContent(27, (MarkupString)$"<text x=\"{andCenterX}\" y=\"{gy - 6}\" text-anchor=\"middle\" fill=\"{(isInteractive ? "#38bdf8" : "#000000")}\" font-family=\"monospace\" font-size=\"13\" font-weight=\"bold\">P{p}</text>");
+            builder.AddContent(28, (MarkupString)$"<text x=\"{andCenterX}\" y=\"{gy - 6}\" text-anchor=\"middle\" fill=\"{termLabelColor}\" font-family=\"monospace\" font-size=\"13\" font-weight=\"bold\">P{p}</text>");
         }
 
         // 3. DISJUNCTION MATRIX (OR GATE AT BOTTOM)
@@ -700,10 +707,10 @@
             bool isTermOn = andOutputValList[p];
 
             double targetX = orGateCenterX - 22 + (p * (44.0 / Math.Max(1, numTerms - 1)));
-            double targetY = orGateY + 6;
+            double targetY = orGateY;
             string orInLineColor = isTermOn ? activeWireColor : baseWireColor;
 
-            builder.AddContent(28, (MarkupString)$"<path d=\"M {fromX} {fromY} L {fromX} {orGateY - 12} L {targetX} {orGateY - 12} L {targetX} {targetY}\" fill=\"none\" stroke=\"{orInLineColor}\" stroke-width=\"2\" />");
+            builder.AddContent(29, (MarkupString)$"<path d=\"M {fromX} {fromY} L {fromX} {orGateY - 12} L {targetX} {orGateY - 12} L {targetX} {targetY}\" fill=\"none\" stroke=\"{orInLineColor}\" stroke-width=\"2\" />");
         }
 
         double ox = orGateCenterX - (orWidth / 2.0);
@@ -713,23 +720,25 @@
         string curOrFill = isOrActive ? activeGateFill : gateFill;
         string curOrStroke = isOrActive ? activeGateStroke : gateStroke;
 
-        string orPath = $"M {ox} {oy} Q {orGateCenterX} {oy + 14} {ox + orWidth} {oy} Q {orGateCenterX + 16} {oy + orHeight} {orGateCenterX} {oy + orHeight + 14} Q {orGateCenterX - 16} {oy + orHeight} {ox} {oy} Z";
-        builder.AddContent(29, (MarkupString)$"<path d=\"{orPath}\" fill=\"{curOrFill}\" stroke=\"{curOrStroke}\" stroke-width=\"2.5\" />");
-        builder.AddContent(30, (MarkupString)$"<text x=\"{orGateCenterX}\" y=\"{oy + 24}\" text-anchor=\"middle\" fill=\"{textColor}\" font-family=\"sans-serif\" font-size=\"16\" font-weight=\"bold\">≥</text>");
+        // --- DEUTSCHE DIN / IEC 60617 OR-GATTER ---
+        builder.AddContent(30, (MarkupString)$"<rect x=\"{ox}\" y=\"{oy}\" width=\"{orWidth}\" height=\"{orHeight}\" rx=\"4\" fill=\"{curOrFill}\" stroke=\"{curOrStroke}\" stroke-width=\"2\" />");
+        builder.AddContent(31, (MarkupString)$"<text x=\"{orGateCenterX}\" y=\"{oy + 30}\" text-anchor=\"middle\" fill=\"{textColor}\" font-family=\"sans-serif\" font-size=\"18\" font-weight=\"bold\">≥1</text>");
 
         // Output wire & box
-        double finalWireY = oy + orHeight + 14;
+        double finalWireY = oy + orHeight;
         double outBoxY = finalWireY + 24;
         int currentYVal = isOrActive ? 1 : 0;
         string finalWireColor = isOrActive ? activeWireColor : baseWireColor;
 
-        builder.AddContent(31, (MarkupString)$"<line x1=\"{orGateCenterX}\" y1=\"{finalWireY}\" x2=\"{orGateCenterX}\" y2=\"{outBoxY}\" stroke=\"{finalWireColor}\" stroke-width=\"2.5\" />");
+        builder.AddContent(32, (MarkupString)$"<line x1=\"{orGateCenterX}\" y1=\"{finalWireY}\" x2=\"{orGateCenterX}\" y2=\"{outBoxY}\" stroke=\"{finalWireColor}\" stroke-width=\"2.5\" />");
 
-        string curOutBoxFill = isOrActive ? activeWireColor : boxFill;
-        string curOutBoxStroke = isOrActive ? "#ffffff" : boxStroke;
-        builder.AddContent(32, (MarkupString)$"<rect x=\"{orGateCenterX - 24}\" y=\"{outBoxY}\" width=\"48\" height=\"40\" rx=\"6\" fill=\"{curOutBoxFill}\" stroke=\"{curOutBoxStroke}\" stroke-width=\"2.5\" />");
-        builder.AddContent(33, (MarkupString)$"<text x=\"{orGateCenterX}\" y=\"{outBoxY + 26}\" text-anchor=\"middle\" fill=\"{textColor}\" font-family=\"monospace\" font-size=\"20\" font-weight=\"bold\">{(isInteractive ? currentYVal.ToString() : "y")}</text>");
-        builder.AddContent(34, (MarkupString)$"<text x=\"{orGateCenterX + 36}\" y=\"{outBoxY + 26}\" fill=\"{subTextColor}\" font-family=\"sans-serif\" font-size=\"13\" font-weight=\"bold\">Ausgang y</text>");
+        string curOutBoxFill = (isInteractive && isOrActive) ? "#d1fae5" : boxFill;
+        string curOutBoxStroke = (isInteractive && isOrActive) ? "#059669" : boxStroke;
+        string curOutBoxText = (isInteractive && isOrActive) ? "#065f46" : textColor;
+
+        builder.AddContent(33, (MarkupString)$"<rect x=\"{orGateCenterX - 24}\" y=\"{outBoxY}\" width=\"48\" height=\"40\" rx=\"6\" fill=\"{curOutBoxFill}\" stroke=\"{curOutBoxStroke}\" stroke-width=\"2.5\" />");
+        builder.AddContent(34, (MarkupString)$"<text x=\"{orGateCenterX}\" y=\"{outBoxY + 26}\" text-anchor=\"middle\" fill=\"{curOutBoxText}\" font-family=\"monospace\" font-size=\"20\" font-weight=\"bold\">{(isInteractive ? currentYVal.ToString() : "y")}</text>");
+        builder.AddContent(35, (MarkupString)$"<text x=\"{orGateCenterX + 36}\" y=\"{outBoxY + 26}\" fill=\"{subTextColor}\" font-family=\"sans-serif\" font-size=\"13\" font-weight=\"bold\">Ausgang y</text>");
 
         builder.CloseElement();
     };

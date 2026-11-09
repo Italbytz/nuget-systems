@@ -258,8 +258,9 @@
 }
 
 .pla-code-block {
-    background: #0f172a;
-    color: #38bdf8;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #0369a1;
     padding: 0.75rem 1rem;
     border-radius: 6px;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -354,11 +355,12 @@
 .sim-truth-table th {
     position: sticky;
     top: 0;
-    background: #0f172a;
-    color: #ffffff;
+    background: #f1f5f9;
+    color: #334155;
+    border-bottom: 2px solid #cbd5e1;
     padding: 0.45rem 0.3rem;
     font-size: 0.775rem;
-    font-weight: 600;
+    font-weight: 700;
 }
 
 .sim-truth-table td {
@@ -481,11 +483,12 @@
 /* SVG Schematic */
 .svg-container {
     width: 100%;
-    background: #0b0f19;
-    border: 1px solid #1e293b;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
     padding: 1rem;
     overflow-x: auto;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .pla-circuit-svg {
@@ -497,168 +500,162 @@
 
 /* SVG Elements in Simulator / Standalone Mode */
 .pla-sw-box {
-    fill: #1e293b;
-    stroke: #38bdf8;
+    fill: #f8fafc;
+    stroke: #cbd5e1;
     stroke-width: 2;
 }
 
 .pla-sw-label {
-    fill: #ffffff;
+    fill: #0f172a;
     font-family: monospace;
     font-size: 18px;
     font-weight: bold;
 }
 
 .pla-var-tag {
-    fill: #94a3b8;
+    fill: #64748b;
     font-family: sans-serif;
     font-size: 13px;
     font-weight: bold;
 }
 
 .pla-contact {
-    fill: #38bdf8;
+    fill: #64748b;
 }
 
 .pla-knife {
-    stroke: #38bdf8;
+    stroke: #94a3b8;
     stroke-width: 3;
     stroke-linecap: round;
 }
 
 .pla-dot {
-    fill: #38bdf8;
+    fill: #64748b;
 }
 
 .pla-wire {
-    stroke: #64748b;
+    stroke: #94a3b8;
     stroke-width: 2;
 }
 
 .pla-wire.wire-on {
-    stroke: #10b981;
+    stroke: #059669;
     stroke-width: 3;
-    filter: drop-shadow(0 0 4px #10b981);
 }
 
 .pla-wire.wire-off {
-    stroke: #64748b;
+    stroke: #94a3b8;
     stroke-width: 2;
 }
 
 .pla-gate-not {
-    fill: #1e293b;
-    stroke: #38bdf8;
+    fill: #ffffff;
+    stroke: #334155;
     stroke-width: 2;
 }
 
 .pla-bubble {
-    fill: #0b0f19;
-    stroke: #38bdf8;
+    fill: #ffffff;
+    stroke: #334155;
     stroke-width: 2;
 }
 
 .pla-rail {
-    stroke: #64748b;
+    stroke: #94a3b8;
     stroke-width: 2;
 }
 
 .pla-rail.rail-on {
-    stroke: #10b981;
+    stroke: #059669;
     stroke-width: 3.5;
-    filter: drop-shadow(0 0 5px #10b981);
 }
 
 .pla-rail.rail-off {
-    stroke: #64748b;
+    stroke: #94a3b8;
     stroke-width: 2;
 }
 
 .pla-rail-tag {
-    fill: #e2e8f0;
+    fill: #0f172a;
     font-family: monospace;
     font-size: 12px;
     font-weight: bold;
 }
 
 .pla-drop-line {
-    stroke: #94a3b8;
+    stroke: #cbd5e1;
     stroke-width: 1.5;
     stroke-dasharray: 2, 2;
 }
 
 .pla-dot-connection {
-    fill: #ef4444;
+    fill: #dc2626;
     stroke: #ffffff;
     stroke-width: 1.5;
     transition: all 0.2s ease;
 }
 
 .pla-dot-connection.dot-active {
-    fill: #10b981;
+    fill: #059669;
     stroke: #ffffff;
-    filter: drop-shadow(0 0 6px #10b981);
 }
 
 .pla-gate-and {
-    fill: #1e293b;
-    stroke: #38bdf8;
-    stroke-width: 2.5;
+    fill: #ffffff;
+    stroke: #334155;
+    stroke-width: 2;
 }
 
 .pla-gate-and.gate-on {
-    fill: #064e3b;
-    stroke: #10b981;
-    filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.5));
+    fill: #ecfdf5;
+    stroke: #059669;
 }
 
 .gate-label {
-    fill: #ffffff;
+    fill: #0f172a;
     font-family: sans-serif;
     font-size: 16px;
     font-weight: bold;
 }
 
 .term-col-label {
-    fill: #38bdf8;
+    fill: #0284c7;
     font-family: monospace;
     font-size: 13px;
     font-weight: bold;
 }
 
 .pla-gate-or {
-    fill: #1e293b;
-    stroke: #38bdf8;
-    stroke-width: 2.5;
+    fill: #ffffff;
+    stroke: #334155;
+    stroke-width: 2;
 }
 
 .pla-gate-or.gate-on {
-    fill: #064e3b;
-    stroke: #10b981;
-    filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.6));
+    fill: #ecfdf5;
+    stroke: #059669;
 }
 
 .pla-out-box {
-    fill: #1e293b;
-    stroke: #64748b;
-    stroke-width: 2.5;
+    fill: #f8fafc;
+    stroke: #cbd5e1;
+    stroke-width: 2;
 }
 
 .pla-out-box.out-box-high {
-    fill: #10b981;
-    stroke: #ffffff;
-    filter: drop-shadow(0 0 10px #10b981);
+    fill: #d1fae5;
+    stroke: #059669;
 }
 
 .pla-out-text {
-    fill: #ffffff;
+    fill: #0f172a;
     font-family: monospace;
     font-size: 20px;
     font-weight: bold;
 }
 
 .pla-out-label {
-    fill: #94a3b8;
+    fill: #64748b;
     font-size: 13px;
     font-weight: bold;
 }
