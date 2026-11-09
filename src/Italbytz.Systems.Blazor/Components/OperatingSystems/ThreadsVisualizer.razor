@@ -1,0 +1,730 @@
+@namespace Italbytz.Systems.Blazor.Components.OperatingSystems
+@using Microsoft.AspNetCore.Components
+@using Microsoft.JSInterop
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+<article class="threads-container @(IsEmbed ? "embed-mode" : "")">
+
+    @if (!IsEmbed)
+    {
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Betriebssysteme &bull; Nebenläufigkeit &amp; Prozesse</p>
+            <h2>Threads &amp; Nebenläufige Ausführung (C# Thread &amp; POSIX pthread)</h2>
+            <p class="feature-intro">
+                Erzeugung und Lebenszyklus nebenläufiger Threads in C# (<code>new Thread(...)</code>, <code>thread.Start(i)</code>, <code>Thread.Sleep(1000)</code>) 
+                im direkten Vergleich zu POSIX Threads (<code>pthread_create</code>, <code>pthread_exit</code>, <code>pthread_join</code>).
+                Beobachten Sie das nicht-deterministische Scheduling und die zeitliche Verzahnung (Interleaving).
+            </p>
+        </div>
+    }
+
+    <!-- Toolbar / Controls Panel -->
+    <div class="controls-panel no-print">
+        <div class="toolbar-grid">
+            <div class="control-group">
+                <span class="control-label">Anzahl Threads:</span>
+                <div class="btn-group">
+                    <button class="toggle-btn @(NumberOfThreads == 3 ? "active" : "")"
+                            @onclick="() => ChangeThreadCount(3)"
+                            disabled="@(IsPlaying || StepCounter > 0)">
+                        3 Threads
+                    </button>
+                    <button class="toggle-btn @(NumberOfThreads == 5 ? "active" : "")"
+                            @onclick="() => ChangeThreadCount(5)"
+                            disabled="@(IsPlaying || StepCounter > 0)">
+                        5 Threads
+                    </button>
+                    <button class="toggle-btn @(NumberOfThreads == 10 ? "active" : "")"
+                            @onclick="() => ChangeThreadCount(10)"
+                            disabled="@(IsPlaying || StepCounter > 0)">
+                        10 Threads
+                    </button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <span class="control-label">Synchronisation:</span>
+                <div class="btn-group">
+                    <button class="toggle-btn @(!UseJoin ? "active" : "")"
+                            @onclick="() => ToggleJoin(false)"
+                            disabled="@(IsPlaying || StepCounter > 0)">
+                        Fire &amp; Forget (ohne Join)
+                    </button>
+                    <button class="toggle-btn @(UseJoin ? "active" : "")"
+                            @onclick="() => ToggleJoin(true)"
+                            disabled="@(IsPlaying || StepCounter > 0)">
+                        Mit Join (Warten auf Ende)
+                    </button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <span class="control-label">Tempo:</span>
+                <select class="form-select" @bind="PlaySpeedMs">
+                    <option value="1200">Normal (1.2s)</option>
+                    <option value="600">Schnell (0.6s)</option>
+                    <option value="2000">Gemächlich (2.0s)</option>
+                </select>
+            </div>
+
+            <div class="action-btn-group">
+                <button class="ctrl-btn" @onclick="ResetSimulation" title="Simulation zurücksetzen">
+                    🔄 Reset
+                </button>
+                <button class="ctrl-btn" @onclick="StepSimulation" disabled="@(IsPlaying || IsCompleted)" title="Einen Schritt weiter">
+                    👉 1 Schritt
+                </button>
+                @if (IsPlaying)
+                {
+                    <button class="ctrl-btn ctrl-pause" @onclick="PausePlay" title="Simulation pausieren">
+                        ⏸️ Pause
+                    </button>
+                }
+                else
+                {
+                    <button class="ctrl-btn ctrl-play" @onclick="StartPlay" disabled="@IsCompleted" title="Simulation abspielen">
+                        ▶️ Play
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert / Status Banner -->
+    @if (IsCompleted)
+    {
+        <div class="alert-banner alert-success">
+            <span class="alert-icon">✅</span>
+            <div class="alert-content">
+                <strong class="alert-title">SIMULATION ABGESCHLOSSEN!</strong>
+                <span class="alert-desc">
+                    Alle @NumberOfThreads Worker-Threads wurden erzeugt und haben ihre Ausführung nach <code>Thread.Sleep(1000)</code> beendet.
+                    @if (UseJoin)
+                    {
+                        <span> Der Main-Thread hat über <code>thread.Join()</code> gewartet, bis alle Threads terminiert sind.</span>
+                    }
+                    else
+                    {
+                        <span> Der Main-Thread lief asynchron weiter, während die Threads im Hintergrund arbeiteten.</span>
+                    }
+                </span>
+            </div>
+        </div>
+    }
+    else if (StepCounter > 0)
+    {
+        <div class="alert-banner alert-info">
+            <span class="alert-icon">ℹ️</span>
+            <div class="alert-content">
+                <strong class="alert-title">SCHEDULING AKTIV: SCHRITT @StepCounter</strong>
+                <span class="alert-desc">
+                    Beachten Sie die Reihenfolge in der Konsole: Das Betriebssystem teilt den Threads dynamisch CPU-Zeitscheiben zu. 
+                    Aufrufe von <code>Thread.Sleep()</code> geben die CPU frei und führen zu Kontextwechseln.
+                </span>
+            </div>
+        </div>
+    }
+
+    <!-- Main Two-Panel Layout Grid -->
+    <div class="layout-grid">
+
+        <!-- Left Panel: Simulation State, Threads Grid & Console -->
+        <div class="sim-panel">
+
+            <!-- Main Thread Card -->
+            <div class="main-thread-card">
+                <div class="main-card-header">
+                    <div class="thread-id-wrap">
+                        <span class="thread-badge main-badge">MAIN-THREAD</span>
+                        <strong class="thread-name">Hauptprogramm (Main)</strong>
+                    </div>
+                    <span class="status-badge status-@GetMainStateCssClass()">
+                        @GetMainStateDisplay()
+                    </span>
+                </div>
+                <div class="main-card-body">
+                    <div class="main-metric">
+                        <span class="metric-label">Schleifenindex i:</span>
+                        <span class="metric-val mono">@(CurrentCreationIndex < NumberOfThreads ? $"{CurrentCreationIndex} / {NumberOfThreads}" : $"Fertig ({NumberOfThreads})")</span>
+                    </div>
+                    <div class="main-metric">
+                        <span class="metric-label">Lebende Worker:</span>
+                        <span class="metric-val mono">@ActiveWorkersCount / @NumberOfThreads</span>
+                    </div>
+                    <div class="main-action">
+                        <span class="action-label">Aktuelle Aktion:</span>
+                        <span class="action-text mono">@MainActionText</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Worker Threads Grid -->
+            <div class="workers-section">
+                <div class="section-header">
+                    <div class="section-title-wrap">
+                        <span class="section-icon">🧵</span>
+                        <strong>Worker-Threads (StaticMethod)</strong>
+                    </div>
+                    <div class="section-stats mono">
+                        Terminiert: <strong>@TerminatedWorkersCount</strong> / @NumberOfThreads
+                    </div>
+                </div>
+
+                <div class="workers-grid">
+                    @foreach (var worker in Workers)
+                    {
+                        <div class="worker-card worker-@worker.Lifecycle.ToString().ToLowerInvariant()">
+                            <div class="worker-top">
+                                <span class="worker-id mono">Thread #@worker.Id</span>
+                                <span class="worker-status-pill status-@worker.Lifecycle.ToString().ToLowerInvariant()">
+                                    @GetWorkerStatusDisplay(worker.Lifecycle)
+                                </span>
+                            </div>
+                            <div class="worker-activity mono">
+                                @worker.CurrentActivity
+                            </div>
+                            <div class="worker-progress-wrap">
+                                <div class="worker-progress-bar" style="width: @(worker.Progress)%;"></div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Console Log Stream -->
+            <div class="console-box">
+                <div class="console-header">
+                    <div class="console-title-wrap">
+                        <span class="console-icon">💻</span>
+                        <span class="console-title">Standardausgabe (Console.WriteLine)</span>
+                    </div>
+                    <span class="step-badge mono">Zeilen: @LogEntries.Count</span>
+                </div>
+                <div class="console-body mono" @ref="ConsoleLogRef">
+                    @if (LogEntries.Count == 0)
+                    {
+                        <div class="log-empty">Simulation bereit. Klicken Sie auf „1 Schritt“ oder „Play“.</div>
+                    }
+                    else
+                    {
+                        @foreach (var log in LogEntries)
+                        {
+                            <div class="log-line @log.CssClass">
+                                <span class="log-src">[@log.Source]</span>
+                                <span class="log-msg">@log.Message</span>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right Panel: C# Source Code & POSIX Mapping -->
+        <div class="code-panel">
+            <div class="code-tabs">
+                <button class="tab-btn @(ActiveCodeTab == CodeTab.CSharp ? "active" : "")"
+                        @onclick="() => ActiveCodeTab = CodeTab.CSharp">
+                    📄 C# (Threads.cs)
+                </button>
+                <button class="tab-btn @(ActiveCodeTab == CodeTab.Posix ? "active" : "")"
+                        @onclick="() => ActiveCodeTab = CodeTab.Posix">
+                    ⚖️ C# vs. POSIX pthread
+                </button>
+            </div>
+
+            @if (ActiveCodeTab == CodeTab.CSharp)
+            {
+                <div class="code-card">
+                    <div class="code-card-header">
+                        <div class="code-title-wrap">
+                            <span class="code-icon">💻</span>
+                            <strong>Threads/Program.cs</strong>
+                            <span class="code-pill">.NET 8</span>
+                        </div>
+                        <div class="code-actions no-print">
+                            <button class="copy-btn" @onclick="CopyCodeToClipboard" title="Code in Zwischenablage kopieren">
+                                @(IsCopied ? "✓ Kopiert!" : "📋 Kopieren")
+                            </button>
+                            <a href="https://github.com/RobinNunkesser/work/tree/main/artifacts/packages/dotnet/nuget-systems/samples/console/OperatingSystems/Threads/" 
+                               target="_blank" rel="noopener noreferrer" class="repo-link" title="Im Repository ansehen">
+                                🔗 GitHub
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="code-container">
+                        @if (!UseJoin)
+                        {
+                            <pre class="code-listing mono"><code><span class="kw">namespace</span> <span class="tp">Threads</span>;
+
+<span class="kw">internal static class</span> <span class="tp">Program</span>
+{
+    <span class="kw">private const int</span> NumberOfThreads = <span class="num">@NumberOfThreads</span>;
+
+    <span class="com">// Thread-Methode mit Parameter (ParameterizedThreadStart)</span>
+    <span class="kw">private static void</span> <span class="fn">StaticMethod</span>(<span class="kw">object</span>? threadId)
+    {
+        <span class="@(CurrentHighlight == HighlightLine.Greeting ? "highlight-line" : "")">Console.WriteLine(<span class="str">$"Hello World. Greetings from thread {threadId}"</span>);</span>
+        <span class="@(CurrentHighlight == HighlightLine.Sleep ? "highlight-line" : "")">Thread.Sleep(<span class="num">1000</span>);</span> <span class="com">// Thread gibt CPU ab (WaitSleepJoin)</span>
+        <span class="@(CurrentHighlight == HighlightLine.Leaving ? "highlight-line" : "")">Console.WriteLine(<span class="str">$"Leaving thread {threadId}"</span>);</span>
+    }
+
+    <span class="kw">public static void</span> <span class="fn">Main</span>(<span class="kw">string</span>[] args)
+    {
+        <span class="kw">for</span> (<span class="kw">var</span> i = <span class="num">0</span>; i &lt; NumberOfThreads; i++)
+        {
+            <span class="@(CurrentHighlight == HighlightLine.Creating ? "highlight-line" : "")">Console.WriteLine(<span class="str">$"Main here. Creating thread {i}"</span>);</span>
+            <span class="@(CurrentHighlight == HighlightLine.Start ? "highlight-line" : "")"><span class="kw">var</span> newThread = <span class="kw">new</span> <span class="tp">Thread</span>(StaticMethod);
+            newThread.Start(i);</span>
+        }
+        <span class="com">// Main läuft ohne Join weiter (Fire &amp; Forget)</span>
+    }
+}</code></pre>
+                        }
+                        else
+                        {
+                            <pre class="code-listing mono"><code><span class="kw">namespace</span> <span class="tp">Threads</span>;
+
+<span class="kw">internal static class</span> <span class="tp">Program</span>
+{
+    <span class="kw">private const int</span> NumberOfThreads = <span class="num">@NumberOfThreads</span>;
+
+    <span class="com">// Thread-Methode mit Parameter (ParameterizedThreadStart)</span>
+    <span class="kw">private static void</span> <span class="fn">StaticMethod</span>(<span class="kw">object</span>? threadId)
+    {
+        <span class="@(CurrentHighlight == HighlightLine.Greeting ? "highlight-line" : "")">Console.WriteLine(<span class="str">$"Hello World. Greetings from thread {threadId}"</span>);</span>
+        <span class="@(CurrentHighlight == HighlightLine.Sleep ? "highlight-line" : "")">Thread.Sleep(<span class="num">1000</span>);</span> <span class="com">// Thread gibt CPU ab (WaitSleepJoin)</span>
+        <span class="@(CurrentHighlight == HighlightLine.Leaving ? "highlight-line" : "")">Console.WriteLine(<span class="str">$"Leaving thread {threadId}"</span>);</span>
+    }
+
+    <span class="kw">public static void</span> <span class="fn">Main</span>(<span class="kw">string</span>[] args)
+    {
+        <span class="kw">var</span> threads = <span class="kw">new</span> List&lt;<span class="tp">Thread</span>&gt;();
+
+        <span class="kw">for</span> (<span class="kw">var</span> i = <span class="num">0</span>; i &lt; NumberOfThreads; i++)
+        {
+            <span class="@(CurrentHighlight == HighlightLine.Creating ? "highlight-line" : "")">Console.WriteLine(<span class="str">$"Main here. Creating thread {i}"</span>);</span>
+            <span class="@(CurrentHighlight == HighlightLine.Start ? "highlight-line" : "")"><span class="kw">var</span> newThread = <span class="kw">new</span> <span class="tp">Thread</span>(StaticMethod);
+            newThread.Start(i);</span>
+            threads.Add(newThread);
+        }
+
+        <span class="@(CurrentHighlight == HighlightLine.Join ? "highlight-line" : "")"><span class="com">// Auf alle Worker-Threads warten (Barriere)</span>
+        <span class="kw">foreach</span> (<span class="kw">var</span> t <span class="kw">in</span> threads)
+        {
+            t.Join(); <span class="com">// blockiert Main, bis t terminiert</span>
+        }</span>
+        Console.WriteLine(<span class="str">"Main here. All threads completed!"</span>);
+    }
+}</code></pre>
+                        }
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="posix-comparison-card">
+                    <div class="posix-header">
+                        <h4>Vergleich: C# Thread vs. POSIX pthread</h4>
+                        <p class="posix-lead">
+                            In der Vorlesung (Folie 169–176) werden POSIX Threads vorgestellt. Die .NET-Klasse <code>System.Threading.Thread</code> 
+                            kapselt Betriebssystem-Threads direkt:
+                        </p>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="comparison-table">
+                            <thead>
+                                <tr>
+                                    <th>Konzept</th>
+                                    <th>C# (.NET)</th>
+                                    <th>POSIX (C / Linux)</th>
+                                    <th>Bedeutung im Betriebssystem</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>Thread-Typ</strong></td>
+                                    <td><code>Thread</code></td>
+                                    <td><code>pthread_t</code></td>
+                                    <td>Repräsentiert einen leichtgewichtigen Ausführungsstrang mit eigenem Stack und Registern.</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Erzeugung &amp; Start</strong></td>
+                                    <td><code>new Thread(fn).Start(arg)</code></td>
+                                    <td><code>pthread_create(&amp;t, NULL, fn, arg)</code></td>
+                                    <td>Erzeugt neuen Kernel-Thread im aktuellen Prozessadressraum; Scheduler plant Ausführung.</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Beendigung</strong></td>
+                                    <td>Methodenende (<code>return</code>)</td>
+                                    <td><code>pthread_exit(NULL)</code></td>
+                                    <td>Gibt Thread-Ressourcen frei; Status wechselt auf Terminated / Zombie.</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Synchronisation / Warten</strong></td>
+                                    <td><code>thread.Join()</code></td>
+                                    <td><code>pthread_join(t, NULL)</code></td>
+                                    <td>Blockiert den aufrufenden Thread, bis der Zielthread terminiert ist (Rendezvous / Barriere).</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Schlafen / CPU-Abgabe</strong></td>
+                                    <td><code>Thread.Sleep(ms)</code></td>
+                                    <td><code>sleep(s)</code> / <code>nanosleep()</code></td>
+                                    <td>Versetzt Thread in den Zustand <code>Blocked / Sleeping</code>; Scheduler führt Kontextwechsel durch.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="posix-c-box">
+                        <span class="posix-c-title">C-Äquivalent mit POSIX Threads (Foliensatz-Beispiel):</span>
+                        <pre class="code-listing mono"><code><span class="kw">#include</span> <span class="str">&lt;pthread.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;stdio.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;unistd.h&gt;</span>
+
+<span class="kw">void</span>* <span class="fn">StaticMethod</span>(<span class="kw">void</span>* arg) {
+    <span class="kw">long</span> id = (<span class="kw">long</span>)arg;
+    printf(<span class="str">"Hello World. Greetings from thread %ld\n"</span>, id);
+    sleep(<span class="num">1</span>);
+    printf(<span class="str">"Leaving thread %ld\n"</span>, id);
+    pthread_exit(NULL);
+}</code></pre>
+                    </div>
+                </div>
+            }
+        </div>
+
+    </div>
+
+</article>
+
+@code {
+    [Parameter]
+    public bool IsEmbed { get; set; } = false;
+
+    public enum CodeTab { CSharp, Posix }
+    private CodeTab ActiveCodeTab { get; set; } = CodeTab.CSharp;
+
+    public enum HighlightLine { None, Creating, Start, Greeting, Sleep, Leaving, Join }
+    private HighlightLine CurrentHighlight { get; set; } = HighlightLine.None;
+
+    public enum WorkerLifecycle { Unstarted, Creating, Running, Sleeping, Leaving, Terminated }
+
+    public class WorkerModel
+    {
+        public int Id { get; set; }
+        public WorkerLifecycle Lifecycle { get; set; } = WorkerLifecycle.Unstarted;
+        public string CurrentActivity { get; set; } = "Bereit (Unstarted)";
+        public double Progress { get; set; } = 0;
+        public int SleepTicksRemaining { get; set; } = 0;
+    }
+
+    public class LogItem
+    {
+        public string Source { get; set; } = "";
+        public string Message { get; set; } = "";
+        public string CssClass { get; set; } = "";
+    }
+
+    private int NumberOfThreads { get; set; } = 10;
+    private bool UseJoin { get; set; } = false;
+    private int PlaySpeedMs { get; set; } = 1200;
+    private int StepCounter { get; set; } = 0;
+    private int CurrentCreationIndex { get; set; } = 0;
+    private bool IsPlaying { get; set; } = false;
+    private bool IsCompleted { get; set; } = false;
+    [SupplyParameterFromQuery(Name = "embed")]
+    public bool? QueryEmbed { get; set; }
+
+    [SupplyParameterFromQuery(Name = "threads")]
+    public int? QueryThreads { get; set; }
+
+    [SupplyParameterFromQuery(Name = "join")]
+    public bool? QueryJoin { get; set; }
+
+    private bool IsCopied { get; set; } = false;
+
+    private List<WorkerModel> Workers { get; set; } = new();
+    private List<LogItem> LogEntries { get; set; } = new();
+    private ElementReference ConsoleLogRef;
+
+    private System.Threading.Timer? _playTimer;
+    private readonly Random _random = new(42);
+
+    protected override void OnInitialized()
+    {
+        if (QueryEmbed.HasValue)
+        {
+            IsEmbed = QueryEmbed.Value;
+        }
+        else
+        {
+            var uri = NavigationManager.Uri;
+            if (uri.Contains("embed=true", StringComparison.OrdinalIgnoreCase) || uri.Contains("embedded=true", StringComparison.OrdinalIgnoreCase))
+            {
+                IsEmbed = true;
+            }
+        }
+
+        if (QueryThreads.HasValue && QueryThreads.Value is 3 or 5 or 10)
+        {
+            NumberOfThreads = QueryThreads.Value;
+        }
+
+        if (QueryJoin.HasValue)
+        {
+            UseJoin = QueryJoin.Value;
+        }
+
+        InitSimulation();
+    }
+
+    private void InitSimulation()
+    {
+        StepCounter = 0;
+        CurrentCreationIndex = 0;
+        IsCompleted = false;
+        IsPlaying = false;
+        CurrentHighlight = HighlightLine.None;
+        LogEntries.Clear();
+
+        Workers = Enumerable.Range(0, NumberOfThreads).Select(i => new WorkerModel
+        {
+            Id = i,
+            Lifecycle = WorkerLifecycle.Unstarted,
+            CurrentActivity = "Unstarted",
+            Progress = 0
+        }).ToList();
+    }
+
+    private void ChangeThreadCount(int count)
+    {
+        if (IsPlaying || StepCounter > 0) return;
+        NumberOfThreads = count;
+        InitSimulation();
+    }
+
+    private void ToggleJoin(bool useJoin)
+    {
+        if (IsPlaying || StepCounter > 0) return;
+        UseJoin = useJoin;
+        InitSimulation();
+    }
+
+    private int ActiveWorkersCount => Workers.Count(w => w.Lifecycle is WorkerLifecycle.Creating or WorkerLifecycle.Running or WorkerLifecycle.Sleeping or WorkerLifecycle.Leaving);
+    private int TerminatedWorkersCount => Workers.Count(w => w.Lifecycle == WorkerLifecycle.Terminated);
+
+    private string GetMainStateDisplay()
+    {
+        if (StepCounter == 0) return "Bereit";
+        if (CurrentCreationIndex < NumberOfThreads) return $"Erzeugt Thread #{CurrentCreationIndex}";
+        if (UseJoin && TerminatedWorkersCount < NumberOfThreads) return "Wartet auf Worker (Join)";
+        return "Abgeschlossen";
+    }
+
+    private string GetMainStateCssClass()
+    {
+        if (StepCounter == 0) return "ready";
+        if (CurrentCreationIndex < NumberOfThreads) return "running";
+        if (UseJoin && TerminatedWorkersCount < NumberOfThreads) return "waiting";
+        return "finished";
+    }
+
+    private string MainActionText
+    {
+        get
+        {
+            if (StepCounter == 0) return "Main wartet auf Start";
+            if (CurrentCreationIndex < NumberOfThreads) return $"for-Schleife: new Thread(StaticMethod).Start({CurrentCreationIndex})";
+            if (UseJoin && TerminatedWorkersCount < NumberOfThreads) return "t.Join(): blockiert, bis alle Worker terminieren";
+            return "Main-Routine beendet";
+        }
+    }
+
+    private string GetWorkerStatusDisplay(WorkerLifecycle state) => state switch
+    {
+        WorkerLifecycle.Unstarted => "Unstarted",
+        WorkerLifecycle.Creating => "Created",
+        WorkerLifecycle.Running => "Running",
+        WorkerLifecycle.Sleeping => "Sleeping (1s)",
+        WorkerLifecycle.Leaving => "Leaving",
+        WorkerLifecycle.Terminated => "Terminated",
+        _ => ""
+    };
+
+    private void StepSimulation()
+    {
+        if (IsCompleted) return;
+        StepCounter++;
+
+        // 1. Advance sleeping workers
+        var sleepingWorkers = Workers.Where(w => w.Lifecycle == WorkerLifecycle.Sleeping).ToList();
+        foreach (var worker in sleepingWorkers)
+        {
+            worker.SleepTicksRemaining--;
+            worker.Progress = Math.Min(90, worker.Progress + 30);
+            if (worker.SleepTicksRemaining <= 0)
+            {
+                worker.Lifecycle = WorkerLifecycle.Leaving;
+                worker.CurrentActivity = $"Leaving thread {worker.Id}";
+                worker.Progress = 95;
+                AddLog("Thread " + worker.Id, $"Leaving thread {worker.Id}", "log-leaving");
+                CurrentHighlight = HighlightLine.Leaving;
+            }
+        }
+
+        // 2. Advance leaving workers to terminated
+        var leavingWorkers = Workers.Where(w => w.Lifecycle == WorkerLifecycle.Leaving).ToList();
+        foreach (var worker in Workers.Where(w => w.Lifecycle == WorkerLifecycle.Terminated))
+        {
+            worker.Progress = 100;
+        }
+
+        // 3. Advance running workers to sleeping
+        var runningWorkers = Workers.Where(w => w.Lifecycle == WorkerLifecycle.Running).ToList();
+        foreach (var worker in runningWorkers)
+        {
+            worker.Lifecycle = WorkerLifecycle.Sleeping;
+            worker.SleepTicksRemaining = _random.Next(2, 4);
+            worker.CurrentActivity = "Thread.Sleep(1000)";
+            worker.Progress = 50;
+            CurrentHighlight = HighlightLine.Sleep;
+        }
+
+        // 4. Advance creating workers to running
+        var creatingWorkers = Workers.Where(w => w.Lifecycle == WorkerLifecycle.Creating).ToList();
+        foreach (var worker in creatingWorkers)
+        {
+            worker.Lifecycle = WorkerLifecycle.Running;
+            worker.CurrentActivity = $"Hello World. Greetings from thread {worker.Id}";
+            worker.Progress = 25;
+            AddLog("Thread " + worker.Id, $"Hello World. Greetings from thread {worker.Id}", "log-greeting");
+            CurrentHighlight = HighlightLine.Greeting;
+        }
+
+        // 5. If main still has threads to create, create the next one
+        if (CurrentCreationIndex < NumberOfThreads)
+        {
+            int idx = CurrentCreationIndex;
+            AddLog("Main", $"Main here. Creating thread {idx}", "log-main");
+            Workers[idx].Lifecycle = WorkerLifecycle.Creating;
+            Workers[idx].CurrentActivity = "new Thread(StaticMethod).Start()";
+            Workers[idx].Progress = 10;
+            CurrentHighlight = HighlightLine.Creating;
+            CurrentCreationIndex++;
+        }
+        else if (!UseJoin && StepCounter == NumberOfThreads + 1)
+        {
+            AddLog("Main", "Main loop finished (threads run asynchronously in background)", "log-main");
+        }
+
+        // 6. Finish leaving workers
+        foreach (var w in leavingWorkers)
+        {
+            w.Lifecycle = WorkerLifecycle.Terminated;
+            w.CurrentActivity = "Terminiert (pthread_exit)";
+            w.Progress = 100;
+        }
+
+        // 7. Check completion
+        if (CurrentCreationIndex >= NumberOfThreads && Workers.All(w => w.Lifecycle == WorkerLifecycle.Terminated))
+        {
+            if (UseJoin)
+            {
+                AddLog("Main", "All worker threads joined successfully via t.Join()!", "log-success");
+                CurrentHighlight = HighlightLine.Join;
+            }
+            IsCompleted = true;
+            PausePlay();
+        }
+
+        StateHasChanged();
+    }
+
+    private void AddLog(string source, string message, string cssClass)
+    {
+        LogEntries.Add(new LogItem { Source = source, Message = message, CssClass = cssClass });
+    }
+
+    private void StartPlay()
+    {
+        if (IsCompleted) return;
+        IsPlaying = true;
+        _playTimer?.Dispose();
+        _playTimer = new System.Threading.Timer(_ =>
+        {
+            InvokeAsync(() =>
+            {
+                if (!IsPlaying || IsCompleted)
+                {
+                    _playTimer?.Dispose();
+                    return;
+                }
+                StepSimulation();
+            });
+        }, null, 0, PlaySpeedMs);
+    }
+
+    private void PausePlay()
+    {
+        IsPlaying = false;
+        _playTimer?.Dispose();
+        _playTimer = null;
+        StateHasChanged();
+    }
+
+    private void ResetSimulation()
+    {
+        PausePlay();
+        InitSimulation();
+        StateHasChanged();
+    }
+
+    private async Task CopyCodeToClipboard()
+    {
+        try
+        {
+            var codeText = @"namespace Threads;
+
+internal static class Program
+{
+    private const int NumberOfThreads = " + NumberOfThreads + @";
+
+    private static void StaticMethod(object? threadId)
+    {
+        Console.WriteLine($""Hello World. Greetings from thread {threadId}"");
+        Thread.Sleep(1000);
+        Console.WriteLine($""Leaving thread {threadId}"");
+    }
+
+    public static void Main(string[] args)
+    {
+        for (var i = 0; i < NumberOfThreads; i++)
+        {
+            Console.WriteLine($""Main here. Creating thread {i}"");
+            var newThread = new Thread(StaticMethod);
+            newThread.Start(i);
+        }
+    }
+}";
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", codeText);
+            IsCopied = true;
+            StateHasChanged();
+            _ = Task.Delay(2000).ContinueWith(_ =>
+            {
+                IsCopied = false;
+                InvokeAsync(StateHasChanged);
+            });
+        }
+        catch { }
+    }
+
+    public void Dispose()
+    {
+        _playTimer?.Dispose();
+    }
+}
