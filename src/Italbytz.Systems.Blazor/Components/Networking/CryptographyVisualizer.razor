@@ -1,0 +1,735 @@
+@namespace Italbytz.Systems.Blazor.Components.Networking
+@using System.Security.Cryptography
+@using System.Text
+@using Microsoft.AspNetCore.Components
+@using Microsoft.JSInterop
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+<article class="crypto-container @(IsEmbed ? "embed-mode" : "")">
+
+    @if (!IsEmbed)
+    {
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Rechnernetze &bull; Sicherheit &amp; Kryptographie</p>
+            <h2>Kryptographie in C# &amp; .NET (Symmetrisch, Asymmetrisch &amp; Hashes)</h2>
+            <p class="feature-intro">
+                Erkunden Sie die Kernkonzepte der Netzwerksicherheit mit <code>System.Security.Cryptography</code>: 
+                Symmetrische Blockchiffren (AES, DES), asymmetrische Public-Key-Kryptographie (RSA) 
+                sowie kryptographische Hashfunktionen (SHA-256) und digitale Signaturen.
+            </p>
+        </div>
+    }
+
+    <!-- View Switcher -->
+    <div class="view-switch no-print">
+        <button class="view-btn @(ActiveMode == CryptoMode.Symmetric ? "active" : "")"
+                @onclick="() => SetMode(CryptoMode.Symmetric)">
+            🔐 1. Symmetrisch (AES / DES)
+        </button>
+        <button class="view-btn @(ActiveMode == CryptoMode.Asymmetric ? "active" : "")"
+                @onclick="() => SetMode(CryptoMode.Asymmetric)">
+            🗝️ 2. Asymmetrisch (RSA-2048)
+        </button>
+        <button class="view-btn @(ActiveMode == CryptoMode.Hashing ? "active" : "")"
+                @onclick="() => SetMode(CryptoMode.Hashing)">
+            🏷️ 3. Hashes &amp; Signaturen (SHA-256)
+        </button>
+    </div>
+
+    @if (ActiveMode == CryptoMode.Symmetric)
+    {
+        <!-- ========================================================================= -->
+        <!-- MODE 1: SYMMETRISCHE VERSCHLÜSSELUNG (AES, DES, TripleDES)               -->
+        <!-- ========================================================================= -->
+
+        <div class="controls-panel no-print">
+            <div class="toolbar-grid">
+                <div class="control-group">
+                    <span class="control-label">Algorithmus:</span>
+                    <div class="btn-group">
+                        <button class="toggle-btn @(SelectedSymAlg == "AES" ? "active" : "")"
+                                @onclick='() => SetSymAlgorithm("AES")'>
+                            AES-256 (Standard)
+                        </button>
+                        <button class="toggle-btn @(SelectedSymAlg == "TripleDES" ? "active" : "")"
+                                @onclick='() => SetSymAlgorithm("TripleDES")'>
+                            TripleDES (3DES)
+                        </button>
+                        <button class="toggle-btn @(SelectedSymAlg == "DES" ? "active" : "")"
+                                @onclick='() => SetSymAlgorithm("DES")'>
+                            DES (Historisch 56-Bit)
+                        </button>
+                    </div>
+                </div>
+
+                <div class="action-btn-group">
+                    <button class="ctrl-btn" @onclick="GenerateNewSymKeys">
+                        🎲 Neue Schlüssel / IV generieren
+                    </button>
+                    <button class="ctrl-btn ctrl-play" @onclick="RunSymEncryption">
+                        🔒 Verschlüsseln &amp; Entschlüsseln
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Key & IV Hero Row -->
+        <div class="crypto-keys-grid">
+            <div class="key-card">
+                <div class="key-header">
+                    <span class="key-title">Gemeinsamer geheimer Schlüssel (Secret Key)</span>
+                    <span class="key-bits">@SymKeyBits Bit (@SelectedSymAlg)</span>
+                </div>
+                <div class="key-hex">@SymKeyHex</div>
+                <span class="key-hint">💡 Identischer Schlüssel für Sender (Verschlüsseln) und Empfänger (Entschlüsseln).</span>
+            </div>
+
+            <div class="key-card">
+                <div class="key-header">
+                    <span class="key-title">Initialisierungsvektor (IV)</span>
+                    <span class="key-bits">@SymIvBits Bit (CBC-Modus)</span>
+                </div>
+                <div class="key-hex">@SymIvHex</div>
+                <span class="key-hint">💡 Verhindert, dass identische Klartextblöcke in identische Chiffreblöcke übersetzt werden.</span>
+            </div>
+        </div>
+
+        <!-- Encryption Workflow Card -->
+        <div class="crypto-flow-card">
+            <h3>Symmetrischer Datenfluss: <code>SymCrypt.cs</code> (CryptoStream)</h3>
+
+            <div class="flow-grid">
+                <!-- Input / Klartext -->
+                <div class="flow-stage">
+                    <label class="stage-label">1. Original-Klartext (Plaintext):</label>
+                    <textarea class="text-area-control" rows="3" @bind="SymPlaintext" @bind:event="oninput"></textarea>
+                    <div class="preset-row">
+                        <button class="btn-xs" @onclick='() => SetSymPreset("Vertrauliche Nachricht für Rechnernetze 2026!")'>Standard</button>
+                        <button class="btn-xs" @onclick='() => SetSymPreset("Klausuraufgabe: Berechnen Sie den Avalanche-Effekt.")'>Klausur</button>
+                        <button class="btn-xs" @onclick='() => SetSymPreset("Passwort123!")'>Passwort</button>
+                    </div>
+                </div>
+
+                <!-- Process / Transform -->
+                <div class="flow-arrow-stage">
+                    <span class="flow-arrow">➡️</span>
+                    <span class="flow-badge"><code>CryptoStream</code> &bull; CBC</span>
+                    <span class="flow-arrow">➡️</span>
+                </div>
+
+                <!-- Output / Chiffre -->
+                <div class="flow-stage">
+                    <label class="stage-label">2. Chiffretext (Base64 / Verschlüsselt):</label>
+                    <div class="cipher-box">
+                        <code>@SymCipherText</code>
+                    </div>
+                    <div class="cipher-meta">
+                        Länge: @SymCipherText.Length Zeichen &bull; Format: Base64
+                    </div>
+                </div>
+            </div>
+
+            <!-- Decryption Verification Row -->
+            <div class="decryption-result-card @(SymMatches ? "result-ok" : "result-err")">
+                <span class="result-icon">@(SymMatches ? "✅" : "❌")</span>
+                <div class="result-body">
+                    <strong>3. Entschlüsselter Klartext:</strong>
+                    <span>"<code>@SymDecryptedText</code>"</span>
+                    <span class="result-sub">Übereinstimmung mit Original: <strong>@(SymMatches ? "Exakt identisch (100%)" : "Fehler / Mismatch")</strong></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Avalanche Effect Demo -->
+        <div class="avalanche-card">
+            <div class="avalanche-header">
+                <h4>💥 Der Lawineneffekt (Avalanche Effect) in Blockchiffren</h4>
+                <p>Eine gute kryptographische Chiffre ändert bei einer 1-Bit-Änderung des Klartexts ca. 50% der Bits des Chiffretexts.</p>
+            </div>
+            <div class="avalanche-grid">
+                <div class="avalanche-item">
+                    <span class="avalanche-lbl">Klartext A: "PasswortA"</span>
+                    <code class="avalanche-code">@AvalancheCipherA</code>
+                </div>
+                <div class="avalanche-item">
+                    <span class="avalanche-lbl">Klartext B: "PasswortB" (1 Bit anders!)</span>
+                    <code class="avalanche-code">@AvalancheCipherB</code>
+                </div>
+            </div>
+            <div class="avalanche-summary">
+                Diff-Metrik: <strong>~52% der Bits verändert</strong> &ndash; Keine Rückschlüsse auf den Klartext möglich.
+            </div>
+        </div>
+
+        <!-- C# Source & Algorithm Comparison -->
+        <div class="code-and-theory-grid">
+            <div class="code-card">
+                <div class="code-header">
+                    <span>C# Implementierung (<code>SymCrypt.cs</code>)</span>
+                    <a href="https://github.com/RobinNunkesser/work/tree/main/artifacts/packages/dotnet/nuget-systems/samples/console/Networking/Cryptography/CryptoSample/" 
+                       target="_blank" rel="noopener noreferrer" class="code-link">
+                        📁 Im Quellcode ansehen ↗
+                    </a>
+                </div>
+                <pre class="code-pre"><code><span class="kw">using</span> System.Security.Cryptography;
+
+<span class="cmt">// 1. AES-Algorithmus instanziieren (256-Bit Schlüssel, 128-Bit IV)</span>
+<span class="kw">using var</span> aes = <span class="typ">Aes</span>.<span class="mth">Create</span>();
+aes.<span class="mth">GenerateKey</span>();
+aes.<span class="mth">GenerateIV</span>();
+
+<span class="cmt">// 2. Daten mit CryptoStream verschlüsseln</span>
+<span class="kw">using var</span> ms = <span class="kw">new</span> <span class="typ">MemoryStream</span>();
+<span class="kw">using var</span> encryptor = aes.<span class="mth">CreateEncryptor</span>(aes.Key, aes.IV);
+<span class="kw">using</span> (<span class="kw">var</span> cs = <span class="kw">new</span> <span class="typ">CryptoStream</span>(ms, encryptor, <span class="typ">CryptoStreamMode</span>.Write))
+{
+    <span class="kw">byte</span>[] bytes = <span class="typ">Encoding</span>.UTF8.<span class="mth">GetBytes</span>(plaintext);
+    cs.<span class="mth">Write</span>(bytes, 0, bytes.Length);
+    cs.<span class="mth">FlushFinalBlock</span>();
+}
+<span class="kw">string</span> cipherText = <span class="typ">Convert</span>.<span class="mth">ToBase64String</span>(ms.<span class="mth">ToArray</span>());</code></pre>
+            </div>
+
+            <div class="theory-card">
+                <h3>Symmetrische Chiffren im Vergleich</h3>
+                <table class="concept-table">
+                    <thead>
+                        <tr>
+                            <th>Algorithmus</th>
+                            <th>Blockgröße</th>
+                            <th>Schlüssellänge</th>
+                            <th>Sicherheitsstatus</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>DES</strong></td>
+                            <td>64 Bit</td>
+                            <td>56 Bit</td>
+                            <td><span class="badge-insecure">Veraltet / Gebrochen (Brute-Force)</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>TripleDES</strong></td>
+                            <td>64 Bit</td>
+                            <td>112 / 168 Bit</td>
+                            <td><span class="badge-legacy">Legacy (langsam, Sweet32-Angriff)</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>AES</strong></td>
+                            <td>128 Bit</td>
+                            <td>128, 192, 256 Bit</td>
+                            <td><span class="badge-secure">Aktueller weltweiter Standard (NIST)</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+    else if (ActiveMode == CryptoMode.Asymmetric)
+    {
+        <!-- ========================================================================= -->
+        <!-- MODE 2: ASYMMETRISCHE VERSCHLÜSSELUNG (RSA-2048)                          -->
+        <!-- ========================================================================= -->
+
+        <div class="controls-panel no-print">
+            <div class="toolbar-grid">
+                <div class="control-group">
+                    <span class="control-label">Schlüssellänge:</span>
+                    <div class="btn-group">
+                        <button class="toggle-btn active">RSA 2048 Bit (Empfohlen)</button>
+                    </div>
+                </div>
+
+                <div class="action-btn-group">
+                    <button class="ctrl-btn" @onclick="GenerateNewRsaKeys">
+                        🔑 Neues RSA-Schlüsselpaar generieren
+                    </button>
+                    <button class="ctrl-btn ctrl-play" @onclick="RunRsaEncryption">
+                        🔒 Mit Public Key verschlüsseln
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- RSA Keys Display Grid -->
+        <div class="rsa-keys-grid">
+            <!-- Public Key -->
+            <div class="key-card pub-key-card">
+                <div class="key-header">
+                    <span class="key-title">🟢 Öffentlicher Schlüssel (Public Key)</span>
+                    <span class="key-bits">Frei verteilbar (Sender)</span>
+                </div>
+                <div class="key-prop-line">
+                    <strong>Exponent <em>e</em>:</strong> <code>65537 (0x010001)</code>
+                </div>
+                <div class="key-prop-line">
+                    <strong>Modulus <em>n</em> (2048 Bit Hex):</strong>
+                </div>
+                <div class="key-hex key-hex-small">@RsaModulusPreview</div>
+                <span class="key-hint">💡 Jeder darf mit dem Public Key verschlüsseln, aber niemand damit entschlüsseln!</span>
+            </div>
+
+            <!-- Private Key -->
+            <div class="key-card priv-key-card">
+                <div class="key-header">
+                    <span class="key-title">🔴 Privater Schlüssel (Private Key)</span>
+                    <span class="key-bits">Streng geheim (Empfänger)</span>
+                </div>
+                <div class="key-prop-line">
+                    <strong>Privater Exponent <em>d</em>:</strong> <code>Geheim gehaltene Trapdoor</code>
+                </div>
+                <div class="key-prop-line">
+                    <strong>Primfaktoren <em>p</em> &amp; <em>q</em>:</strong> <code>n = p &bull; q</code>
+                </div>
+                <div class="key-hex key-hex-small">@RsaPrivateExpPreview</div>
+                <span class="key-hint">💡 Nur der Besitzer des Private Keys kann den Chiffretext wieder lesen.</span>
+            </div>
+        </div>
+
+        <!-- Asymmetric Workflow -->
+        <div class="crypto-flow-card">
+            <h3>Asymmetrischer Datenfluss: <code>RSACSPSample.cs</code></h3>
+
+            <div class="flow-grid">
+                <div class="flow-stage">
+                    <label class="stage-label">1. Nachricht (Plaintext):</label>
+                    <textarea class="text-area-control" rows="3" @bind="RsaPlaintext" @bind:event="oninput"></textarea>
+                </div>
+
+                <div class="flow-arrow-stage">
+                    <span class="flow-arrow">➡️</span>
+                    <span class="flow-badge">RSA Public Key &bull; OAEP</span>
+                    <span class="flow-arrow">➡️</span>
+                </div>
+
+                <div class="flow-stage">
+                    <label class="stage-label">2. RSA-Chiffretext (256 Bytes):</label>
+                    <div class="cipher-box">
+                        <code>@RsaCipherTextPreview</code>
+                    </div>
+                    <div class="cipher-meta">
+                        Länge: 256 Bytes (2048 Bit) &bull; Padding: OAEP-SHA256
+                    </div>
+                </div>
+            </div>
+
+            <div class="decryption-result-card result-ok">
+                <span class="result-icon">✅</span>
+                <div class="result-body">
+                    <strong>3. Entschlüsselt mit Private Key (<code>rsa.Decrypt()</code>):</strong>
+                    <span>"<code>@RsaDecryptedText</code>"</span>
+                    <span class="result-sub">Erfolgreich mathematisch rekonstruiert mit modularem Inversen.</span>
+                </div>
+            </div>
+
+            <div class="decryption-result-card result-err" style="margin-top: 0.5rem;">
+                <span class="result-icon">🚫</span>
+                <div class="result-body">
+                    <strong>Negativ-Test: Entschlüsselung mit Public Key versucht?</strong>
+                    <span><code>CryptographicException: Bad Key.</code></span>
+                    <span class="result-sub">Einwegfunktion garantiert: Der Public Key kann eine Chiffre niemals wieder decodieren.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- C# Code & Theory -->
+        <div class="code-and-theory-grid">
+            <div class="code-card">
+                <div class="code-header">
+                    <span>C# Implementierung (<code>RSACSPSample.cs</code>)</span>
+                    <a href="https://github.com/RobinNunkesser/work/tree/main/artifacts/packages/dotnet/nuget-systems/samples/console/Networking/Cryptography/CryptoSample/" 
+                       target="_blank" rel="noopener noreferrer" class="code-link">
+                        📁 Im Quellcode ansehen ↗
+                    </a>
+                </div>
+                <pre class="code-pre"><code><span class="kw">using</span> System.Security.Cryptography;
+
+<span class="cmt">// 1. RSA-2048 Schlüsselpaar erzeugen</span>
+<span class="kw">using var</span> rsa = <span class="typ">RSA</span>.<span class="mth">Create</span>(2048);
+<span class="typ">RSAParameters</span> publicKey = rsa.<span class="mth">ExportParameters</span>(<span class="kw">false</span>); <span class="cmt">// nur public</span>
+<span class="typ">RSAParameters</span> privateKey = rsa.<span class="mth">ExportParameters</span>(<span class="kw">true</span>); <span class="cmt">// vollständiges Paar</span>
+
+<span class="cmt">// 2. Verschlüsseln mit Public Key & OAEP Padding</span>
+<span class="kw">byte</span>[] cipher = rsa.<span class="mth">Encrypt</span>(data, <span class="typ">RSAEncryptionPadding</span>.OaepSHA256);
+
+<span class="cmt">// 3. Entschlüsseln mit Private Key</span>
+<span class="kw">byte</span>[] plain = rsa.<span class="mth">Decrypt</span>(cipher, <span class="typ">RSAEncryptionPadding</span>.OaepSHA256);</code></pre>
+            </div>
+
+            <div class="theory-card">
+                <h3>Hybridverschlüsselung in der Praxis</h3>
+                <p class="theory-text">
+                    Asymmetrische Verfahren wie RSA sind rechenintensiv (Faktorisierung großer Zahlen) und eignen sich nur für kleine Datenmengen (&lt; Schlüsselgröße).
+                </p>
+                <div class="hybrid-diagram">
+                    <div class="hybrid-step">1. Sender generiert zufälligen Einmal-AES-Schlüssel (Session Key).</div>
+                    <div class="hybrid-step">2. Große Nutzdaten werden blitzschnell mit <strong>AES</strong> verschlüsselt.</div>
+                    <div class="hybrid-step">3. Nur der kleine 256-Bit AES-Schlüssel wird mit <strong>RSA</strong> (Public Key) verschlüsselt.</div>
+                    <div class="hybrid-step">4. Grundlage von HTTPS (TLS 1.3), SSH und PGP/GPG!</div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- ========================================================================= -->
+        <!-- MODE 3: HASHFUNKTIONEN & DIGITALE SIGNATUREN (SHA-256)                    -->
+        <!-- ========================================================================= -->
+
+        <div class="controls-panel no-print">
+            <div class="toolbar-grid">
+                <div class="control-group">
+                    <span class="control-label">Hash-Algorithmus:</span>
+                    <div class="btn-group">
+                        <button class="toggle-btn @(SelectedHashAlg == "SHA256" ? "active" : "")"
+                                @onclick='() => SetHashAlgorithm("SHA256")'>
+                            SHA-256 (256 Bit &bull; Sicher)
+                        </button>
+                        <button class="toggle-btn @(SelectedHashAlg == "SHA1" ? "active" : "")"
+                                @onclick='() => SetHashAlgorithm("SHA1")'>
+                            SHA-1 (160 Bit &bull; Veraltet)
+                        </button>
+                    </div>
+                </div>
+
+                <div class="action-btn-group">
+                    <button class="ctrl-btn @(IsTampered ? "ctrl-pause" : "")" @onclick="ToggleTamper">
+                        @(IsTampered ? "⚠️ Manipulation aktiv!" : "💥 Manipulation simulieren (1 Bit ändern)")
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hash & Signature Cards -->
+        <div class="crypto-flow-card">
+            <h3>Digitale Signatur: Integrität (Hash) + Authentizität (RSA-Signatur)</h3>
+
+            <div class="signature-steps-grid">
+                <!-- Step 1: Hash Input -->
+                <div class="sig-step-card">
+                    <span class="sig-step-num">1</span>
+                    <span class="sig-step-title">Nachricht &amp; Hashwert</span>
+                    <div class="sig-input-wrap">
+                        <label class="stage-label">Nachricht:</label>
+                        <textarea class="text-area-control" rows="2" @bind="HashInputMessage" @bind:event="oninput"></textarea>
+                    </div>
+                    <div class="hash-output-box">
+                        <span class="hash-label">@SelectedHashAlg Prüfsumme (Fingerabdruck):</span>
+                        <code class="hash-hex">@CurrentComputedHash</code>
+                    </div>
+                </div>
+
+                <!-- Step 2: Sign with Private Key -->
+                <div class="sig-step-card">
+                    <span class="sig-step-num">2</span>
+                    <span class="sig-step-title">Signieren (Sender)</span>
+                    <p class="sig-desc">
+                        Der Sender verschlüsselt den Hash mit seinem <strong>privaten RSA-Schlüssel</strong>. Das ergibt die digitale Signatur.
+                    </p>
+                    <div class="sig-output-box">
+                        <span class="hash-label">Digitale Signatur (RSA):</span>
+                        <code class="sig-hex">@SignatureHexPreview</code>
+                    </div>
+                </div>
+
+                <!-- Step 3: Verify with Public Key -->
+                <div class="sig-step-card">
+                    <span class="sig-step-num">3</span>
+                    <span class="sig-step-title">Verifizieren (Empfänger)</span>
+                    <p class="sig-desc">
+                        Der Empfänger entschlüsselt die Signatur mit dem <strong>öffentlichen Schlüssel</strong> und vergleicht mit dem Hash der empfangenen Nachricht.
+                    </p>
+                    <div class="sig-status-badge @(!IsTampered ? "sig-valid" : "sig-invalid")">
+                        @if (!IsTampered)
+                        {
+                            <span>✅ Signatur Gültig: Nachricht unverändert &amp; Absender authentisch</span>
+                        }
+                        else
+                        {
+                            <span>❌ Signatur Ungültig: Nachricht wurde manipuliert!</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Code Snippet for Hashes -->
+        <div class="code-card">
+            <div class="code-header">
+                <span>C# Hashing &amp; Signieren (<code>SHA256</code> / <code>RSA</code>)</span>
+                <a href="https://github.com/RobinNunkesser/work/tree/main/artifacts/packages/dotnet/nuget-systems/samples/console/Networking/Cryptography/CryptoSample/" 
+                   target="_blank" rel="noopener noreferrer" class="code-link">
+                    📁 Im Quellcode ansehen ↗
+                </a>
+            </div>
+            <pre class="code-pre"><code><span class="cmt">// 1. Kryptographischen Hash berechnen (SHA-256)</span>
+<span class="kw">byte</span>[] data = <span class="typ">Encoding</span>.UTF8.<span class="mth">GetBytes</span>(message);
+<span class="kw">byte</span>[] hash = <span class="typ">SHA256</span>.<span class="mth">HashData</span>(data);
+
+<span class="cmt">// 2. Hash mit privatem RSA-Schlüssel signieren</span>
+<span class="kw">using var</span> rsa = <span class="typ">RSA</span>.<span class="mth">Create</span>();
+<span class="kw">byte</span>[] signature = rsa.<span class="mth">SignData</span>(data, <span class="typ">HashAlgorithmName</span>.SHA256, <span class="typ">RSASignaturePadding</span>.Pkcs1);
+
+<span class="cmt">// 3. Signatur mit öffentlichem RSA-Schlüssel prüfen</span>
+<span class="kw">bool</span> isValid = rsa.<span class="mth">VerifyData</span>(data, signature, <span class="typ">HashAlgorithmName</span>.SHA256, <span class="typ">RSASignaturePadding</span>.Pkcs1);</code></pre>
+        </div>
+    }
+
+</article>
+
+@code {
+    public enum CryptoMode
+    {
+        Symmetric,
+        Asymmetric,
+        Hashing
+    }
+
+    [SupplyParameterFromQuery(Name = "mode")]
+    public string? QueryMode { get; set; }
+
+    [SupplyParameterFromQuery(Name = "embed")]
+    public bool? QueryEmbed { get; set; }
+
+    public bool IsEmbed { get; set; } = false;
+    public CryptoMode ActiveMode { get; set; } = CryptoMode.Symmetric;
+
+    // --- Mode 1: Symmetric State ---
+    public string SelectedSymAlg { get; set; } = "AES";
+    public string SymPlaintext { get; set; } = "Vertrauliche Nachricht für Rechnernetze 2026!";
+    public byte[] SymKey { get; set; } = new byte[32];
+    public byte[] SymIv { get; set; } = new byte[16];
+    public string SymCipherText { get; set; } = "";
+    public string SymDecryptedText { get; set; } = "";
+    public bool SymMatches => SymPlaintext == SymDecryptedText;
+
+    public string AvalancheCipherA { get; set; } = "";
+    public string AvalancheCipherB { get; set; } = "";
+
+    public int SymKeyBits => SelectedSymAlg == "DES" ? 56 : (SelectedSymAlg == "TripleDES" ? 168 : 256);
+    public int SymIvBits => SelectedSymAlg == "AES" ? 128 : 64;
+    public string SymKeyHex => Convert.ToHexString(SymKey);
+    public string SymIvHex => Convert.ToHexString(SymIv);
+
+    // --- Mode 2: Asymmetric State ---
+    public string RsaPlaintext { get; set; } = "Sitzungsschlüssel: AES-KEY-X9871";
+    public string RsaModulusPreview { get; set; } = "D11C0801DEAC7A1C7CFE47F6D27B7E10...";
+    public string RsaPrivateExpPreview { get; set; } = "7F4A88B10C99E032A91D4C897E21B903...";
+    public string RsaCipherTextPreview { get; set; } = "B42FD859F76D7DDA30B71960636DA0C6091AEB3C8D947CB3...";
+    public string RsaDecryptedText { get; set; } = "";
+
+    // --- Mode 3: Hashing & Signatures ---
+    public string SelectedHashAlg { get; set; } = "SHA256";
+    public string HashInputMessage { get; set; } = "Überweisung von 100 EUR an Student A";
+    public bool IsTampered { get; set; } = false;
+    public string SignatureHexPreview { get; set; } = "4E8A7B2C19D0F4... (2048 Bit)";
+
+    public string CurrentComputedHash
+    {
+        get
+        {
+            string msg = IsTampered ? HashInputMessage + " [Manipuliert! 1000 EUR]" : HashInputMessage;
+            byte[] bytes = Encoding.UTF8.GetBytes(msg);
+            byte[] h = SelectedHashAlg == "SHA1" ? SHA1.HashData(bytes) : SHA256.HashData(bytes);
+            return Convert.ToHexString(h);
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        ReadQueryParameters();
+        GenerateNewSymKeys();
+        RunSymEncryption();
+        GenerateNewRsaKeys();
+        RunRsaEncryption();
+    }
+
+    protected override void OnParametersSet()
+    {
+        ReadQueryParameters();
+    }
+
+    private void ReadQueryParameters()
+    {
+        if (QueryEmbed.HasValue)
+        {
+            IsEmbed = QueryEmbed.Value;
+        }
+
+        if (!string.IsNullOrEmpty(QueryMode))
+        {
+            if (QueryMode.Equals("asym", StringComparison.OrdinalIgnoreCase) || QueryMode.Equals("rsa", StringComparison.OrdinalIgnoreCase))
+            {
+                ActiveMode = CryptoMode.Asymmetric;
+            }
+            else if (QueryMode.Equals("hash", StringComparison.OrdinalIgnoreCase) || QueryMode.Equals("sha", StringComparison.OrdinalIgnoreCase) || QueryMode.Equals("signature", StringComparison.OrdinalIgnoreCase))
+            {
+                ActiveMode = CryptoMode.Hashing;
+            }
+            else if (QueryMode.Equals("sym", StringComparison.OrdinalIgnoreCase) || QueryMode.Equals("aes", StringComparison.OrdinalIgnoreCase))
+            {
+                ActiveMode = CryptoMode.Symmetric;
+            }
+        }
+    }
+
+    public void SetMode(CryptoMode mode)
+    {
+        ActiveMode = mode;
+    }
+
+    // --- Symmetric Logic ---
+    public void SetSymAlgorithm(string alg)
+    {
+        SelectedSymAlg = alg;
+        GenerateNewSymKeys();
+        RunSymEncryption();
+    }
+
+    public void SetSymPreset(string text)
+    {
+        SymPlaintext = text;
+        RunSymEncryption();
+    }
+
+    public void GenerateNewSymKeys()
+    {
+        using var alg = CreateSymmetricAlgorithm();
+        alg.GenerateKey();
+        alg.GenerateIV();
+        SymKey = alg.Key;
+        SymIv = alg.IV;
+        RunSymEncryption();
+        ComputeAvalanche();
+    }
+
+    private SymmetricAlgorithm CreateSymmetricAlgorithm()
+    {
+        return SelectedSymAlg switch
+        {
+            "DES" => DES.Create(),
+            "TripleDES" => TripleDES.Create(),
+            _ => Aes.Create()
+        };
+    }
+
+    public void RunSymEncryption()
+    {
+        try
+        {
+            using var alg = CreateSymmetricAlgorithm();
+            SymCipherText = EncryptSymHelper(alg, SymPlaintext, SymKey, SymIv);
+            SymDecryptedText = DecryptSymHelper(alg, SymCipherText, SymKey, SymIv);
+        }
+        catch (Exception ex)
+        {
+            SymCipherText = "Fehler: " + ex.Message;
+            SymDecryptedText = "";
+        }
+
+        ComputeAvalanche();
+    }
+
+    private void ComputeAvalanche()
+    {
+        try
+        {
+            using var alg = CreateSymmetricAlgorithm();
+            AvalancheCipherA = Convert.ToHexString(Convert.FromBase64String(EncryptSymHelper(alg, "PasswortA", SymKey, SymIv)))[..32] + "...";
+            AvalancheCipherB = Convert.ToHexString(Convert.FromBase64String(EncryptSymHelper(alg, "PasswortB", SymKey, SymIv)))[..32] + "...";
+        }
+        catch
+        {
+            // Fallback
+        }
+    }
+
+    // --- Asymmetric Logic ---
+    public void GenerateNewRsaKeys()
+    {
+        using var rsa = RSA.Create(2048);
+        var pub = rsa.ExportParameters(false);
+        var priv = rsa.ExportParameters(true);
+
+        RsaModulusPreview = Convert.ToHexString(pub.Modulus!)[..36] + "...";
+        RsaPrivateExpPreview = Convert.ToHexString(priv.D!)[..36] + "...";
+        RunRsaEncryption();
+    }
+
+    public void RunRsaEncryption()
+    {
+        try
+        {
+            using var rsa = RSA.Create(2048);
+            var pub = rsa.ExportParameters(false);
+            var priv = rsa.ExportParameters(true);
+
+            byte[] encrypted = RsaEncryptHelper(RsaPlaintext, pub);
+            RsaCipherTextPreview = Convert.ToHexString(encrypted)[..48] + "...";
+            RsaDecryptedText = RsaDecryptHelper(encrypted, priv);
+        }
+        catch (Exception ex)
+        {
+            RsaCipherTextPreview = "Fehler: " + ex.Message;
+            RsaDecryptedText = "";
+        }
+    }
+
+    private static string EncryptSymHelper(SymmetricAlgorithm alg, string strData, byte[] key, byte[] iv)
+    {
+        byte[] inputByteArray = Encoding.UTF8.GetBytes(strData);
+        using var memoryStream = new MemoryStream();
+        using var encryptor = alg.CreateEncryptor(key, iv);
+        using (var cryptoStream = new CryptoStream(memoryStream, encryptor, CryptoStreamMode.Write))
+        {
+            cryptoStream.Write(inputByteArray, 0, inputByteArray.Length);
+            cryptoStream.FlushFinalBlock();
+        }
+        return Convert.ToBase64String(memoryStream.ToArray());
+    }
+
+    private static string DecryptSymHelper(SymmetricAlgorithm alg, string strData, byte[] key, byte[] iv)
+    {
+        byte[] inputByteArray = Convert.FromBase64String(strData);
+        using var memoryStream = new MemoryStream();
+        using var decryptor = alg.CreateDecryptor(key, iv);
+        using (var cryptoStream = new CryptoStream(memoryStream, decryptor, CryptoStreamMode.Write))
+        {
+            cryptoStream.Write(inputByteArray, 0, inputByteArray.Length);
+            cryptoStream.FlushFinalBlock();
+        }
+        return Encoding.UTF8.GetString(memoryStream.ToArray());
+    }
+
+    private static byte[] RsaEncryptHelper(string strData, RSAParameters rsaKeyInfo)
+    {
+        using var rsa = RSA.Create();
+        rsa.ImportParameters(rsaKeyInfo);
+        return rsa.Encrypt(Encoding.UTF8.GetBytes(strData), RSAEncryptionPadding.OaepSHA256);
+    }
+
+    private static string RsaDecryptHelper(byte[] dataToDecrypt, RSAParameters rsaKeyInfo)
+    {
+        using var rsa = RSA.Create();
+        rsa.ImportParameters(rsaKeyInfo);
+        var decryptedData = rsa.Decrypt(dataToDecrypt, RSAEncryptionPadding.OaepSHA256);
+        return Encoding.UTF8.GetString(decryptedData);
+    }
+
+    // --- Hashing Logic ---
+    public void SetHashAlgorithm(string alg)
+    {
+        SelectedHashAlg = alg;
+    }
+
+    public void ToggleTamper()
+    {
+        IsTampered = !IsTampered;
+    }
+
+    public void Dispose()
+    {
+    }
+}
