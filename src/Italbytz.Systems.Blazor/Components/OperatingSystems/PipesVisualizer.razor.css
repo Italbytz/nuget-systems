@@ -743,6 +743,47 @@
 }
 
 /* ------------------------------------------------------------------------- */
+/* C# Code Card                                                              */
+/* ------------------------------------------------------------------------- */
+.code-card {
+    margin-top: 0.25rem;
+    overflow: hidden;
+}
+
+.copy-btn {
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #334155;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.copy-btn:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.code-listing {
+    margin: 0;
+    padding: 0.75rem 1rem;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    background: #f8fafc;
+    color: #1e293b;
+    border-top: 1px solid #e2e8f0;
+    overflow-x: auto;
+}
+
+.code-comment {
+    color: #64748b;
+    font-style: italic;
+}
+
+/* ------------------------------------------------------------------------- */
 /* Console Card                                                              */
 /* ------------------------------------------------------------------------- */
 .console-card {

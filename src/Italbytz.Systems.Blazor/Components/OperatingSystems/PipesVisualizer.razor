@@ -304,6 +304,43 @@
             }
         </div>
 
+        <!-- C# Code-Snippet Panel -->
+        <div class="panel-card code-card">
+            <div class="panel-header">
+                <span class="panel-title">💻 C# Implementierung &bull; @(IsNamedPipe ? "NamedPipe (FIFO)" : "AnonymousPipe (Unbenannt)")</span>
+                <button class="copy-btn" @onclick="CopyCode">
+                    @(IsCopied ? "✓ Kopiert!" : "📋 Code kopieren")
+                </button>
+            </div>
+            @if (!IsNamedPipe)
+            {
+                <pre class="code-listing mono"><code><span class="code-comment">// Unbenannte Pipe: Server erbt Handle an Kindprozess/Client</span>
+using var server = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.Inheritable);
+using var client = new AnonymousPipeClientStream(PipeDirection.In, server.ClientSafePipeHandle);
+
+using var writer = new StreamWriter(server) { AutoFlush = true };
+writer.WriteLine("Hallo Welt durch eine unbenannte Pipe!");
+
+using var reader = new StreamReader(client);
+string? message = reader.ReadLine();</code></pre>
+            }
+            else
+            {
+                <pre class="code-listing mono"><code><span class="code-comment">// FIFO / Named Pipe: Unabhängige Prozesse verbinden sich über System-Namen</span>
+<span class="code-comment">// Server (Empfänger):</span>
+using var server = new NamedPipeServerStream("MyPipe", PipeDirection.In);
+await server.WaitForConnectionAsync();
+using var reader = new StreamReader(server);
+string? message = await reader.ReadLineAsync();
+
+<span class="code-comment">// Client (Sender):</span>
+using var client = new NamedPipeClientStream(".", "MyPipe", PipeDirection.Out);
+await client.ConnectAsync();
+using var writer = new StreamWriter(client) { AutoFlush = true };
+await writer.WriteLineAsync("Hallo aus dem Client!");</code></pre>
+            }
+        </div>
+
         <!-- Terminal Console Output -->
         <div class="panel-card console-card">
             <div class="panel-header">
@@ -431,11 +468,22 @@
     public enum ViewMode { Simulator, Worksheet }
     public enum ProcState { Ready, Running, Blocked, Exited }
 
+    [SupplyParameterFromQuery(Name = "mode")]
+    public string? QueryMode { get; set; }
+
+    [SupplyParameterFromQuery(Name = "embed")]
+    public bool? QueryEmbed { get; set; }
+
+    [SupplyParameterFromQuery(Name = "preset")]
+    public string? QueryPreset { get; set; }
+
     [Parameter] public ViewMode ActiveView { get; set; } = ViewMode.Simulator;
     [Parameter] public bool IsEmbed { get; set; } = false;
     [Parameter] public bool ShowSolution { get; set; } = false;
     [Parameter] public string SelectedPreset { get; set; } = "Standard";
     [Parameter] public bool IsNamedPipe { get; set; } = false;
+
+    private bool IsCopied { get; set; } = false;
 
     public int CurrentStepIndex { get; set; } = 0;
     public bool IsPlaying { get; set; } = false;
@@ -516,6 +564,40 @@
     {
         try
         {
+            if (QueryEmbed.HasValue)
+            {
+                IsEmbed = QueryEmbed.Value;
+                if (IsEmbed) ShowIpcsDetails = false;
+            }
+
+            if (!string.IsNullOrEmpty(QueryMode))
+            {
+                if (QueryMode.Equals("named", StringComparison.OrdinalIgnoreCase) || QueryMode.Equals("fifo", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsNamedPipe = true;
+                }
+                else if (QueryMode.Equals("anonymous", StringComparison.OrdinalIgnoreCase) || QueryMode.Equals("unnamed", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsNamedPipe = false;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(QueryPreset))
+            {
+                if (QueryPreset.Equals("full", StringComparison.OrdinalIgnoreCase))
+                {
+                    SelectedPreset = "BufferFull";
+                }
+                else if (QueryPreset.Equals("eof", StringComparison.OrdinalIgnoreCase))
+                {
+                    SelectedPreset = "EOFDemo";
+                }
+                else if (QueryPreset.Equals("broken", StringComparison.OrdinalIgnoreCase))
+                {
+                    SelectedPreset = "BrokenPipe";
+                }
+            }
+
             var uri = new Uri(NavigationManager.Uri);
             var query = uri.Query;
             if (!string.IsNullOrEmpty(query))
@@ -537,6 +619,10 @@
                 {
                     IsNamedPipe = true;
                 }
+                else if (query.Contains("mode=anonymous", StringComparison.OrdinalIgnoreCase) || query.Contains("fifo=false", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsNamedPipe = false;
+                }
                 if (query.Contains("preset=full", StringComparison.OrdinalIgnoreCase))
                 {
                     SelectedPreset = "BufferFull";
@@ -550,6 +636,41 @@
                     SelectedPreset = "BrokenPipe";
                 }
             }
+        }
+        catch { }
+    }
+
+    private async Task CopyCode()
+    {
+        var code = !IsNamedPipe ? @"// Unbenannte Pipe: Server erbt Handle an Kindprozess/Client
+using var server = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.Inheritable);
+using var client = new AnonymousPipeClientStream(PipeDirection.In, server.ClientSafePipeHandle);
+
+using var writer = new StreamWriter(server) { AutoFlush = true };
+writer.WriteLine(""Hallo Welt durch eine unbenannte Pipe!"");
+
+using var reader = new StreamReader(client);
+string? message = reader.ReadLine();" : @"// FIFO / Named Pipe: Unabhängige Prozesse verbinden sich über System-Namen
+// Server (Empfänger):
+using var server = new NamedPipeServerStream(""MyPipe"", PipeDirection.In);
+await server.WaitForConnectionAsync();
+using var reader = new StreamReader(server);
+string? message = await reader.ReadLineAsync();
+
+// Client (Sender):
+using var client = new NamedPipeClientStream(""."", ""MyPipe"", PipeDirection.Out);
+await client.ConnectAsync();
+using var writer = new StreamWriter(client) { AutoFlush = true };
+await writer.WriteLineAsync(""Hallo aus dem Client!"");";
+
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", code);
+            IsCopied = true;
+            StateHasChanged();
+            await Task.Delay(2000);
+            IsCopied = false;
+            StateHasChanged();
         }
         catch { }
     }
