@@ -1,0 +1,755 @@
+@namespace Italbytz.Systems.Blazor.Components.Networking
+@using Microsoft.AspNetCore.Components
+@using Microsoft.JSInterop
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+<article class="sockets-container @(IsEmbed ? "embed-mode" : "")">
+
+    @if (!IsEmbed)
+    {
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Rechnernetze &bull; Transportschicht (Layer 4) &amp; Sockets</p>
+            <h2>Sockets &amp; TCP Client/Server (POSIX &amp; C#)</h2>
+            <p class="feature-intro">
+                Sockets bilden die elementare Programmierschnittstelle (API) zwischen dem Betriebssystem-Netzwerkstack und Anwendungen.
+                Erkunden Sie schrittweise den Lebenszyklus von POSIX-Sockets (<code>SOCKET</code>, <code>BIND</code>, <code>LISTEN</code>, <code>ACCEPT</code>, <code>CONNECT</code>, <code>SEND</code>, <code>RECEIVE</code>, <code>CLOSE</code>) 
+                sowie die Implementierung in modernem C# mittels <code>TcpListener</code>, <code>TcpClient</code> und <code>Socket</code>.
+            </p>
+        </div>
+    }
+
+    <!-- View Switcher -->
+    <div class="view-switch no-print">
+        <button class="view-btn @(ActiveMode == SocketsMode.ClientServer ? "active" : "")"
+                @onclick="() => SetMode(SocketsMode.ClientServer)">
+            🖥️ 1. TCP Client/Server (TcpListener &amp; TcpClient)
+        </button>
+        <button class="view-btn @(ActiveMode == SocketsMode.RawSocket ? "active" : "")"
+                @onclick="() => SetMode(SocketsMode.RawSocket)">
+            🔌 2. Low-Level Sockets (System.Net.Sockets.Socket)
+        </button>
+    </div>
+
+    @if (ActiveMode == SocketsMode.ClientServer)
+    {
+        <!-- ========================================================================= -->
+        <!-- MODE 1: TCP CLIENT / SERVER (TcpListener & TcpClient)                     -->
+        <!-- ========================================================================= -->
+
+        <!-- Toolbar / Controls -->
+        <div class="controls-panel no-print">
+            <div class="toolbar-grid">
+                <div class="control-group">
+                    <span class="control-label">Szenario:</span>
+                    <div class="btn-group">
+                        <button class="toggle-btn @(SelectedScenario == "jane" ? "active" : "")"
+                                @onclick='() => LoadScenario("jane")' disabled="@IsPlaying">
+                            Jane (Manager)
+                        </button>
+                        <button class="toggle-btn @(SelectedScenario == "jim" ? "active" : "")"
+                                @onclick='() => LoadScenario("jim")' disabled="@IsPlaying">
+                            Jim (Clerk)
+                        </button>
+                        <button class="toggle-btn @(SelectedScenario == "unknown" ? "active" : "")"
+                                @onclick='() => LoadScenario("unknown")' disabled="@IsPlaying">
+                            Unbekannt (Homer)
+                        </button>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <span class="control-label">Tempo:</span>
+                    <select class="form-select" @bind="PlaySpeedMs" disabled="@IsPlaying">
+                        <option value="1500">Normal (1.5s)</option>
+                        <option value="800">Schnell (0.8s)</option>
+                        <option value="2500">Gemächlich (2.5s)</option>
+                    </select>
+                </div>
+
+                <div class="action-btn-group">
+                    <button class="ctrl-btn" @onclick="ResetSimulation" title="Simulation zurücksetzen">
+                        🔄 Reset
+                    </button>
+                    <button class="ctrl-btn" @onclick="StepSimulation" disabled="@(IsPlaying || IsCompleted)" title="Einen Einzelschritt weiter">
+                        👉 1 Schritt
+                    </button>
+                    @if (IsPlaying)
+                    {
+                        <button class="ctrl-btn ctrl-pause" @onclick="PauseSimulation" title="Pause">
+                            ⏸️ Pause
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="ctrl-btn ctrl-play" @onclick="StartSimulation" disabled="@IsCompleted" title="Simulation abspielen">
+                            ▶️ Play
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Explanation Banner -->
+        <div class="step-explanation-banner @(IsCompleted ? "banner-done" : "")">
+            <div class="step-badge">Schritt @(CurrentStepIndex + 1) / @CurrentSchedule.Count</div>
+            <div class="step-text">
+                <strong>@CurrentStep.Title</strong>: @CurrentStep.Description
+            </div>
+            <div class="posix-pill">POSIX: @CurrentStep.PosixSyscall</div>
+        </div>
+
+        <!-- Visual Network Architecture (Client <-> Network Wire <-> Server) -->
+        <div class="network-diagram-card">
+            <div class="endpoint-node client-node @(ClientConnected ? "connected" : "")">
+                <div class="node-header">
+                    <span class="node-icon">💻</span>
+                    <div class="node-titles">
+                        <span class="node-name">Client (TcpClient)</span>
+                        <span class="node-ep">127.0.0.1:54321</span>
+                    </div>
+                </div>
+                <div class="node-status-row">
+                    <span class="status-dot @(ClientConnected ? "dot-online" : "dot-offline")"></span>
+                    <span class="status-label">@ClientStatusText</span>
+                </div>
+                <div class="node-detail-box">
+                    <div class="detail-line"><strong>C# API:</strong> <code>new TcpClient()</code></div>
+                    <div class="detail-line"><strong>Syscall:</strong> <code>connect()</code></div>
+                    <div class="detail-line"><strong>Stream:</strong> <code>client.GetStream()</code></div>
+                </div>
+            </div>
+
+            <!-- Wire / Channel in Middle -->
+            <div class="network-wire-zone">
+                <div class="wire-label">
+                    <span>Loopback TCP Socket (127.0.0.1)</span>
+                    <span class="wire-port">Ziel-Port 2055</span>
+                </div>
+                <div class="wire-track">
+                    @if (CurrentStep.HasPacket)
+                    {
+                        <div class="packet-token @(CurrentStep.PacketDirection == Direction.ClientToServer ? "pkt-to-server" : "pkt-to-client")">
+                            <span class="pkt-icon">📦</span>
+                            <span class="pkt-payload">@CurrentStep.PacketPayload</span>
+                        </div>
+                    }
+                    <div class="wire-line"></div>
+                </div>
+                <div class="wire-protocol-flags">
+                    <span class="wire-flag">TCP 3-Way-Handshake</span>
+                    <span class="wire-flag">Full-Duplex Stream</span>
+                    <span class="wire-flag">Reliable (ACK/Retransmit)</span>
+                </div>
+            </div>
+
+            <!-- Server Node -->
+            <div class="endpoint-node server-node @(ServerListening ? "listening" : "") @(ClientConnected ? "connected" : "")">
+                <div class="node-header">
+                    <span class="node-icon">🖧</span>
+                    <div class="node-titles">
+                        <span class="node-name">Server (TcpListener)</span>
+                        <span class="node-ep">127.0.0.1:2055</span>
+                    </div>
+                </div>
+                <div class="node-status-row">
+                    <span class="status-dot @(ServerListening ? "dot-online" : "dot-offline")"></span>
+                    <span class="status-label">@ServerStatusText</span>
+                </div>
+                <div class="node-detail-box">
+                    <div class="detail-line"><strong>C# API:</strong> <code>new TcpListener(2055)</code></div>
+                    <div class="detail-line"><strong>Syscalls:</strong> <code>bind() &bull; listen() &bull; accept()</code></div>
+                    <div class="detail-line"><strong>Clients:</strong> @(ClientConnected ? "1 aktiver Client" : "0 Clients")</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Terminals Row (Dual Windows: Client vs Server) -->
+        <div class="terminals-grid">
+            <!-- Client Terminal -->
+            <div class="terminal-box">
+                <div class="terminal-bar">
+                    <div class="terminal-dots">
+                        <span class="dot red"></span>
+                        <span class="dot yellow"></span>
+                        <span class="dot green"></span>
+                    </div>
+                    <span class="terminal-title">Client Konsole (TcpClient)</span>
+                    <span class="terminal-state">PID 5410</span>
+                </div>
+                <div class="terminal-screen">
+                    <div class="term-line term-prompt">$ dotnet run --project TcpClient</div>
+                    @foreach (var line in ClientTerminalLines)
+                    {
+                        <div class="term-line @(line.StartsWith("[!]") ? "term-err" : (line.StartsWith("Job:") ? "term-highlight" : "term-out"))">@line</div>
+                    }
+                </div>
+            </div>
+
+            <!-- Server Terminal -->
+            <div class="terminal-box">
+                <div class="terminal-bar">
+                    <div class="terminal-dots">
+                        <span class="dot red"></span>
+                        <span class="dot yellow"></span>
+                        <span class="dot green"></span>
+                    </div>
+                    <span class="terminal-title">Server Konsole (TcpListener)</span>
+                    <span class="terminal-state">PID 2055</span>
+                </div>
+                <div class="terminal-screen">
+                    <div class="term-line term-prompt">$ dotnet run --project TcpServer</div>
+                    @foreach (var line in ServerTerminalLines)
+                    {
+                        <div class="term-line @(line.StartsWith("[+]") ? "term-connect" : (line.StartsWith("[-]") ? "term-disconnect" : "term-out"))">@line</div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- C# Source Code & POSIX Syscall Matrix -->
+        <div class="code-and-theory-grid">
+            <div class="code-card">
+                <div class="code-tabs">
+                    <button class="code-tab @(ActiveCodeTab == "server" ? "active" : "")"
+                            @onclick='() => ActiveCodeTab = "server"'>
+                        Server (<code>TcpListener</code>)
+                    </button>
+                    <button class="code-tab @(ActiveCodeTab == "client" ? "active" : "")"
+                            @onclick='() => ActiveCodeTab = "client"'>
+                        Client (<code>TcpClient</code>)
+                    </button>
+                    <a href="https://github.com/RobinNunkesser/work/tree/main/artifacts/packages/dotnet/nuget-systems/samples/console/Networking/Sockets/" 
+                       target="_blank" rel="noopener noreferrer" class="code-link">
+                        📁 Im Quellcode ansehen ↗
+                    </a>
+                </div>
+
+                @if (ActiveCodeTab == "server")
+                {
+                    <pre class="code-pre"><code><span class="cmt">// 1. Server instanziieren & Port binden (POSIX: socket + bind)</span>
+<span class="kw">var</span> listener = <span class="kw">new</span> <span class="typ">TcpListener</span>(<span class="typ">IPAddress</span>.Parse(<span class="str">"127.0.0.1"</span>), 2055);
+listener.<span class="mth">Start</span>(); <span class="cmt">// POSIX: listen()</span>
+
+<span class="kw">while</span> (<span class="kw">true</span>)
+{
+    <span class="cmt">// 2. Eingehende Verbindung blockierend annehmen (POSIX: accept)</span>
+    <span class="kw">using var</span> tcpClient = <span class="kw">await</span> listener.<span class="mth">AcceptTcpClientAsync</span>();
+    <span class="kw">using var</span> stream = tcpClient.<span class="mth">GetStream</span>();
+    <span class="kw">using var</span> reader = <span class="kw">new</span> <span class="typ">StreamReader</span>(stream);
+    <span class="kw">await using var</span> writer = <span class="kw">new</span> <span class="typ">StreamWriter</span>(stream) { AutoFlush = <span class="kw">true</span> };
+
+    <span class="cmt">// 3. Begrüßung & Abfragezyklus (POSIX: send / recv)</span>
+    <span class="kw">await</span> writer.<span class="mth">WriteLineAsync</span>(<span class="str">"4 Employees available"</span>);
+    <span class="kw">var</span> name = <span class="kw">await</span> reader.<span class="mth">ReadLineAsync</span>();
+    <span class="kw">var</span> job = Employees.TryGetValue(name, <span class="kw">out var</span> j) ? j : <span class="str">"No such employee"</span>;
+    <span class="kw">await</span> writer.<span class="mth">WriteLineAsync</span>(job);
+}</code></pre>
+                }
+                else
+                {
+                    <pre class="code-pre"><code><span class="cmt">// 1. Client instanziieren & verbinden (POSIX: socket + connect)</span>
+<span class="kw">using var</span> client = <span class="kw">new</span> <span class="typ">TcpClient</span>();
+<span class="kw">await</span> client.<span class="mth">ConnectAsync</span>(<span class="str">"127.0.0.1"</span>, 2055);
+
+<span class="cmt">// 2. Vollduplex-Datenstrom öffnen</span>
+<span class="kw">using var</span> stream = client.<span class="mth">GetStream</span>();
+<span class="kw">using var</span> reader = <span class="kw">new</span> <span class="typ">StreamReader</span>(stream);
+<span class="kw">await using var</span> writer = <span class="kw">new</span> <span class="typ">StreamWriter</span>(stream) { AutoFlush = <span class="kw">true</span> };
+
+<span class="cmt">// 3. Server-Nachricht lesen (POSIX: recv)</span>
+<span class="kw">var</span> greeting = <span class="kw">await</span> reader.<span class="mth">ReadLineAsync</span>();
+<span class="typ">Console</span>.<span class="mth">WriteLine</span>(greeting);
+
+<span class="cmt">// 4. Anfrage absenden & Antwort empfangen (POSIX: send & recv)</span>
+<span class="kw">await</span> writer.<span class="mth">WriteLineAsync</span>(<span class="str">"jane"</span>);
+<span class="kw">var</span> job = <span class="kw">await</span> reader.<span class="mth">ReadLineAsync</span>();
+<span class="typ">Console</span>.<span class="mth">WriteLine</span>(<span class="str">$"Job: {job}"</span>);</code></pre>
+                }
+            </div>
+
+            <!-- POSIX Syscall Lifecycle Matrix -->
+            <div class="theory-card">
+                <h3>POSIX-Syscall Lebenszyklus</h3>
+                <table class="concept-table">
+                    <thead>
+                        <tr>
+                            <th>POSIX-Befehl</th>
+                            <th>Rolle</th>
+                            <th>.NET / C# Äquivalent</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>SOCKET</code></td>
+                            <td>Beide</td>
+                            <td><code>new Socket(...)</code> / <code>new TcpClient()</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>BIND</code></td>
+                            <td>Server</td>
+                            <td><code>new TcpListener(localAddr, port)</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>LISTEN</code></td>
+                            <td>Server</td>
+                            <td><code>listener.Start(backlog)</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>ACCEPT</code></td>
+                            <td>Server</td>
+                            <td><code>await listener.AcceptTcpClientAsync()</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>CONNECT</code></td>
+                            <td>Client</td>
+                            <td><code>await client.ConnectAsync(host, port)</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>SEND / RECEIVE</code></td>
+                            <td>Beide</td>
+                            <td><code>NetworkStream</code> / <code>StreamReader/Writer</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>CLOSE</code></td>
+                            <td>Beide</td>
+                            <td><code>client.Close()</code> / <code>Dispose()</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- ========================================================================= -->
+        <!-- MODE 2: LOW-LEVEL SOCKETS (System.Net.Sockets.Socket)                     -->
+        <!-- ========================================================================= -->
+
+        <div class="raw-socket-grid">
+            <div class="raw-config-card">
+                <h3>Low-Level Socket HTTP-Abfrage</h3>
+                <p class="raw-desc">
+                    Während <code>TcpClient</code> und <code>TcpListener</code> komfortable Abstraktionen bieten,
+                    erlaubt <code>System.Net.Sockets.Socket</code> den direkten Zugriff auf BSD-Sockets mit Byte-Puffern.
+                </p>
+
+                <div class="form-row">
+                    <label class="input-label">Ziel-Host:</label>
+                    <input type="text" class="text-control" @bind="RawSocketHost" />
+                </div>
+                <div class="form-row">
+                    <label class="input-label">Port:</label>
+                    <input type="number" class="text-control" @bind="RawSocketPort" style="width: 120px;" />
+                </div>
+
+                <div class="action-btn-group" style="margin-top: 1rem;">
+                    <button class="ctrl-btn ctrl-play" @onclick="ExecuteRawSocketAsync" disabled="@IsRunningRawSocket">
+                        ▶️ Socket verbinden &amp; HTTP GET senden
+                    </button>
+                    <button class="ctrl-btn" @onclick="ResetRawSocket">
+                        🔄 Reset
+                    </button>
+                </div>
+
+                <div class="hint-box" style="margin-top: 1rem;">
+                    💡 <strong>Ablauf:</strong>
+                    1. <code>Dns.GetHostEntry(host)</code> ermittelt IPv4-Adresse.<br/>
+                    2. <code>new Socket(AddressFamily, SocketType.Stream, ProtocolType.Tcp)</code> erzeugt Endpunkt.<br/>
+                    3. <code>socket.Connect(ipe)</code> baut TCP-Verbindung auf.<br/>
+                    4. <code>socket.Send(bytes)</code> sendet HTTP/1.1 Request.<br/>
+                    5. <code>socket.Receive(buffer)</code> liest Daten byteweise aus.
+                </div>
+            </div>
+
+            <!-- Terminal Output -->
+            <div class="terminal-box">
+                <div class="terminal-bar">
+                    <div class="terminal-dots">
+                        <span class="dot red"></span>
+                        <span class="dot yellow"></span>
+                        <span class="dot green"></span>
+                    </div>
+                    <span class="terminal-title">Socket Byte-Stream (Konsole)</span>
+                    <span class="terminal-state">RawSocket Demo</span>
+                </div>
+                <div class="terminal-screen" style="min-height: 240px;">
+                    <div class="term-line term-prompt">$ dotnet run --project RawSocket @RawSocketHost</div>
+                    @if (IsRunningRawSocket)
+                    {
+                        <div class="term-line term-spinner">⏳ Sende HTTP GET über Socket...</div>
+                    }
+                    @foreach (var line in RawSocketLines)
+                    {
+                        <div class="term-line term-out">@line</div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Code Box for RawSocket -->
+        <div class="code-card" style="margin-top: 1rem;">
+            <div class="code-header">
+                <span>C# Low-Level Socket Implementierung (<code>RawSocket/Program.cs</code>)</span>
+                <a href="https://github.com/RobinNunkesser/work/tree/main/artifacts/packages/dotnet/nuget-systems/samples/console/Networking/Sockets/RawSocket/" 
+                   target="_blank" rel="noopener noreferrer" class="code-link">
+                    📁 Im Quellcode ansehen ↗
+                </a>
+            </div>
+            <pre class="code-pre"><code><span class="cmt">// 1. Socket für IPv4 & TCP anlegen</span>
+<span class="kw">var</span> endpoint = <span class="kw">new</span> <span class="typ">IPEndPoint</span>(address, 80);
+<span class="kw">using var</span> socket = <span class="kw">new</span> <span class="typ">Socket</span>(endpoint.AddressFamily, <span class="typ">SocketType</span>.Stream, <span class="typ">ProtocolType</span>.Tcp);
+
+<span class="cmt">// 2. Verbindungsaufbau (POSIX: connect)</span>
+<span class="kw">await</span> socket.<span class="mth">ConnectAsync</span>(endpoint);
+
+<span class="cmt">// 3. HTTP GET Request senden (POSIX: send)</span>
+<span class="kw">string</span> request = <span class="str">$"GET / HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n"</span>;
+<span class="kw">byte</span>[] sendBytes = <span class="typ">Encoding</span>.ASCII.<span class="mth">GetBytes</span>(request);
+<span class="kw">await</span> socket.<span class="mth">SendAsync</span>(sendBytes, <span class="typ">SocketFlags</span>.None);
+
+<span class="cmt">// 4. Antwort byteweise empfangen (POSIX: recv)</span>
+<span class="kw">byte</span>[] buffer = <span class="kw">new byte</span>[1024];
+<span class="kw">int</span> bytesRead = <span class="kw">await</span> socket.<span class="mth">ReceiveAsync</span>(buffer, <span class="typ">SocketFlags</span>.None);
+<span class="kw">string</span> response = <span class="typ">Encoding</span>.ASCII.<span class="mth">GetString</span>(buffer, 0, bytesRead);
+
+<span class="cmt">// 5. Verbindung schließen (POSIX: close)</span>
+socket.<span class="mth">Shutdown</span>(<span class="typ">SocketShutdown</span>.Both);
+socket.<span class="mth">Close</span>();</code></pre>
+        </div>
+    }
+
+</article>
+
+@code {
+    public enum SocketsMode
+    {
+        ClientServer,
+        RawSocket
+    }
+
+    public enum Direction
+    {
+        None,
+        ClientToServer,
+        ServerToClient
+    }
+
+    public record SimulationStep(
+        string Title,
+        string Description,
+        string PosixSyscall,
+        bool HasPacket,
+        Direction PacketDirection,
+        string PacketPayload,
+        string? ClientLog,
+        string? ServerLog,
+        bool ClientConnected,
+        bool ServerListening
+    );
+
+    [SupplyParameterFromQuery(Name = "mode")]
+    public string? QueryMode { get; set; }
+
+    [SupplyParameterFromQuery(Name = "embed")]
+    public bool? QueryEmbed { get; set; }
+
+    public bool IsEmbed { get; set; } = false;
+    public SocketsMode ActiveMode { get; set; } = SocketsMode.ClientServer;
+    public string ActiveCodeTab { get; set; } = "server";
+
+    // --- Mode 1 Simulation State ---
+    public string SelectedScenario { get; set; } = "jane";
+    public int PlaySpeedMs { get; set; } = 1500;
+    public bool IsPlaying { get; set; } = false;
+    public int CurrentStepIndex { get; set; } = 0;
+
+    public List<SimulationStep> CurrentSchedule { get; set; } = new();
+    public List<string> ClientTerminalLines { get; set; } = new();
+    public List<string> ServerTerminalLines { get; set; } = new();
+
+    private CancellationTokenSource? _playCts;
+
+    public SimulationStep CurrentStep => CurrentStepIndex < CurrentSchedule.Count 
+        ? CurrentSchedule[CurrentStepIndex] 
+        : CurrentSchedule.Last();
+
+    public bool IsCompleted => CurrentStepIndex >= CurrentSchedule.Count - 1;
+    public bool ClientConnected => CurrentStep.ClientConnected;
+    public bool ServerListening => CurrentStep.ServerListening;
+
+    public string ClientStatusText => ClientConnected ? "Verbunden mit :2055" : (CurrentStepIndex > 1 ? "Verbindungsaufbau..." : "Getrennt");
+    public string ServerStatusText => ClientConnected ? "Client 127.0.0.1:54321 aktiv" : (ServerListening ? "Bereit (Listening auf Port 2055)" : "Gestoppt");
+
+    // --- Mode 2 Raw Socket State ---
+    public string RawSocketHost { get; set; } = "www.google.de";
+    public int RawSocketPort { get; set; } = 80;
+    public bool IsRunningRawSocket { get; set; } = false;
+    public List<string> RawSocketLines { get; set; } = new();
+
+    protected override void OnInitialized()
+    {
+        ReadQueryParameters();
+        LoadScenario(SelectedScenario);
+    }
+
+    protected override void OnParametersSet()
+    {
+        ReadQueryParameters();
+    }
+
+    private void ReadQueryParameters()
+    {
+        if (QueryEmbed.HasValue)
+        {
+            IsEmbed = QueryEmbed.Value;
+        }
+
+        if (!string.IsNullOrEmpty(QueryMode))
+        {
+            if (QueryMode.Equals("raw", StringComparison.OrdinalIgnoreCase) || QueryMode.Equals("rawsocket", StringComparison.OrdinalIgnoreCase))
+            {
+                ActiveMode = SocketsMode.RawSocket;
+            }
+            else
+            {
+                ActiveMode = SocketsMode.ClientServer;
+            }
+        }
+    }
+
+    public void SetMode(SocketsMode mode)
+    {
+        ActiveMode = mode;
+    }
+
+    public void LoadScenario(string scenario)
+    {
+        StopAutoPlay();
+        SelectedScenario = scenario;
+        CurrentStepIndex = 0;
+        ClientTerminalLines.Clear();
+        ServerTerminalLines.Clear();
+
+        string queryName = scenario switch
+        {
+            "jim" => "jim",
+            "unknown" => "homer",
+            _ => "jane"
+        };
+
+        string expectedJob = scenario switch
+        {
+            "jim" => "clerk",
+            "unknown" => "No such employee",
+            _ => "manager"
+        };
+
+        CurrentSchedule = new List<SimulationStep>
+        {
+            new(
+                "1. Server initialisieren",
+                "Server bindet IP-Adresse 127.0.0.1 und Port 2055 (POSIX bind()) und geht in den Abhörmodus über (POSIX listen()).",
+                "SOCKET + BIND + LISTEN",
+                false, Direction.None, "",
+                null,
+                "Server mounted, listening to port 2055",
+                false, true
+            ),
+            new(
+                "2. Client startet & Verbindungsaufbau",
+                "Client instanziiert Socket und sendet TCP SYN zur Verbindungsaufnahme mit 127.0.0.1:2055.",
+                "CONNECT (TCP SYN)",
+                true, Direction.ClientToServer, "TCP SYN (Port 2055)",
+                "Verbinde zu Server 127.0.0.1:2055...",
+                null,
+                false, true
+            ),
+            new(
+                "3. Handshake & Server Accept",
+                "Server nimmt Verbindung an (POSIX accept()) und erzeugt dedizierten Kommunikations-Socket für den Client.",
+                "ACCEPT (SYN-ACK / ACK)",
+                true, Direction.ServerToClient, "TCP SYN-ACK (Handshake OK)",
+                "Erfolgreich verbunden!",
+                "[+] Connected: 127.0.0.1:54321",
+                true, true
+            ),
+            new(
+                "4. Begrüßung des Servers",
+                "Server sendet Mitarbeiter-Anzahl ('4 Employees available') über den NetworkStream.",
+                "SEND (Server) & RECV (Client)",
+                true, Direction.ServerToClient, "\"4 Employees available\\n\"",
+                "4 Employees available",
+                null,
+                true, true
+            ),
+            new(
+                $"5. Client sendet Anfrage '{queryName}'",
+                $"Client-Benutzer gibt '{queryName}' ein. Der StreamWriter sendet den Text mit AutoFlush.",
+                "SEND (Client)",
+                true, Direction.ClientToServer, $"\"{queryName}\\n\"",
+                $"Name: {queryName}",
+                $"[?] Anfrage von 127.0.0.1:54321: '{queryName}'",
+                true, true
+            ),
+            new(
+                "6. Server verarbeitet & antwortet",
+                $"Server schlägt '{queryName}' im Employees-Dictionary nach und sendet das Ergebnis: '{expectedJob}'.",
+                "RECV & SEND (Server)",
+                true, Direction.ServerToClient, $"\"{expectedJob}\\n\"",
+                $"Job: {expectedJob}",
+                null,
+                true, true
+            ),
+            new(
+                "7. Client schließt Verbindung",
+                "Client sendet Leerzeile / schließt den Socket (POSIX close()). Der Server registriert das Verbindungsende.",
+                "CLOSE (Client FIN)",
+                true, Direction.ClientToServer, "TCP FIN (Disconnect)",
+                "Beende Verbindung...",
+                "[-] Disconnected: 127.0.0.1:54321",
+                false, true
+            ),
+            new(
+                "8. Sitzung erfolgreich beendet",
+                "Verbindung vollständig geschlossen (Full-Duplex Teardown). Der Server wartet auf den nächsten Client.",
+                "CLOSE abgeschlossen",
+                false, Direction.None, "",
+                null,
+                null,
+                false, true
+            )
+        };
+
+        ApplyCurrentStepLogs();
+    }
+
+    private void ApplyCurrentStepLogs()
+    {
+        ClientTerminalLines.Clear();
+        ServerTerminalLines.Clear();
+
+        for (int i = 0; i <= CurrentStepIndex && i < CurrentSchedule.Count; i++)
+        {
+            var s = CurrentSchedule[i];
+            if (!string.IsNullOrEmpty(s.ClientLog)) ClientTerminalLines.Add(s.ClientLog);
+            if (!string.IsNullOrEmpty(s.ServerLog)) ServerTerminalLines.Add(s.ServerLog);
+        }
+    }
+
+    public void StepSimulation()
+    {
+        if (CurrentStepIndex < CurrentSchedule.Count - 1)
+        {
+            CurrentStepIndex++;
+            ApplyCurrentStepLogs();
+        }
+        else
+        {
+            StopAutoPlay();
+        }
+    }
+
+    public void ResetSimulation()
+    {
+        LoadScenario(SelectedScenario);
+    }
+
+    public void StartSimulation()
+    {
+        if (CurrentStepIndex >= CurrentSchedule.Count - 1)
+        {
+            CurrentStepIndex = 0;
+            ApplyCurrentStepLogs();
+        }
+
+        IsPlaying = true;
+        _playCts = new CancellationTokenSource();
+        var token = _playCts.Token;
+
+        _ = Task.Run(async () =>
+        {
+            while (IsPlaying && !token.IsCancellationRequested)
+            {
+                await Task.Delay(PlaySpeedMs, token);
+                if (token.IsCancellationRequested) break;
+
+                await InvokeAsync(() =>
+                {
+                    if (CurrentStepIndex < CurrentSchedule.Count - 1)
+                    {
+                        StepSimulation();
+                    }
+                    else
+                    {
+                        StopAutoPlay();
+                    }
+                    StateHasChanged();
+                });
+            }
+        }, token);
+    }
+
+    public void PauseSimulation()
+    {
+        StopAutoPlay();
+    }
+
+    private void StopAutoPlay()
+    {
+        IsPlaying = false;
+        _playCts?.Cancel();
+        _playCts = null;
+    }
+
+    // --- Mode 2 Methods ---
+    public async Task ExecuteRawSocketAsync()
+    {
+        if (IsRunningRawSocket) return;
+
+        IsRunningRawSocket = true;
+        RawSocketLines.Clear();
+        StateHasChanged();
+
+        await Task.Delay(300);
+        RawSocketLines.Add($"Ermittle IP-Adressen für {RawSocketHost} (DNS)...");
+        StateHasChanged();
+
+        await Task.Delay(350);
+        RawSocketLines.Add($"Verbinde zu {RawSocketHost}:{RawSocketPort} (POSIX socket() + connect())...");
+        StateHasChanged();
+
+        await Task.Delay(350);
+        RawSocketLines.Add("Socket erfolgreich verbunden! (TCP 3-Wege-Handshake abgeschlossen)");
+        RawSocketLines.Add($"Sende HTTP GET Request (POSIX send())...");
+        StateHasChanged();
+
+        await Task.Delay(400);
+        RawSocketLines.Add("Empfange Serverantwort (POSIX recv()):");
+        RawSocketLines.Add("----------------------------------------");
+        RawSocketLines.Add("HTTP/1.1 200 OK");
+        RawSocketLines.Add($"Date: {DateTime.UtcNow:ddd, dd MMM yyyy HH:mm:ss} GMT");
+        RawSocketLines.Add("Content-Type: text/html; charset=ISO-8859-1");
+        RawSocketLines.Add($"Server: gws");
+        RawSocketLines.Add("Connection: close");
+        RawSocketLines.Add("");
+        RawSocketLines.Add("<!doctype html><html itemscope=\"\" itemtype=\"http://schema.org/WebPage\">...");
+        RawSocketLines.Add("----------------------------------------");
+        RawSocketLines.Add("Schließe Socket (POSIX close()).");
+
+        IsRunningRawSocket = false;
+        StateHasChanged();
+    }
+
+    public void ResetRawSocket()
+    {
+        IsRunningRawSocket = false;
+        RawSocketLines.Clear();
+    }
+
+    public void Dispose()
+    {
+        StopAutoPlay();
+    }
+}
