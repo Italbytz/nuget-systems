@@ -1,5 +1,6 @@
 /* ==========================================================================
    IPC VISUALIZER STYLES (Task 22: Shared Memory, Sockets, Semaphores, Files)
+   Light Theme Default
    ========================================================================== */
 
 .ipc-container {
@@ -7,22 +8,25 @@
     flex-direction: column;
     gap: 1.25rem;
     font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    color: #e2e8f0;
+    color: #1e293b;
     max-width: 1200px;
     margin: 0 auto;
     padding: 1rem 1rem 4.5rem;
     box-sizing: border-box;
+    background: transparent;
 }
 
 .embed-mode {
     padding: 0.5rem;
     max-width: 100%;
     gap: 0.75rem;
+    background: transparent;
 }
 
 :global(.is-dark) .embed-mode,
 .embed-mode.is-dark {
     background: #0b0f19;
+    color: #e2e8f0;
 }
 
 .mono {
@@ -31,7 +35,7 @@
 
 /* Card Heading */
 .card-heading {
-    border-bottom: 1px solid #1e293b;
+    border-bottom: 1px solid #e2e8f0;
     padding-bottom: 1rem;
 }
 
@@ -40,21 +44,21 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #38bdf8;
+    color: #0284c7;
     margin: 0 0 0.25rem 0;
 }
 
 .card-heading h2 {
     font-size: 1.6rem;
     font-weight: 800;
-    color: #f8fafc;
+    color: #0f172a;
     margin: 0 0 0.5rem 0;
 }
 
 .feature-intro {
     font-size: 0.95rem;
     line-height: 1.5;
-    color: #94a3b8;
+    color: #64748b;
     margin: 0;
 }
 
@@ -62,14 +66,14 @@
 .view-switch {
     display: flex;
     gap: 0.5rem;
-    border-bottom: 1px solid #334155;
+    border-bottom: 1px solid #e2e8f0;
     padding-bottom: 0.75rem;
 }
 
 .view-btn {
-    background: #1e293b;
-    color: #cbd5e1;
-    border: 1px solid #475569;
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #cbd5e1;
     border-radius: 6px;
     padding: 0.5rem 1rem;
     font-size: 0.9rem;
@@ -79,26 +83,27 @@
 }
 
 .view-btn:hover {
-    background: #334155;
-    color: #f8fafc;
+    background: #e2e8f0;
+    color: #0f172a;
 }
 
 .view-btn.active {
     background: #0284c7;
     color: #ffffff;
-    border-color: #38bdf8;
-    box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+    border-color: #0284c7;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 /* Controls Panel */
 .controls-panel {
-    background: #111827;
-    border: 1px solid #1f2937;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
     padding: 0.75rem 1rem;
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .mechanism-selector {
@@ -112,7 +117,7 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #94a3b8;
+    color: #475569;
 }
 
 .mechanism-tabs {
@@ -122,11 +127,11 @@
 }
 
 .mech-tab-btn {
-    background: #1e293b;
-    border: 1px solid #334155;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
     border-radius: 6px;
     padding: 0.4rem 0.75rem;
-    color: #cbd5e1;
+    color: #334155;
     font-size: 0.85rem;
     font-weight: 600;
     cursor: pointer;
@@ -137,13 +142,13 @@
 }
 
 .mech-tab-btn:hover {
-    background: #334155;
-    color: #f8fafc;
+    background: #f1f5f9;
+    color: #0f172a;
 }
 
 .mech-tab-btn.active {
-    background: #0369a1;
-    border-color: #38bdf8;
+    background: #0284c7;
+    border-color: #0284c7;
     color: #ffffff;
 }
 
@@ -152,15 +157,16 @@
 }
 
 .mech-tab-btn.exam-highlight.active {
-    background: #b45309;
-    border-color: #fbbf24;
+    background: #d97706;
+    border-color: #d97706;
+    color: #ffffff;
 }
 
 .exam-tag {
     font-size: 0.65rem;
-    background: rgba(245, 158, 11, 0.25);
-    color: #fbbf24;
-    border: 1px solid rgba(245, 158, 11, 0.5);
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
     padding: 0.1rem 0.3rem;
     border-radius: 4px;
     font-weight: 700;
@@ -181,9 +187,9 @@
 }
 
 .action-btn {
-    background: #1f2937;
-    color: #e5e7eb;
-    border: 1px solid #374151;
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #cbd5e1;
     border-radius: 6px;
     padding: 0.45rem 0.75rem;
     font-size: 0.85rem;
@@ -193,13 +199,13 @@
 }
 
 .action-btn:hover:not(:disabled) {
-    background: #374151;
-    color: #ffffff;
+    background: #e2e8f0;
+    color: #0f172a;
 }
 
 .action-btn.primary {
     background: #0284c7;
-    border-color: #0369a1;
+    border-color: #0284c7;
     color: #ffffff;
 }
 
@@ -220,14 +226,14 @@
 
 .speed-label {
     font-size: 0.8rem;
-    color: #94a3b8;
+    color: #475569;
     font-weight: 600;
 }
 
 .speed-dropdown {
-    background: #1f2937;
-    border: 1px solid #374151;
-    color: #e5e7eb;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: #0f172a;
     padding: 0.35rem 0.5rem;
     border-radius: 6px;
     font-size: 0.8rem;
@@ -237,12 +243,13 @@
 .mech-summary-banner {
     display: flex;
     gap: 1rem;
-    background: #111827;
-    border: 1px solid #1f2937;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-left: 5px solid #10b981;
     border-radius: 8px;
     padding: 0.75rem 1rem;
     align-items: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .banner-icon {
@@ -266,7 +273,7 @@
 .banner-title {
     font-size: 1.15rem;
     font-weight: 700;
-    color: #f8fafc;
+    color: #0f172a;
     margin: 0;
 }
 
@@ -278,29 +285,29 @@
 }
 
 .badge-exam {
-    background: rgba(245, 158, 11, 0.2);
-    color: #fbbf24;
-    border: 1px solid rgba(245, 158, 11, 0.4);
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
 }
 
 .badge-standard {
-    background: rgba(56, 189, 248, 0.2);
-    color: #38bdf8;
-    border: 1px solid rgba(56, 189, 248, 0.4);
+    background: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
 }
 
 .speed-pill {
     font-size: 0.75rem;
-    background: #1e293b;
-    color: #cbd5e1;
+    background: #f1f5f9;
+    color: #475569;
     padding: 0.15rem 0.5rem;
     border-radius: 4px;
-    border: 1px solid #334155;
+    border: 1px solid #cbd5e1;
 }
 
 .banner-desc {
     font-size: 0.85rem;
-    color: #94a3b8;
+    color: #64748b;
     margin: 0;
     line-height: 1.4;
 }
@@ -319,25 +326,26 @@
 }
 
 .process-card {
-    background: #111827;
-    border: 1px solid #1f2937;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
     padding: 0.75rem;
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .process-card.active-actor {
-    border-color: #38bdf8;
-    box-shadow: 0 0 12px rgba(56, 189, 248, 0.2);
+    border-color: #0284c7;
+    box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2);
 }
 
 .process-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid #1f2937;
+    border-bottom: 1px solid #e2e8f0;
     padding-bottom: 0.5rem;
 }
 
@@ -365,21 +373,21 @@
 }
 
 .state-running {
-    background: rgba(16, 185, 129, 0.2);
-    color: #34d399;
-    border: 1px solid rgba(16, 185, 129, 0.4);
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #86efac;
 }
 
 .state-ready {
-    background: rgba(59, 130, 246, 0.2);
-    color: #60a5fa;
-    border: 1px solid rgba(59, 130, 246, 0.4);
+    background: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #93c5fd;
 }
 
 .state-blocked {
-    background: rgba(239, 68, 68, 0.2);
-    color: #f87171;
-    border: 1px solid rgba(239, 68, 68, 0.4);
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fca5a5;
 }
 
 .process-body {
@@ -389,8 +397,8 @@
 }
 
 .code-snippet-box {
-    background: #030712;
-    border: 1px solid #1f2937;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
     border-radius: 6px;
     padding: 0.5rem;
     font-size: 0.75rem;
@@ -405,7 +413,7 @@
 }
 
 .snippet-code {
-    color: #f1f5f9;
+    color: #0f172a;
     word-break: break-all;
 }
 
@@ -414,7 +422,8 @@
     flex-direction: column;
     gap: 0.25rem;
     font-size: 0.8rem;
-    background: #0d131f;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
     padding: 0.4rem 0.6rem;
     border-radius: 6px;
 }
@@ -425,23 +434,24 @@
 }
 
 .var-name {
-    color: #94a3b8;
+    color: #475569;
 }
 
 .var-val {
-    color: #38bdf8;
+    color: #0284c7;
     font-weight: 600;
 }
 
 /* Central Channel Card */
 .channel-card {
-    background: #111827;
-    border: 1px solid #1f2937;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
     padding: 0.75rem;
     display: flex;
     flex-direction: column;
     gap: 0.6rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .channel-header {
@@ -455,13 +465,14 @@
 .channel-title {
     font-size: 0.95rem;
     font-weight: 700;
-    color: #f8fafc;
+    color: #0f172a;
 }
 
 .channel-location-tag {
     font-size: 0.7rem;
-    background: #1e293b;
-    color: #38bdf8;
+    background: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
     padding: 0.15rem 0.4rem;
     border-radius: 4px;
 }
@@ -475,8 +486,8 @@
 
 /* Shared Memory Specifics */
 .shm-visualizer {
-    background: #030712;
-    border: 1px solid #1f2937;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
     border-radius: 6px;
     padding: 0.6rem;
     display: flex;
@@ -486,7 +497,7 @@
 
 .memory-map-title {
     font-size: 0.75rem;
-    color: #10b981;
+    color: #059669;
     font-weight: 700;
     text-align: center;
 }
@@ -498,23 +509,23 @@
 }
 
 .mem-slot {
-    border: 1px solid #334155;
+    border: 1px solid #cbd5e1;
     border-radius: 4px;
     padding: 0.35rem 0.2rem;
     display: flex;
     flex-direction: column;
     align-items: center;
     font-size: 0.7rem;
-    background: #0f172a;
+    background: #ffffff;
 }
 
 .mem-slot.slot-occupied {
-    background: rgba(16, 185, 129, 0.15);
+    background: #dcfce7;
     border-color: #10b981;
 }
 
 .mem-slot.slot-active {
-    box-shadow: 0 0 8px #10b981;
+    box-shadow: 0 0 0 2px #10b981;
 }
 
 .slot-idx {
@@ -525,18 +536,18 @@
 .slot-val {
     font-size: 0.85rem;
     font-weight: 700;
-    color: #f8fafc;
+    color: #0f172a;
     margin: 0.1rem 0;
 }
 
 .slot-status {
     font-size: 0.6rem;
-    color: #94a3b8;
+    color: #475569;
 }
 
 .shm-pointer-legend {
     font-size: 0.7rem;
-    color: #94a3b8;
+    color: #475569;
 }
 
 .shm-dot {
@@ -550,8 +561,8 @@
 
 /* File Visualizer */
 .file-visualizer {
-    background: #030712;
-    border: 1px solid #1f2937;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
     border-radius: 6px;
     padding: 0.6rem;
     display: flex;
@@ -567,7 +578,7 @@
 .file-path {
     font-size: 0.8rem;
     font-weight: 700;
-    color: #f59e0b;
+    color: #d97706;
 }
 
 .file-meta {
@@ -576,24 +587,24 @@
 }
 
 .file-content-preview {
-    background: #111827;
-    border: 1px dashed #374151;
+    background: #ffffff;
+    border: 1px dashed #cbd5e1;
     padding: 0.4rem;
     border-radius: 4px;
     font-size: 0.75rem;
-    color: #e2e8f0;
+    color: #0f172a;
 }
 
 .file-note, .sem-note, .socket-note, .mq-note {
     font-size: 0.75rem;
-    color: #94a3b8;
+    color: #64748b;
     line-height: 1.35;
 }
 
 /* Semaphore Visualizer */
 .sem-visualizer {
-    background: #030712;
-    border: 1px solid #1f2937;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
     border-radius: 6px;
     padding: 0.6rem;
     display: flex;
@@ -620,15 +631,15 @@
 }
 
 .sem-green {
-    background: rgba(16, 185, 129, 0.2);
+    background: #dcfce7;
     border-color: #10b981;
-    color: #34d399;
+    color: #166534;
 }
 
 .sem-red {
-    background: rgba(239, 68, 68, 0.2);
+    background: #fee2e2;
     border-color: #ef4444;
-    color: #f87171;
+    color: #991b1b;
 }
 
 .sem-counter-num {
@@ -642,7 +653,7 @@
 
 .sem-gate-status {
     font-size: 0.8rem;
-    color: #e2e8f0;
+    color: #1e293b;
 }
 
 .queue-pills {
@@ -654,9 +665,9 @@
 
 .waiter-pill {
     font-size: 0.7rem;
-    background: rgba(239, 68, 68, 0.2);
-    border: 1px solid rgba(239, 68, 68, 0.4);
-    color: #fca5a5;
+    background: #fee2e2;
+    border: 1px solid #fca5a5;
+    color: #991b1b;
     padding: 0.15rem 0.4rem;
     border-radius: 4px;
 }
@@ -668,8 +679,8 @@
 
 /* Socket Visualizer */
 .socket-visualizer {
-    background: #030712;
-    border: 1px solid #1f2937;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
     border-radius: 6px;
     padding: 0.6rem;
     display: flex;
@@ -688,7 +699,8 @@
     display: flex;
     flex-direction: column;
     font-size: 0.7rem;
-    background: #1e293b;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
     padding: 0.35rem 0.5rem;
     border-radius: 4px;
 }
@@ -699,7 +711,7 @@
 }
 
 .end-addr {
-    color: #38bdf8;
+    color: #0284c7;
 }
 
 .socket-pipe-anim {
@@ -711,18 +723,18 @@
 
 .stream-pulse {
     font-size: 0.65rem;
-    color: #94a3b8;
+    color: #64748b;
 }
 
 .stream-pulse.pulsing {
-    color: #38bdf8;
+    color: #0284c7;
     font-weight: 700;
 }
 
 /* Message Queue Visualizer */
 .mq-visualizer {
-    background: #030712;
-    border: 1px solid #1f2937;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
     border-radius: 6px;
     padding: 0.6rem;
     display: flex;
@@ -732,7 +744,7 @@
 
 .mq-box-title {
     font-size: 0.75rem;
-    color: #ec4899;
+    color: #db2777;
     font-weight: 700;
 }
 
@@ -746,15 +758,16 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: #1f2937;
-    border: 1px solid #374151;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
     padding: 0.25rem 0.5rem;
     border-radius: 4px;
     font-size: 0.75rem;
+    color: #0f172a;
 }
 
 .msg-prio {
-    background: #ec4899;
+    background: #db2777;
     color: white;
     font-size: 0.65rem;
     padding: 0.1rem 0.3rem;
@@ -771,49 +784,56 @@
 
 /* Step Info Box */
 .channel-step-info {
-    background: #0b1329;
-    border: 1px solid #1d4ed8;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-left: 4px solid #3b82f6;
     border-radius: 6px;
     padding: 0.5rem;
     font-size: 0.75rem;
-    color: #93c5fd;
+    color: #1e40af;
     line-height: 1.35;
 }
 
 /* Panel Card Styling */
 .panel-card {
-    background: #111827;
-    border: 1px solid #1f2937;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
     padding: 0.75rem 1rem;
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .panel-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid #1f2937;
+    border-bottom: 1px solid #e2e8f0;
     padding-bottom: 0.4rem;
 }
 
 .panel-title {
     font-size: 0.95rem;
     font-weight: 700;
-    color: #f8fafc;
+    color: #0f172a;
 }
 
 .toggle-ipcs-btn {
-    background: #1e293b;
-    color: #38bdf8;
-    border: 1px solid #334155;
+    background: #f1f5f9;
+    color: #0284c7;
+    border: 1px solid #cbd5e1;
     border-radius: 4px;
     padding: 0.2rem 0.5rem;
     font-size: 0.75rem;
     font-weight: 600;
     cursor: pointer;
+}
+
+.toggle-ipcs-btn:hover {
+    background: #e2e8f0;
+    color: #0369a1;
 }
 
 /* Taxonomy Table */
@@ -830,23 +850,24 @@
 
 .ipc-table th, .ipc-table td {
     padding: 0.45rem 0.6rem;
-    border-bottom: 1px solid #1f2937;
+    border-bottom: 1px solid #e2e8f0;
+    color: #1e293b;
 }
 
 .ipc-table th {
-    background: #0f172a;
-    color: #94a3b8;
+    background: #f8fafc;
+    color: #475569;
     font-weight: 700;
 }
 
 .highlight-row {
-    background: rgba(245, 158, 11, 0.08);
+    background: #fefce8;
 }
 
 .tag-weiter {
-    background: rgba(245, 158, 11, 0.2);
-    color: #fbbf24;
-    border: 1px solid rgba(245, 158, 11, 0.4);
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
     font-size: 0.7rem;
     padding: 0.1rem 0.35rem;
     border-radius: 4px;
@@ -855,41 +876,43 @@
 }
 
 .tag-standard {
-    background: #1e293b;
-    color: #94a3b8;
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
     font-size: 0.7rem;
     padding: 0.1rem 0.35rem;
     border-radius: 4px;
 }
 
 .perf-best {
-    color: #34d399;
+    color: #166534;
     font-weight: 700;
 }
 
 .perf-fast {
-    color: #38bdf8;
+    color: #0284c7;
 }
 
 .perf-mid {
-    color: #f59e0b;
+    color: #d97706;
 }
 
 /* Quiz Card */
 .exam-quiz-card {
-    background: #111827;
+    background: #ffffff;
     border: 1px solid #f59e0b;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .exam-badge-score {
     font-size: 0.75rem;
-    color: #fbbf24;
+    color: #b45309;
     font-weight: 700;
 }
 
 .quiz-question {
     font-size: 0.85rem;
-    color: #f1f5f9;
+    color: #0f172a;
     line-height: 1.4;
     margin: 0 0 0.5rem 0;
 }
@@ -901,14 +924,14 @@
 }
 
 .quiz-opt-btn {
-    background: #1e293b;
-    border: 1px solid #334155;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
     border-radius: 6px;
     padding: 0.45rem 0.6rem;
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    color: #e2e8f0;
+    color: #1e293b;
     font-size: 0.8rem;
     font-weight: 600;
     cursor: pointer;
@@ -917,23 +940,26 @@
 }
 
 .quiz-opt-btn:hover {
-    background: #334155;
+    background: #f1f5f9;
+    color: #0f172a;
 }
 
 .quiz-opt-btn.selected {
-    background: #0369a1;
-    border-color: #38bdf8;
+    background: #0284c7;
+    border-color: #0284c7;
     color: white;
 }
 
 .quiz-opt-btn.correct-highlight {
     border-color: #10b981;
-    background: rgba(16, 185, 129, 0.2);
+    background: #dcfce7;
+    color: #064e3b;
 }
 
 .quiz-opt-btn.incorrect-highlight {
     border-color: #ef4444;
-    background: rgba(239, 68, 68, 0.15);
+    background: #fee2e2;
+    color: #7f1d1d;
 }
 
 .opt-verdict {
@@ -943,11 +969,11 @@
 }
 
 .verdict-correct {
-    color: #34d399;
+    color: #166534;
 }
 
 .verdict-wrong {
-    color: #f87171;
+    color: #991b1b;
 }
 
 .quiz-actions {
@@ -960,18 +986,27 @@
 
 .quiz-feedback-text {
     font-size: 0.8rem;
-    color: #fbbf24;
+    color: #b45309;
 }
 
 /* Console Card */
 .console-card {
-    background: #030712;
-    border: 1px solid #1f2937;
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+}
+
+.console-card .panel-title {
+    color: #f8fafc;
+}
+
+.console-card .panel-header {
+    border-bottom: 1px solid #1e293b;
 }
 
 .console-hint {
     font-size: 0.75rem;
-    color: #64748b;
+    color: #94a3b8;
 }
 
 .console-body {
@@ -1003,7 +1038,7 @@
 .tag-system { color: #fbbf24; font-weight: 700; }
 
 .console-msg {
-    color: #e2e8f0;
+    color: #f1f5f9;
 }
 
 .console-error {
