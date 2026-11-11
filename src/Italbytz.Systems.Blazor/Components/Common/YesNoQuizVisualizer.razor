@@ -1,0 +1,680 @@
+@namespace Italbytz.Systems.Blazor.Components.Common
+@using Italbytz.Exam.Trivia.Abstractions
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<article class="quiz-container @(IsEmbed ? "embed-mode" : "") @ThemeClass @(ViewMode == "list" ? "view-list" : "view-focus")">
+
+    @if (!IsEmbed)
+    {
+        <div class="card-heading no-print">
+            <p class="feature-kicker">Wissenstest &bull; @CurrentTopicDisplayName</p>
+            <h2>Multiple-Choice Quiz &amp; Interaktive Lösungsprüfung</h2>
+            <p class="feature-intro">
+                Interaktiver Selbsttest mit offizieller <strong>Klausur-Punktewertung</strong> (+1 Punkt bei richtiger Antwort, 
+                &minus;1 Punkt bei falscher Antwort, mindestens 0 Punkte). 
+                Passen Sie Ihre Klausur-Taktik an und prüfen Sie Fragen aus Vorlesung und Probeklausur.
+            </p>
+        </div>
+    }
+
+    <!-- Toolbar / Topic Switcher & Mode Switcher -->
+    <div class="quiz-toolbar no-print">
+        <div class="topic-selector">
+            <button class="topic-btn @(CurrentTopic == "os" ? "active" : "")" 
+                    @onclick='() => SelectTopic("os")'>
+                💻 Betriebssysteme (BS)
+            </button>
+            <button class="topic-btn @(CurrentTopic == "cn" ? "active" : "")" 
+                    @onclick='() => SelectTopic("cn")'>
+                🌐 Rechnernetze (CN)
+            </button>
+        </div>
+
+        <div class="view-switch">
+            <button class="view-btn @(ViewMode == "list" ? "active" : "")"
+                    @onclick='() => SetViewMode("list")'>
+                📋 Blatt-Ansicht (Alle)
+            </button>
+            <button class="view-btn @(ViewMode == "focus" ? "active" : "")"
+                    @onclick='() => SetViewMode("focus")'>
+                🎯 Fokus-Modus (Karten)
+            </button>
+            <button class="view-btn theme-toggle-btn"
+                    title="Zwischen Hell- und Dunkelmodus wechseln"
+                    @onclick="ToggleTheme">
+                @(IsDark ? "☀️ Hell" : "🌙 Dunkel")
+            </button>
+        </div>
+    </div>
+
+    <!-- Sheet Mode Banner -->
+    @if (IsSheetMode)
+    {
+        <div class="sheet-banner">
+            <div class="sheet-banner-content">
+                <span class="sheet-icon">🎯</span>
+                <div>
+                    <strong>Probeklausur / Übungsblatt-Fragen geladen:</strong>
+                    <span>@ActiveQuestions.Count Fragen entsprechend Ihrem generierten Aufgabenblatt.</span>
+                </div>
+            </div>
+            <button class="btn btn-sm btn-outline-primary" @onclick="LoadAllQuestions">
+                Alle @(CurrentTopic == "os" ? "Betriebssystem" : "Netzwerk")-Fragen anzeigen
+            </button>
+        </div>
+    }
+
+    <!-- Stats & Scoring Panel -->
+    <div class="stats-panel">
+        <div class="stat-card">
+            <span class="stat-num">@ActiveQuestions.Count</span>
+            <span class="stat-label">Fragen</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-num">@AnsweredCount / @ActiveQuestions.Count</span>
+            <span class="stat-label">Beantwortet</span>
+        </div>
+        <div class="stat-card stat-correct">
+            <span class="stat-num">@CorrectCount</span>
+            <span class="stat-label">Richtig (+1)</span>
+        </div>
+        <div class="stat-card stat-wrong">
+            <span class="stat-num">@WrongCount</span>
+            <span class="stat-label">Falsch (&minus;1)</span>
+        </div>
+        <div class="stat-card stat-score">
+            <span class="stat-num">@ExamScore <small>/ @ActiveQuestions.Count</small></span>
+            <span class="stat-label">Klausurpunkte</span>
+        </div>
+    </div>
+
+    <!-- Controls Bar -->
+    <div class="actions-bar no-print">
+        <div class="btn-group-left">
+            <button class="action-btn" @onclick="ResetAnswers" title="Alle gewählten Antworten zurücksetzen">
+                🔄 Antworten leeren
+            </button>
+            <button class="action-btn" @onclick="ShuffleOrder" title="Reihenfolge zufällig mischen">
+                🔀 Mischen
+            </button>
+            <button class="action-btn" @onclick="ToggleRevealAll" title="Musterlösung für alle Fragen ein- oder ausblenden">
+                @(ShowAllSolutions ? "🙈 Lösungen verbergen" : "👁️ Alle Lösungen aufdecken")
+            </button>
+        </div>
+
+        @if (!IsSheetMode)
+        {
+            <div class="btn-group-right">
+                <button class="action-btn exam-mode-btn" @onclick="SampleExamSet">
+                    🎲 Zufällige Klausurauswahl (@(CurrentTopic == "os" ? "9" : "12") Fragen)
+                </button>
+            </div>
+        }
+    </div>
+
+    <!-- Category filter in catalog mode -->
+    @if (!IsSheetMode && Categories.Count > 1)
+    {
+        <div class="category-pills no-print">
+            <span class="filter-label">Kategorie:</span>
+            <button class="cat-pill @(string.IsNullOrEmpty(SelectedCategory) ? "active" : "")"
+                    @onclick='() => FilterCategory("")'>
+                Alle (@ActivePoolCount)
+            </button>
+            @foreach (var cat in Categories)
+            {
+                <button class="cat-pill @(SelectedCategory == cat.Key ? "active" : "")"
+                        @onclick="() => FilterCategory(cat.Key)">
+                    @cat.Key (@cat.Value)
+                </button>
+            }
+        </div>
+    }
+
+    <!-- ========================================================================= -->
+    <!-- LIST VIEW (Blatt-Ansicht wie auf Papier)                                 -->
+    <!-- ========================================================================= -->
+    @if (ViewMode == "list")
+    {
+        <div class="quiz-table-wrapper">
+            <table class="quiz-table">
+                <thead>
+                    <tr>
+                        <th class="col-nr">#</th>
+                        <th class="col-question">Frage / Aussage</th>
+                        <th class="col-choice">Ihre Wahl</th>
+                        <th class="col-status">Klausur-Ergebnis</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (int i = 0; i < ActiveQuestions.Count; i++)
+                    {
+                        var idx = i;
+                        var item = ActiveQuestions[idx];
+                        var answered = item.UserChoice.HasValue;
+                        var isCorrect = answered && item.UserChoice == item.Answer;
+                        var isWrong = answered && item.UserChoice != item.Answer;
+                        var showSolution = ShowAllSolutions || answered;
+
+                        <tr class="question-row @(isCorrect ? "row-correct" : (isWrong ? "row-wrong" : ""))">
+                            <td class="cell-nr">
+                                <span class="q-badge">@(idx + 1)</span>
+                            </td>
+                            <td class="cell-text">
+                                <div class="question-text">@item.Text</div>
+                                @if (!string.IsNullOrEmpty(item.Category))
+                                {
+                                    <span class="category-badge">@item.Category</span>
+                                }
+                                @if (showSolution)
+                                {
+                                    <div class="solution-hint @(item.Answer ? "hint-true" : "hint-false")">
+                                        Musterlösung: <strong>@(item.Answer ? "WAHR" : "FALSCH")</strong>
+                                    </div>
+                                }
+                            </td>
+                            <td class="cell-choice">
+                                <div class="choice-buttons">
+                                    <button type="button"
+                                            class="btn-option @(item.UserChoice == true ? "selected" : "") @(showSolution && item.Answer == true ? "is-correct-target" : "")"
+                                            @onclick="() => ChooseAnswer(item, true)">
+                                        Wahr
+                                    </button>
+                                    <button type="button"
+                                            class="btn-option @(item.UserChoice == false ? "selected" : "") @(showSolution && item.Answer == false ? "is-correct-target" : "")"
+                                            @onclick="() => ChooseAnswer(item, false)">
+                                        Falsch
+                                    </button>
+                                </div>
+                            </td>
+                            <td class="cell-status">
+                                @if (answered)
+                                {
+                                    @if (isCorrect)
+                                    {
+                                        <span class="badge-feedback badge-success">
+                                            ✅ Richtig (+1)
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge-feedback badge-danger">
+                                            ❌ Falsch (&minus;1)
+                                        </span>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="badge-feedback badge-neutral">
+                                        ⚪ Offen (0)
+                                    </span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <!-- ========================================================================= -->
+        <!-- FOCUS VIEW (Karten-Ansicht)                                              -->
+        <!-- ========================================================================= -->
+        @if (ActiveQuestions.Count > 0 && CurrentFocusIndex >= 0 && CurrentFocusIndex < ActiveQuestions.Count)
+        {
+            var item = ActiveQuestions[CurrentFocusIndex];
+            var answered = item.UserChoice.HasValue;
+            var isCorrect = answered && item.UserChoice == item.Answer;
+            var isWrong = answered && item.UserChoice != item.Answer;
+            var showSolution = ShowAllSolutions || answered;
+
+            <div class="focus-card @(isCorrect ? "card-correct" : (isWrong ? "card-wrong" : ""))">
+                <div class="focus-card-header">
+                    <span class="focus-index-tag">Frage @(CurrentFocusIndex + 1) von @ActiveQuestions.Count</span>
+                    @if (!string.IsNullOrEmpty(item.Category))
+                    {
+                        <span class="category-badge">@item.Category</span>
+                    }
+                </div>
+
+                <div class="focus-question-text">
+                    @item.Text
+                </div>
+
+                <div class="focus-button-group">
+                    <button type="button"
+                            class="focus-btn-choice @(item.UserChoice == true ? "selected" : "") @(showSolution && item.Answer == true ? "is-correct-target" : "")"
+                            @onclick="() => ChooseAnswer(item, true)">
+                        👍 Wahr
+                    </button>
+                    <button type="button"
+                            class="focus-btn-choice @(item.UserChoice == false ? "selected" : "") @(showSolution && item.Answer == false ? "is-correct-target" : "")"
+                            @onclick="() => ChooseAnswer(item, false)">
+                        👎 Falsch
+                    </button>
+                </div>
+
+                @if (answered || ShowAllSolutions)
+                {
+                    <div class="feedback-banner @(isCorrect ? "feedback-success" : "feedback-danger")">
+                        @if (isCorrect)
+                        {
+                            <span>🎉 <strong>Richtig!</strong> Die Aussage ist <em>@(item.Answer ? "wahr" : "falsch")</em> (+1 Klausurpunkt).</span>
+                        }
+                        else
+                        {
+                            <span>⚠️ <strong>Falsch!</strong> Die korrekte Lösung ist <em>@(item.Answer ? "Wahr" : "Falsch")</em> (&minus;1 Klausurpunkt).</span>
+                        }
+                    </div>
+                }
+
+                <div class="focus-navigation">
+                    <button class="nav-btn" 
+                            disabled="@(CurrentFocusIndex == 0)"
+                            @onclick="PreviousCard">
+                        ⬅ Vorherige
+                    </button>
+
+                    <div class="nav-pills">
+                        @for (int p = 0; p < ActiveQuestions.Count; p++)
+                        {
+                            var dotIdx = p;
+                            var qItem = ActiveQuestions[dotIdx];
+                            var dotClass = "";
+                            if (qItem.UserChoice.HasValue)
+                            {
+                                dotClass = qItem.UserChoice == qItem.Answer ? "dot-correct" : "dot-wrong";
+                            }
+                            <span class="nav-dot @(dotIdx == CurrentFocusIndex ? "active" : "") @dotClass"
+                                  title="Frage @(dotIdx + 1)"
+                                  @onclick="() => CurrentFocusIndex = dotIdx">
+                                @(dotIdx + 1)
+                            </span>
+                        }
+                    </div>
+
+                    <button class="nav-btn primary"
+                            disabled="@(CurrentFocusIndex == ActiveQuestions.Count - 1)"
+                            @onclick="NextCard">
+                        Nächste ➡
+                    </button>
+                </div>
+            </div>
+        }
+    }
+
+</article>
+
+@code {
+    [Parameter]
+    public string? Topic { get; set; }
+
+    [Parameter]
+    public string? QuestionsQuery { get; set; }
+
+    [Parameter]
+    public bool IsEmbed { get; set; }
+
+    public class QuizItem
+    {
+        public int OriginalIndex { get; set; }
+        public string Variant { get; set; } = "a";
+        public string Text { get; set; } = "";
+        public bool Answer { get; set; }
+        public string Category { get; set; } = "";
+        public bool? UserChoice { get; set; }
+    }
+
+    private string CurrentTopic = "os";
+    private string ViewMode = "list"; // "list" | "focus"
+    private bool IsDark = false;
+    private bool IsSheetMode = false;
+    private bool ShowAllSolutions = false;
+    private int CurrentFocusIndex = 0;
+    private string SelectedCategory = "";
+
+    private List<QuizItem> AllCatalogQuestions = new();
+    private List<QuizItem> ActiveQuestions = new();
+    private Dictionary<string, int> Categories = new();
+
+    private string _lastUri = "";
+
+    private string CurrentTopicDisplayName => CurrentTopic switch
+    {
+        "cn" => "Rechnernetze",
+        _ => "Betriebssysteme"
+    };
+
+    private string ThemeClass => IsDark ? "theme-dark" : "theme-light";
+
+    private int AnsweredCount => ActiveQuestions.Count(q => q.UserChoice.HasValue);
+    private int CorrectCount => ActiveQuestions.Count(q => q.UserChoice.HasValue && q.UserChoice.Value == q.Answer);
+    private int WrongCount => ActiveQuestions.Count(q => q.UserChoice.HasValue && q.UserChoice.Value != q.Answer);
+    private int ExamScore => Math.Max(0, CorrectCount - WrongCount);
+    private int ActivePoolCount => AllCatalogQuestions.Count;
+
+    protected override void OnInitialized()
+    {
+        ProcessQueryParameters();
+    }
+
+    protected override void OnParametersSet()
+    {
+        ProcessQueryParameters();
+    }
+
+    private void ProcessQueryParameters()
+    {
+        var currentUri = NavigationManager.Uri;
+        if (currentUri == _lastUri) return;
+        _lastUri = currentUri;
+
+        try
+        {
+            var uri = new Uri(currentUri);
+            var query = uri.Query;
+            var pairs = query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries);
+
+            string? topicParam = Topic;
+            string? qParam = QuestionsQuery;
+            string? viewParam = null;
+
+            foreach (var pair in pairs)
+            {
+                var parts = pair.Split('=', 2);
+                var key = parts[0].ToLowerInvariant();
+                var val = parts.Length > 1 ? Uri.UnescapeDataString(parts[1].Replace("+", " ")) : "";
+
+                if (key == "topic" || key == "t")
+                {
+                    topicParam = val;
+                }
+                else if (key == "q" || key == "questions")
+                {
+                    qParam = val;
+                }
+                else if (key == "embed" && bool.TryParse(val, out var embedBool))
+                {
+                    IsEmbed = embedBool;
+                }
+                else if (key == "theme")
+                {
+                    IsDark = val.Equals("dark", StringComparison.OrdinalIgnoreCase);
+                }
+                else if (key == "view")
+                {
+                    viewParam = val.ToLowerInvariant();
+                }
+            }
+
+            if (!string.IsNullOrEmpty(topicParam))
+            {
+                var lowerTopic = topicParam.ToLowerInvariant();
+                if (lowerTopic.Contains("cn") || lowerTopic.Contains("net"))
+                {
+                    CurrentTopic = "cn";
+                }
+                else
+                {
+                    CurrentTopic = "os";
+                }
+            }
+
+            LoadCatalog(CurrentTopic);
+
+            if (!string.IsNullOrWhiteSpace(qParam))
+            {
+                ParseQuestionCodes(qParam);
+                IsSheetMode = true;
+                ViewMode = viewParam ?? "list";
+            }
+            else
+            {
+                IsSheetMode = false;
+                ViewMode = viewParam ?? "list";
+                ActiveQuestions = AllCatalogQuestions.ToList();
+            }
+
+            UpdateCategories();
+        }
+        catch
+        {
+            LoadCatalog(CurrentTopic);
+            ActiveQuestions = AllCatalogQuestions.ToList();
+            UpdateCategories();
+        }
+    }
+
+    private void LoadCatalog(string topic)
+    {
+        AllCatalogQuestions.Clear();
+        IYesNoQuestion[] rawQuestions = topic == "cn" 
+            ? Italbytz.Exam.Networking.YesNoQuestions.Questions 
+            : Italbytz.Exam.OperatingSystems.YesNoQuestions.Questions;
+
+        for (int i = 0; i < rawQuestions.Length; i++)
+        {
+            var q = rawQuestions[i];
+            AllCatalogQuestions.Add(new QuizItem
+            {
+                OriginalIndex = i,
+                Variant = "a",
+                Text = q.Text,
+                Answer = q.Answer,
+                Category = q.Category ?? (topic == "cn" ? "Networking" : "Betriebssysteme")
+            });
+        }
+    }
+
+    private void ParseQuestionCodes(string qParam)
+    {
+        IYesNoQuestion[] rawQuestions = CurrentTopic == "cn" 
+            ? Italbytz.Exam.Networking.YesNoQuestions.Questions 
+            : Italbytz.Exam.OperatingSystems.YesNoQuestions.Questions;
+
+        var tokens = qParam.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        var parsedList = new List<QuizItem>();
+
+        foreach (var token in tokens)
+        {
+            var trimmed = token.Trim();
+            if (string.IsNullOrEmpty(trimmed)) continue;
+
+            string variant = "a";
+            string indexStr = trimmed;
+
+            if (trimmed.EndsWith("b", StringComparison.OrdinalIgnoreCase))
+            {
+                variant = "b";
+                indexStr = trimmed[..^1];
+            }
+            else if (trimmed.EndsWith("a", StringComparison.OrdinalIgnoreCase))
+            {
+                variant = "a";
+                indexStr = trimmed[..^1];
+            }
+
+            if (int.TryParse(indexStr, out int idx) && idx >= 0 && idx < rawQuestions.Length)
+            {
+                var q = rawQuestions[idx];
+                if (variant == "b" && q.AlternativeQuestion is IYesNoQuestion alt)
+                {
+                    parsedList.Add(new QuizItem
+                    {
+                        OriginalIndex = idx,
+                        Variant = "b",
+                        Text = alt.Text,
+                        Answer = alt.Answer,
+                        Category = alt.Category ?? q.Category ?? ""
+                    });
+                }
+                else
+                {
+                    parsedList.Add(new QuizItem
+                    {
+                        OriginalIndex = idx,
+                        Variant = "a",
+                        Text = q.Text,
+                        Answer = q.Answer,
+                        Category = q.Category ?? ""
+                    });
+                }
+            }
+        }
+
+        if (parsedList.Count > 0)
+        {
+            ActiveQuestions = parsedList;
+        }
+        else
+        {
+            ActiveQuestions = AllCatalogQuestions.ToList();
+        }
+    }
+
+    private void UpdateCategories()
+    {
+        Categories = AllCatalogQuestions
+            .Where(q => !string.IsNullOrEmpty(q.Category))
+            .GroupBy(q => q.Category)
+            .OrderByDescending(g => g.Count())
+            .ToDictionary(g => g.Key, g => g.Count());
+    }
+
+    private void SelectTopic(string topic)
+    {
+        CurrentTopic = topic;
+        IsSheetMode = false;
+        SelectedCategory = "";
+        ShowAllSolutions = false;
+        LoadCatalog(topic);
+        ActiveQuestions = AllCatalogQuestions.ToList();
+        UpdateCategories();
+        CurrentFocusIndex = 0;
+    }
+
+    private void SetViewMode(string mode)
+    {
+        ViewMode = mode;
+    }
+
+    private void ToggleTheme()
+    {
+        IsDark = !IsDark;
+    }
+
+    private void LoadAllQuestions()
+    {
+        IsSheetMode = false;
+        SelectedCategory = "";
+        ActiveQuestions = AllCatalogQuestions.ToList();
+        CurrentFocusIndex = 0;
+    }
+
+    private void FilterCategory(string cat)
+    {
+        SelectedCategory = cat;
+        if (string.IsNullOrEmpty(cat))
+        {
+            ActiveQuestions = AllCatalogQuestions.ToList();
+        }
+        else
+        {
+            ActiveQuestions = AllCatalogQuestions.Where(q => q.Category == cat).ToList();
+        }
+        CurrentFocusIndex = 0;
+    }
+
+    private void SampleExamSet()
+    {
+        int count = CurrentTopic == "os" ? 9 : 12;
+        var rnd = new Random();
+        IYesNoQuestion[] rawQuestions = CurrentTopic == "cn" 
+            ? Italbytz.Exam.Networking.YesNoQuestions.Questions 
+            : Italbytz.Exam.OperatingSystems.YesNoQuestions.Questions;
+
+        var chosenIndices = Enumerable.Range(0, rawQuestions.Length)
+            .OrderBy(_ => rnd.Next())
+            .Take(Math.Min(count, rawQuestions.Length))
+            .ToList();
+
+        var sampled = new List<QuizItem>();
+        foreach (var idx in chosenIndices)
+        {
+            var q = rawQuestions[idx];
+            bool useAlt = q.AlternativeQuestion != null && rnd.Next(2) == 1;
+            if (useAlt && q.AlternativeQuestion is IYesNoQuestion alt)
+            {
+                sampled.Add(new QuizItem
+                {
+                    OriginalIndex = idx,
+                    Variant = "b",
+                    Text = alt.Text,
+                    Answer = alt.Answer,
+                    Category = alt.Category ?? q.Category ?? ""
+                });
+            }
+            else
+            {
+                sampled.Add(new QuizItem
+                {
+                    OriginalIndex = idx,
+                    Variant = "a",
+                    Text = q.Text,
+                    Answer = q.Answer,
+                    Category = q.Category ?? ""
+                });
+            }
+        }
+
+        ActiveQuestions = sampled;
+        IsSheetMode = true;
+        ShowAllSolutions = false;
+        CurrentFocusIndex = 0;
+    }
+
+    private void ChooseAnswer(QuizItem item, bool choice)
+    {
+        if (item.UserChoice == choice)
+        {
+            item.UserChoice = null; // Toggle unselect
+        }
+        else
+        {
+            item.UserChoice = choice;
+        }
+    }
+
+    private void ResetAnswers()
+    {
+        foreach (var item in ActiveQuestions)
+        {
+            item.UserChoice = null;
+        }
+        ShowAllSolutions = false;
+    }
+
+    private void ShuffleOrder()
+    {
+        var rnd = new Random();
+        ActiveQuestions = ActiveQuestions.OrderBy(_ => rnd.Next()).ToList();
+        CurrentFocusIndex = 0;
+    }
+
+    private void ToggleRevealAll()
+    {
+        ShowAllSolutions = !ShowAllSolutions;
+    }
+
+    private void PreviousCard()
+    {
+        if (CurrentFocusIndex > 0) CurrentFocusIndex--;
+    }
+
+    private void NextCard()
+    {
+        if (CurrentFocusIndex < ActiveQuestions.Count - 1) CurrentFocusIndex++;
+    }
+}

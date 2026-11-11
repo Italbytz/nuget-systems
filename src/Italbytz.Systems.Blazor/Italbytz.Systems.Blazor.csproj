@@ -26,6 +26,9 @@
     <ProjectReference Include="..\Italbytz.OperatingSystems.Abstractions\Italbytz.OperatingSystems.Abstractions.csproj" />
     <PackageReference Include="Italbytz.Graph" />
     <PackageReference Include="Italbytz.Graph.Abstractions" />
+    <PackageReference Include="Italbytz.Exam.Networking" />
+    <PackageReference Include="Italbytz.Exam.OperatingSystems" />
+    <PackageReference Include="Italbytz.Trivia.Abstractions" />
   </ItemGroup>
 
 </Project>
