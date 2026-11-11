@@ -20,25 +20,34 @@
 
     <!-- Toolbar / Topic Switcher & Mode Switcher -->
     <div class="quiz-toolbar no-print">
-        <div class="topic-selector">
-            <button class="topic-btn @(CurrentTopic == "os" ? "active" : "")" 
-                    @onclick='() => SelectTopic("os")'>
-                💻 Betriebssysteme (BS)
-            </button>
-            <button class="topic-btn @(CurrentTopic == "cn" ? "active" : "")" 
-                    @onclick='() => SelectTopic("cn")'>
-                🌐 Rechnernetze (CN)
-            </button>
-        </div>
+        @if (!IsSheetMode)
+        {
+            <div class="topic-selector">
+                <button class="topic-btn @(CurrentTopic == "os" ? "active" : "")" 
+                        @onclick='() => SelectTopic("os")'>
+                    💻 Betriebssysteme (BS)
+                </button>
+                <button class="topic-btn @(CurrentTopic == "cn" ? "active" : "")" 
+                        @onclick='() => SelectTopic("cn")'>
+                    🌐 Rechnernetze (CN)
+                </button>
+            </div>
+        }
+        else
+        {
+            <div class="topic-badge-static">
+                <span>@(CurrentTopic == "os" ? "💻 Betriebssysteme" : "🌐 Rechnernetze") &bull; Übungsblatt-Selbsttest</span>
+            </div>
+        }
 
         <div class="view-switch">
             <button class="view-btn @(ViewMode == "list" ? "active" : "")"
                     @onclick='() => SetViewMode("list")'>
-                📋 Blatt-Ansicht (Alle)
+                📋 Blatt-Ansicht
             </button>
             <button class="view-btn @(ViewMode == "focus" ? "active" : "")"
                     @onclick='() => SetViewMode("focus")'>
-                🎯 Fokus-Modus (Karten)
+                🎯 Fokus-Modus
             </button>
             <button class="view-btn theme-toggle-btn"
                     title="Zwischen Hell- und Dunkelmodus wechseln"
@@ -55,13 +64,10 @@
             <div class="sheet-banner-content">
                 <span class="sheet-icon">🎯</span>
                 <div>
-                    <strong>Probeklausur / Übungsblatt-Fragen geladen:</strong>
-                    <span>@ActiveQuestions.Count Fragen entsprechend Ihrem generierten Aufgabenblatt.</span>
+                    <strong>Übungsblatt-Fragen geladen:</strong>
+                    <span>@ActiveQuestions.Count Fragen entsprechend Ihrem Aufgabenblatt. Wählen Sie Ihre Antworten, um die Auswertung und Musterlösung zu prüfen.</span>
                 </div>
             </div>
-            <button class="btn btn-sm btn-outline-primary" @onclick="LoadAllQuestions">
-                Alle @(CurrentTopic == "os" ? "Betriebssystem" : "Netzwerk")-Fragen anzeigen
-            </button>
         </div>
     }
 
@@ -98,16 +104,13 @@
             <button class="action-btn" @onclick="ShuffleOrder" title="Reihenfolge zufällig mischen">
                 🔀 Mischen
             </button>
-            <button class="action-btn" @onclick="ToggleRevealAll" title="Musterlösung für alle Fragen ein- oder ausblenden">
-                @(ShowAllSolutions ? "🙈 Lösungen verbergen" : "👁️ Alle Lösungen aufdecken")
-            </button>
         </div>
 
         @if (!IsSheetMode)
         {
             <div class="btn-group-right">
-                <button class="action-btn exam-mode-btn" @onclick="SampleExamSet">
-                    🎲 Zufällige Klausurauswahl (@(CurrentTopic == "os" ? "9" : "12") Fragen)
+                <button class="action-btn exam-mode-btn" @onclick="() => SampleExamSet(8)">
+                    🎲 Neue Zufallsrunde (8 Fragen)
                 </button>
             </div>
         }
@@ -155,7 +158,7 @@
                         var answered = item.UserChoice.HasValue;
                         var isCorrect = answered && item.UserChoice == item.Answer;
                         var isWrong = answered && item.UserChoice != item.Answer;
-                        var showSolution = ShowAllSolutions || answered;
+                        var showSolution = answered;
 
                         <tr class="question-row @(isCorrect ? "row-correct" : (isWrong ? "row-wrong" : ""))">
                             <td class="cell-nr">
@@ -228,7 +231,7 @@
             var answered = item.UserChoice.HasValue;
             var isCorrect = answered && item.UserChoice == item.Answer;
             var isWrong = answered && item.UserChoice != item.Answer;
-            var showSolution = ShowAllSolutions || answered;
+            var showSolution = answered;
 
             <div class="focus-card @(isCorrect ? "card-correct" : (isWrong ? "card-wrong" : ""))">
                 <div class="focus-card-header">
@@ -256,7 +259,7 @@
                     </button>
                 </div>
 
-                @if (answered || ShowAllSolutions)
+                @if (answered)
                 {
                     <div class="feedback-banner @(isCorrect ? "feedback-success" : "feedback-danger")">
                         @if (isCorrect)
@@ -331,7 +334,6 @@
     private string ViewMode = "list"; // "list" | "focus"
     private bool IsDark = false;
     private bool IsSheetMode = false;
-    private bool ShowAllSolutions = false;
     private int CurrentFocusIndex = 0;
     private string SelectedCategory = "";
 
@@ -434,7 +436,7 @@
             {
                 IsSheetMode = false;
                 ViewMode = viewParam ?? "list";
-                ActiveQuestions = AllCatalogQuestions.ToList();
+                SampleExamSet(8);
             }
 
             UpdateCategories();
@@ -442,7 +444,7 @@
         catch
         {
             LoadCatalog(CurrentTopic);
-            ActiveQuestions = AllCatalogQuestions.ToList();
+            SampleExamSet(8);
             UpdateCategories();
         }
     }
@@ -530,7 +532,7 @@
         }
         else
         {
-            ActiveQuestions = AllCatalogQuestions.ToList();
+            SampleExamSet(8);
         }
     }
 
@@ -548,9 +550,8 @@
         CurrentTopic = topic;
         IsSheetMode = false;
         SelectedCategory = "";
-        ShowAllSolutions = false;
         LoadCatalog(topic);
-        ActiveQuestions = AllCatalogQuestions.ToList();
+        SampleExamSet(8);
         UpdateCategories();
         CurrentFocusIndex = 0;
     }
@@ -565,31 +566,27 @@
         IsDark = !IsDark;
     }
 
-    private void LoadAllQuestions()
-    {
-        IsSheetMode = false;
-        SelectedCategory = "";
-        ActiveQuestions = AllCatalogQuestions.ToList();
-        CurrentFocusIndex = 0;
-    }
-
     private void FilterCategory(string cat)
     {
         SelectedCategory = cat;
         if (string.IsNullOrEmpty(cat))
         {
-            ActiveQuestions = AllCatalogQuestions.ToList();
+            SampleExamSet(8);
         }
         else
         {
-            ActiveQuestions = AllCatalogQuestions.Where(q => q.Category == cat).ToList();
+            var rnd = new Random();
+            ActiveQuestions = AllCatalogQuestions
+                .Where(q => q.Category == cat)
+                .OrderBy(_ => rnd.Next())
+                .Take(8)
+                .ToList();
         }
         CurrentFocusIndex = 0;
     }
 
-    private void SampleExamSet()
+    private void SampleExamSet(int count = 8)
     {
-        int count = CurrentTopic == "os" ? 9 : 12;
         var rnd = new Random();
         IYesNoQuestion[] rawQuestions = CurrentTopic == "cn" 
             ? Italbytz.Exam.Networking.YesNoQuestions.Questions 
@@ -630,8 +627,6 @@
         }
 
         ActiveQuestions = sampled;
-        IsSheetMode = true;
-        ShowAllSolutions = false;
         CurrentFocusIndex = 0;
     }
 
@@ -653,7 +648,6 @@
         {
             item.UserChoice = null;
         }
-        ShowAllSolutions = false;
     }
 
     private void ShuffleOrder()
@@ -661,11 +655,6 @@
         var rnd = new Random();
         ActiveQuestions = ActiveQuestions.OrderBy(_ => rnd.Next()).ToList();
         CurrentFocusIndex = 0;
-    }
-
-    private void ToggleRevealAll()
-    {
-        ShowAllSolutions = !ShowAllSolutions;
     }
 
     private void PreviousCard()
