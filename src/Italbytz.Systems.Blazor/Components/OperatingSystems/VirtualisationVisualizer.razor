@@ -2,7 +2,7 @@
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 
-<article class="virt-container @(IsEmbed ? "embed-mode" : "") @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
+<article class="virt-container @(IsEmbed ? "embed-mode" : "") @ThemeClass @(ActiveView == ViewMode.Worksheet ? "worksheet-container" : "")">
 
     @if (!IsEmbed && ActiveView != ViewMode.Worksheet)
     {
@@ -26,7 +26,11 @@
                     @onclick="() => SetView(ViewMode.Simulator)">
                 🚀 Interaktiver Schichten-Explorer &amp; Architekturvergleich
             </button>
-            
+            <button class="view-btn theme-toggle-btn"
+                    title="Zwischen Hell- und Dunkelmodus wechseln"
+                    @onclick="ToggleTheme">
+                @(IsDark ? "☀️ Hell" : "🌙 Dunkel")
+            </button>
         </div>
     }
 
@@ -88,7 +92,7 @@
                         bool isSelected = (SelectedLayerIndex == layerIdx);
 
                         <div class="layer-block @(isSelected ? "layer-active" : "") @(layer.SpecialClass)"
-                             style="border-color: @(isSelected ? CurrentTech.AccentColor : layer.BorderColor); background: @layer.BgColor;"
+                             style="border-color: @(isSelected ? CurrentTech.AccentColor : GetLayerBorderColor(layer)); background: @GetLayerBgColor(layer);"
                              @onclick="() => SelectLayer(layerIdx)">
                             <div class="layer-info">
                                 <span class="layer-level">#@layerIdx</span>
@@ -492,6 +496,8 @@
     private bool ShowTaxonomy { get; set; } = true;
     private string SelectedTechId { get; set; } = "partition";
     private int SelectedLayerIndex { get; set; } = 0;
+    private bool IsDark { get; set; } = false;
+    private string ThemeClass => IsDark ? "theme-dark" : "theme-light";
 
     private bool[] ShowAnswers { get; set; } = new bool[4] { false, false, false, false };
 
@@ -560,6 +566,14 @@
                 {
                     ShowSolution = true;
                 }
+                if (query.Contains("theme=dark", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsDark = true;
+                }
+                else if (query.Contains("theme=light", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsDark = false;
+                }
                 if (query.Contains("embed=true", StringComparison.OrdinalIgnoreCase) || query.Contains("embedded=true", StringComparison.OrdinalIgnoreCase))
                 {
                     IsEmbed = true;
@@ -568,6 +582,35 @@
             }
         }
         catch { }
+    }
+
+    private void ToggleTheme()
+    {
+        IsDark = !IsDark;
+    }
+
+    private string GetLayerBgColor(TechLayer layer)
+    {
+        if (IsDark) return layer.BgColor;
+        if (layer.RoleTag.Contains("Hardware") || layer.RoleTag.Contains("Bare Metal") || layer.RoleTag.Contains("Intel VT-x"))
+            return "#f1f5f9";
+        if (layer.RoleTag.Contains("Hypervisor") || layer.RoleTag.Contains("VMM") || layer.RoleTag.Contains("Partitionierung") || layer.RoleTag.Contains("Firmware"))
+            return "#f5f3ff";
+        if (layer.RoleTag.Contains("Host") || layer.RoleTag.Contains("Kernel"))
+            return "#eff6ff";
+        return "#f0fdf4";
+    }
+
+    private string GetLayerBorderColor(TechLayer layer)
+    {
+        if (IsDark) return layer.BorderColor;
+        if (layer.RoleTag.Contains("Hardware") || layer.RoleTag.Contains("Bare Metal") || layer.RoleTag.Contains("Intel VT-x"))
+            return "#cbd5e1";
+        if (layer.RoleTag.Contains("Hypervisor") || layer.RoleTag.Contains("VMM") || layer.RoleTag.Contains("Partitionierung") || layer.RoleTag.Contains("Firmware"))
+            return "#c084fc";
+        if (layer.RoleTag.Contains("Host") || layer.RoleTag.Contains("Kernel"))
+            return "#93c5fd";
+        return "#86efac";
     }
 
     private void SetView(ViewMode mode)
