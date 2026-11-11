@@ -449,12 +449,15 @@
         }
     }
 
+    private IYesNoQuestion[] GetRawQuestions(string topic) =>
+        topic == "cn" 
+            ? SystemsQuizCatalog.NetworkingQuestions 
+            : SystemsQuizCatalog.OperatingSystemsQuestions;
+
     private void LoadCatalog(string topic)
     {
         AllCatalogQuestions.Clear();
-        IYesNoQuestion[] rawQuestions = topic == "cn" 
-            ? Italbytz.Exam.Networking.YesNoQuestions.Questions 
-            : Italbytz.Exam.OperatingSystems.YesNoQuestions.Questions;
+        IYesNoQuestion[] rawQuestions = GetRawQuestions(topic);
 
         for (int i = 0; i < rawQuestions.Length; i++)
         {
@@ -472,9 +475,7 @@
 
     private void ParseQuestionCodes(string qParam)
     {
-        IYesNoQuestion[] rawQuestions = CurrentTopic == "cn" 
-            ? Italbytz.Exam.Networking.YesNoQuestions.Questions 
-            : Italbytz.Exam.OperatingSystems.YesNoQuestions.Questions;
+        IYesNoQuestion[] rawQuestions = GetRawQuestions(CurrentTopic);
 
         var tokens = qParam.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries);
         var parsedList = new List<QuizItem>();
@@ -588,9 +589,7 @@
     private void SampleExamSet(int count = 8)
     {
         var rnd = new Random();
-        IYesNoQuestion[] rawQuestions = CurrentTopic == "cn" 
-            ? Italbytz.Exam.Networking.YesNoQuestions.Questions 
-            : Italbytz.Exam.OperatingSystems.YesNoQuestions.Questions;
+        IYesNoQuestion[] rawQuestions = GetRawQuestions(CurrentTopic);
 
         var chosenIndices = Enumerable.Range(0, rawQuestions.Length)
             .OrderBy(_ => rnd.Next())
