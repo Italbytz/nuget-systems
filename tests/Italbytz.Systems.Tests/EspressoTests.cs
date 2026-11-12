@@ -282,6 +282,28 @@ public class EspressoTests
         }
     }
 
+    [TestMethod]
+    public void TestPlaCustomTermEvaluation()
+    {
+        // Test TiPla Variant A Teil 1 terms: 00-1, 0-10, 1-0-
+        var plaText = ".i 4\n.o 1\n.p 3\n00-1 1\n0-10 1\n1-0- 1\n.e";
+        var parsed = PlaFormat.TryParsePla(plaText, out var vars, out var truthValues, out var err);
+        Assert.IsTrue(parsed, err);
+        Assert.AreEqual(4, vars);
+
+        // Check expected minterms from TIPLA Teil 1:
+        // 00-1: 0001 (1), 0011 (3)
+        // 0-10: 0010 (2), 0110 (6)
+        // 1-0-: 1000 (8), 1001 (9), 1100 (12), 1101 (13)
+        // Total ones: {1, 2, 3, 6, 8, 9, 12, 13}
+        int[] expectedOnes = [1, 2, 3, 6, 8, 9, 12, 13];
+        for (int i = 0; i < 16; i++)
+        {
+            var expected = expectedOnes.Contains(i) ? 1 : 0;
+            Assert.AreEqual(expected, truthValues[i], $"Mismatch at minterm {i}");
+        }
+    }
+
     private static string FormatTerm(int variableCount, int fixedBits, int mask)
     {
         var literals = new List<string>();

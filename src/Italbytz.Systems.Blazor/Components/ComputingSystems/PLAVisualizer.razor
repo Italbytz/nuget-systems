@@ -1,5 +1,7 @@
 @using Microsoft.AspNetCore.Components
 @using Microsoft.JSInterop
+@using System.Text
+@using Italbytz.ComputingSystems
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 
@@ -35,6 +37,12 @@
                     <button class="btn-preset @(SelectedPreset == 1 ? "active" : "")" @onclick="() => LoadPreset(1)">
                         Beispiel 2 (Folien)
                     </button>
+                    @if (SelectedPreset == -1)
+                    {
+                        <button class="btn-preset active" disabled>
+                            ⚡ Individuell (@ProductTerms.Count Terme)
+                        </button>
+                    }
                 </div>
             </div>
         </div>
@@ -249,7 +257,7 @@
                                     var x2 = (r >> 2) & 1;
                                     var x3 = (r >> 1) & 1;
                                     var x4 = r & 1;
-                                    var ySol = EvaluatePlaForPreset0(x1, x2, x3, x4);
+                                    var ySol = EvaluatePla(x1, x2, x3, x4);
 
                                     <tr>
                                         <td>@x1</td>
@@ -270,10 +278,11 @@
                         <div class="ws-solution-explanation">
                             <strong>Musterlösung Teilaufgabe 1:</strong>
                             <div class="sol-grid-2col">
-                                <div>&bull; <code>000- 1</code> &rArr; &not;x₁ &and; &not;x₂ &and; &not;x₃ (0000, 0001) &rarr; y = 1</div>
-                                <div>&bull; <code>01-1 1</code> &rArr; &not;x₁ &and; x₂ &and; x₄ (0101, 0111) &rarr; y = 1</div>
-                                <div>&bull; <code>1--0 1</code> &rArr; x₁ &and; &not;x₄ (1000, 1010, 1100, 1110) &rarr; y = 1</div>
-                                <div>&bull; Alle übrigen 8 Zeilen der Tabelle ergeben y = 0.</div>
+                                @foreach (var term in ProductTerms)
+                                {
+                                    <div>&bull; <code>@term.Pattern @term.Output</code> &rArr; @GetTermFormula(term) &rarr; y = @term.Output</div>
+                                }
+                                <div>&bull; Alle übrigen Zeilen der Tabelle ergeben y = 0.</div>
                             </div>
                         </div>
                     }
@@ -302,10 +311,12 @@
                                 An den Kreuzungspunkten der horizontalen Schienen mit den vertikalen Eingängen der AND-Gatter werden Koppelpunkte gesetzt:
                             </p>
                             <ul>
-                                <li><strong>AND-Gatter P₀ (<code>000-</code>):</strong> Verbunden mit &not;x₁, &not;x₂ und &not;x₃.</li>
-                                <li><strong>AND-Gatter P₁ (<code>01-1</code>):</strong> Verbunden mit &not;x₁, x₂ und x₄.</li>
-                                <li><strong>AND-Gatter P₂ (<code>1--0</code>):</strong> Verbunden mit x₁ und &not;x₄.</li>
-                                <li><strong>OR-Gatter:</strong> Alle 3 Ausgänge der AND-Gatter werden mit dem OR-Gatter verknüpft.</li>
+                                @for (int p = 0; p < ProductTerms.Count; p++)
+                                {
+                                    var term = ProductTerms[p];
+                                    <li><strong>AND-Gatter P@(p) (<code>@term.Pattern</code>):</strong> Verbunden mit @GetTermConnectedInputsDescription(term).</li>
+                                }
+                                <li><strong>OR-Gatter:</strong> Alle @ProductTerms.Count Ausgänge der AND-Gatter werden mit dem OR-Gatter verknüpft.</li>
                             </ul>
                         </div>
                     }
@@ -334,6 +345,10 @@
         }
     }
 
+    [Parameter] public string? Terms { get; set; }
+    [Parameter] public string? Pla { get; set; }
+    [Parameter] public string? Preset { get; set; }
+
     private ViewMode ActiveView = ViewMode.StepByStep;
     private bool ShowSolution = false;
     private bool IsEmbed = false;
@@ -352,38 +367,125 @@
 
     protected override void OnInitialized()
     {
-        ReadQueryParameters();
-        LoadPreset(0);
+        InitializeFromParametersOrQuery();
     }
 
     protected override void OnParametersSet()
     {
-        ReadQueryParameters();
+        InitializeFromParametersOrQuery();
     }
 
-    private void ReadQueryParameters()
+    private void InitializeFromParametersOrQuery()
     {
         try
         {
             var uri = new Uri(NavigationManager.Uri);
             var query = uri.Query;
+            var queryDict = ParseQueryString(query);
+
             if (!string.IsNullOrEmpty(query))
             {
                 if (query.Contains("view=worksheet", StringComparison.OrdinalIgnoreCase))
                 {
                     ActiveView = ViewMode.Worksheet;
                 }
+                else if (query.Contains("view=stepbystep", StringComparison.OrdinalIgnoreCase) || query.Contains("view=simulator", StringComparison.OrdinalIgnoreCase))
+                {
+                    ActiveView = ViewMode.StepByStep;
+                }
+
                 if (query.Contains("solution=true", StringComparison.OrdinalIgnoreCase))
                 {
                     ShowSolution = true;
                 }
+
                 if (query.Contains("embed=true", StringComparison.OrdinalIgnoreCase) || query.Contains("embedded=true", StringComparison.OrdinalIgnoreCase))
                 {
                     IsEmbed = true;
                 }
             }
+
+            string? termsParam = Terms;
+            if (string.IsNullOrEmpty(termsParam))
+            {
+                if (queryDict.TryGetValue("terms", out var tVal)) termsParam = tVal;
+                else if (queryDict.TryGetValue("term", out var tmVal)) termsParam = tmVal;
+                else if (queryDict.TryGetValue("t", out var sVal)) termsParam = sVal;
+                else if (queryDict.TryGetValue("cubes", out var cVal)) termsParam = cVal;
+            }
+
+            string? plaParam = Pla;
+            if (string.IsNullOrEmpty(plaParam))
+            {
+                if (queryDict.TryGetValue("pla", out var pVal)) plaParam = pVal;
+            }
+
+            string? presetParam = Preset;
+            if (string.IsNullOrEmpty(presetParam))
+            {
+                if (queryDict.TryGetValue("preset", out var prVal)) presetParam = prVal;
+                else if (queryDict.TryGetValue("p", out var pr2Val)) presetParam = pr2Val;
+            }
+
+            if (!string.IsNullOrWhiteSpace(termsParam))
+            {
+                LoadTerms(termsParam);
+            }
+            else if (!string.IsNullOrWhiteSpace(plaParam))
+            {
+                LoadPla(plaParam);
+            }
+            else if (!string.IsNullOrWhiteSpace(presetParam))
+            {
+                var p = presetParam.Trim().ToLowerInvariant();
+                if (p == "1" || p == "folien" || p == "slides" || p == "b" || p == "example2")
+                {
+                    LoadPreset(1);
+                }
+                else
+                {
+                    LoadPreset(0);
+                }
+            }
+            else
+            {
+                if (ProductTerms.Count == 0)
+                {
+                    LoadPreset(0);
+                }
+            }
         }
-        catch { }
+        catch
+        {
+            if (ProductTerms.Count == 0)
+            {
+                LoadPreset(0);
+            }
+        }
+    }
+
+    private static Dictionary<string, string> ParseQueryString(string query)
+    {
+        var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrEmpty(query)) return dict;
+        if (query.StartsWith("?")) query = query.Substring(1);
+        var pairs = query.Split('&', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var pair in pairs)
+        {
+            var idx = pair.IndexOf('=');
+            if (idx >= 0)
+            {
+                var key = Uri.UnescapeDataString(pair.Substring(0, idx));
+                var val = Uri.UnescapeDataString(pair.Substring(idx + 1));
+                dict[key] = val;
+            }
+            else
+            {
+                var key = Uri.UnescapeDataString(pair);
+                dict[key] = "";
+            }
+        }
+        return dict;
     }
 
     private void SetView(ViewMode mode) => ActiveView = mode;
@@ -402,7 +504,7 @@
             ProductTerms.Add(new PlaTerm("01-1", 1));
             ProductTerms.Add(new PlaTerm("1--0", 1));
 
-            PlaCode = ".i 4\n.o 1\n.ilb x1 x2 x3 x4\n.ob y\n.p 3\n000- 1\n01-1 1\n1--0 1\n.e";
+            BuildPlaCode();
             InputX1 = 0;
             InputX2 = 1;
             InputX3 = 0;
@@ -415,11 +517,137 @@
             ProductTerms.Add(new PlaTerm("001-", 1));
             ProductTerms.Add(new PlaTerm("111-", 1));
 
-            PlaCode = ".i 4\n.o 1\n.ilb x1 x2 x3 x4\n.ob y\n.p 4\n100- 1\n010- 1\n001- 1\n111- 1\n.e";
+            BuildPlaCode();
             InputX1 = 1;
             InputX2 = 0;
             InputX3 = 0;
             InputX4 = 0;
+        }
+    }
+
+    private void LoadTerms(string termsInput)
+    {
+        SelectedPreset = -1;
+        CurrentStep = 0;
+        ProductTerms.Clear();
+
+        var tokens = termsInput.Split(new[] { ',', ';', '|', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        foreach (var token in tokens)
+        {
+            var raw = token.Trim();
+            if (string.IsNullOrEmpty(raw)) continue;
+
+            var parts = raw.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+            var pat = parts[0].Trim().Replace('x', '-').Replace('X', '-');
+            int outVal = 1;
+            if (parts.Length > 1 && int.TryParse(parts[1], out var parsedOut))
+            {
+                outVal = parsedOut;
+            }
+
+            if (pat.Length < 4)
+            {
+                pat = pat.PadRight(4, '-');
+            }
+            else if (pat.Length > 4)
+            {
+                pat = pat.Substring(0, 4);
+            }
+
+            ProductTerms.Add(new PlaTerm(pat, outVal));
+        }
+
+        if (ProductTerms.Count == 0)
+        {
+            LoadPreset(0);
+            return;
+        }
+
+        BuildPlaCode();
+        ResetInputsForTerms();
+    }
+
+    private void LoadPla(string plaInput)
+    {
+        SelectedPreset = -1;
+        CurrentStep = 0;
+        ProductTerms.Clear();
+
+        string text = plaInput.Trim();
+        if (!text.Contains('\n') && !text.Contains(' ') && text.Length > 16)
+        {
+            try
+            {
+                var bytes = Convert.FromBase64String(text);
+                text = Encoding.UTF8.GetString(bytes);
+            }
+            catch { }
+        }
+
+        var lines = text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        foreach (var rawLine in lines)
+        {
+            var line = rawLine.Trim();
+            if (string.IsNullOrEmpty(line) || line.StartsWith("#") || line.StartsWith("."))
+            {
+                continue;
+            }
+
+            var parts = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length > 0)
+            {
+                var pat = parts[0].Trim().Replace('x', '-').Replace('X', '-');
+                int outVal = 1;
+                if (parts.Length > 1 && int.TryParse(parts[1], out var parsedOut))
+                {
+                    outVal = parsedOut;
+                }
+                if (pat.Length < 4) pat = pat.PadRight(4, '-');
+                else if (pat.Length > 4) pat = pat.Substring(0, 4);
+
+                ProductTerms.Add(new PlaTerm(pat, outVal));
+            }
+        }
+
+        if (ProductTerms.Count == 0)
+        {
+            LoadPreset(0);
+            return;
+        }
+
+        BuildPlaCode();
+        ResetInputsForTerms();
+    }
+
+    private void BuildPlaCode()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine(".i 4");
+        sb.AppendLine(".o 1");
+        sb.AppendLine(".ilb x1 x2 x3 x4");
+        sb.AppendLine(".ob y");
+        sb.AppendLine($".p {ProductTerms.Count}");
+        foreach (var term in ProductTerms)
+        {
+            sb.AppendLine($"{term.Pattern} {term.Output}");
+        }
+        sb.Append(".e");
+        PlaCode = sb.ToString();
+    }
+
+    private void ResetInputsForTerms()
+    {
+        if (ProductTerms.Count > 0)
+        {
+            var first = ProductTerms[0];
+            InputX1 = first.Pattern[0] == '1' ? 1 : 0;
+            InputX2 = first.Pattern[1] == '1' ? 1 : 0;
+            InputX3 = first.Pattern[2] == '1' ? 1 : 0;
+            InputX4 = first.Pattern[3] == '1' ? 1 : 0;
+        }
+        else
+        {
+            InputX1 = 0; InputX2 = 0; InputX3 = 0; InputX4 = 0;
         }
     }
 
@@ -521,12 +749,20 @@
         return 0;
     }
 
-    private int EvaluatePlaForPreset0(int x1, int x2, int x3, int x4)
+    private string GetTermConnectedInputsDescription(PlaTerm term)
     {
-        if (x1 == 0 && x2 == 0 && x3 == 0) return 1;
-        if (x1 == 0 && x2 == 1 && x4 == 1) return 1;
-        if (x1 == 1 && x4 == 0) return 1;
-        return 0;
+        var parts = new List<string>();
+        for (int i = 0; i < term.Pattern.Length; i++)
+        {
+            char c = term.Pattern[i];
+            int varNum = i + 1;
+            if (c == '0') parts.Add($"¬x{varNum}");
+            else if (c == '1') parts.Add($"x{varNum}");
+        }
+        if (parts.Count == 0) return "keinen Eingängen (Konstante 1)";
+        if (parts.Count == 1) return parts[0];
+        if (parts.Count == 2) return $"{parts[0]} und {parts[1]}";
+        return $"{string.Join(", ", parts.Take(parts.Count - 1))} und {parts.Last()}";
     }
 
     private RenderFragment RenderPlaSvg(bool isInteractive, bool showSolutions) => builder =>
@@ -534,11 +770,14 @@
         int numInputs = 4;
         int numTerms = ProductTerms.Count;
 
-        double svgWidth = 840;
+        double railStartX = 330;
+        double andGateSpacing = 105;
+        double andGateStartX = railStartX + 55;
+        double minRailEndX = 760;
+        double railEndX = Math.Max(minRailEndX, andGateStartX + Math.Max(0, numTerms - 1) * andGateSpacing + 70);
+        double svgWidth = Math.Max(840, railEndX + 80);
         double svgHeight = 620;
 
-        double railStartX = 330;
-        double railEndX = 760;
         double railSpacing = 36;
         double firstRailY = 40;
 
@@ -629,8 +868,6 @@
 
         // 2. PRODUCT TERMS / AND GATES (BOTTOM OF MATRIX)
         double andGateY = firstRailY + (numInputs * 2 * railSpacing) + 50;
-        double andGateSpacing = 105;
-        double andGateStartX = railStartX + 55;
 
         List<double> andOutputXList = new();
         List<bool> andOutputValList = new();
@@ -696,7 +933,7 @@
 
         // 3. DISJUNCTION MATRIX (OR GATE AT BOTTOM)
         double orGateY = andGateY + 95;
-        double orGateCenterX = andOutputXList.Average();
+        double orGateCenterX = andOutputXList.Count > 0 ? andOutputXList.Average() : (railStartX + 100);
         double orWidth = 76;
         double orHeight = 48;
 
@@ -706,7 +943,9 @@
             double fromY = andGateY + 42 + 14;
             bool isTermOn = andOutputValList[p];
 
-            double targetX = orGateCenterX - 22 + (p * (44.0 / Math.Max(1, numTerms - 1)));
+            double targetX = numTerms > 1
+                ? (orGateCenterX - 22 + (p * (44.0 / (numTerms - 1))))
+                : orGateCenterX;
             double targetY = orGateY;
             string orInLineColor = isTermOn ? activeWireColor : baseWireColor;
 
